@@ -33,7 +33,7 @@ exercised).
 
 - [x] M1-T01 Fixture-root test harness and file factory (SAF-016)
 - [x] M1-T02 Path guard and protected locations, with the full test matrix (SAF-007, 8.4)
-- [ ] M1-T03 History log writer and reader (SAF-005, HIS-001)
+- [x] M1-T03 History log writer and reader (SAF-005, HIS-001)
 - [ ] M1-T04 Trash executor with re-validation and per-item outcomes (SAF-004, SAF-008, SAF-011). Adds the
   `ShuckExecutionTests` target.
 - [ ] M1-T05 Restore (HIS-003, HIS-004)

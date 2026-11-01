@@ -19,7 +19,7 @@ public struct PathGuardConfiguration: Sendable, Equatable {
         // Music and TV libraries in their default places. Photos libraries are matched by extension.
         "Music/Music", "Movies/TV",
         // Shuck's own data folder (D-21).
-        "Library/Application Support/me.nutabi.shuck",
+        ShuckKit.dataFolder,
     ]
 
     /// Bundles protected wherever they are: Photos, iPhoto, Music and TV libraries, and Time Machine backups.
