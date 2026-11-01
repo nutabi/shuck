@@ -4,7 +4,7 @@ import Foundation
 ///
 /// The executor writes an intent record before each operation and a result record after it (SAF-005, SAF-006), so
 /// after a crash the log still shows what was about to happen. Build records with ``intent(run:tool:operation:path:
-/// tier:bytes:)`` and ``result(run:tool:operation:path:tier:status:trashedPath:bytes:detail:)``.
+/// tier:trashedPath:bytes:)`` and ``result(run:tool:operation:path:tier:status:trashedPath:bytes:detail:)``.
 public struct HistoryRecord: Codable, Equatable, Sendable {
     /// The schema version this code writes and reads.
     public static let currentVersion = 1
@@ -34,9 +34,11 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
     public let tool: ToolID
     public let phase: Phase
     public let operation: Operation
-    /// The original path; the tool name for a `tool` operation; the job label for `launchctl`.
+    /// The original path; the tool name for a `tool` operation; the job label for `launchctl`. For `restore`, where
+    /// the item is put back: the original path, or a " (restored)" name next to it (D-52).
     public let path: String
-    /// Where the item went in the Trash, from `resultingItemURL` (SAF-005). Result records of `trash` only.
+    /// Where the item went in the Trash, from `resultingItemURL` (SAF-005): result records of `trash`. For `restore`,
+    /// intent and result records, the trashed path the item is taken from, which links it to its `trash` record (D-52).
     public let trashedPath: String?
     /// The allocated size estimate in bytes.
     public let bytes: Int64?
@@ -56,12 +58,13 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
 
     /// The record written just before an operation.
     public static func intent(
-        run: UUID, tool: ToolID, operation: Operation, path: String, tier: Tier, bytes: Int64? = nil,
-        timestamp: Date = Date()
+        run: UUID, tool: ToolID, operation: Operation, path: String, tier: Tier, trashedPath: String? = nil,
+        bytes: Int64? = nil, timestamp: Date = Date()
     ) -> Self {
         Self(
             version: currentVersion, timestamp: timestamp, run: run, tool: tool, phase: .intent,
-            operation: operation, path: path, trashedPath: nil, bytes: bytes, tier: tier, status: nil, detail: nil)
+            operation: operation, path: path, trashedPath: trashedPath, bytes: bytes, tier: tier, status: nil,
+            detail: nil)
     }
 
     /// The record written just after an operation, with its outcome (SAF-011).

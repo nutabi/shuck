@@ -43,7 +43,11 @@ public struct ItemSnapshot: Equatable, Sendable {
     /// Whether `current` still matches this planned snapshot: the same kind, and a size within
     /// 64 KiB or 1%, whichever is larger (D-48).
     public func matches(_ current: ItemSnapshot) -> Bool {
-        let tolerance = max(64 * 1024, allocatedSize / 100)
-        return kind == current.kind && abs(current.allocatedSize - allocatedSize) <= tolerance
+        kind == current.kind && Self.sizeMatches(planned: allocatedSize, current: current.allocatedSize)
+    }
+
+    /// Whether a size measured now is within 64 KiB or 1% of the planned size, whichever is larger (D-48).
+    public static func sizeMatches(planned: Int64, current: Int64) -> Bool {
+        abs(current - planned) <= max(64 * 1024, planned / 100)
     }
 }
