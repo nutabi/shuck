@@ -58,7 +58,9 @@ jobs:
   analyze:
     name: Analyze (swift)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # Skip only on an explicit "docs only". A skipped job passes the required check, so if `changes` fails or is
+    # cancelled, scan anyway rather than let a pull request merge unscanned.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: xcode-27
     timeout-minutes: 60
     permissions:
