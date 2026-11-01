@@ -62,7 +62,7 @@ shuck/
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
 ├── scripts/                   lint, test, static checks, build-dmg, notarize
-└── .github/                   CI, CodeQL and release workflows, pull request template
+└── .github/                   CI and release workflows, pull request template
 ```
 
 The app target is thin and links the local ShuckKit package. All scanning, planning, safety and execution logic lives in the package (PRD section 11.1):
@@ -111,7 +111,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - **Titles:** the pull request title and every commit title use `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`. `main` is squash-merged, so the pull request title becomes the commit title on `main`.
 - **Commit bodies:** a blank line after the title, then text wrapped at 72 characters explaining what changed and why. End with the requirement IDs, for example `Requirements: SAF-007, SAF-016`.
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
-- **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires `Lint, build and test` and `Analyze (swift)`, which fails on any CodeQL finding, so a pull request merges only when both pass. If a check fails, fix it on the branch (D-51).
+- **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires the `Lint, build and test` check, so a pull request merges once CI passes. If CI fails, fix it on the branch (D-51).
 - **Branches:** every change goes through a pull request; `main` accepts only squash merges of pull requests that pass CI and are up to date (ENG-001). Name the branch after the task in lowercase plus a short slug, for example `m1-t02-path-guard`.
 - **Pull request description** (ENG-003). Fill in every section of `.github/pull_request_template.md`:
   - **Summary.**
