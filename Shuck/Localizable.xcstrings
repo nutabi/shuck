@@ -1,13 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Applications" : {
-
-    },
-    "Caches & Logs" : {
-
-    },
-    "Developer Junk" : {
+    "%@ reclaimable" : {
 
     },
     "Disk space at a glance, and what each sub-tool could reclaim." : {
@@ -19,16 +13,10 @@
     "Exclusions, thresholds and project folders." : {
 
     },
-    "File Cleanup" : {
-
-    },
     "History" : {
 
     },
-    "Large Files" : {
-
-    },
-    "Old Files" : {
+    "Not scanned yet" : {
 
     },
     "Overview" : {
@@ -40,10 +28,22 @@
     "Planned for milestone M5." : {
 
     },
-    "Reclaim space from files, one sub-tool at a time." : {
+    "Scan" : {
 
     },
-    "See what starts automatically and turn off what you don't want." : {
+    "Scan %@" : {
+
+    },
+    "Scan All" : {
+
+    },
+    "Scan with every sub-tool. Scanning never removes anything." : {
+
+    },
+    "Scanned %@" : {
+
+    },
+    "Scanning…" : {
 
     },
     "Select a tool" : {
@@ -52,22 +52,7 @@
     "Settings" : {
 
     },
-    "Startup Items" : {
-
-    },
-    "Uninstall apps together with the files they leave behind." : {
-
-    },
-    "What can developer tools rebuild?" : {
-
-    },
-    "What haven't I opened in a long time?" : {
-
-    },
-    "What is taking the most space?" : {
-
-    },
-    "Which caches and logs can go?" : {
+    "Some folders were not accessible" : {
 
     }
   },

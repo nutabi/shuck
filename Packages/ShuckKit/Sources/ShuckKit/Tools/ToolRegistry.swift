@@ -27,6 +27,11 @@ public struct ToolRegistry: Sendable {
     public func subTool(_ id: ToolID) -> (any SubTool)? {
         subTools.first { $0.id == id }
     }
+
+    /// What the sidebar shows for the tool or sub-tool with `id`.
+    public func info(_ id: ToolID) -> ToolInfo? {
+        tools.first { $0.info.id == id }?.info ?? subTool(id)?.info
+    }
 }
 
 extension ToolRegistry {

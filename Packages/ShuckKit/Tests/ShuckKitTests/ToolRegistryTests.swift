@@ -30,6 +30,12 @@ struct ToolRegistryTests {
         #expect(Set(ids).count == ids.count)
     }
 
+    @Test func infoFindsToolsAndSubTools() {
+        #expect(ToolRegistry.standard.info(.fileCleanup)?.symbolName == "folder")
+        #expect(ToolRegistry.standard.info(.cachesAndLogs)?.symbolName == "tray.full")
+        #expect(ToolRegistry.standard.info(FixtureSubTool.id) == nil)
+    }
+
     @Test func namesAndSummariesComeFromTheEngineCatalog() {
         let largeFiles = ToolRegistry.standard.subTool(.largeFiles)
         #expect(largeFiles.map { String(localized: $0.info.name) } == "Large Files")

@@ -37,10 +37,10 @@ exercised).
 - [x] M1-T04 Trash executor with re-validation and per-item outcomes (SAF-004, SAF-008, SAF-011). Adds the
   `ShuckExecutionTests` target.
 - [x] M1-T05 Restore (HIS-003, HIS-004)
-- [ ] M1-T06 Sub-tool interface, registry and ownership map; File Cleanup landing page (FCL-001 to FCL-005). Replaces
+- [x] M1-T06 Sub-tool interface, registry and ownership map; File Cleanup landing page (FCL-001 to FCL-005). Replaces
   the app's placeholder `SidebarItem`.
   - [x] Engine: `SubTool` protocol, `ScanItem`, `ToolRegistry`, `OwnershipMap`, plans from a sub-tool (D-53).
-  - [ ] App: sidebar built from `ToolRegistry.standard`, File Cleanup landing page (FCL-004), FCL-002 test.
+  - [x] App: sidebar built from `ToolRegistry.standard`, File Cleanup landing page (FCL-004), FCL-002 test (D-54).
 - [ ] M1-T07 Personal-files scanner with shared item state (FCL-006, FCL-008 to FCL-011, SAF-014)
 - [ ] M1-T08 Shared results UI for personal files (FCL-012)
 - [ ] M1-T09 Large Files sub-tool (LRG-001 to LRG-003)
@@ -58,6 +58,10 @@ Left over from M1 tasks:
   Trash for its debug-only fixture-root mode (D-47).
 - [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06) and of `~/go/pkg/mod` (DEV-R14). Both are
   inside the personal-files scope (FCL-008), so the ownership map needs an entry for each (FCL-005, D-53).
+- [ ] M1-T07: the landing page's scans use `ScanContext(home:)` with the real home folder. Before the first sub-tool
+  becomes available, the debug-only fixture-root argument (NFR-QA-002) must reach that context, so UI tests that press
+  Scan never read the real home folder. `FileCleanupModel` keeps only counts; move it onto the shared item state
+  (D-54).
 - [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52).
 

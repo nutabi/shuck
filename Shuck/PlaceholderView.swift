@@ -1,26 +1,31 @@
+import ShuckKit
 import SwiftUI
 
 /// Stands in for a tool's page until its milestone builds it.
 struct PlaceholderView: View {
-    let item: SidebarItem
+    let label: DestinationLabel
 
     var body: some View {
         ContentUnavailableView {
             Label {
-                Text(item.title)
+                Text(label.name)
             } icon: {
-                Image(systemName: item.systemImage)
+                Image(systemName: label.symbolName)
             }
         } description: {
-            Text(item.summary)
+            Text(label.summary)
         } actions: {
-            Text("Planned for milestone \(item.milestone).")
-                .foregroundStyle(.secondary)
+            if case .planned(let milestone) = label.availability {
+                Text("Planned for milestone \(milestone).")
+                    .foregroundStyle(.secondary)
+            }
         }
-        .navigationTitle(Text(item.title))
+        .navigationTitle(Text(label.name))
     }
 }
 
 #Preview {
-    PlaceholderView(item: .largeFiles)
+    if let info = ToolRegistry.standard.info(.largeFiles) {
+        PlaceholderView(label: DestinationLabel(info))
+    }
 }
