@@ -11,23 +11,21 @@ struct EngineLinkTests {
     }
 }
 
-struct SidebarItemTests {
-    @Test func topLevelOrderMatchesPRD() {
-        #expect(SidebarItem.topLevel == [.overview, .fileCleanup, .applications, .startupItems, .history])
+struct SidebarDestinationTests {
+    @Test func everyRegistryToolAndSubToolHasALabel() {
+        let ids = ToolRegistry.standard.tools.map(\.info.id) + ToolRegistry.standard.subTools.map(\.id)
+        for id in ids {
+            #expect(SidebarDestination.tool(id).label(in: .standard) != nil, "No label for \(id.rawValue)")
+        }
     }
 
-    @Test func fileCleanupHasFourSubToolsFCL001() {
-        #expect(SidebarItem.fileCleanupSubTools == [.largeFiles, .oldFiles, .developerJunk, .cachesAndLogs])
+    @Test func anUnknownToolHasNoLabel() {
+        #expect(SidebarDestination.tool(ToolID(rawValue: "XXX")).label(in: .standard) == nil)
     }
 
-    @Test func everyItemAppearsExactlyOnce() {
-        let shown = SidebarItem.topLevel + SidebarItem.fileCleanupSubTools
-        #expect(shown.count == SidebarItem.allCases.count)
-        #expect(Set(shown) == Set(SidebarItem.allCases))
-    }
-
-    @Test(arguments: SidebarItem.allCases)
-    func symbolExists(item: SidebarItem) {
-        #expect(NSImage(systemSymbolName: item.systemImage, accessibilityDescription: nil) != nil)
+    @Test(arguments: [SidebarDestination.overview, .history, .tool(.fileCleanup), .tool(.largeFiles)])
+    func symbolExists(destination: SidebarDestination) throws {
+        let label = try #require(destination.label(in: .standard))
+        #expect(NSImage(systemSymbolName: label.symbolName, accessibilityDescription: nil) != nil)
     }
 }
