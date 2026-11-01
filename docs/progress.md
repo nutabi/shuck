@@ -36,7 +36,7 @@ exercised).
 - [x] M1-T03 History log writer and reader (SAF-005, HIS-001)
 - [x] M1-T04 Trash executor with re-validation and per-item outcomes (SAF-004, SAF-008, SAF-011). Adds the
   `ShuckExecutionTests` target.
-- [ ] M1-T05 Restore (HIS-003, HIS-004)
+- [x] M1-T05 Restore (HIS-003, HIS-004)
 - [ ] M1-T06 Sub-tool interface, registry and ownership map; File Cleanup landing page (FCL-001 to FCL-005). Replaces
   the app's placeholder `SidebarItem`.
 - [ ] M1-T07 Personal-files scanner with shared item state (FCL-006, FCL-008 to FCL-011, SAF-014)
@@ -54,6 +54,8 @@ Left over from M1 tasks:
 
 - [ ] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
   Trash for its debug-only fixture-root mode (D-47).
+- [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
+  `RestoreRequest` (HIS-003). The engine skips by default (D-52).
 
 Carried over from M0:
 
