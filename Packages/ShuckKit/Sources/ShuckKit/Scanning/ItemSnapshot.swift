@@ -21,8 +21,9 @@ public struct ItemSnapshot: Equatable, Sendable {
         self.allocatedSize = allocatedSize
     }
 
-    /// Measures the item at `url` without following symlinks. Returns `nil` if nothing is there.
-    public static func read(_ url: URL) -> ItemSnapshot? {
+    /// Measures the item at `url` without following symlinks. Returns `nil` if nothing is there, or if
+    /// `shouldContinue` returns `false` while a folder is being measured.
+    public static func read(_ url: URL, while shouldContinue: () -> Bool = { true }) -> ItemSnapshot? {
         let keys: Set<URLResourceKey> = [.isSymbolicLinkKey, .isDirectoryKey, .totalFileAllocatedSizeKey]
         guard let values = try? url.resourceValues(forKeys: keys) else { return nil }
         if values.isSymbolicLink == true {
@@ -35,6 +36,7 @@ public struct ItemSnapshot: Equatable, Sendable {
         var total: Int64 = 0
         let contents = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(keys))
         while let child = contents?.nextObject() as? URL {
+            guard shouldContinue() else { return nil }
             total += Int64((try? child.resourceValues(forKeys: keys))?.totalFileAllocatedSize ?? 0)
         }
         return ItemSnapshot(kind: .folder, allocatedSize: total)

@@ -17,6 +17,21 @@ struct OwnershipMapTests {
         map.owners(of: root.url.appending(path: path))
     }
 
+    // MARK: - Tool-owned stores and nested locations (FCL-011)
+
+    @Test func theGoModuleCacheBelongsToDeveloperJunkFCL011() {
+        #expect(owners("go/pkg/mod/github.com/x/y.go") == [.developerJunk])
+        #expect(owners("go/bin/tool") == OwnershipMap.personalFiles)
+    }
+
+    @Test func aFolderLeftOutCanHoldOwnedLocationsFurtherDown() {
+        #expect(map.hasLocations(below: root.url.appending(path: "Library"), ownedBy: .largeFiles))
+        #expect(map.hasLocations(below: root.url.appending(path: "Library/Application Support"), ownedBy: .oldFiles))
+        #expect(!map.hasLocations(below: root.url.appending(path: "Library/Caches"), ownedBy: .largeFiles))
+        #expect(!map.hasLocations(below: root.url.appending(path: ".cache"), ownedBy: .largeFiles))
+        #expect(!map.hasLocations(below: URL(filePath: "/usr"), ownedBy: .largeFiles))
+    }
+
     // MARK: - No overlaps (FCL-005)
 
     @Test func theStandardMapHasNoOverlapsExceptPersonalFilesFCL005() {

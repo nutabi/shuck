@@ -54,6 +54,9 @@ public struct OwnershipMap: Sendable {
         Entry(".*", owners: []),
         // ...but including the user data allowlisted inside Library: iPhone and iPad backups.
         Entry("Library/Application Support/MobileSync/Backup", owners: personalFiles),
+        // Tool-owned stores inside the personal files, shown there read-only (FCL-011, D-55): the Go module cache,
+        // which `go clean -modcache` cleans (DEV-R14).
+        Entry("go/pkg/mod", owners: [.developerJunk]),
     ]
 
     /// The home folder the patterns are relative to.
@@ -76,6 +79,17 @@ public struct OwnershipMap: Sendable {
             best = entry
         }
         return best?.owners ?? []
+    }
+
+    /// Whether a more specific entry gives `owner` a location inside `url`, so a scan must look inside a folder whose
+    /// own owners leave it out, such as `Library` for the device backups.
+    public func hasLocations(below url: URL, ownedBy owner: ToolID) -> Bool {
+        guard let path = pathInHome(url) else { return false }
+        return entries.contains { entry in
+            let components = entry.components
+            return entry.owners.contains(owner) && components.count > path.count
+                && zip(components, path).allSatisfy { fnmatch($0, $1, FNM_CASEFOLD) == 0 }
+        }
     }
 
     /// `url`'s components below the home folder, or `nil` if it is not inside it.

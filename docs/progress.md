@@ -41,7 +41,8 @@ exercised).
   the app's placeholder `SidebarItem`.
   - [x] Engine: `SubTool` protocol, `ScanItem`, `ToolRegistry`, `OwnershipMap`, plans from a sub-tool (D-53).
   - [x] App: sidebar built from `ToolRegistry.standard`, File Cleanup landing page (FCL-004), FCL-002 test (D-54).
-- [ ] M1-T07 Personal-files scanner with shared item state (FCL-006, FCL-008 to FCL-011, SAF-014)
+- [x] M1-T07 Personal-files scanner with shared item state (FCL-006, FCL-008 to FCL-011, SAF-014). Engine only;
+  the app uses it from M1-T09 (D-55).
 - [ ] M1-T08 Shared results UI for personal files (FCL-012)
 - [ ] M1-T09 Large Files sub-tool (LRG-001 to LRG-003)
 - [ ] M1-T10 "Last opened" metadata with fallback (OLD-002)
@@ -56,12 +57,13 @@ Left over from M1 tasks:
 
 - [ ] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
   Trash for its debug-only fixture-root mode (D-47).
-- [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06) and of `~/go/pkg/mod` (DEV-R14). Both are
-  inside the personal-files scope (FCL-008), so the ownership map needs an entry for each (FCL-005, D-53).
-- [ ] M1-T07: the landing page's scans use `ScanContext(home:)` with the real home folder. Before the first sub-tool
+- [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06). It is inside the personal-files scope
+  (FCL-008), so the ownership map needs an entry for it (FCL-005, D-53). `~/go/pkg/mod` went to Developer Junk in
+  M1-T07 (D-55).
+- [ ] M1-T09: the landing page's scans use `ScanContext(home:)` with the real home folder. Before the first sub-tool
   becomes available, the debug-only fixture-root argument (NFR-QA-002) must reach that context, so UI tests that press
-  Scan never read the real home folder. `FileCleanupModel` keeps only counts; move it onto the shared item state
-  (D-54).
+  Scan never read the real home folder. `FileCleanupModel` keeps only counts; move it onto `PersonalFilesState`, so
+  Large Files and Old Files run one shared `PersonalFilesScanner` scan between them (FCL-006, D-54, D-55).
 - [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52).
 
