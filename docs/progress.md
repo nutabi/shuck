@@ -24,6 +24,10 @@ Exit criteria:
 - [x] Set up the `release` environment and secrets (`docs/releasing.md`).
 - [x] A `v0.0.1` tag produces a notarized draft release of the app shell (D-36, D-37).
 
+Also ready: the local release fallback (ENG-012). The App Store Connect API key is stored on the owner's Mac as the
+notarytool profile `shuck-notary`, checked against Apple's notary service on 2026-11-02. Local Developer ID signing
+still needs the Developer ID certificate in the login keychain (`docs/releasing.md`).
+
 ## M1 Safety core + File Cleanup (Large Files, Old Files) + Restore (`v0.1.0`)
 
 - [ ] M1-T01 Fixture-root test harness and file factory (SAF-016)
