@@ -1,0 +1,44 @@
+# Lint, build and test every pull request and every push to main (ENG-005).
+# Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # Branch protection requires this check by name (docs/repository-setup.md).
+    name: Lint, build and test
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Lint
+        run: scripts/lint.sh
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results
+          path: build/DerivedData/Logs/Test/*.xcresult
+          retention-days: 14

@@ -32,7 +32,7 @@ Run commands from the repository root. Commands marked *planned* do not exist ye
 | App tests (unit and UI) | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' test` | available |
 | Engine tests | `swift test --package-path Packages/ShuckKit` | available |
 | Lint (`--fix` to reformat) | `scripts/lint.sh` | available |
-| All tests, as CI runs them | `scripts/test.sh` | *planned* (M0-T06) |
+| All tests, as CI runs them (`--no-ui` skips UI tests) | `scripts/test.sh` | available |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | *planned* (M0-T07) |
 | Build a DMG | `scripts/build-dmg.sh` | *planned* (M0-T08) |
 | Notarize | `scripts/notarize.sh` | *planned* (M0-T08) |
@@ -48,6 +48,7 @@ shuck/
 │   ├── PRD.md                 product requirements; the source of truth
 │   ├── decisions.md           decisions after the planning phase; planned (M0-T09)
 │   ├── progress.md            milestone and task checklist; planned (M0-T09)
+│   ├── repository-setup.md    GitHub settings the owner applies by hand
 │   └── third-party.md         attribution for reused rule data or code; created on first reuse
 ├── Shuck.xcodeproj
 ├── Shuck/                     app target: views, navigation, view models
