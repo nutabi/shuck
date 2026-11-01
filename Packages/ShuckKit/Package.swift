@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "ShuckKit",
+    defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     products: [
         .library(name: "ShuckKit", targets: ["ShuckKit"]),
@@ -12,8 +13,9 @@ let package = Package(
         .library(name: "ShuckKitTestSupport", targets: ["ShuckKitTestSupport"]),
     ],
     targets: [
-        // Tools, Scanning, Rules, Planning, Safety and History (PRD section 11.1).
-        .target(name: "ShuckKit"),
+        // Tools, Scanning, Rules, Planning, Safety and History (PRD section 11.1). Resources holds the String Catalog
+        // for the names and summaries of tools and sub-tools (NFR-L10N-001).
+        .target(name: "ShuckKit", resources: [.process("Resources")]),
         // The only module that may mutate user files or launchd state (SAF-017, D-28).
         .target(name: "ShuckExecution", dependencies: ["ShuckKit"]),
         // Fixture-root harness and file factory, shared by engine and UI tests (SAF-016).

@@ -143,9 +143,9 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 **A new File Cleanup sub-tool** (FCL-003):
 
-1. Implement the sub-tool interface in `ShuckKit`: ID, name, description, tier rules, and a scan that produces items.
-2. Register it in the sub-tool registry. The sidebar and the File Cleanup landing page are built from the registry; do not edit them by hand.
-3. Add its locations to the ownership map. Within File Cleanup, each location has exactly one owner (FCL-005), and the ownership test must still pass.
+1. Implement the `SubTool` protocol in `ShuckKit`: its `ToolInfo` (ID, name, summary, symbol), tiers, allowed roots, and a scan that streams items. Put its name and summary in `ShuckKit`'s String Catalog, loaded with `#bundle`.
+2. Register it in `ToolRegistry.standard`, replacing its `PlannedSubTool` placeholder if it has one. The sidebar and the File Cleanup landing page are built from the registry; do not edit them by hand.
+3. Add its locations to `OwnershipMap.standardEntries`. Within File Cleanup, each location has exactly one owner (FCL-005), the most specific pattern wins, and the ownership test must still pass. Its scan skips anything the map does not give it.
 4. Add fixture tests for its scan and for a full run through the safety pipeline, plus a UI smoke test for its main path (NFR-QA-003).
 5. Its ID goes in the history log's `tool` field (PRD section 8.5). Ask the owner to add it to the PRD.
 
@@ -155,6 +155,6 @@ A sub-tool must not require changes to other sub-tools or to the safety layer. I
 
 1. Add the rule as data in the engine: ID, name, description, detection, targets or tool command, tier, staleness rule, explanation, documentation link.
 2. Targets must lie inside the allowed roots. Data owned by a tool is cleaned with that tool's documented command, never deleted directly (SAF-010). Tool commands follow DEV-004.
-3. Add the rule's locations to the ownership map (FCL-005).
+3. Add the rule's locations to `OwnershipMap.standardEntries` (FCL-005).
 4. Add a fixture test for a path rule, or a recorded-output test with a fake tool executable for a tool rule. Never parse tool output to choose deletion targets (R-07).
 5. One rule per pull request. A rule that is not in the PRD's rule table (section 9.1.3) needs the owner's approval first.

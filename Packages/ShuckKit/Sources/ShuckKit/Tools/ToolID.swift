@@ -8,6 +8,8 @@ public struct ToolID: RawRepresentable, Codable, Hashable, Sendable {
         self.rawValue = rawValue
     }
 
+    /// File Cleanup itself. Never written to the log: a run belongs to one of its sub-tools (FCL-002).
+    public static let fileCleanup = ToolID(rawValue: "FCL")
     public static let largeFiles = ToolID(rawValue: "LRG")
     public static let oldFiles = ToolID(rawValue: "OLD")
     public static let developerJunk = ToolID(rawValue: "DEV")

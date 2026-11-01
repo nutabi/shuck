@@ -47,8 +47,29 @@ public struct Plan: Sendable {
     }
 }
 
+extension Plan {
+    /// A plan for items that `subTool`'s scan found, with the sub-tool's allowed roots.
+    ///
+    /// Besides the usual checks, every item must come from `subTool` and have one of its tiers, so a run never mixes
+    /// sub-tools (FCL-002).
+    public init(subTool: any SubTool, items: [ScanItem], pathGuard: PathGuard, run: UUID = UUID()) throws(PlanError) {
+        for item in items {
+            guard item.source == subTool.id else { throw .otherSubTool(item.url.path, item.source) }
+            guard subTool.tiers.contains(item.tier) else { throw .tierNotAllowed(item.url.path, item.tier) }
+        }
+        try self.init(
+            tool: subTool.id, allowedRoots: subTool.allowedRoots(home: pathGuard.configuration.home),
+            items: items.map { PlannedItem(url: $0.url, tier: $0.tier, method: $0.method, snapshot: $0.snapshot) },
+            pathGuard: pathGuard, run: run)
+    }
+}
+
 /// Why a plan could not be created. A plan is all or nothing: the review never shows a partly valid list.
 public enum PlanError: Error, Equatable {
+    /// The item was found by another sub-tool than the plan's (FCL-002).
+    case otherSubTool(String, ToolID)
+    /// The plan's sub-tool does not produce items of this tier.
+    case tierNotAllowed(String, Tier)
     /// The item's tier does not allow its method, for example Delete for "Your data" (SAF-004).
     case methodNotAllowed(String, tier: Tier, method: ActionMethod)
     /// The path guard rejected the item (SAF-007).
