@@ -57,7 +57,8 @@ public actor HistoryLog {
             try handle.write(contentsOf: record.jsonLine() + Data("\n".utf8))
             try handle.synchronize()
         } catch {
-            Self.logger.error("Cannot write to the history log: \(String(describing: error), privacy: .public)")
+            // Private: a Foundation error's description can include the file's path (NFR-SEC-006).
+            Self.logger.error("Cannot write to the history log: \(String(describing: error), privacy: .private)")
             throw .cannotWrite(fileURL.path, String(describing: error))
         }
     }
