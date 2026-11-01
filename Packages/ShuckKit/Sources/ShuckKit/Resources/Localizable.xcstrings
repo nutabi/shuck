@@ -1,0 +1,48 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Applications" : {
+
+    },
+    "Caches & Logs" : {
+
+    },
+    "Developer Junk" : {
+
+    },
+    "File Cleanup" : {
+
+    },
+    "Large Files" : {
+
+    },
+    "Old Files" : {
+
+    },
+    "Reclaim space from files, one sub-tool at a time." : {
+
+    },
+    "See what starts automatically and turn off what you don't want." : {
+
+    },
+    "Startup Items" : {
+
+    },
+    "Uninstall apps together with the files they leave behind." : {
+
+    },
+    "What can developer tools rebuild?" : {
+
+    },
+    "What haven't I opened in a long time?" : {
+
+    },
+    "What is taking the most space?" : {
+
+    },
+    "Which caches and logs can go?" : {
+
+    }
+  },
+  "version" : "1.0"
+}
