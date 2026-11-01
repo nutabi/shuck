@@ -24,6 +24,7 @@ In **Settings → General → Pull Requests**:
 
 - Allow squash merging only, with the default commit message set to **Pull request title and description**, so the `[<task ID>] <deliverable>` title becomes the commit title on `main`.
 - Turn on **Automatically delete head branches**.
+- Turn on **Allow auto-merge**. Pull requests start as drafts and get auto-merge once their checks pass and code scanning is clean (D-49).
 
 ## Actions
 

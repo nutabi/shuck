@@ -34,7 +34,7 @@ exercised).
 - [x] M1-T01 Fixture-root test harness and file factory (SAF-016)
 - [x] M1-T02 Path guard and protected locations, with the full test matrix (SAF-007, 8.4)
 - [x] M1-T03 History log writer and reader (SAF-005, HIS-001)
-- [ ] M1-T04 Trash executor with re-validation and per-item outcomes (SAF-004, SAF-008, SAF-011). Adds the
+- [x] M1-T04 Trash executor with re-validation and per-item outcomes (SAF-004, SAF-008, SAF-011). Adds the
   `ShuckExecutionTests` target.
 - [ ] M1-T05 Restore (HIS-003, HIS-004)
 - [ ] M1-T06 Sub-tool interface, registry and ownership map; File Cleanup landing page (FCL-001 to FCL-005). Replaces
@@ -49,6 +49,11 @@ exercised).
 - [ ] M1-T14 History view and Restore action (HIS-002)
 - [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
+
+Left over from M1 tasks:
+
+- [ ] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
+  Trash for its debug-only fixture-root mode (D-47).
 
 Carried over from M0:
 
