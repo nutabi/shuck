@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.2 — Safety methods and cross-tool overlaps (see Revision history) |
+| Version | 1.3 — Settings window (see Revision history) |
 | Date | 2026-11-01 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -21,6 +21,7 @@
 | 1.0 | 2026-11-01 | Planning baseline |
 | 1.1 | 2026-11-01 | File Cleanup becomes one tool with independent sub-tools: Large Files, Old Files, Developer Junk, Caches & Logs. The `LOF` prefix is retired; its requirements moved to `FCL`, `LRG` and `OLD` (D-23). |
 | 1.2 | 2026-11-01 | The tier decides review and default selection; each rule or action declares its method, and "Your data" never uses Delete. Adds the Launchctl method and the Docker review (DEV-010) (D-24). Overview reports reclaimable space for File Cleanup only; ownership is scoped to File Cleanup (D-25). Uninstall unloads matching LaunchAgents before trashing them (APP-011, D-26). |
+| 1.3 | 2026-11-02 | Settings moves from the sidebar to its own window, opened with ⌘, (D-27). |
 
 ## How to read this document
 
@@ -309,7 +310,7 @@ Shuck MUST NOT act on these, even if the user selects them. Scans skip or show t
 
 ## 9. Feature requirements
 
-**Navigation.** The sidebar lists: Overview · **File Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs) · **Applications** · **Startup Items** · History · Settings.
+**Navigation.** The sidebar lists: Overview · **File Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs) · **Applications** · **Startup Items** · History. Settings opens in its own window from the app menu (⌘,), as is standard on macOS (D-27).
 
 Every tool and sub-tool follows the same flow: **Scan → Results → Select → Review → Act → Summary.** The summary shows the space freed and links to History.
 
@@ -516,7 +517,8 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 ┌────────────────────────────────────────────────────────────────┐
 │ Shuck.app  (SwiftUI; AppKit where SwiftUI falls short)         │
 │   Sidebar: Overview · File Cleanup · Applications ·            │
-│            Startup Items · History · Settings                  │
+│            Startup Items · History                             │
+│   Settings window (⌘,), opened from the app menu               │
 │   Views → view models (@Observable, @MainActor)                │
 └────────────────────────────────┬───────────────────────────────┘
                                  │ async calls, AsyncSequence progress
@@ -720,6 +722,7 @@ Defaults are already in place; the owner can change them at any time.
 | D-24 | The tier decides the review style and default selection; each rule or action declares its method (Trash, Delete, Tool, Launchctl). "Your data" never uses Delete, and an irreversible "Your data" action says so and is logged as non-restorable. A Tool action is reviewed as one item: command, effects, the tool's size estimate. | v1.1 required Trash for all "Your data", which Docker prune (DEV-R10) and startup-item Disable (STA-005) already broke. One invariant covers both, and future tool-owned data such as L-04. Shuck cannot list what a tool command will remove without trusting its output (R-07). | Named exceptions in SAF-004; moving Docker to Rebuildable; listing stopped containers in the review | [S51] |
 | D-25 | Overview reports reclaimable space for File Cleanup sub-tools only; Applications and Startup Items show counts. Ownership (FCL-005) is scoped to File Cleanup; overlaps with other tools are allowed, never summed, and handled at run time by SAF-008. | An app's container holds caches that Caches & Logs also lists, and an uninstall must still remove the whole container. Space held by apps in use is not "reclaimable" (P-7). | A reclaimable figure for Applications with de-duplication across all tools | — |
 | D-26 | An uninstall unloads a matching user LaunchAgent (`launchctl bootout`) before trashing its plist, through the same execution path as STA-005 Remove. | Trashing a loaded agent's plist leaves the job loaded until logout. | Trash only; leaving it as an open question | [S47] |
+| D-27 | Settings opens in its own window from the app menu (⌘,), through a SwiftUI `Settings` scene. The sidebar ends with History. | Standard macOS behavior that users expect; keeps the sidebar to tools and their results. | A Settings row at the end of the sidebar (v1.2) | — |
 
 ## Appendix B — Glossary
 

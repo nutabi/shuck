@@ -63,6 +63,7 @@ The app target is thin. All scanning, planning, safety and execution logic lives
 ## Coding conventions
 
 - Swift 6 language mode with strict concurrency checking. Scans run off the main actor in task groups; UI state and view models are `@Observable` and `@MainActor`.
+- The app target makes code main-actor isolated by default (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`). Mark plain data types there `nonisolated`.
 - No force unwraps, `try!` or `as!` in `ShuckKit`.
 - Engine APIs throw typed errors (`throws(SomeError)`) whose cases callers can act on.
 - Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool (NFR-OBS-001). Mark paths and file names `privacy: .private` (NFR-SEC-006). No `print` in shipped code.

@@ -1,0 +1,75 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Applications" : {
+
+    },
+    "Caches & Logs" : {
+
+    },
+    "Developer Junk" : {
+
+    },
+    "Disk space at a glance, and what each sub-tool could reclaim." : {
+
+    },
+    "Every action Shuck has taken, and how to put things back." : {
+
+    },
+    "Exclusions, thresholds and project folders." : {
+
+    },
+    "File Cleanup" : {
+
+    },
+    "History" : {
+
+    },
+    "Large Files" : {
+
+    },
+    "Old Files" : {
+
+    },
+    "Overview" : {
+
+    },
+    "Planned for milestone %@." : {
+
+    },
+    "Planned for milestone M5." : {
+
+    },
+    "Reclaim space from files, one sub-tool at a time." : {
+
+    },
+    "See what starts automatically and turn off what you don't want." : {
+
+    },
+    "Select a tool" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Startup Items" : {
+
+    },
+    "Uninstall apps together with the files they leave behind." : {
+
+    },
+    "What can developer tools rebuild?" : {
+
+    },
+    "What haven't I opened in a long time?" : {
+
+    },
+    "What is taking the most space?" : {
+
+    },
+    "Which caches and logs can go?" : {
+
+    }
+  },
+  "version" : "1.0"
+}
