@@ -19,5 +19,7 @@ let package = Package(
         // Fixture-root harness and file factory, shared by engine and UI tests (SAF-016).
         .target(name: "ShuckKitTestSupport", dependencies: ["ShuckKit"]),
         .testTarget(name: "ShuckKitTests", dependencies: ["ShuckKit", "ShuckKitTestSupport"]),
+        .testTarget(
+            name: "ShuckExecutionTests", dependencies: ["ShuckExecution", "ShuckKit", "ShuckKitTestSupport"]),
     ]
 )
