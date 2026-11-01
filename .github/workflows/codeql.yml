@@ -1,21 +1,15 @@
 # Code scanning with CodeQL (D-50). Replaces GitHub's default setup, which ran on macOS 26 with Xcode 26 and could
 # build only the ShuckKit package, so the app target was never scanned. Here the scan runs on the same xcode-27 runner
 # as CI and builds the app and every library of the engine package.
+#
+# "Analyze (swift)" is a required check (D-51): it fails when CodeQL reports any finding, and it is skipped, which
+# counts as passing, when a change touches only docs.
 name: CodeQL
 
 on:
-  # A change to docs only has no code to scan, so it skips the scan (D-50). The weekly run covers everything.
   pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - "LICENSE"
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - "LICENSE"
   schedule:
     # Weekly, so new queries also run against code that has not changed.
     - cron: "23 4 * * 1"
@@ -28,8 +22,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    # A path filter on the workflow would leave the required check waiting forever on a docs-only change, so this job
+    # decides instead whether there is code to scan.
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13, D-34).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: List changed files
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Scheduled runs, new branches and anything unexpected scan everything.
+          if [[ "$EVENT" == schedule || -z "$BASE" || "$BASE" =~ ^0+$ ]] || ! changed="$(git diff --name-only "$BASE" HEAD)"; then
+            echo "code=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$changed"
+          if grep -vqE '^docs/|\.md$|^LICENSE$' <<<"$changed"; then
+            echo "code=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "Only docs changed; skipping the scan."
+            echo "code=false" >>"$GITHUB_OUTPUT"
+          fi
+
   analyze:
     name: Analyze (swift)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: xcode-27
     timeout-minutes: 60
     permissions:
@@ -37,7 +66,6 @@ jobs:
       # Upload the results to code scanning.
       security-events: write
     steps:
-      # Actions are pinned to full commit SHAs (supply-chain risk, R-13, D-34).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
@@ -47,7 +75,8 @@ jobs:
           build-mode: manual
 
       # CodeQL records every Swift compilation in these builds. Signing is off: the scan needs the compiler, not an
-      # app that runs.
+      # app that runs. The package-manifest sandbox is off because /usr/bin/sandbox-exec cannot start under CodeQL's
+      # tracer on macOS 27 ("Bad CPU type in executable"); the only package is Shuck's own ShuckKit (D-29).
       - name: Build the app and the engine package
         run: |
           xcodebuild build \
@@ -55,10 +84,36 @@ jobs:
             -scheme Shuck \
             -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build/CodeQL \
+            -IDEPackageSupportDisableManifestSandbox=YES \
             CODE_SIGNING_ALLOWED=NO
-          swift build --package-path Packages/ShuckKit
+          swift build --package-path Packages/ShuckKit --disable-sandbox
 
       - name: Analyze
+        id: analyze
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: /language:swift
+
+      # Uploading results never fails the job, so the required check would pass with alerts. Fail it on any finding.
+      - name: Fail on findings
+        env:
+          SARIF_DIR: ${{ steps.analyze.outputs.sarif-output }}
+        run: |
+          python3 -I - "$SARIF_DIR" <<'EOF'
+          import json, pathlib, sys
+
+          findings = []
+          for sarif in sorted(pathlib.Path(sys.argv[1]).glob("*.sarif")):
+              for run in json.loads(sarif.read_text())["runs"]:
+                  for result in run.get("results", []):
+                      if result.get("suppressions"):
+                          continue
+                      location = result["locations"][0]["physicalLocation"]
+                      findings.append(f"{location['artifactLocation']['uri']}:{location['region']['startLine']}: "
+                                      f"[{result['ruleId']}] {result['message']['text']}")
+          for finding in findings:
+              print(f"::error::{finding}")
+          if findings:
+              sys.exit(f"CodeQL reported {len(findings)} finding(s); see the Security tab or the annotations above.")
+          print("CodeQL reported no findings.")
+          EOF
