@@ -88,7 +88,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 
 ## Safety rules
 
-Shuck deletes files. These rules are not negotiable, and CI enforces them where it can (ENG-006). `scripts/static-checks.sh` lists what is checked automatically. Creating or writing files is allowed only in `ShuckExecution` and in `ShuckKit`'s `History/` folder, which writes Shuck's own log. If a check blocks legitimate code, ask the owner; do not weaken the check.
+Shuck deletes files. These rules are not negotiable, and CI enforces them where it can (ENG-006). `scripts/static-checks.sh` lists what is checked automatically. Creating or writing files is allowed only in `ShuckExecution` and in `ShuckKit`'s `History/` folder, which writes Shuck's own log. `History/` may also change the permissions of Shuck's own data folder and log, never anything else (D-45). If a check blocks legitimate code, ask the owner; do not weaken the check.
 
 1. **Every mutation goes through the Execution layer.** No code outside the `ShuckExecution` module may delete, move, rename or modify user files or launchd state (SAF-017). That includes the app target, other engine modules and scripts.
 2. **The path guard is mandatory.** Every target passes the path guard (SAF-007) and the protected-locations list (PRD section 8.4) when planned, and is re-validated just before acting (SAF-008). Never bypass, weaken or special-case the guard, not even to make a test pass. The only test difference allowed is D-41: tests configure the guard with the fixture root as home and without the temporary folder's `/private` prefix. If a guard rule looks wrong, stop and ask the owner.

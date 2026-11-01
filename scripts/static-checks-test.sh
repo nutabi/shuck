@@ -59,6 +59,9 @@ new_tree trash && put "$engine" 'try FileManager.default.trashItem(at: url, resu
 new_tree remove-app && put "$app" 'try FileManager.default.removeItem(at: url)' && expect_rule mutation
 new_tree launchctl && put "$engine" 'let arguments = ["bootout", target]' && expect_rule mutation
 new_tree write && put "$engine" 'try data.write(to: url)' && expect_rule file-write
+new_tree permissions && put "$engine" 'try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path)' &&
+    expect_rule permissions
+new_tree fchmod && put "$app" 'fchmod(descriptor, 0o600)' && expect_rule permissions
 new_tree print && put "$app" 'print("hello")' && expect_rule print
 new_tree force-cast && put "$engine" 'let n = value as! Int' && expect_rule force-cast
 new_tree package && put Packages/ShuckKit/Package.swift \
@@ -72,7 +75,9 @@ new_tree claude && put docs/CLAUDE.md '# no' && expect_rule agents
 new_tree allowed
 put "$execution" 'try FileManager.default.trashItem(at: url, resultingItemURL: &trashed)
 let arguments = ["bootout", target]'
-put Packages/ShuckKit/Sources/ShuckKit/History/HistoryWriter.swift 'try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)'
+put Packages/ShuckKit/Sources/ShuckKit/History/HistoryWriter.swift 'try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+fchmod(descriptor, 0o600)'
 put Packages/ShuckKit/Sources/ShuckKitTestSupport/FakeTool.swift 'let script = "#!/bin/sh\nexit 0"
 try script.write(to: url, atomically: true, encoding: .utf8)'
 put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift 'print("debug output in a test")'

@@ -60,8 +60,15 @@ scan privilege "authorization or privilege API; the MVP never asks for admin rig
 
 # SAF-017: only ShuckExecution may delete, move or modify files, or change launchd state.
 scan mutation "file or launchd mutation outside ShuckExecution (SAF-017)" \
-    '\b(removeItem|trashItem|recycle|moveItem|replaceItem|replaceItemAt|setAttributes|unlink|rmdir|rename|removefile|chmod|chown|truncate)\(|"(bootout|bootstrap|kickstart|load|unload|enable|disable)"' \
+    '\b(removeItem|trashItem|recycle|moveItem|replaceItem|replaceItemAt|unlink|rmdir|rename|removefile|truncate)\(|"(bootout|bootstrap|kickstart|load|unload|enable|disable)"' \
     "$outside_execution"
+
+# SAF-017, NFR-SEC-005: permissions and ownership change only in ShuckExecution, and in History for Shuck's own data
+# folder and log (D-45).
+scan permissions "permission or owner change outside ShuckExecution and History (SAF-017)" \
+    '\b(setAttributes|chmod|fchmod|lchmod|fchmodat|chown|fchown|lchown|fchownat)\(' \
+    "$outside_execution" \
+    '^Packages/ShuckKit/Sources/ShuckKit/History/'
 
 # SAF-017: creating or writing files is allowed only in ShuckExecution and in History, which writes Shuck's own log.
 scan file-write "file creation or write outside ShuckExecution and History (SAF-017)" \
