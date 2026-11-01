@@ -1,6 +1,6 @@
 #!/bin/bash
-# Runs every test the way CI does (ENG-005, ENG-012): engine tests with a coverage report, then the app build with its
-# unit and UI tests.
+# Runs every test the way CI does (ENG-005, ENG-012): engine tests with an 80% coverage gate (D-44), then the app build
+# with its unit and UI tests.
 #
 # Usage: scripts/test.sh            all tests
 #        scripts/test.sh --no-ui    skip the UI tests (they take over the mouse and keyboard while they run)
@@ -30,22 +30,29 @@ fi
 echo "== Engine tests (Packages/ShuckKit)"
 swift test --package-path Packages/ShuckKit --enable-code-coverage
 
-echo "== Engine line coverage (report only until the engine has code; target SM-4: 80%)"
+echo "== Engine line coverage (SM-4: at least 80%, test support not counted; D-44)"
 codecov_json="$(swift test --package-path Packages/ShuckKit --show-codecov-path)"
 python3 -I - "$codecov_json" <<'EOF'
 import json, sys
 
 files = json.load(open(sys.argv[1]))["data"][0]["files"]
 sources = [f for f in files if "/Sources/" in f["filename"] and "/.build/" not in f["filename"]]
+gated = []
 for f in sorted(sources, key=lambda f: f["filename"]):
     lines = f["summary"]["lines"]
-    print(f"  {lines['percent']:6.1f}%  {f['filename'].split('/Sources/', 1)[1]}")
-covered = sum(f["summary"]["lines"]["covered"] for f in sources)
-count = sum(f["summary"]["lines"]["count"] for f in sources)
-if count:
-    print(f"  {100 * covered / count:6.1f}%  total ({covered} of {count} lines)")
-else:
-    print("  no executable engine code yet")
+    name = f["filename"].split("/Sources/", 1)[1]
+    is_test_support = name.startswith("ShuckKitTestSupport/")
+    if not is_test_support:
+        gated.append(f)
+    print(f"  {lines['percent']:6.1f}%  {name}{'  (not gated)' if is_test_support else ''}")
+covered = sum(f["summary"]["lines"]["covered"] for f in gated)
+count = sum(f["summary"]["lines"]["count"] for f in gated)
+if not count:
+    sys.exit("coverage: no executable engine code found; is the report path right?")
+percent = 100 * covered / count
+print(f"  {percent:6.1f}%  total of ShuckKit and ShuckExecution ({covered} of {count} lines)")
+if percent < 80:
+    sys.exit(f"coverage: {percent:.1f}% is below the 80% gate (SM-4)")
 EOF
 
 echo "== App build, unit tests and UI tests"

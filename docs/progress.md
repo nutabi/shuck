@@ -32,7 +32,7 @@ exercised).
 ## M1 Safety core + File Cleanup (Large Files, Old Files) + Restore (`v0.1.0`)
 
 - [x] M1-T01 Fixture-root test harness and file factory (SAF-016)
-- [ ] M1-T02 Path guard and protected locations, with the full test matrix (SAF-007, 8.4)
+- [x] M1-T02 Path guard and protected locations, with the full test matrix (SAF-007, 8.4)
 - [ ] M1-T03 History log writer and reader (SAF-005, HIS-001)
 - [ ] M1-T04 Trash executor with re-validation and per-item outcomes (SAF-004, SAF-008, SAF-011). Adds the
   `ShuckExecutionTests` target.
@@ -52,9 +52,8 @@ exercised).
 
 Carried over from M0:
 
-- [ ] Turn the engine coverage report in `scripts/test.sh` into an 80% gate (SM-4, D-32) once the engine has code.
-  Moved to M1-T02, the first task that adds engine logic: M1-T01 added test support only. Open question for the
-  owner: whether `ShuckKitTestSupport` counts towards the gate.
+- [x] Turn the engine coverage report in `scripts/test.sh` into an 80% gate (SM-4, D-32). Done in M1-T02; test support
+  is reported but not gated (D-44).
 
 ## M2 to M6
 
