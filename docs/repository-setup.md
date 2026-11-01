@@ -42,5 +42,6 @@ In **Settings → Code security → Code scanning**:
 - **CodeQL analysis:** default setup off. `.github/workflows/codeql.yml` runs the scan instead, on the `xcode-27`
   runner, and uploads its results (D-50). GitHub rejects workflow results while default setup is on.
 - GitHub Actions workflows are not scanned (owner choice, 2026-11-02).
+- Changes to `docs/`, Markdown files or `LICENSE` alone skip the scan; the weekly run covers everything.
 
 Release secrets and the `release` environment are described in [releasing.md](releasing.md).
