@@ -24,7 +24,7 @@ In **Settings → General → Pull Requests**:
 
 - Allow squash merging only, with the default commit message set to **Pull request title and description**, so the `[<task ID>] <deliverable>` title becomes the commit title on `main`.
 - Turn on **Automatically delete head branches**.
-- Turn on **Allow auto-merge**. Pull requests start as drafts and get auto-merge once their checks pass and code scanning is clean (D-49).
+- Turn on **Allow auto-merge**. Pull requests get auto-merge when they open and merge once the required check passes (D-51).
 
 ## Actions
 
@@ -33,5 +33,10 @@ In **Settings → Actions → General**:
 - **Actions permissions:** allow actions created by GitHub only. The workflows use only `actions/*`, pinned to commit SHAs.
 - **Workflow permissions:** read repository contents by default. The release workflow asks for write access itself.
 - **Fork pull request workflows:** require approval for all outside collaborators.
+
+## Code scanning
+
+In **Settings → Code security → Code scanning**, CodeQL is off: no default setup and no workflow (D-50). The only
+required check is **Lint, build and test**.
 
 Release secrets and the `release` environment are described in [releasing.md](releasing.md).

@@ -60,6 +60,12 @@ Carried over from M0:
 - [x] Turn the engine coverage report in `scripts/test.sh` into an 80% gate (SM-4, D-32). Done in M1-T02; test support
   is reported but not gated (D-44).
 
+Process changes during M1:
+
+- [x] Pull requests open ready for review with auto-merge, gated by CI (D-51).
+- [ ] Revisit CodeQL code scanning once it can build the app on macOS 27, or in M5's security pass at the latest
+  (D-50).
+
 ## M2 to M6
 
 Not broken down yet (PRD section 13).
