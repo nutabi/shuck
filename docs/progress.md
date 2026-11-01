@@ -22,8 +22,7 @@ Exit criteria:
 - [x] Create `nutabi/shuck` on GitHub, push `main`, and apply `docs/repository-setup.md`.
 - [x] CI green on a pull request. UI tests run on the `xcode-27` runner with ad hoc signing (D-31).
 - [x] Set up the `release` environment and secrets (`docs/releasing.md`).
-- [ ] A `v0.0.1` tag produces a notarized draft release of the app shell. This is the first real test of Developer ID
-  signing and notarization (D-37).
+- [x] A `v0.0.1` tag produces a notarized draft release of the app shell (D-36, D-37).
 
 ## M1 Safety core + File Cleanup (Large Files, Old Files) + Restore (`v0.1.0`)
 
