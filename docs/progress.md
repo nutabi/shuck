@@ -17,12 +17,13 @@ Goal: repository, project skeleton, CI/CD proven end to end.
 - [x] M0-T08 Release workflow, DMG and notarize scripts; secrets documented in `docs/releasing.md`
 - [x] M0-T09 Pull request template, `docs/progress.md`, `docs/decisions.md`
 
-Exit criteria, which need the owner's GitHub setup:
+Exit criteria:
 
-- [ ] Create `nutabi/shuck` on GitHub, push `main`, and apply `docs/repository-setup.md`.
-- [ ] CI green on a pull request. This also proves UI tests run on the `xcode-27` runner with ad hoc signing (D-31).
-- [ ] Set up the `release` environment and secrets (`docs/releasing.md`). A `v0.0.1` tag must produce a notarized draft
-  release of the app shell. This is the first real test of Developer ID signing and notarization (D-37).
+- [x] Create `nutabi/shuck` on GitHub, push `main`, and apply `docs/repository-setup.md`.
+- [x] CI green on a pull request. UI tests run on the `xcode-27` runner with ad hoc signing (D-31).
+- [x] Set up the `release` environment and secrets (`docs/releasing.md`).
+- [ ] A `v0.0.1` tag produces a notarized draft release of the app shell. This is the first real test of Developer ID
+  signing and notarization (D-37).
 
 ## M1 Safety core + File Cleanup (Large Files, Old Files) + Restore (`v0.1.0`)
 
