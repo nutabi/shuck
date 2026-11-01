@@ -163,6 +163,49 @@ struct PathGuardTests {
         #expect(isProtected(rejection(home.appending(path: path).path)))
     }
 
+    @Test(arguments: [
+        ".SSH", ".SSH/id_ed25519", "Library/KEYCHAINS", "Library/Keychains/LOGIN.keychain-db", "LIBRARY",
+        "Library/Mobile documents/Notes", ".AWS/credentials",
+    ])
+    func rejectsProtectedLocationsSpelledInAnotherCaseSAF007(path: String) throws {
+        // On disk, .ssh and Library/Keychains exist with their usual case; .aws does not exist at all.
+        try root.file(".ssh/id_ed25519")
+        try root.file("Library/Keychains/login.keychain-db")
+        #expect(isProtected(rejection(home.appending(path: path).path)))
+    }
+
+    @Test func rejectsProtectedNamesInAnotherCaseOnDiskSAF007() throws {
+        let backup = try root.folder("Backups/BACKUPS.BACKUPDB")
+        #expect(isProtected(rejection(backup.appending(path: "Mac/Latest").path)))
+        #expect(isProtected(rejection(home.appending(path: "Pictures/Old.PHOTOSLIBRARY").path)))
+    }
+
+    @Test func rejectsTheHomeFolderInAnotherCaseSAF007() {
+        #expect(rejection(home.path.uppercased()) == .homeFolder)
+    }
+
+    @Test func matchesUserExclusionsAcrossCaseAndUnicodeFormsSAF007() {
+        // "é" as one character (NFC) in the exclusion, and as "e" plus a combining accent (NFD) in the target.
+        let keep = home.appending(path: "Documents/Caf\u{E9}")
+        let guarded = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [keep]))
+        for name in ["Cafe\u{301}", "CAF\u{C9}"] {
+            let path = home.appending(path: "Documents/\(name)/menu.pdf").path
+            let error = #expect(throws: PathGuardError.self) { try guarded.validate(path: path, allowedRoots: [home]) }
+            #expect(error == .protectedLocation(path, protected: keep.path))
+        }
+        let sharpS = PathGuard(
+            configuration: root.pathGuardConfiguration(userExclusions: [home.appending(path: "Stra\u{DF}e")]))
+        #expect(throws: PathGuardError.self) {
+            try sharpS.validate(path: home.appending(path: "STRASSE/map.pdf").path, allowedRoots: [home])
+        }
+    }
+
+    @Test func allowedRootsStayCaseSensitiveSAF007() {
+        let downloads = home.appending(path: "Downloads")
+        let path = home.appending(path: "DOWNLOADS/movie.mov").path
+        #expect(rejection(path, allowedRoots: [downloads]) == .outsideAllowedRoots(path))
+    }
+
     @Test func rejectsShucksOwnAppBundleSAF007() {
         let app = home.appending(path: "Applications/Shuck.app")
         let path = app.appending(path: "Contents/MacOS/Shuck").path

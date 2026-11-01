@@ -55,21 +55,39 @@ public struct PathGuard: Sendable {
         if target.pathComponents == ["/"] { throw .rootFolder }
         let volume = try? existingAncestor.resourceValues(forKeys: [.volumeIsRootFileSystemKey])
         guard volume?.volumeIsRootFileSystem == true else { throw .otherVolume(target.path) }
-        if target.pathComponents == configuration.home.pathComponents { throw .homeFolder }
+        // (a) and (d) compare names the way the default APFS volume does, ignoring case: `realpath` fixes the case of
+        // existing folders, but not of the last component or of anything that doesn't exist yet. On a case-sensitive
+        // volume this only rejects more. Swift's `==` already treats Unicode canonical forms (é and e + ´) as equal.
+        let components = Self.folded(target)
+        if components == Self.folded(configuration.home) { throw .homeFolder }
 
-        for location in configuration.protectedLocations
-        where target.isSameOrInside(location) || location.isStrictlyInside(target) {
-            throw .protectedLocation(target.path, protected: location.path)
+        for location in configuration.protectedLocations {
+            let protected = Self.folded(location)
+            if components.starts(with: protected) || protected.starts(with: components) {
+                throw .protectedLocation(target.path, protected: location.path)
+            }
         }
-        for component in target.pathComponents
-        where PathGuardConfiguration.protectedNames.contains(component)
-            || PathGuardConfiguration.protectedExtensions.contains((component as NSString).pathExtension.lowercased())
+        let protectedNames = Set(PathGuardConfiguration.protectedNames.map(Self.fold))
+        for component in components
+        where protectedNames.contains(component)
+            || PathGuardConfiguration.protectedExtensions.contains((component as NSString).pathExtension)
         {
             throw .protectedLocation(target.path, protected: component)
         }
 
+        // (c) stays case-sensitive: on a case-sensitive volume, a path that differs only in case is a different path.
         let roots = allowedRoots.map { ResolvedPath($0)?.url ?? $0 }
         guard roots.contains(where: { target.isStrictlyInside($0) }) else { throw .outsideAllowedRoots(target.path) }
+    }
+
+    /// The path's components with case folded, for comparisons that must not depend on case.
+    private static func folded(_ url: URL) -> [String] {
+        url.pathComponents.map(fold)
+    }
+
+    /// Full Unicode case folding, so `ß` matches `SS` as well as `A` matching `a`.
+    private static func fold(_ name: String) -> String {
+        name.folding(options: .caseInsensitive, locale: nil)
     }
 }
 
