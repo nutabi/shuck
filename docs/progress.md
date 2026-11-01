@@ -55,6 +55,11 @@ Carried over from M0:
 - [x] Turn the engine coverage report in `scripts/test.sh` into an 80% gate (SM-4, D-32). Done in M1-T02; test support
   is reported but not gated (D-44).
 
+Infrastructure added during M1:
+
+- [x] CodeQL workflow on the `xcode-27` runner replaces GitHub's default setup, so the app target is scanned too
+  (D-50).
+
 ## M2 to M6
 
 Not broken down yet (PRD section 13).

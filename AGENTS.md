@@ -62,7 +62,7 @@ shuck/
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
 ├── scripts/                   lint, test, static checks, build-dmg, notarize
-└── .github/                   CI and release workflows, pull request template
+└── .github/                   CI, CodeQL and release workflows, pull request template
 ```
 
 The app target is thin and links the local ShuckKit package. All scanning, planning, safety and execution logic lives in the package (PRD section 11.1):

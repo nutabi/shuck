@@ -1,0 +1,55 @@
+# Code scanning with CodeQL (D-50). Replaces GitHub's default setup, which ran on macOS 26 with Xcode 26 and could
+# build only the ShuckKit package, so the app target was never scanned. Here the scan runs on the same xcode-27 runner
+# as CI and builds the app and every library of the engine package.
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so new queries also run against code that has not changed.
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (swift)
+    runs-on: xcode-27
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      # Upload the results to code scanning.
+      security-events: write
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13, D-34).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: swift
+          build-mode: manual
+
+      # CodeQL records every Swift compilation in these builds. Signing is off: the scan needs the compiler, not an
+      # app that runs.
+      - name: Build the app and the engine package
+        run: |
+          xcodebuild build \
+            -project Shuck.xcodeproj \
+            -scheme Shuck \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath build/CodeQL \
+            CODE_SIGNING_ALLOWED=NO
+          swift build --package-path Packages/ShuckKit
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:swift

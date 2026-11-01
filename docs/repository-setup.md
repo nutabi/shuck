@@ -29,8 +29,17 @@ In **Settings → General → Pull Requests**:
 
 In **Settings → Actions → General**:
 
-- **Actions permissions:** allow actions created by GitHub only. The workflows use only `actions/*`, pinned to commit SHAs.
+- **Actions permissions:** allow actions created by GitHub only. The workflows use only `actions/*` and
+  `github/codeql-action`, pinned to commit SHAs.
 - **Workflow permissions:** read repository contents by default. The release workflow asks for write access itself.
 - **Fork pull request workflows:** require approval for all outside collaborators.
+
+## Code scanning
+
+In **Settings → Code security → Code scanning**:
+
+- **CodeQL analysis:** default setup off. `.github/workflows/codeql.yml` runs the scan instead, on the `xcode-27`
+  runner, and uploads its results (D-50). GitHub rejects workflow results while default setup is on.
+- GitHub Actions workflows are not scanned (owner choice, 2026-11-02).
 
 Release secrets and the `release` environment are described in [releasing.md](releasing.md).
