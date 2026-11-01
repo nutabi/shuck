@@ -30,7 +30,7 @@ Run commands from the repository root. Commands marked *planned* do not exist ye
 |---|---|---|
 | Build the app | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' build` | available |
 | App tests (unit and UI) | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' test` | available |
-| Engine tests | `swift test --package-path Packages/ShuckKit` | *planned* (M0-T04) |
+| Engine tests | `swift test --package-path Packages/ShuckKit` | available |
 | Lint | `scripts/lint.sh` (`swift-format`) | *planned* (M0-T05) |
 | All tests, as CI runs them | `scripts/test.sh` | *planned* (M0-T06) |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | *planned* (M0-T07) |
@@ -53,12 +53,21 @@ shuck/
 ├── Shuck/                     app target: views, navigation, view models
 ├── ShuckTests/                app unit tests
 ├── ShuckUITests/              UI tests (fixture root only, NFR-QA-002)
-├── Packages/ShuckKit/         engine package, its tests and test support; planned (M0-T04)
+├── Packages/ShuckKit/         engine package (D-28)
+│   ├── Sources/ShuckKit/              Tools, Scanning, Rules, Planning, Safety, History
+│   ├── Sources/ShuckExecution/        the only code that mutates user files or launchd state
+│   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
+│   └── Tests/
 ├── scripts/                   lint, test, static checks, build-dmg, notarize; planned (M0-T05 to T08)
 └── .github/                   workflows and pull request template; planned (M0-T06, T08, T09)
 ```
 
-The app target is thin. All scanning, planning, safety and execution logic lives in `ShuckKit` (PRD section 11.1), split into Tools, Scanning, Rules, Planning, Safety, Execution and History, plus a test-support target.
+The app target is thin and links the local ShuckKit package. All scanning, planning, safety and execution logic lives in the package (PRD section 11.1):
+
+- `ShuckKit` holds Tools, Scanning, Rules, Planning, Safety and History, one folder each. It never mutates user files or launchd state.
+- `ShuckExecution` depends on `ShuckKit` and is the only code that mutates user files or launchd state, including Restore's moves. `ShuckKit` cannot import it.
+- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests.
+- Tests for `ShuckExecution` go in `Tests/ShuckExecutionTests/`, a test target added with the first executor (M1-T04).
 
 ## Coding conventions
 
@@ -78,7 +87,7 @@ The app target is thin. All scanning, planning, safety and execution logic lives
 
 Shuck deletes files. These rules are not negotiable, and CI enforces them where it can (ENG-006).
 
-1. **Every mutation goes through the Execution layer.** No code outside `ShuckKit`'s Execution module may delete, move, rename or modify user files or launchd state (SAF-017). That includes the app target, other engine modules and scripts.
+1. **Every mutation goes through the Execution layer.** No code outside the `ShuckExecution` module may delete, move, rename or modify user files or launchd state (SAF-017). That includes the app target, other engine modules and scripts.
 2. **The path guard is mandatory.** Every target passes the path guard (SAF-007) and the protected-locations list (PRD section 8.4) when planned, and is re-validated just before acting (SAF-008). Never bypass, weaken or special-case the guard, not even to make a test pass. If a guard rule looks wrong, stop and ask the owner.
 3. **Tests stay inside the fixture root.** Use the fixture-root harness from test support (SAF-016). Never build test paths from `homeDirectoryForCurrentUser`, `NSHomeDirectory()`, `~` or environment variables. UI tests launch the app with the debug-only fixture-root argument (NFR-QA-002).
 4. **Never touch the real home folder.** Not in tests, not in experiments and not to "try out" a deletion. Never run the app against real data to test a change.
@@ -89,7 +98,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 ## Dependencies and reuse
 
-- **Apple frameworks only** (D-03). Do not add Swift packages, CocoaPods, Carthage or vendored code. CI fails if the project resolves any package dependency (NFR-SEC-002). A third-party package needs an owner-approved entry in `docs/decisions.md` first.
+- **Apple frameworks only** (D-03). Do not add third-party Swift packages, CocoaPods, Carthage or vendored code. CI fails if the project resolves any package other than Shuck's own local `ShuckKit` package (NFR-SEC-002, D-29). A third-party package needs an owner-approved entry in `docs/decisions.md` first.
 - **Write our own code by default.** Code or rule data from the GPL-3.0 projects Mole and DevCleaner for Xcode may be reused with attribution recorded in `docs/third-party.md`.
 - **Never copy code from Pearcleaner.** Its license (Apache-2.0 with Commons Clause) is incompatible with GPL-3.0. The same applies to any project whose license is not GPL-3.0-compatible.
 

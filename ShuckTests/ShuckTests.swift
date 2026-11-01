@@ -1,7 +1,15 @@
 import AppKit
+import ShuckKit
 import Testing
 
 @testable import Shuck
+
+struct EngineLinkTests {
+    /// The app links ShuckKit, and the engine's logger subsystem is the app's bundle ID (D-21).
+    @Test func loggerSubsystemIsTheAppBundleID() {
+        #expect(Bundle.main.bundleIdentifier == ShuckKit.loggerSubsystem)
+    }
+}
 
 struct SidebarItemTests {
     @Test func topLevelOrderMatchesPRD() {

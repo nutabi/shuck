@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.3 — Settings window (see Revision history) |
+| Version | 1.4 — Engine package layout (see Revision history) |
 | Date | 2026-11-01 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -22,6 +22,7 @@
 | 1.1 | 2026-11-01 | File Cleanup becomes one tool with independent sub-tools: Large Files, Old Files, Developer Junk, Caches & Logs. The `LOF` prefix is retired; its requirements moved to `FCL`, `LRG` and `OLD` (D-23). |
 | 1.2 | 2026-11-01 | The tier decides review and default selection; each rule or action declares its method, and "Your data" never uses Delete. Adds the Launchctl method and the Docker review (DEV-010) (D-24). Overview reports reclaimable space for File Cleanup only; ownership is scoped to File Cleanup (D-25). Uninstall unloads matching LaunchAgents before trashing them (APP-011, D-26). |
 | 1.3 | 2026-11-02 | Settings moves from the sidebar to its own window, opened with ⌘, (D-27). |
+| 1.4 | 2026-11-02 | Execution is its own module, `ShuckExecution`, inside the ShuckKit package (D-28). The dependency ban covers third-party packages only (NFR-SEC-002, ENG-006, D-29). |
 
 ## How to read this document
 
@@ -270,7 +271,7 @@ Rationale: Apple defines caches as data that "can be regenerated as needed. Apps
 | SAF-014 | Scans and runs MUST be cancellable. Cancelling a run stops before the next item, and the log reflects the true state. | Must | Fixture test: cancel midway → the log matches the disk. |
 | SAF-015 | A single Rebuildable target larger than a sanity threshold (default: 25% of the home folder's size) SHOULD require a second confirmation. | Should | Fixture test. |
 | SAF-016 | Tests MUST NOT touch the real home folder. A test harness creates a temporary fixture root and asserts that every path used is inside it. | Must | The harness fails any test that resolves a path outside the fixture root. |
-| SAF-017 | No code outside the engine's execution layer may delete, move, rename or modify user files or launchd state. | Must | CI static check (ENG-006) for file-mutation APIs outside the allowed module. |
+| SAF-017 | No code outside the engine's execution layer (the `ShuckExecution` module, D-28) may delete, move, rename or modify user files or launchd state. | Must | CI static check (ENG-006) for file-mutation APIs outside the allowed module. |
 
 ### 8.4 Protected locations (default list)
 
@@ -496,7 +497,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | NFR-PERF-003 | Peak memory during "Scan all" stays under 1 GB. | Should | Instruments measurement. |
 | NFR-REL-001 | The history log is crash-safe (HIS-001). | Must | See HIS-001. |
 | NFR-SEC-001 | No network APIs in the MVP. A CI static check fails on `URLSession`, the Network framework, `NSURLConnection` or socket APIs. | Must | CI check. |
-| NFR-SEC-002 | No third-party packages. CI fails if the project resolves any package dependency. | Must | CI check. |
+| NFR-SEC-002 | No third-party packages. CI fails if the project resolves any package dependency other than Shuck's own local `ShuckKit` package (D-29). | Must | CI check. |
 | NFR-SEC-003 | Hardened Runtime on; minimal entitlements; release builds without `get-task-allow` [S8]. | Must | `codesign -d --entitlements` check in the release workflow. |
 | NFR-SEC-004 | Subprocesses follow DEV-004: no shell, absolute paths, argument arrays, explicit environment. | Must | Static check: no `/bin/sh -c`, `system()` or `popen`. |
 | NFR-SEC-005 | Shuck's data folder is 0700 and its files are 0600. | Must | Unit test. |
@@ -532,8 +533,9 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 │   Rules      Developer Junk / Caches & Logs rules (data)       │
 │   Planning   scan results → Plan                               │
 │   Safety     PathGuard, ProtectedLocations, RunningApps        │
-│   Execution  Trash, Delete, ToolRunner, LaunchctlRunner        │
-│   History    JSONL writer/reader, Restore                      │
+│   Execution  module ShuckExecution (D-28): Trash, Delete,      │
+│              ToolRunner, LaunchctlRunner, Restore's moves      │
+│   History    JSONL writer/reader, restore planning             │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -545,8 +547,8 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | Rules | Developer Junk and Caches & Logs rule definitions | Data, validated at load. |
 | Planning | Turns selections into a `Plan` | The plan is what the review screen shows. |
 | Safety | Path guard, protected locations, running-app check | Mandatory for every operation. |
-| Execution | The only code allowed to mutate files or launchd state | Re-validates items (SAF-008). |
-| History | Log and restore | Section 8.5. |
+| Execution | The only code allowed to mutate files or launchd state | Re-validates items (SAF-008). Its own module, `ShuckExecution`, which depends on `ShuckKit`; nothing in `ShuckKit` can call it (D-28). Restore's file moves run here. |
+| History | Log and restore planning | Section 8.5. |
 | Test support | Fixture-root harness, file factory (sizes, dates, extended attributes), fake tools | Used by engine and UI tests. |
 
 **Concurrency.** Swift 6 language mode with strict concurrency checking. Scans run in task groups off the main actor; UI state is `@MainActor`.
@@ -583,7 +585,7 @@ shuck/
 | ENG-003 | The pull request template has these sections: Summary · Requirement IDs · **How to review this** (risky areas, files to read first) · **SwiftUI concepts used** (learning notes with Apple documentation links) · Test evidence · Screenshots · Checklist (tests added, no new dependencies, no network APIs, docs updated). | Must |
 | ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; pull request template complete. | Must |
 | ENG-005 | **CI** (`ci.yml`) runs on every pull request and every push to `main`, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. Steps: `swift-format` lint, build, engine tests with coverage, UI smoke tests, static checks. | Must |
-| ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs. | Must |
+| ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs. | Must |
 | ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create --draft` with the DMG and checksum [S61]. **The owner reviews and publishes the draft** (D-17). | Must |
 | ENG-008 | Signing and notarization secrets are GitHub encrypted secrets, used only by the tag-triggered release workflow. They are never available to pull request workflows. | Must |
 | ENG-009 | Versions follow Semantic Versioning [S60]. Each milestone ends with a pre-release tag (section 13). | Must |
@@ -723,6 +725,8 @@ Defaults are already in place; the owner can change them at any time.
 | D-25 | Overview reports reclaimable space for File Cleanup sub-tools only; Applications and Startup Items show counts. Ownership (FCL-005) is scoped to File Cleanup; overlaps with other tools are allowed, never summed, and handled at run time by SAF-008. | An app's container holds caches that Caches & Logs also lists, and an uninstall must still remove the whole container. Space held by apps in use is not "reclaimable" (P-7). | A reclaimable figure for Applications with de-duplication across all tools | — |
 | D-26 | An uninstall unloads a matching user LaunchAgent (`launchctl bootout`) before trashing its plist, through the same execution path as STA-005 Remove. | Trashing a loaded agent's plist leaves the job loaded until logout. | Trash only; leaving it as an open question | [S47] |
 | D-27 | Settings opens in its own window from the app menu (⌘,), through a SwiftUI `Settings` scene. The sidebar ends with History. | Standard macOS behavior that users expect; keeps the sidebar to tools and their results. | A Settings row at the end of the sidebar (v1.2) | — |
+| D-28 | The ShuckKit package has three library targets: `ShuckKit` (Tools, Scanning, Rules, Planning, Safety, History), `ShuckExecution` (depends on `ShuckKit`; the only code that mutates user files or launchd state, including Restore's moves) and `ShuckKitTestSupport`. | The compiler, not only review, keeps mutation in one place: `ShuckKit` cannot call `ShuckExecution`. The SAF-017 static check becomes a per-folder rule. | One module with a folder per layer; one module per layer | — |
+| D-29 | The dependency ban (D-03, NFR-SEC-002) covers third-party packages only. Shuck's own local `ShuckKit` package is linked into the app. | The engine is Shuck's own code; the ban exists to avoid outside code. | Treating the local package as a dependency to avoid | — |
 
 ## Appendix B — Glossary
 
