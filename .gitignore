@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+
+# Build output
+build/
+DerivedData/
+.build/
+.swiftpm/xcode/package.xcworkspace/
+
+# Release artifacts
+*.xcarchive
+*.dmg
+
+# Signing material and credentials: never commit these (PRD R-13)
+*.p12
+*.p8
+*.cer
+*.certSigningRequest
+*.provisionprofile
+*.mobileprovision
+*.keychain
+*.keychain-db
+.env
+.netrc
