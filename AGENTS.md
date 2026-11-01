@@ -24,7 +24,7 @@ Shuck is a free, open-source (GPL-3.0-or-later), native macOS app that keeps a M
 
 ## Commands
 
-Run commands from the repository root. Commands marked *planned* do not exist yet: the task named next to each one adds it and removes the marker from this table.
+Run commands from the repository root. When a task adds or changes a command, it updates this table.
 
 | Purpose | Command | Status |
 |---|---|---|
@@ -47,8 +47,8 @@ shuck/
 ├── LICENSE                    full GPL-3.0 text
 ├── docs/
 │   ├── PRD.md                 product requirements; the source of truth
-│   ├── decisions.md           decisions after the planning phase; planned (M0-T09)
-│   ├── progress.md            milestone and task checklist; planned (M0-T09)
+│   ├── decisions.md           decisions after the planning phase (D-30 onwards)
+│   ├── progress.md            milestone and task checklist
 │   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
 │   └── third-party.md         attribution for reused rule data or code; created on first reuse
@@ -62,7 +62,7 @@ shuck/
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
 ├── scripts/                   lint, test, static checks, build-dmg, notarize
-└── .github/                   workflows and pull request template; planned (M0-T06, T08, T09)
+└── .github/                   CI and release workflows, pull request template
 ```
 
 The app target is thin and links the local ShuckKit package. All scanning, planning, safety and execution logic lives in the package (PRD section 11.1):
@@ -112,7 +112,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - **Commit bodies:** a blank line after the title, then text wrapped at 72 characters explaining what changed and why. End with the requirement IDs, for example `Requirements: SAF-007, SAF-016`.
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
 - **Before the GitHub repository exists:** there is no remote yet, so commit straight to `main`. Once the repository and branch protection are set up (M0-T06), every change goes through a pull request (ENG-001).
-- **Pull request description** (ENG-003). Until the template exists (M0-T09), use these headings:
+- **Pull request description** (ENG-003). Fill in every section of `.github/pull_request_template.md`:
   - **Summary.**
   - **Requirement IDs.**
   - **How to review this:** risky areas and the files to read first. Call out every change to Safety or Execution.
@@ -132,7 +132,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 ## Picking the next task
 
-- Take the first unchecked task in `docs/progress.md`, in roadmap order (PRD section 13), unless the owner assigns one. Until `docs/progress.md` exists, use the M0 task list in PRD section 13.1.
+- Take the first unchecked task in `docs/progress.md`, in roadmap order (PRD section 13), unless the owner assigns one.
 - Milestones run in order. Do not start a milestone until the previous one meets its exit criteria.
 - Milestones M2 to M6 are broken into tasks when each one starts. If the next milestone has no breakdown, propose one to the owner instead of starting work.
 - Record progress in the same pull request: tick the task in `docs/progress.md`, and add a line for anything left over.
