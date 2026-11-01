@@ -35,8 +35,8 @@ Run commands from the repository root. Commands marked *planned* do not exist ye
 | All tests, as CI runs them (`--no-ui` skips UI tests) | `scripts/test.sh` | available |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | available |
 | Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
-| Build a DMG | `scripts/build-dmg.sh` | *planned* (M0-T08) |
-| Notarize | `scripts/notarize.sh` | *planned* (M0-T08) |
+| Build, sign and notarize the release DMG (docs/releasing.md) | `scripts/build-dmg.sh` | available |
+| Notarize one file (called by `build-dmg.sh`) | `scripts/notarize.sh FILE` | available |
 
 ## Repository layout
 
@@ -49,6 +49,7 @@ shuck/
 │   ├── PRD.md                 product requirements; the source of truth
 │   ├── decisions.md           decisions after the planning phase; planned (M0-T09)
 │   ├── progress.md            milestone and task checklist; planned (M0-T09)
+│   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
 │   └── third-party.md         attribution for reused rule data or code; created on first reuse
 ├── Shuck.xcodeproj
@@ -60,7 +61,7 @@ shuck/
 │   ├── Sources/ShuckExecution/        the only code that mutates user files or launchd state
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
-├── scripts/                   lint, test, static checks, build-dmg, notarize; planned (M0-T05 to T08)
+├── scripts/                   lint, test, static checks, build-dmg, notarize
 └── .github/                   workflows and pull request template; planned (M0-T06, T08, T09)
 ```
 
