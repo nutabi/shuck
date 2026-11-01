@@ -31,7 +31,7 @@ Run commands from the repository root. Commands marked *planned* do not exist ye
 | Build the app | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' build` | available |
 | App tests (unit and UI) | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' test` | available |
 | Engine tests | `swift test --package-path Packages/ShuckKit` | available |
-| Lint | `scripts/lint.sh` (`swift-format`) | *planned* (M0-T05) |
+| Lint (`--fix` to reformat) | `scripts/lint.sh` | available |
 | All tests, as CI runs them | `scripts/test.sh` | *planned* (M0-T06) |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | *planned* (M0-T07) |
 | Build a DMG | `scripts/build-dmg.sh` | *planned* (M0-T08) |
@@ -81,7 +81,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - Every control has a VoiceOver label and works from the keyboard. Never convey information by color alone (NFR-A11Y-001).
 - Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004).
 - No network APIs (`URLSession`, Network framework, `NSURLConnection`, sockets) and no authorization or privilege APIs (NFR-SEC-001, ONB-003).
-- Code is `swift-format` clean.
+- Code is `swift-format` clean: 4-space indentation and 120-character lines (`.swift-format`). `Packages/ShuckKit/.swift-format` adds the engine-only rules against force unwraps, `try!` and implicitly unwrapped optionals. Run `scripts/lint.sh --fix` before committing.
 
 ## Safety rules
 
