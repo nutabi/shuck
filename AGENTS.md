@@ -33,7 +33,8 @@ Run commands from the repository root. Commands marked *planned* do not exist ye
 | Engine tests | `swift test --package-path Packages/ShuckKit` | available |
 | Lint (`--fix` to reformat) | `scripts/lint.sh` | available |
 | All tests, as CI runs them (`--no-ui` skips UI tests) | `scripts/test.sh` | available |
-| Static checks (ENG-006) | `scripts/static-checks.sh` | *planned* (M0-T07) |
+| Static checks (ENG-006) | `scripts/static-checks.sh` | available |
+| Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
 | Build a DMG | `scripts/build-dmg.sh` | *planned* (M0-T08) |
 | Notarize | `scripts/notarize.sh` | *planned* (M0-T08) |
 
@@ -86,7 +87,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 
 ## Safety rules
 
-Shuck deletes files. These rules are not negotiable, and CI enforces them where it can (ENG-006).
+Shuck deletes files. These rules are not negotiable, and CI enforces them where it can (ENG-006). `scripts/static-checks.sh` lists what is checked automatically. Creating or writing files is allowed only in `ShuckExecution` and in `ShuckKit`'s `History/` folder, which writes Shuck's own log. If a check blocks legitimate code, ask the owner; do not weaken the check.
 
 1. **Every mutation goes through the Execution layer.** No code outside the `ShuckExecution` module may delete, move, rename or modify user files or launchd state (SAF-017). That includes the app target, other engine modules and scripts.
 2. **The path guard is mandatory.** Every target passes the path guard (SAF-007) and the protected-locations list (PRD section 8.4) when planned, and is re-validated just before acting (SAF-008). Never bypass, weaken or special-case the guard, not even to make a test pass. If a guard rule looks wrong, stop and ask the owner.

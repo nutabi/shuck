@@ -32,6 +32,11 @@ jobs:
       - name: Lint
         run: scripts/lint.sh
 
+      - name: Static checks
+        run: |
+          scripts/static-checks-test.sh
+          scripts/static-checks.sh
+
       - name: Test
         run: scripts/test.sh
 
