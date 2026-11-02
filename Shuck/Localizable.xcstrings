@@ -7,13 +7,31 @@
     "Disk space at a glance, and what each sub-tool could reclaim." : {
 
     },
+    "Document" : {
+
+    },
     "Every action Shuck has taken, and how to put things back." : {
 
     },
     "Exclusions, thresholds and project folders." : {
 
     },
+    "Folder" : {
+
+    },
     "History" : {
+
+    },
+    "Kind" : {
+
+    },
+    "Modified" : {
+
+    },
+    "Name" : {
+
+    },
+    "No items selected" : {
 
     },
     "Not scanned yet" : {
@@ -26,6 +44,18 @@
 
     },
     "Planned for milestone M5." : {
+
+    },
+    "Quick Look" : {
+
+    },
+    "Read-only items are not included" : {
+
+    },
+    "Read-only: %@ manages this item." : {
+
+    },
+    "Read-only: Shuck never removes this item." : {
 
     },
     "Scan" : {
@@ -52,7 +82,19 @@
     "Settings" : {
 
     },
+    "Show in Finder" : {
+
+    },
+    "Size" : {
+
+    },
     "Some folders were not accessible" : {
+
+    },
+    "Unknown" : {
+
+    },
+    "^[%lld item](inflect: true) selected, %@" : {
 
     }
   },

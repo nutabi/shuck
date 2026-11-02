@@ -43,7 +43,8 @@ exercised).
   - [x] App: sidebar built from `ToolRegistry.standard`, File Cleanup landing page (FCL-004), FCL-002 test (D-54).
 - [x] M1-T07 Personal-files scanner with shared item state (FCL-006, FCL-008 to FCL-011, SAF-014). Engine only;
   the app uses it from M1-T09 (D-55).
-- [ ] M1-T08 Shared results UI for personal files (FCL-012)
+- [x] M1-T08 Shared results UI for personal files (FCL-012). The table and its view model; a sidebar page shows them
+  from M1-T09 (D-56).
 - [ ] M1-T09 Large Files sub-tool (LRG-001 to LRG-003)
 - [ ] M1-T10 "Last opened" metadata with fallback (OLD-002)
 - [ ] M1-T11 Old Files sub-tool (OLD-001, OLD-003)
@@ -64,6 +65,9 @@ Left over from M1 tasks:
   becomes available, the debug-only fixture-root argument (NFR-QA-002) must reach that context, so UI tests that press
   Scan never read the real home folder. `FileCleanupModel` keeps only counts; move it onto `PersonalFilesState`, so
   Large Files and Old Files run one shared `PersonalFilesScanner` scan between them (FCL-006, D-54, D-55).
+- [ ] M1-T09: show `PersonalFilesTable` on the Large Files page, feeding `PersonalFilesResults` from the shared scan,
+  and add FCL-012's UI test with the fixture root: rows stream in, columns sort, the selection total, Space for Quick
+  Look (D-56).
 - [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52).
 
