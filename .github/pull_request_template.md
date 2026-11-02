@@ -30,10 +30,6 @@ Write "None" if the change has no UI code.
 
 <!-- New or changed tests, what they prove, and the result of scripts/test.sh. Deletion paths need fixture tests. -->
 
-## Screenshots
-
-<!-- For UI changes. Write "None" otherwise. -->
-
 ## Checklist
 
 - [ ] Tests added or updated; deletion paths use fixture tests, and SAF tests name their requirement ID

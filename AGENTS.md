@@ -113,13 +113,12 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
 - **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires the `Lint, build and test` check, so a pull request merges once CI passes. If CI fails, fix it on the branch (D-51).
 - **Branches:** every change goes through a pull request; `main` accepts only squash merges of pull requests that pass CI and are up to date (ENG-001). Name the branch after the task in lowercase plus a short slug, for example `m1-t02-path-guard`.
-- **Pull request description** (ENG-003). Fill in every section of `.github/pull_request_template.md`:
+- **Pull request description** (ENG-003, without its Screenshots section: D-65). Fill in every section of `.github/pull_request_template.md`:
   - **Summary.**
   - **Requirement IDs.**
   - **How to review this:** risky areas and the files to read first. Call out every change to Safety or Execution.
   - **SwiftUI concepts used:** a short explanation of each SwiftUI API or pattern the change uses, with a link to Apple's documentation.
   - **Test evidence.**
-  - **Screenshots** (UI changes).
   - **Checklist:** tests added, no new dependencies, no network APIs, docs updated.
 - **Definition of done** (ENG-004):
   - The project builds.

@@ -87,6 +87,7 @@ Carried over from M0:
 Process changes during M1:
 
 - [x] Pull requests open ready for review with auto-merge, gated by CI (D-51).
+- [x] The pull request template has no Screenshots section (D-65).
 - [ ] Revisit CodeQL code scanning once it can build the app on macOS 27, or in M5's security pass at the latest
   (D-50).
 
