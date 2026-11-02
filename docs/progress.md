@@ -70,11 +70,12 @@ exercised).
     passed to every request, without UI (D-72).
   - [x] UI: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
     summary (HIS-003, D-73).
-- [x] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003). Two pull requests (D-62).
+- [x] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003). Three pull requests (D-62).
   - [x] Isolation: debug builds have their own bundle ID, preferences and data folder, and a UI test clears the debug
     build's preferences at launch (D-70).
   - [x] Smoke tests: one UI test file per area, a smoke test for each tool's and sub-tool's main path, listed in
     `ShuckUITestCase` (D-71). Restore's came with M1-T14's last pull request (D-73).
+  - [x] Notes on running and writing UI tests, moved from agents' own memory into `AGENTS.md`.
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
 
 Left over from M1 tasks:

@@ -18,7 +18,7 @@ Shuck is a free, open-source (GPL-3.0-or-later), native macOS app that keeps a M
   - this file: how to work;
   - [docs/PRD.md](docs/PRD.md): what to build;
   - `docs/decisions.md`: decisions made after the planning phase.
-- An agent's own memory or notes are a local scratchpad only. They must never be the only place a rule is recorded.
+- An agent's own memory or notes are a local scratchpad only. They must never be the only place a rule, preference or fact about the project is recorded. When an agent learns something the next agent needs, such as a tool's quirk or how to measure something, it adds it to this file or to `docs/` in the same change.
 - When the owner states a new preference, add it to this file in the same change.
 - When a task leaves open a decision that the PRD does not settle, ask the owner before implementing instead of guessing.
 
@@ -86,6 +86,16 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004).
 - No network APIs (`URLSession`, Network framework, `NSURLConnection`, sockets) and no authorization or privilege APIs (NFR-SEC-001, ONB-003).
 - Code is `swift-format` clean: 4-space indentation and 120-character lines (`.swift-format`). `Packages/ShuckKit/.swift-format` adds the engine-only rules against force unwraps, `try!` and implicitly unwrapped optionals. Run `scripts/lint.sh --fix` before committing.
+
+## UI tests
+
+UI tests drive the real app on a fixture root (NFR-QA-002). They take over the mouse and keyboard while they run.
+
+- Run them from Xcode or from a terminal outside any sandbox. A sandboxed shell, such as an agent's command tool, launches the app without a window (only its menu bar appears), so every UI test fails, even on an unchanged `main`. Unit and engine tests run fine there: `scripts/test.sh --no-ui`.
+- Never launch the debug app by hand with a made-up `-ShuckFixtureRoot`. The app accepts only a fixture root the test harness created (`AppEnvironment.fixtureRoot(in:debugBuild:)`) and otherwise stops with `fatalError`, which leaves "Shuck quit unexpectedly" dialogs behind.
+- XCTest's `waitForExistence(timeout:)` and `waitForNonExistence(timeout:)` first check the element about a second after they start, so each call costs at least a second, even for an element already on screen. On 2026-11-02, waits took 52 s of the UI suite's 123 s.
+- `firstMatch` does not find a SwiftUI `DisclosureGroup` row's combined accessibility element, such as a run on the History page. Use `.element` on a query that matches exactly one element.
+- `scripts/test.sh` prints only each suite's time. Per-test times are in the result bundles in `build/DerivedData/Logs/Test/`, which CI uploads only when a run fails (D-34). `xcrun xcresulttool get test-results tests --path <bundle>` lists each test's duration, and `xcrun xcresulttool get test-results activities --test-id "<Class>/<method>()" --path <bundle>` lists one test's steps with their start times.
 
 ## Safety rules
 
