@@ -19,10 +19,19 @@ final class FileCleanupModel {
     nonisolated struct ScanSummary: Equatable {
         let finished: Date
         let itemCount: Int
-        /// The allocated size of everything found, in bytes (SAF-013).
+        /// The allocated size of everything found, each file counted once, in bytes (SAF-013, FCL-007).
         let reclaimableBytes: Int64
         /// Folders the scan could not read (SAF-012).
         let notAccessibleCount: Int
+    }
+
+    /// What the landing page shows about every finished scan together (FCL-007).
+    nonisolated struct CombinedTotal: Equatable {
+        /// The allocated size of everything found, each file counted once, in bytes (SAF-013).
+        let reclaimableBytes: Int64
+        let scannedCount: Int
+        /// How many sub-tools can scan now. Planned ones are left out.
+        let availableCount: Int
     }
 
     let subTools: [any SubTool]
@@ -181,6 +190,34 @@ final class FileCleanupModel {
         }
     }
 
+    /// The reclaimable estimate of every finished scan together, or `nil` before any scan finishes (FCL-007).
+    ///
+    /// A file that Large Files and Old Files both list counts once, and so does a file several paths lead to. Other
+    /// sub-tools never share a location (FCL-005), so their estimates are added as they are.
+    var combinedTotal: CombinedTotal? {
+        let available = subTools.filter { $0.info.availability == .available }
+        var personal = ReclaimableTotal()
+        var otherBytes: Int64 = 0
+        var scannedCount = 0
+        for subTool in available {
+            guard case .scanned(let summary) = state(of: subTool.id) else { continue }
+            scannedCount += 1
+            if results[subTool.id] != nil {
+                personal.add(contentsOf: listedFiles(subTool.id))
+            } else {
+                otherBytes += summary.reclaimableBytes
+            }
+        }
+        guard scannedCount > 0 else { return nil }
+        return CombinedTotal(
+            reclaimableBytes: personal.bytes + otherBytes, scannedCount: scannedCount, availableCount: available.count)
+    }
+
+    /// The files a personal-files sub-tool lists, read-only ones included.
+    private func listedFiles(_ id: ToolID) -> [PersonalFile] {
+        results[id]?.rows.compactMap { personalFiles.items[$0.id] } ?? []
+    }
+
     /// Keeps only the files some sub-tool lists, so a home folder of a million files does not stay in memory.
     private func apply(_ event: PersonalFilesEvent) {
         guard case .files(let files) = event else {
@@ -196,11 +233,11 @@ final class FileCleanupModel {
         }
     }
 
-    /// The reclaimable estimate leaves out read-only items (FCL-011).
+    /// The reclaimable estimate leaves out read-only items (FCL-011) and counts each file once (FCL-007).
     private func summary(of id: ToolID, finished: Date) -> ScanSummary {
-        let rows = results[id]?.rows.filter { $0.readOnly == nil } ?? []
+        let total = ReclaimableTotal(listedFiles(id))
         return ScanSummary(
-            finished: finished, itemCount: rows.count, reclaimableBytes: rows.reduce(0) { $0 + $1.size },
+            finished: finished, itemCount: total.count, reclaimableBytes: total.bytes,
             notAccessibleCount: personalFiles.notAccessible.count)
     }
 

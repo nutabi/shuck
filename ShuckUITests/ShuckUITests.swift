@@ -78,6 +78,27 @@ final class ShuckUITests: XCTestCase {
         attachScreenshot(of: app, named: "File Cleanup landing page")
     }
 
+    /// FCL-007: after Scan All, the landing page's total counts a file that is both large and old once.
+    @MainActor
+    func testLandingPageTotalCountsEachFileOnceFCL007() throws {
+        let year: TimeInterval = 365 * 86_400
+        try root.file("Movies/Holiday.mov", size: 5 << 20, modified: .now.addingTimeInterval(-3 * year))
+        try root.file("Movies/Clip.mov", size: 2 << 20)
+        let app = launch()
+
+        app.outlines.firstMatch.staticTexts["File Cleanup"].click()
+        XCTAssertTrue(app.staticTexts["No total yet"].waitForExistence(timeout: 5))
+        app.buttons["Scan All"].click()
+
+        // Large Files lists both files (7.3 MB), Old Files only the holiday movie (5.2 MB).
+        XCTAssertTrue(app.staticTexts["7.3 MB reclaimable in total"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["7.3 MB reclaimable"].exists)
+        XCTAssertTrue(app.staticTexts["5.2 MB reclaimable"].exists)
+        XCTAssertTrue(app.staticTexts["Each file counts once, even if several sub-tools list it."].exists)
+
+        attachScreenshot(of: app, named: "File Cleanup total")
+    }
+
     /// LRG-001, LRG-003, FCL-012, D-61: opening the page scans, and lists files at or above the minimum size, grouped
     /// by top-level folder with subtotals.
     @MainActor

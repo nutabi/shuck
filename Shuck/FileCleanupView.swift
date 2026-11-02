@@ -1,14 +1,17 @@
 import ShuckKit
 import SwiftUI
 
-/// File Cleanup's landing page: each sub-tool with its one-line summary, last scan time, reclaimable estimate and its
-/// own Scan button (FCL-004).
+/// File Cleanup's landing page: what every finished scan could reclaim together (FCL-007), then each sub-tool with its
+/// one-line summary, last scan time, reclaimable estimate and its own Scan button (FCL-004).
 struct FileCleanupView: View {
     let info: ToolInfo
     let model: FileCleanupModel
 
     var body: some View {
         List {
+            Section {
+                CombinedTotalRow(total: model.combinedTotal)
+            }
             Section {
                 ForEach(model.subTools, id: \.id) { subTool in
                     SubToolRow(subTool: subTool, model: model)
@@ -25,6 +28,41 @@ struct FileCleanupView: View {
             .disabled(!model.canScanAll)
             .help("Scan with every sub-tool. Scanning never removes anything.")
         }
+    }
+}
+
+/// The total of every finished scan, each file counted once (FCL-007).
+private struct CombinedTotalRow: View {
+    let total: FileCleanupModel.CombinedTotal?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "sum")
+                .font(.title2)
+                .foregroundStyle(.tint)
+                .frame(width: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                if let total {
+                    Text("\(total.reclaimableBytes, format: .byteCount(style: .file)) reclaimable in total")
+                        .font(.headline)
+                    Text("Each file counts once, even if several sub-tools list it.")
+                        .foregroundStyle(.secondary)
+                    if total.scannedCount < total.availableCount {
+                        Text(
+                            "From \(total.scannedCount) of \(total.availableCount) sub-tools. Scan the others to complete it."
+                        )
+                        .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text("No total yet")
+                        .font(.headline)
+                    Text("Scan to see how much space File Cleanup could reclaim.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 6)
     }
 }
 

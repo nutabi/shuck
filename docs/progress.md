@@ -59,7 +59,8 @@ exercised).
     removal of moved items from both lists (`TrashReview`), with no UI yet.
   - [x] UI: the "Move to Trash…" button, the review sheet with its confirmation, progress, Stop and summary, and the
     UI tests (SAF-002, D-64).
-- [ ] M1-T13 De-duplicated totals across sub-tools (FCL-007)
+- [x] M1-T13 De-duplicated totals across sub-tools (FCL-007). Totals count each file once by file-system identity,
+  so hard links count once too; the landing page shows the total above the sub-tools (D-67).
 - [ ] M1-T14 History view and Restore action (HIS-002)
 - [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)

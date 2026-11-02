@@ -112,6 +112,21 @@ struct PersonalFilesScannerTests {
         #expect(EntryValues.read(try root.url("Documents/missing")) == nil)
     }
 
+    /// Each item carries its file identity, so totals can count a hard-linked file once (FCL-007).
+    @Test func hardLinksAreTwoItemsWithOneIdentityFCL007() async throws {
+        try root.file("Movies/a.mov", size: 4_000)
+        try root.hardLink("Backup/a.mov", to: "Movies/a.mov")
+        try root.file("Documents/Notes.rtfd/TXT.rtf", size: 4_000)
+
+        let result = try await scan(scanner())
+
+        let original = try #require(result.items["Movies/a.mov"]?.identity)
+        #expect(result.items["Backup/a.mov"]?.identity == original)
+        let package = try #require(result.items["Documents/Notes.rtfd"]?.identity)
+        #expect(package != original)
+        #expect(ReclaimableTotal(result.items.values).count == 2)
+    }
+
     // MARK: - Read-only items (FCL-011, section 8.4)
 
     @Test func aToolOwnedStoreIsOneReadOnlyItemPointingAtItsSubToolFCL011() async throws {

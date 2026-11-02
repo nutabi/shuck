@@ -137,7 +137,8 @@ public struct PersonalFilesScanner: Sendable {
     {
         let lastOpened = lastOpened?.read(url, size: snapshot.allocatedSize, modified: values.modified)
         return PersonalFile(
-            url: url, snapshot: snapshot, modified: values.modified, lastOpened: lastOpened, readOnly: readOnly)
+            url: url, identity: values.identity, snapshot: snapshot, modified: values.modified, lastOpened: lastOpened,
+            readOnly: readOnly)
     }
 
     enum Protection {
@@ -196,10 +197,12 @@ public struct EntryValues: Equatable, Sendable {
     public var modified: Date?
     /// An iCloud file whose content is not on this Mac (FCL-010).
     public var isPlaceholder: Bool
+    /// Which file the entry is (FCL-007).
+    public var identity: FileIdentity?
 
     public init(
         isDirectory: Bool = false, isPackage: Bool = false, isSymbolicLink: Bool = false, isRegularFile: Bool = false,
-        allocatedSize: Int64 = 0, modified: Date? = nil, isPlaceholder: Bool = false
+        allocatedSize: Int64 = 0, modified: Date? = nil, isPlaceholder: Bool = false, identity: FileIdentity? = nil
     ) {
         self.isDirectory = isDirectory
         self.isPackage = isPackage
@@ -208,6 +211,7 @@ public struct EntryValues: Equatable, Sendable {
         self.allocatedSize = allocatedSize
         self.modified = modified
         self.isPlaceholder = isPlaceholder
+        self.identity = identity
     }
 
     static let keys: Set<URLResourceKey> = [
@@ -222,6 +226,7 @@ public struct EntryValues: Equatable, Sendable {
             isDirectory: values.isDirectory == true, isPackage: values.isPackage == true,
             isSymbolicLink: values.isSymbolicLink == true, isRegularFile: values.isRegularFile == true,
             allocatedSize: Int64(values.totalFileAllocatedSize ?? 0), modified: values.contentModificationDate,
-            isPlaceholder: values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus == .notDownloaded)
+            isPlaceholder: values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus == .notDownloaded,
+            identity: FileIdentity.read(url))
     }
 }
