@@ -7,7 +7,7 @@ final class NavigationUITests: ShuckUITestCase {
         let app = launch()
 
         let sidebar = app.outlines.firstMatch
-        XCTAssertTrue(sidebar.waitForExistence(timeout: 5))
+        XCTAssertTrue(sidebar.appears(within: 5))
         for title in [
             "Overview", "File Cleanup", "Large Files", "Old Files", "Developer Junk",
             "Caches & Logs", "Applications", "Startup Items", "History",
@@ -30,7 +30,7 @@ final class NavigationUITests: ShuckUITestCase {
             ("Startup Items", "See what starts automatically and turn off what you don't want.", "M4"),
         ] {
             app.outlines.firstMatch.staticTexts[title].click()
-            XCTAssertTrue(app.staticTexts[summary].waitForExistence(timeout: 5), "\(title)'s page did not open")
+            XCTAssertTrue(app.staticTexts[summary].appears(within: 5), "\(title)'s page did not open")
             XCTAssertTrue(app.staticTexts["Planned for milestone \(milestone)."].exists, "\(title)'s milestone")
         }
     }
@@ -39,11 +39,11 @@ final class NavigationUITests: ShuckUITestCase {
     @MainActor
     func testCommandCommaOpensSettingsInItsOwnWindowD27() throws {
         let app = launch()
-        XCTAssertTrue(app.outlines.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.outlines.firstMatch.appears(within: 5))
 
         app.typeKey(",", modifierFlags: .command)
         let summary = "Exclusions, thresholds and project folders."
-        XCTAssertTrue(app.staticTexts[summary].waitForExistence(timeout: 5), "⌘, did not open Settings")
+        XCTAssertTrue(app.staticTexts[summary].appears(within: 5), "⌘, did not open Settings")
         XCTAssertTrue(app.staticTexts["Planned for milestone M5."].exists)
         XCTAssertEqual(app.windows.count, 2)
         let main = app.windows.containing(.outline, identifier: nil).element

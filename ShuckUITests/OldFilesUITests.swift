@@ -17,7 +17,7 @@ final class OldFilesUITests: ShuckUITestCase {
 
         app.outlines.firstMatch.staticTexts["Old Files"].click()
 
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 10))
         XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
         XCTAssertFalse(app.staticTexts["Report.pdf"].exists, "A recently changed file is listed")
         XCTAssertFalse(app.staticTexts["notes.txt"].exists, "A file below the minimum size is listed")
@@ -40,27 +40,27 @@ final class OldFilesUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Old Files"].click()
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 10))
         app.staticTexts["Holiday.mov"].click()
         app.buttons["Move to Trash…"].click()
         let sheet = app.sheets.firstMatch
-        XCTAssertTrue(sheet.staticTexts["Move 1 item, 2.1 MB, to the Trash?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.staticTexts["Move 1 item, 2.1 MB, to the Trash?"].appears(within: 5))
         XCTAssertTrue(FileManager.default.fileExists(atPath: holiday.path), "The item moved before the confirmation")
 
         sheet.buttons["Move to Trash"].click()
-        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].waitForExistence(timeout: 10))
+        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].appears(within: 10))
         XCTAssertFalse(FileManager.default.fileExists(atPath: holiday.path), "Holiday.mov did not move")
         let trash = root.url.appending(path: ".Trash")
         XCTAssertTrue(FileManager.default.fileExists(atPath: trash.appending(path: "Holiday.mov").path))
         attachScreenshot(of: app, named: "Old Files Move to Trash summary")
 
         sheet.buttons["Done"].click()
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].disappears(within: 5))
         XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
         XCTAssertTrue(FileManager.default.fileExists(atPath: installer.path))
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts["Installer.dmg"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Installer.dmg"].appears(within: 5))
         XCTAssertFalse(app.staticTexts["Holiday.mov"].exists, "Large Files still lists the moved file")
     }
 }

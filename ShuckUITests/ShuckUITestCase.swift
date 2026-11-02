@@ -15,6 +15,8 @@ import XCTest
 /// - Overview, Developer Junk, Caches & Logs, Applications and Startup Items: a placeholder that names its
 ///   milestone, `NavigationUITests.testPlaceholderPagesNameTheirMilestone`.
 /// - Settings: ⌘, opens its own window, `NavigationUITests.testCommandCommaOpensSettingsInItsOwnWindowD27`.
+///
+/// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).
 class ShuckUITestCase: XCTestCase {
     var root: FixtureRoot!
 
@@ -47,5 +49,34 @@ class ShuckUITestCase: XCTestCase {
         screenshot.name = name
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+}
+
+/// Waits that check every 0.1 s (D-74). XCTest's `waitForExistence(timeout:)` and `waitForNonExistence(timeout:)` first
+/// check about a second after they start, so each of them costs at least a second, even for an element that is already
+/// on screen.
+@MainActor
+extension XCUIElement {
+    /// Whether the element exists within `timeout` seconds.
+    func appears(within timeout: TimeInterval) -> Bool {
+        wait(within: timeout, untilExists: true)
+    }
+
+    /// Whether the element is gone within `timeout` seconds.
+    func disappears(within timeout: TimeInterval) -> Bool {
+        wait(within: timeout, untilExists: false)
+    }
+
+    private func wait(within timeout: TimeInterval, untilExists expected: Bool) -> Bool {
+        // One step in the test report, like XCTest's own waits, with each check inside it.
+        let name = "Wait up to \(timeout) s for \(self) to \(expected ? "appear" : "disappear")"
+        return XCTContext.runActivity(named: name) { _ in
+            let deadline = Date.now.addingTimeInterval(timeout)
+            while exists != expected {
+                guard Date.now < deadline else { return false }
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+            return true
+        }
     }
 }
