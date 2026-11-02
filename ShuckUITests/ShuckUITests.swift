@@ -280,9 +280,14 @@ final class ShuckUITests: XCTestCase {
         XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].waitForExistence(timeout: 10))
 
         sheet.buttons["Show in History"].click()
-        XCTAssertTrue(app.staticTexts["Large Files · Moved to the Trash"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["1 item, 5.2 MB"].exists)
-        XCTAssertTrue(app.staticTexts["Completed"].exists)
+        // A run row reads as one element, as VoiceOver speaks it: area and method, count and size, date, status.
+        let run = app.staticTexts.matching(
+            NSPredicate(
+                format: "label BEGINSWITH %@ AND label ENDSWITH %@",
+                "Large Files · Moved to the Trash, 1 item, 5.2 MB, ",
+                ", Completed")
+        ).firstMatch
+        XCTAssertTrue(run.waitForExistence(timeout: 5), "The run's area, method, size or status is missing")
         XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 5), "The run is not expanded")
         XCTAssertTrue(app.staticTexts["In the Trash"].exists)
         XCTAssertFalse(app.staticTexts["Clip.mov"].exists, "An item the run did not touch is listed")
