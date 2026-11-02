@@ -21,8 +21,10 @@ final class FileCleanupModel {
         let itemCount: Int
         /// The allocated size of everything found, each file counted once, in bytes (SAF-013, FCL-007).
         let reclaimableBytes: Int64
-        /// Folders the scan could not read (SAF-012).
+        /// Folders macOS did not let the scan read (SAF-012).
         let notAccessibleCount: Int
+        /// Folders the scan could not read for another reason, such as a disk error (SAF-011).
+        let unreadableCount: Int
     }
 
     /// What the landing page shows about every finished scan together (FCL-007).
@@ -238,7 +240,7 @@ final class FileCleanupModel {
         let total = ReclaimableTotal(listedFiles(id))
         return ScanSummary(
             finished: finished, itemCount: total.count, reclaimableBytes: total.bytes,
-            notAccessibleCount: personalFiles.notAccessible.count)
+            notAccessibleCount: personalFiles.notAccessible.count, unreadableCount: personalFiles.unreadable.count)
     }
 
     /// Runs a scan off the main actor (NFR-PERF-001). Returns `nil` if the task was cancelled.
@@ -247,6 +249,7 @@ final class FileCleanupModel {
         var itemCount = 0
         var reclaimableBytes: Int64 = 0
         var notAccessibleCount = 0
+        var unreadableCount = 0
         for await event in subTool.scan(context) {
             switch event {
             case .item(let item):
@@ -254,11 +257,13 @@ final class FileCleanupModel {
                 reclaimableBytes += item.allocatedSize
             case .notAccessible:
                 notAccessibleCount += 1
+            case .unreadable:
+                unreadableCount += 1
             }
         }
         guard !Task.isCancelled else { return nil }
         return ScanSummary(
             finished: .now, itemCount: itemCount, reclaimableBytes: reclaimableBytes,
-            notAccessibleCount: notAccessibleCount)
+            notAccessibleCount: notAccessibleCount, unreadableCount: unreadableCount)
     }
 }

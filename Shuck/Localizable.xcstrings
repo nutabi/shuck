@@ -420,6 +420,9 @@
     "Skipped: %@" : {
 
     },
+    "Some folders could not be read" : {
+
+    },
     "Some folders were not accessible" : {
 
     },

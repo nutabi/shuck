@@ -46,8 +46,11 @@ public enum Confidence: String, Codable, Sendable, CaseIterable {
 /// What a scan reports as it goes. Results stream in (FCL-012), so the UI shows items before the scan ends.
 public enum ScanEvent: Equatable, Sendable {
     case item(ScanItem)
-    /// A folder the scan could not read, shown as "Not accessible" with guidance (SAF-012, ONB-002). The scan goes on.
+    /// A folder macOS does not let the scan read, shown as "Not accessible" with guidance (SAF-012, ONB-002). The scan
+    /// goes on.
     case notAccessible(URL)
+    /// A folder the scan could not read for another reason, such as a disk error (SAF-011). The scan goes on.
+    case unreadable(URL)
 }
 
 /// What every scan gets from its caller.

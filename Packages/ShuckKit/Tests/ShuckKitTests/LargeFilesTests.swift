@@ -24,6 +24,8 @@ struct LargeFilesTests {
                 items[String(item.url.path.dropFirst(root.url.path.count + 1))] = item
             case .notAccessible(let url):
                 notAccessible.append(url)
+            case .unreadable(let url):
+                Issue.record("Could not read \(url.path)")
             }
         }
         return (items, notAccessible)

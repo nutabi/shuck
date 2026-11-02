@@ -4,7 +4,8 @@ import ShuckKitTestSupport
 import Synchronization
 import Testing
 
-/// The personal-files scan that Large Files and Old Files share (FCL-006, FCL-008 to FCL-011, SAF-012, SAF-014).
+/// The personal-files scan that Large Files and Old Files share (FCL-006, FCL-008 to FCL-011, SAF-011, SAF-012,
+/// SAF-014).
 struct PersonalFilesScannerTests {
     let root: FixtureRoot
 
@@ -25,7 +26,7 @@ struct PersonalFilesScannerTests {
 
     /// Runs a scan to the end. Items are keyed by their path inside the fixture root.
     private func scan(_ scanner: PersonalFilesScanner) async throws -> (
-        items: [String: PersonalFile], notAccessible: [String]
+        items: [String: PersonalFile], notAccessible: [String], unreadable: [String]
     ) {
         var state = PersonalFilesState()
         for await event in scanner.scan() {
@@ -34,7 +35,7 @@ struct PersonalFilesScannerTests {
         for url in state.items.keys { try root.requireInside(url) }
         return (
             Dictionary(uniqueKeysWithValues: state.items.map { (relative($0.key), $0.value) }),
-            state.notAccessible.map(relative).sorted()
+            state.notAccessible.map(relative).sorted(), state.unreadable.map(relative).sorted()
         )
     }
 
@@ -168,6 +169,20 @@ struct PersonalFilesScannerTests {
         #expect(result.items.count == 3)
     }
 
+    /// The path guard ignores case when it compares protected names (D-79), so the scan does too: otherwise it would
+    /// list the files inside as selectable, and the guard would then refuse the plan.
+    @Test func aProtectedNameInAnotherCaseIsOneReadOnlyItemSAF007() async throws {
+        try root.file("Backups/backups.BACKUPDB/Mac/2026-11-01/report.pdf", size: 4_000)
+        try root.file("Backups/notes.txt", size: 10)
+
+        let result = try await scan(scanner())
+
+        let backup = try #require(result.items["Backups/backups.BACKUPDB"])
+        #expect(backup.readOnly == .protected)
+        #expect(backup.snapshot.allocatedSize >= 4_000)
+        #expect(Set(result.items.keys) == ["Backups/backups.BACKUPDB", "Backups/notes.txt"])
+    }
+
     @Test func aWritableItemBecomesAYourDataTrashItem() throws {
         let file = PersonalFile(
             url: try root.url("Movies/clip.mov"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 10), modified: nil)
@@ -187,6 +202,28 @@ struct PersonalFilesScannerTests {
         let result = try await scan(scanner())
 
         #expect(result.notAccessible == ["Documents/Locked"])
+        #expect(result.unreadable.isEmpty)
+        #expect(Set(result.items.keys) == ["Documents/open.txt"])
+    }
+
+    @Test func aFolderThatFailsToListForAnotherReasonIsReportedSAF011() async throws {
+        // A file that reads as a folder, as if a folder were replaced by a file during the scan. Listing it fails with
+        // "not a directory", not with a permission error.
+        try root.file("Documents/Replaced", size: 10)
+        try root.file("Documents/open.txt", size: 10)
+
+        let result = try await scan(
+            scanner { url in
+                var values = EntryValues.read(url)
+                if url.lastPathComponent == "Replaced" {
+                    values?.isDirectory = true
+                    values?.isRegularFile = false
+                }
+                return values
+            })
+
+        #expect(result.unreadable == ["Documents/Replaced"])
+        #expect(result.notAccessible.isEmpty)
         #expect(Set(result.items.keys) == ["Documents/open.txt"])
     }
 

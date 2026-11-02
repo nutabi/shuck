@@ -72,7 +72,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - `ShuckKit` holds Tools, Scanning, Rules, Planning, Safety and History, one folder each. It never mutates user files or launchd state.
 - `ShuckExecution` depends on `ShuckKit` and is the only code that mutates user files or launchd state, including Restore's moves. `ShuckKit` cannot import it.
 - `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan. Execution tests build a Trash executor for a fixture root with `TrashExecutor(root:pathGuard:)`.
-- Tests for `ShuckExecution` go in `Tests/ShuckExecutionTests/`, a test target added with the first executor (M1-T04).
+- Tests for `ShuckExecution` go in its own test target, `Tests/ShuckExecutionTests/`.
 
 ## Coding conventions
 

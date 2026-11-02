@@ -165,8 +165,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Build settings and test helpers (TD-17, TD-18, TD-20 to TD-22): warnings as errors, a shared scheme, the version
     set once, fixture helpers for the history folder and the Trash, and UI tests in English with the en_US region
     (D-86).
-  - [ ] Scanner and History fixes (TD-03, TD-14, TD-15, TD-23): error text logged as private, protected names compared
-    with case folded, other listing errors reported, a history reader that refuses a symlinked log, and stale text.
+  - [x] Scanner and History fixes (TD-03, TD-14, TD-15, TD-23): error text logged as private, protected names compared
+    with case folded, other listing errors reported and counted on the landing page, a history reader that refuses a
+    symlinked log or data folder, and stale text. The Group by Folder toggle is now remembered (D-87).
   - [ ] Run outcomes that say why (TD-05, TD-06, SAF-012): "not accessible" kept apart from "missing", typed Trash
     errors, and stable reason codes in the log's `detail`.
   - [ ] One run loop for every method, for Delete, Tool and Launchctl to plug into (TD-04, TD-11, TD-24), with Logger

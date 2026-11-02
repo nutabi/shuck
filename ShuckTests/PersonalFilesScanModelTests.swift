@@ -26,6 +26,7 @@ struct PersonalFilesScanModelTests {
         let events: [PersonalFilesEvent] = [
             .files([file("Movies/big.mov", size: 5_000), file("Documents/small.txt", size: 10)]),
             .notAccessible(context.home.appending(path: "Locked")),
+            .unreadable(context.home.appending(path: "Broken")),
             .files([file("go/pkg/mod", size: 9_000, readOnly: .managedBy(.developerJunk))]),
         ]
         let largeFiles = LargeFiles(minimumSize: 1_000)
@@ -56,6 +57,7 @@ struct PersonalFilesScanModelTests {
         #expect(summary.itemCount == 1)
         #expect(summary.reclaimableBytes == 5_000)
         #expect(summary.notAccessibleCount == 1)
+        #expect(summary.unreadableCount == 1)
     }
 
     @Test func filesNoSubToolListsAreNotKept() async {

@@ -44,6 +44,8 @@ extension PersonalFilesSubTool {
                         }
                     case .notAccessible(let url):
                         continuation.yield(.notAccessible(url))
+                    case .unreadable(let url):
+                        continuation.yield(.unreadable(url))
                     }
                 }
                 continuation.finish()

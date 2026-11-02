@@ -6,8 +6,8 @@ import os
 ///
 /// The scope is the home folder minus what ``OwnershipMap`` leaves out (`Library` except device backups, hidden
 /// top-level items), app bundles and the user's exclusions. Packages and device backups are single items (FCL-009),
-/// and iCloud placeholders are skipped (FCL-010). Locations another sub-tool owns (FCL-011) and protected bundles
-/// (section 8.4) are listed read-only. Symlinks are never followed.
+/// and iCloud placeholders are skipped (FCL-010). Locations another sub-tool owns (FCL-011), protected bundles and the
+/// protected locations inside the home folder (section 8.4) are listed read-only. Symlinks are never followed.
 ///
 /// Several folders are read at once, each by a task of the scan, off the main actor (D-81). Cancelling the task that
 /// reads the stream stops the scan before the next entry (SAF-014).
@@ -253,16 +253,22 @@ public struct PersonalFilesScanner: Sendable {
     }
 
     enum Protection {
-        /// Listed read-only: protected bundles, and the Music and TV libraries.
+        /// Listed read-only: protected bundles and folder names, and every protected location inside the home folder
+        /// (``PathGuardConfiguration/homeLocations``), such as the Music and TV libraries.
         case shown
         /// Left out: other protected locations, such as the user's exclusions and Shuck's own app (FCL-008).
         case hidden
     }
 
+    /// ``PathGuardConfiguration/protectedNames`` with case folded.
+    private static let protectedNames = Set(PathGuardConfiguration.protectedNames.map(fold))
+
     /// How `url`, whose key is `key`, is protected, if it is.
     func protectionOf(_ url: URL, key: String?) -> Protection? {
-        if PathGuardConfiguration.protectedNames.contains(url.lastPathComponent)
-            || PathGuardConfiguration.protectedExtensions.contains(url.pathExtension.lowercased())
+        // Names and extensions are compared with case folded, as the path guard compares them (D-79).
+        let name = Self.fold(url.lastPathComponent)
+        if Self.protectedNames.contains(name)
+            || PathGuardConfiguration.protectedExtensions.contains((name as NSString).pathExtension)
         {
             return .shown
         }
@@ -321,19 +327,25 @@ public struct PersonalFilesScanner: Sendable {
     }
 
     /// The entries of `folder`, or `nil` if it cannot be read. A folder macOS will not let Shuck read is reported as
-    /// not accessible (SAF-012).
+    /// not accessible (SAF-012), and one that fails for any other reason as unreadable, so no folder leaves the results
+    /// unnoticed (SAF-011).
     private func contents(of folder: URL, _ emit: (PersonalFilesEvent) -> Void) -> [URL]? {
         do {
             return try FileManager.default.contentsOfDirectory(
                 at: folder, includingPropertiesForKeys: Array(EntryValues.keys))
         } catch {
-            let code = (error as NSError).code
-            if code == NSFileReadNoPermissionError {
+            let error = error as NSError
+            if error.code == NSFileReadNoPermissionError {
                 Self.logger.info("Not accessible: \(folder.path, privacy: .private)")
                 emit(.notAccessible(folder))
             } else {
+                // Cocoa's description names the folder, so only the domain and code are public (NFR-SEC-006).
                 Self.logger.error(
-                    "Cannot list \(folder.path, privacy: .private): \(error.localizedDescription, privacy: .public)")
+                    """
+                    Cannot list \(folder.path, privacy: .private): \(error.domain, privacy: .public) \
+                    \(error.code, privacy: .public), \(error.localizedDescription, privacy: .private)
+                    """)
+                emit(.unreadable(folder))
             }
             return nil
         }
