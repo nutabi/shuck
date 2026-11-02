@@ -64,7 +64,7 @@ exercised).
 - [ ] M1-T14 History view and Restore action (HIS-002). Three pull requests (D-62, D-68).
   - [x] Engine: `HistoryLog.Contents.runs()` groups the log into runs with every logged item, its outcome and whether
     Restore can undo it; restores are runs of their own.
-  - [ ] App: the History page lists runs (date, area, item count, size, method, status), each expanding to its items;
+  - [x] App: the History page lists runs (date, area, item count, size, method, status), each expanding to its items;
     the run summary links to it.
   - [ ] App: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
     summary (HIS-003).

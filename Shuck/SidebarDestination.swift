@@ -22,7 +22,7 @@ nonisolated enum SidebarDestination: Hashable {
         case .history:
             DestinationLabel(
                 name: "History", summary: "Every action Shuck has taken, and how to put things back.",
-                symbolName: "clock.arrow.circlepath", availability: .planned(milestone: "M1"))
+                symbolName: "clock.arrow.circlepath", availability: .available)
         case .tool(let id):
             registry.info(id).map(DestinationLabel.init)
         }

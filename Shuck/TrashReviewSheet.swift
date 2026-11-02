@@ -13,6 +13,8 @@ struct TrashReviewSheet: View {
     let home: URL
 
     @Environment(\.dismiss) private var dismiss
+    /// `nil` in previews, which then offer no link to History.
+    @Environment(AppNavigation.self) private var navigation: AppNavigation?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -100,6 +102,13 @@ struct TrashReviewSheet: View {
             Spacer()
         }
         HStack {
+            if let navigation {
+                // Where every item's outcome stays, and where Restore puts things back (HIS-002).
+                Button("Show in History") {
+                    navigation.showHistory(revealing: report.run)
+                    dismiss()
+                }
+            }
             Spacer()
             Button("Done") { dismiss() }
                 .keyboardShortcut(.defaultAction)

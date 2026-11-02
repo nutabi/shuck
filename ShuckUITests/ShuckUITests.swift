@@ -254,6 +254,42 @@ final class ShuckUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
     }
 
+    /// HIS-002: with nothing logged, History says so.
+    @MainActor
+    func testHistoryWithNothingLoggedSaysSoHIS002() throws {
+        let app = launch()
+
+        app.outlines.firstMatch.staticTexts["History"].click()
+        XCTAssertTrue(app.staticTexts["No history yet"].waitForExistence(timeout: 5))
+    }
+
+    /// HIS-002, HIS-004: after a run, the summary's "Show in History" opens History with the run expanded: its area,
+    /// method, item count, size and status, then each item with what happened to it.
+    @MainActor
+    func testRunSummaryOpensTheRunInHistoryHIS002() throws {
+        try root.file("Movies/Holiday.mov", size: 5 << 20)
+        try root.file("Movies/Clip.mov", size: 2 << 20)
+        let app = launch()
+
+        app.outlines.firstMatch.staticTexts["Large Files"].click()
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        app.staticTexts["Holiday.mov"].click()
+        app.buttons["Move to Trash…"].click()
+        let sheet = app.sheets.firstMatch
+        sheet.buttons["Move to Trash"].click()
+        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].waitForExistence(timeout: 10))
+
+        sheet.buttons["Show in History"].click()
+        XCTAssertTrue(app.staticTexts["Large Files · Moved to the Trash"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1 item, 5.2 MB"].exists)
+        XCTAssertTrue(app.staticTexts["Completed"].exists)
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 5), "The run is not expanded")
+        XCTAssertTrue(app.staticTexts["In the Trash"].exists)
+        XCTAssertFalse(app.staticTexts["Clip.mov"].exists, "An item the run did not touch is listed")
+
+        attachScreenshot(of: app, named: "History with one run")
+    }
+
     @MainActor
     private func attachScreenshot(of app: XCUIApplication, named name: String) {
         let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
