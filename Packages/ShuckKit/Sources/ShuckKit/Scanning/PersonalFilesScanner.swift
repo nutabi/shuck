@@ -82,7 +82,9 @@ public struct PersonalFilesScanner: Sendable {
         var pending: [(url: URL, parentInScope: Bool)] = [(root, true)]
         while let (url, parentInScope) = pending.popLast(), !Task.isCancelled {
             entries += 1
-            switch classify(url, parentInScope: parentInScope) {
+            // Foundation hands back many of its objects autoreleased. Freeing them after each entry keeps memory flat;
+            // otherwise they lived until the walk ended, 17.1 GB at the baseline's peak (D-80).
+            switch autoreleasepool(invoking: { classify(url, parentInScope: parentInScope) }) {
             case .skip:
                 continue
             case .item(let file):
@@ -92,7 +94,7 @@ public struct PersonalFilesScanner: Sendable {
                     batch = []
                 }
             case .descend(let inScope):
-                let children = contents(of: url, emit) ?? []
+                let children = autoreleasepool { contents(of: url, emit) ?? [] }
                 pending.append(contentsOf: children.reversed().map { ($0, inScope) })
             }
         }
