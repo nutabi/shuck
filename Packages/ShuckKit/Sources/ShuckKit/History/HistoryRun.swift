@@ -28,6 +28,18 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
         public let outcome: Outcome
         /// Whether Restore can undo the item now, for an item that succeeded and is not itself a restore (HIS-004).
         public let restorability: Restorability?
+
+        public init(
+            path: String, trashedPath: String?, bytes: Int64?, tier: Tier, outcome: Outcome,
+            restorability: Restorability?
+        ) {
+            self.path = path
+            self.trashedPath = trashedPath
+            self.bytes = bytes
+            self.tier = tier
+            self.outcome = outcome
+            self.restorability = restorability
+        }
     }
 
     /// The run ID.
@@ -39,6 +51,14 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
     public let started: Date
     /// The items in the order the run logged them.
     public let items: [Item]
+
+    public init(id: UUID, tool: ToolID, operation: HistoryRecord.Operation, started: Date, items: [Item]) {
+        self.id = id
+        self.tool = tool
+        self.operation = operation
+        self.started = started
+        self.items = items
+    }
 
     /// The size of the items that succeeded, in bytes (SAF-013).
     public var succeededBytes: Int64 {
