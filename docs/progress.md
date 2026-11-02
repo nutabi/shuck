@@ -46,6 +46,10 @@ exercised).
 - [x] M1-T08 Shared results UI for personal files (FCL-012). The table and its view model; a sidebar page shows them
   from M1-T09 (D-56).
 - [ ] M1-T09 Large Files sub-tool (LRG-001 to LRG-003)
+  - [x] Engine: `LargeFiles` and the `PersonalFilesSubTool` protocol; scans read the protected list from
+    `ScanContext` (D-57).
+  - [ ] App: the debug-only fixture-root argument, one shared personal-files scan, the Large Files page grouped by
+    top-level folder, the minimum size from `UserDefaults`, and the UI tests (D-57).
 - [ ] M1-T10 "Last opened" metadata with fallback (OLD-002)
 - [ ] M1-T11 Old Files sub-tool (OLD-001, OLD-003)
 - [ ] M1-T12 Itemized review sheet, confirmation, summary (SAF-002, LRG-004, OLD-004)
