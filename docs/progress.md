@@ -100,6 +100,15 @@ exercised).
     first), about 21,400 entries a second, with a peak memory footprint of 82.8 MB. At that rate a million entries take
     about 47 s, so both targets are met.
 
+Exit criteria (PRD section 13):
+
+- [ ] The owner finds, trashes and restores files with both sub-tools, Large Files and Old Files, on their own Mac.
+- [ ] Every Trash-path SAF requirement is tested. On 2026-11-02, tests named SAF-001, SAF-002, SAF-004, SAF-005,
+  SAF-007, SAF-008, SAF-011 to SAF-014 and SAF-016, and the static checks cover SAF-017 (ENG-006). SAF-003, SAF-006,
+  SAF-009, SAF-010 and SAF-015 are about rebuildable items, deletes, tool commands and running apps, from M2 on.
+- [ ] `MARKETING_VERSION` is 0.1.0, set in a pull request (`docs/releasing.md`, D-30).
+- [ ] A `v0.1.0` tag produces a notarized draft pre-release that opens without a Gatekeeper warning (D-36, D-37).
+
 Left over from M1 tasks:
 
 - [x] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
