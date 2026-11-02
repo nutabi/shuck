@@ -91,6 +91,9 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 
 UI tests drive the real app on a fixture root (NFR-QA-002). They take over the mouse and keyboard while they run.
 
+- Each UI test is a user workflow (D-75). It launches the app once and follows one realistic path through several tools, in named steps (`step(_:_:)` in `ShuckUITestCase.swift`) whose names carry the requirement IDs. Add a check to the step where a user would see it, a step to the workflow a user would follow, or a new workflow for a new journey. Logic and edge cases belong in unit tests.
+- A check costs about 0.03 s; a launch costs about 1.6 s and a click about 0.7 s. So keep the checks a workflow passes, and don't add steps that only repeat another workflow's setup.
+- After a step changes the page, first wait for something only the new page shows, so later checks can't pass on the page before.
 - Run them from Xcode or from a terminal outside any sandbox. A sandboxed shell, such as an agent's command tool, launches the app without a window (only its menu bar appears), so every UI test fails, even on an unchanged `main`. Unit and engine tests run fine there: `scripts/test.sh --no-ui`.
 - Never launch the debug app by hand with a made-up `-ShuckFixtureRoot`. The app accepts only a fixture root the test harness created (`AppEnvironment.fixtureRoot(in:debugBuild:)`) and otherwise stops with `fatalError`, which leaves "Shuck quit unexpectedly" dialogs behind.
 - Wait with `appears(within:)` and `disappears(within:)` from `ShuckUITestCase.swift`, which check every 0.1 s (D-74). XCTest's `waitForExistence(timeout:)` and `waitForNonExistence(timeout:)` first check the element about a second after they start, so each call costs at least a second, even for an element already on screen. On 2026-11-02, waits took 52 s of the UI suite's 123 s.
@@ -158,7 +161,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 2. Register it in `ToolRegistry.standard`, replacing its `PlannedSubTool` placeholder if it has one. The sidebar and the File Cleanup landing page are built from the registry; do not edit them by hand.
 3. Its page starts its scan when it opens, if it has not scanned yet (`FileCleanupModel.scanIfNotScanned`). While there is nothing to list, the page shows only a message, never an empty table (D-61).
 4. Add its locations to `OwnershipMap.standardEntries`. Within File Cleanup, each location has exactly one owner (FCL-005), the most specific pattern wins, and the ownership test must still pass. Its scan skips anything the map does not give it.
-5. Add fixture tests for its scan and for a full run through the safety pipeline, plus a UI smoke test for its main path (NFR-QA-003). The UI test goes in its own `ShuckUITests/<Name>UITests.swift`, a subclass of `ShuckUITestCase`, and is listed in that class's documentation comment (D-71).
+5. Add fixture tests for its scan and for a full run through the safety pipeline, plus a UI smoke test for its main path (NFR-QA-003): a step in the UI workflow where a user would take that path, or a new workflow (see "UI tests"). List it in `ShuckUITestCase`'s documentation comment (D-75).
 6. Its ID goes in the history log's `tool` field (PRD section 8.5). Ask the owner to add it to the PRD.
 
 A sub-tool must not require changes to other sub-tools or to the safety layer. If it does, stop and ask: that is a design change.
