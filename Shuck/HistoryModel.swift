@@ -27,11 +27,45 @@ final class HistoryModel {
     /// The home folder, shown as `~` in folder paths.
     let home: URL
     private(set) var state = State.loading
+    /// The restore under way or just finished, which the page shows (HIS-003).
+    private(set) var restore: HistoryRestore?
     private let load: Load
+    private let runRestore: HistoryRestore.RunRestore?
 
-    init(home: URL, load: @escaping Load) {
+    /// - Parameter runRestore: Moves items back from the Trash. Without one, as in previews, the page offers no
+    ///   Restore, so nothing there can move a file.
+    init(home: URL, load: @escaping Load, runRestore: HistoryRestore.RunRestore? = nil) {
         self.home = home
         self.load = load
+        self.runRestore = runRestore
+    }
+
+    var canRestore: Bool { runRestore != nil }
+
+    /// Restores `items`, at once unless some original paths are taken (D-68), and reloads the log when the run ends.
+    /// Returns `nil` if there is nothing to restore, no way to restore, or a restore is still under way.
+    @discardableResult
+    func restore(_ items: [TrashedItem]) -> HistoryRestore? {
+        guard let runRestore, !items.isEmpty, !isRestoring else { return nil }
+        let restore = HistoryRestore(items: items, runRestore: runRestore) { [weak self] in
+            await self?.reload()
+        }
+        self.restore = restore
+        return restore
+    }
+
+    /// Whether a restore is waiting for an answer or running.
+    var isRestoring: Bool {
+        switch restore?.phase {
+        case .askingAboutTakenPaths?, .running?: true
+        default: false
+        }
+    }
+
+    /// Closes the finished restore's summary, or cancels a restore still waiting for an answer.
+    func dismissRestore() {
+        guard restore?.phase != .running else { return }
+        restore = nil
     }
 
     func reload() async {

@@ -48,6 +48,8 @@ struct AppEnvironmentTests {
         #expect(!(debug.trash is SystemTrash))
         // The run the review sheet calls has the type the review expects.
         let _: TrashReview.RunPlan = debug.run
+        // So does History's restore, which puts items back from that Trash (HIS-003).
+        let _: HistoryRestore.RunRestore = debug.restore
     }
 
     @Test func theUITestRunnersContainerIsAccepted() throws {
