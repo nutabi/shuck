@@ -62,6 +62,17 @@ struct PersonalFilesScannerTests {
         #expect(result.items.values.allSatisfy { $0.readOnly == nil })
     }
 
+    @Test func exclusionsMatchWhateverTheirCaseAndUnicodeFormFCL008() async throws {
+        try root.file("Excluded/kept.mov", size: 1_000)
+        try root.file("Caf\u{E9}/menu.pdf", size: 1_000)
+        try root.file("Documents/report.pdf", size: 1_000)
+
+        // One exclusion differs in case. The other spells é as e and a combining accent, as a pasted path might.
+        let result = try await scan(scanner(userExclusions: [try root.url("EXCLUDED"), try root.url("Cafe\u{301}")]))
+
+        #expect(Set(result.items.keys) == ["Documents/report.pdf"])
+    }
+
     @Test func eachDeviceBackupIsOneItemFCL008() async throws {
         try root.file("Library/Application Support/MobileSync/Backup/00008110-A/Manifest.db", size: 8_000)
         try root.file("Library/Application Support/MobileSync/Backup/00008110-A/3f/3f2a", size: 8_000)

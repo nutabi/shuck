@@ -89,7 +89,8 @@ exercised).
     after the scans, so the memory is temporary objects that stay alive until the walk ends; the second run was likely
     slower because the Mac was short of memory. About 80% of the CPU time went to comparing each entry with every
     protected location.
-  - [ ] Faster: match entries with the protected locations without standardizing both paths for every entry.
+  - [x] Faster: protected locations become keys once per scan, so matching an entry is a set lookup (D-79). A
+    generated fixture of 50,501 entries took 4.0 s instead of 35.5 s in a release build, about 12,500 entries a second.
   - [ ] Leaner: free each entry's temporary objects during the walk, so memory stays flat.
   - [ ] Parallel: a limited pool of workers reads subfolders as the walk finds them, as gdu and dua do, instead of one
     worker per top-level folder.
