@@ -248,6 +248,31 @@ struct PersonalFilesScannerTests {
         #expect(report.duration > .zero)
     }
 
+    @Test func foldersReadInParallelSendEveryFileOnceInFullBatchesNFRPERF002() async throws {
+        for folder in 0..<30 {
+            for subfolder in 0..<3 {
+                try root.file("Projects/p\(folder)/s\(subfolder)/a.txt", size: 10)
+                try root.file("Projects/p\(folder)/s\(subfolder)/b.txt", size: 10)
+            }
+        }
+        let reports = Mutex<[Int]>([])
+        var batches: [[PersonalFile]] = []
+
+        for await event in scanner(batchSize: 4, report: { entries, _ in reports.withLock { $0.append(entries) } })
+            .scan()
+        {
+            if case .files(let files) = event { batches.append(files) }
+        }
+
+        let paths = batches.joined().map { relative($0.url) }
+        #expect(paths.count == 180)
+        #expect(Set(paths).count == 180)
+        // Only the last batch may be short: every task fills the same batch.
+        #expect(batches.dropLast().allSatisfy { $0.count == 4 })
+        // Projects, 30 folders, 90 subfolders and 180 files.
+        #expect(reports.withLock { $0 } == [301])
+    }
+
     // MARK: - Shared state (FCL-006)
 
     @Test func theStateKeepsOneEntryPerPathAndForgetsRemovedItemsFCL006() throws {
