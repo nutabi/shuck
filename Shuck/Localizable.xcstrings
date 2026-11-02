@@ -46,6 +46,9 @@
     "Skipped: no longer in the Trash, and another item has its name" : {
 
     },
+    "Skipped: not accessible" : {
+
+    },
     "Skipped: not in the Trash" : {
 
     },
@@ -289,6 +292,9 @@
 
     },
     "No total yet" : {
+
+    },
+    "not accessible" : {
 
     },
     "Not accessible" : {

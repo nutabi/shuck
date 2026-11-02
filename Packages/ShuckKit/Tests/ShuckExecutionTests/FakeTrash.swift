@@ -11,8 +11,12 @@ struct FakeTrash: Trash {
     let folder: URL
     var beforeMove: @Sendable (URL) throws -> Void = { _ in }
 
-    func trashItem(at url: URL) throws -> URL {
-        try beforeMove(url)
+    func trashItem(at url: URL) throws(ActionError) -> URL {
+        do {
+            try beforeMove(url)
+        } catch {
+            throw ActionError(error)
+        }
         return try FolderTrash(folder: folder).trashItem(at: url)
     }
 }

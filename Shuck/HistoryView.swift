@@ -190,19 +190,21 @@ struct HistoryView: View {
         }
     }
 
-    /// A logged skip reason in words. The executors log the reason's case name, followed by its values in brackets.
+    /// A logged skip reason in words. The executors log the reason's code, followed by any detail (D-88); a code
+    /// this version does not know is shown as logged.
     static func skipReason(_ detail: String?) -> LocalizedStringResource {
-        switch detail?.prefix(while: { $0 != "(" }) {
-        case "missing": "no longer there"
-        case "changed": "changed since the scan"
-        case "rejected": "failed a safety check"
-        case "cancelled": "stopped before it was acted on"
-        case "historyUnavailable": "the history log stopped working"
-        case "unsupportedMethod": "method not supported"
-        case "originalTaken": "its original place is taken"
-        case "notInTrash": "not in the Trash"
-        case "otherItem": "another item has its name in the Trash"
-        default: "\(detail ?? "")"
+        switch detail.flatMap(SkipCode.init(detail:)) {
+        case .missing: "no longer there"
+        case .notAccessible: "not accessible"
+        case .changed: "changed since the scan"
+        case .rejected: "failed a safety check"
+        case .cancelled: "stopped before it was acted on"
+        case .historyUnavailable: "the history log stopped working"
+        case .unsupportedMethod: "method not supported"
+        case .originalTaken: "its original place is taken"
+        case .notInTrash: "not in the Trash"
+        case .otherItem: "another item has its name in the Trash"
+        case nil: "\(detail ?? "")"
         }
     }
 }

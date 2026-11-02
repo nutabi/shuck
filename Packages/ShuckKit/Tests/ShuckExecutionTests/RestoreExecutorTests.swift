@@ -134,6 +134,18 @@ struct RestoreExecutorTests {
         #expect(try HistoryLog.read(folder: logFolder).entries().map(\.restorability) == [.trashEmptied])
     }
 
+    @Test func anItemShuckMayNotReadInTheTrashIsSkippedAsNotAccessibleSAF012() async throws {
+        let drafts = try root.folder("Documents/Drafts")
+        try root.file("Documents/Drafts/notes.txt", size: 1_000)
+        let items = try await trashed([drafts])
+        let trashedURL = try #require(items.first).trashedURL
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: trashedURL.path)
+
+        #expect(try await restore(items.map { RestoreRequest(item: $0) }) == [.skipped(.notAccessible)])
+        #expect(exists(trashedURL) && !exists(drafts))
+        #expect(try restoreRecords().compactMap(\.detail) == ["notAccessible"])
+    }
+
     @Test func aTrashNameALaterRunReusedRestoresOnlyTheLaterItemHIS004SAF008() async throws {
         let first = try root.file("Downloads/report.pdf", size: 1_000)
         let earlier = try #require(try await trashed([first]).first)

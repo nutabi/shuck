@@ -168,8 +168,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Scanner and History fixes (TD-03, TD-14, TD-15, TD-23): error text logged as private, protected names compared
     with case folded, other listing errors reported and counted on the landing page, a history reader that refuses a
     symlinked log or data folder, and stale text. The Group by Folder toggle is now remembered (D-87).
-  - [ ] Run outcomes that say why (TD-05, TD-06, SAF-012): "not accessible" kept apart from "missing", typed Trash
-    errors, and stable reason codes in the log's `detail`.
+  - [x] Run outcomes that say why (TD-05, TD-06, SAF-012): "not accessible" kept apart from "missing", typed Trash
+    errors, and stable reason codes in the log's `detail` (D-88). The wording table shared by both sheets and History
+    is in the seventh layer.
   - [ ] One run loop for every method, for Delete, Tool and Launchctl to plug into (TD-04, TD-11, TD-24), with Logger
     categories per tool and sub-tool (NFR-OBS-001).
   - [ ] History wording in one place (TD-06, TD-08, TD-16): one table from reason codes to words for both sheets and

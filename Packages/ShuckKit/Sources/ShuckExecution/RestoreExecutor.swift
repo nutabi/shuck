@@ -71,7 +71,7 @@ public struct RestoreExecutor: Sendable {
         do {
             trashFolder = try trash.folder
         } catch {
-            return .failed(String(describing: error))
+            return .failed(error)
         }
         let source: URL
         let target: URL
@@ -87,7 +87,12 @@ public struct RestoreExecutor: Sendable {
         guard source.deletingLastPathComponent().pathComponents == Self.realPath(trashFolder)?.pathComponents else {
             return .skipped(.notInTrash)
         }
-        guard let current = ItemSnapshot.read(source) else { return .skipped(.missing) }
+        let current: ItemSnapshot
+        switch ItemSnapshot.check(source) {
+        case .found(let snapshot): current = snapshot
+        case .missing: return .skipped(.missing)
+        case .notAccessible: return .skipped(.notAccessible)
+        }
         // Another item can take a trashed item's name once it has left the Trash; only its identity tells them apart.
         if let identity = item.identity, FileIdentity.read(source).map({ identity.isSameTrashedFile(as: $0) }) != true {
             return .skipped(.otherItem)
@@ -99,15 +104,21 @@ public struct RestoreExecutor: Sendable {
             try FileManager.default.createDirectory(
                 at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         } catch {
-            Self.logger.error("Cannot recreate a parent folder: \(String(describing: error), privacy: .private)")
-            return .failed(String(describing: error))
+            let error = ActionError(error)
+            Self.logger.error(
+                """
+                Cannot recreate a parent folder: \(error.domain, privacy: .public) \(error.code, privacy: .public), \
+                \(error.message, privacy: .private)
+                """)
+            return .failed(error)
         }
         // RENAME_EXCL fails instead of replacing an item that appeared at the destination since it was checked.
         guard renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 else {
             let code = errno
             if code == EEXIST { return .skipped(.originalTaken) }
-            Self.logger.error("Cannot restore an item: \(String(cString: strerror(code)), privacy: .public)")
-            return .failed(String(cString: strerror(code)))
+            let error = ActionError(errno: code)
+            Self.logger.error("Cannot restore an item: \(error.logged, privacy: .public)")
+            return .failed(error)
         }
         return .restored(target)
     }
@@ -132,10 +143,10 @@ public struct RestoreExecutor: Sendable {
             status = .ok
         case .skipped(let reason):
             status = .skipped
-            detail = String(describing: reason)
+            detail = reason.logged
         case .failed(let error):
             status = .failed
-            detail = error
+            detail = error.logged
         }
         return .result(
             run: run, tool: .history, operation: .restore, path: path, tier: item.tier, status: status,
@@ -170,8 +181,8 @@ public struct RestoreOutcome: Equatable, Sendable {
         /// Moved back; the URL is where it went.
         case restored(URL)
         case skipped(SkipReason)
-        /// The move failed; the text describes the error.
-        case failed(String)
+        /// The move failed.
+        case failed(ActionError)
     }
 
     public enum SkipReason: Equatable, Sendable {
@@ -179,6 +190,8 @@ public struct RestoreOutcome: Equatable, Sendable {
         case originalTaken
         /// The item is no longer in the Trash: "Not restorable (Trash emptied)" (HIS-004).
         case missing
+        /// Shuck may not read the item in the Trash, for example without Full Disk Access (SAF-008, SAF-012).
+        case notAccessible
         /// The item's size changed since it was trashed; the snapshot is what it looks like now (SAF-008).
         case changed(ItemSnapshot)
         /// The path guard rejects the trashed path or the destination (SAF-007, SAF-008).
@@ -192,6 +205,30 @@ public struct RestoreOutcome: Equatable, Sendable {
         case cancelled
         /// The history log could not be written, so the run stopped (SAF-005).
         case historyUnavailable
+
+        /// The reason's stable code, which the history log records (D-88).
+        public var code: SkipCode {
+            switch self {
+            case .originalTaken: .originalTaken
+            case .missing: .missing
+            case .notAccessible: .notAccessible
+            case .changed: .changed
+            case .rejected: .rejected
+            case .notInTrash: .notInTrash
+            case .otherItem: .otherItem
+            case .cancelled: .cancelled
+            case .historyUnavailable: .historyUnavailable
+            }
+        }
+
+        /// The text the history log records: the code, and after a colon what re-validation found (D-88).
+        public var logged: String {
+            switch self {
+            case .changed(let current): code.logged(current.logged)
+            case .rejected(let error): code.logged(error.logged)
+            default: code.logged()
+            }
+        }
     }
 
     public let request: RestoreRequest

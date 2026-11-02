@@ -6,8 +6,8 @@ import os
 ///
 /// For each item the executor:
 /// 1. writes an intent record to the history log (SAF-005);
-/// 2. re-validates the item: the path guard again, then that it still exists with the same type and about the same
-///    size as at scan time (SAF-008);
+/// 2. re-validates the item: the path guard again, then that it still exists, Shuck may read it (SAF-012), and it has
+///    the same type and about the same size as at scan time (SAF-008);
 /// 3. moves it to the Trash, or skips it with a reason;
 /// 4. writes a result record with the outcome and, for a trashed item, where it went and its file identity (SAF-005).
 ///
@@ -67,14 +67,23 @@ public struct TrashExecutor: Sendable {
         } catch {
             return (.skipped(.rejected(error)), nil)
         }
-        guard let current = ItemSnapshot.read(target) else { return (.skipped(.missing), nil) }
+        let current: ItemSnapshot
+        switch ItemSnapshot.check(target) {
+        case .found(let snapshot): current = snapshot
+        case .missing: return (.skipped(.missing), nil)
+        case .notAccessible: return (.skipped(.notAccessible), nil)
+        }
         guard item.snapshot.matches(current) else { return (.skipped(.changed(current)), nil) }
         guard let identity = FileIdentity.read(target) else { return (.skipped(.missing), nil) }
         do {
             return (.trashed(try trash.trashItem(at: target)), identity)
         } catch {
-            Self.logger.error("Cannot move an item to the Trash: \(String(describing: error), privacy: .private)")
-            return (.failed(String(describing: error)), nil)
+            Self.logger.error(
+                """
+                Cannot move an item to the Trash: \(error.domain, privacy: .public) \(error.code, privacy: .public), \
+                \(error.message, privacy: .private)
+                """)
+            return (.failed(error), nil)
         }
     }
 
@@ -96,10 +105,10 @@ public struct TrashExecutor: Sendable {
             trashedPath = url.path
         case .skipped(let reason):
             status = .skipped
-            detail = String(describing: reason)
+            detail = reason.logged
         case .failed(let error):
             status = .failed
-            detail = error
+            detail = error.logged
         }
         return .result(
             run: plan.run, tool: plan.tool, operation: .trash, path: path, tier: item.tier, status: status,
@@ -113,13 +122,15 @@ public struct ItemOutcome: Equatable, Sendable {
         /// Moved to the Trash; the URL is where it went.
         case trashed(URL)
         case skipped(SkipReason)
-        /// The move failed; the text describes the error.
-        case failed(String)
+        /// The move failed.
+        case failed(ActionError)
     }
 
     public enum SkipReason: Equatable, Sendable {
         /// The item no longer exists (SAF-008).
         case missing
+        /// Shuck may not read the item, for example without Full Disk Access (SAF-008, SAF-012).
+        case notAccessible
         /// The item's type or size changed since the scan; the snapshot is what it looks like now (SAF-008).
         case changed(ItemSnapshot)
         /// The path guard rejects the item now (SAF-007, SAF-008).
@@ -130,6 +141,29 @@ public struct ItemOutcome: Equatable, Sendable {
         case historyUnavailable
         /// This executor only moves items to the Trash.
         case unsupportedMethod(ActionMethod)
+
+        /// The reason's stable code, which the history log records (D-88).
+        public var code: SkipCode {
+            switch self {
+            case .missing: .missing
+            case .notAccessible: .notAccessible
+            case .changed: .changed
+            case .rejected: .rejected
+            case .cancelled: .cancelled
+            case .historyUnavailable: .historyUnavailable
+            case .unsupportedMethod: .unsupportedMethod
+            }
+        }
+
+        /// The text the history log records: the code, and after a colon what re-validation found (D-88).
+        public var logged: String {
+            switch self {
+            case .changed(let current): code.logged(current.logged)
+            case .rejected(let error): code.logged(error.logged)
+            case .unsupportedMethod(let method): code.logged(method.rawValue)
+            default: code.logged()
+            }
+        }
     }
 
     public let item: PlannedItem

@@ -117,6 +117,21 @@ struct TrashExecutorTests {
         #expect(statuses == [.skipped, .skipped, .skipped, .ok])
     }
 
+    @Test func anItemShuckMayNotReadIsSkippedAsNotAccessibleNotMissingSAF012() async throws {
+        let locked = try root.folder("Library/Caches/com.example.app")
+        try root.file("Library/Caches/com.example.app/cache.db", size: 10_000)
+        let plan = try plan([planned(locked)])
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
+
+        let report = try await run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.notAccessible)])
+        #expect(exists(locked))
+        let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
+        #expect(results.map(\.status) == [.skipped])
+        #expect(results.map(\.detail) == ["notAccessible"])
+    }
+
     @Test func skipsAnItemTheGuardRejectsAtRunTimeSAF008() async throws {
         // Between plan and run, Downloads is swapped for a symlink to a look-alike outside the root.
         let other = try FixtureRoot()
@@ -156,6 +171,43 @@ struct TrashExecutorTests {
         let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
         #expect(results.map(\.status) == [.ok, .failed, .skipped])
         #expect(results.allSatisfy { $0.detail != nil || $0.status == .ok })
+    }
+
+    @Test func aFailedMoveLogsItsCodeAndMessageSAF005() async throws {
+        let locked = try root.file("Downloads/locked.zip", size: 10)
+        let report = try await run(try plan([planned(locked)])) { _ in throw CocoaError(.fileWriteNoPermission) }
+
+        let error = ActionError(CocoaError(.fileWriteNoPermission))
+        #expect(error.domain == NSCocoaErrorDomain && error.code == CocoaError.fileWriteNoPermission.rawValue)
+        #expect(!error.message.isEmpty)
+        #expect(report.outcomes.map(\.result) == [.failed(error)])
+        let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
+        #expect(results.map(\.status) == [.failed])
+        #expect(results.map(\.detail) == ["NSCocoaErrorDomain 513: \(error.message)"])
+    }
+
+    /// The executor writes each skip reason's code, and the History page reads the code back from the same records.
+    @Test func loggedSkipReasonsReadBackAsTheirCodesSAF011() async throws {
+        let gone = try root.file("Downloads/gone.zip", size: 10_000)
+        let grown = try root.file("Downloads/grown.log", size: 10_000)
+        let locked = try root.folder("Downloads/Locked")
+        let plan = try plan([planned(gone), planned(grown), planned(locked)])
+        try FileManager.default.removeItem(at: gone)
+        try Data(count: 1_000_000).write(to: grown)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
+
+        let report = try await run(plan)
+
+        let reasons = report.outcomes.compactMap { outcome -> ItemOutcome.SkipReason? in
+            guard case .skipped(let reason) = outcome.result else { return nil }
+            return reason
+        }
+        #expect(reasons.map(\.code) == [.missing, .changed, .notAccessible])
+        let details = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }.map(\.detail)
+        #expect(details == reasons.map(\.logged))
+        #expect(details.map { $0.flatMap(SkipCode.init(detail:)) } == reasons.map(\.code))
+        #expect(details[1]?.hasPrefix("changed: file, ") == true)
+        #expect(details.allSatisfy { $0?.contains("ShuckKit.") == false })
     }
 
     @Test func itemsWithAnotherMethodAreSkippedWithoutActingOrLogging() async throws {
