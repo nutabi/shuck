@@ -1,4 +1,4 @@
-# Lint, build and test every pull request and every push to main (ENG-005).
+# Lint, build and test every pull request and every push to main that changes code (ENG-005, D-66).
 # Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
 name: CI
 
@@ -15,9 +15,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Code changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A pull request checks out a merge commit whose first parent is the base branch.
+          fetch-depth: 2
+
+      - name: Compare with the base
+        id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            base=HEAD^1
+          else
+            base="$BEFORE"
+            git fetch --no-tags --depth=1 origin "$base"
+          fi
+          code="$(scripts/code-changed.sh "$base")"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   check:
-    # Branch protection requires this check by name (docs/repository-setup.md).
+    # Branch protection requires this check by name (docs/repository-setup.md). GitHub counts a skipped job as passed.
     name: Lint, build and test
+    needs: changes
+    # Skipped only when the changes job says "false", so the check still runs if that job fails (D-66).
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
