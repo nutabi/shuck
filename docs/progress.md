@@ -91,7 +91,8 @@ exercised).
     protected location.
   - [x] Faster: protected locations become keys once per scan, so matching an entry is a set lookup (D-79). A
     generated fixture of 50,501 entries took 4.0 s instead of 35.5 s in a release build, about 12,500 entries a second.
-  - [ ] Leaner: free each entry's temporary objects during the walk, so memory stays flat.
+  - [x] Leaner: each entry's temporary objects are freed before the next (D-80). On the fixture with 20 packages added,
+    50,522 entries, the scan's peak memory fell from 534 MB to 16 MB.
   - [ ] Parallel: a limited pool of workers reads subfolders as the walk finds them, as gdu and dua do, instead of one
     worker per top-level folder.
   - [ ] Measure again.

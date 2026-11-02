@@ -32,14 +32,21 @@ public struct ItemSnapshot: Equatable, Sendable {
         guard values.isDirectory == true else {
             return ItemSnapshot(kind: .file, allocatedSize: Int64(values.totalFileAllocatedSize ?? 0))
         }
-        // The enumerator does not follow symlinks, so a link inside the folder counts as the link itself.
+        // The enumerator does not follow symlinks, so a link inside the folder counts as the link itself. Each item's
+        // autoreleased objects are freed before the next, so measuring a large folder keeps memory flat (D-80).
         var total: Int64 = 0
         let contents = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(keys))
-        while let child = contents?.nextObject() as? URL {
+        while let size = autoreleasepool(invoking: { nextSize(contents, keys) }) {
             guard shouldContinue() else { return nil }
-            total += Int64((try? child.resourceValues(forKeys: keys))?.totalFileAllocatedSize ?? 0)
+            total += size
         }
         return ItemSnapshot(kind: .folder, allocatedSize: total)
+    }
+
+    /// The allocated size of the enumerator's next item, or `nil` when it has none left.
+    private static func nextSize(_ contents: FileManager.DirectoryEnumerator?, _ keys: Set<URLResourceKey>) -> Int64? {
+        guard let child = contents?.nextObject() as? URL else { return nil }
+        return Int64((try? child.resourceValues(forKeys: keys))?.totalFileAllocatedSize ?? 0)
     }
 
     /// Whether `current` still matches this planned snapshot: the same kind, and a size within
