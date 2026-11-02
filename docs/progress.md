@@ -122,7 +122,7 @@ Left over from M1 tasks:
   Trash for its debug-only fixture-root mode (D-47). Done in M1-T12 (D-63).
 - [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06). It is inside the personal-files scope
   (FCL-008), so the ownership map needs an entry for it (FCL-005, D-53). `~/go/pkg/mod` went to Developer Junk in
-  M1-T07 (D-55).
+  M1-T07 (D-55). M2-T13 decides it.
 - [x] M1-T11: give `FileCleanupModel`'s personal-files scan a `LastOpenedReader` with Old Files' minimum size, and
   show Old Files' list with `dateColumn: .lastOpened`, oldest first (OLD-003, D-59). Done in M1-T11.
 - [x] M1-T15: UI tests share the app's real preferences domain, `me.nutabi.shuck`. AppKit saves the main window's
@@ -148,6 +148,68 @@ Process changes during M1:
 - [ ] Revisit CodeQL code scanning once it can build the app on macOS 27, or in M5's security pass at the latest
   (D-50).
 
-## M2 to M6
+## M2 File Cleanup: rebuildable sub-tools (`v0.2.0`)
+
+Goal: Developer Junk with its Must rules, and Caches & Logs, with permanent Delete and tool commands (PRD section 13).
+M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-82).
+
+- [ ] M2-T01 M1 cleanup: the findings of `docs/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
+  to Safety and Execution go in pull requests of their own.
+  - [ ] Restore moves only the file it trashed (TD-01, HIS-003, HIS-004). An item whose name in the Trash a later run
+    reused reads "Not restorable (Trash emptied)", and the trash record keeps the file's identity, which Restore checks.
+  - [ ] Static checks for M2, and tests kept out of the home folder (TD-02, TD-12, TD-19, SAF-016, SAF-017). The checks
+    also catch the `*at` and `_np` calls, `copyfile`, `clonefile`, `ftruncate`, `.write(toFile:)` and `openat`; only
+    `ShuckExecution` may start a subprocess; test code never names the real home folder.
+  - [ ] Build settings and test helpers (TD-17, TD-18, TD-20 to TD-22): warnings as errors, a shared scheme, the version
+    set once, fixture helpers for the history folder and the Trash, and UI tests in English with the en_US region.
+  - [ ] Scanner and History fixes (TD-03, TD-14, TD-15, TD-23): error text logged as private, protected names compared
+    with case folded, other listing errors reported, a history reader that refuses a symlinked log, and stale text.
+  - [ ] Run outcomes that say why (TD-05, TD-06, SAF-012): "not accessible" kept apart from "missing", typed Trash
+    errors, and stable reason codes in the log's `detail`.
+  - [ ] One run loop for every method, for Delete, Tool and Launchctl to plug into (TD-04, TD-11, TD-24), with Logger
+    categories per tool and sub-tool (NFR-OBS-001).
+  - [ ] History wording in one place (TD-06, TD-08, TD-16): one table from reason codes to words for both sheets and
+    the History page, each history item with its own operation, and errors in words.
+  - [ ] One page layout for every sub-tool (TD-07, TD-10, TD-13, SAF-014): pages found by tool ID, a Stop button for
+    scans, and one main window.
+  - [ ] A results list that merges new rows instead of sorting every row again (TD-09, NFR-PERF-001).
+- [ ] M2-T02 Delete in the run loop: re-validation, nothing followed out of the target, only a folder's contents when
+  the item says so, and records marked non-restorable (SAF-004, SAF-006 to SAF-008, SAF-011, SAF-014, CAC-004)
+- [ ] M2-T03 Rebuildable items and rules as data: each item has a category, a default selection and the reason it
+  cannot be selected, if any; Tool items carry a command instead of a path (DEV-001 to DEV-003, DEV-005, SAF-001,
+  SAF-004)
+- [ ] M2-T04 Running apps: their items cannot be selected, and are skipped if the app starts before the run; the
+  fixture-root mode stubs the list, since Xcode runs during UI tests (SAF-009, CAC-003). Decides whether a running
+  Xcode blocks Developer Junk's rules.
+- [ ] M2-T05 Developer Junk with DerivedData: one item per project, selected when stale for 30 days or when its
+  project is gone; the sub-tool's page (DEV-R01, DEV-008)
+- [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
+  shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004)
+- [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
+  (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
+- [ ] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
+  refused (DEV-R02, DEV-R04, DEV-007)
+- [ ] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
+  own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
+- [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
+  code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
+  fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004)
+- [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
+  run (DEV-R03, DEV-R07 to DEV-R09)
+- [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
+  (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
+- [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
+  DEV-006, SET-003, FCL-005)
+
+Exit criteria (PRD section 13):
+
+- [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
+  finds every tool run in History.
+- [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
+  SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
+- [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30).
+- [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37).
+
+## M3 to M6
 
 Not broken down yet (PRD section 13).

@@ -49,6 +49,7 @@ shuck/
 ├── docs/
 │   ├── PRD.md                 product requirements; the source of truth
 │   ├── decisions.md           decisions after the planning phase (D-30 onwards)
+│   ├── m1-review.md           tech-debt review at the end of M1; M2-T01 fixes its findings
 │   ├── progress.md            milestone and task checklist
 │   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
