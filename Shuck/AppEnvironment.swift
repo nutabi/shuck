@@ -5,11 +5,19 @@ import ShuckKit
 nonisolated struct AppEnvironment {
     let context: ScanContext
     let largeFiles: LargeFiles
+    let oldFiles: OldFiles
 
     /// The launch argument UI tests pass, followed by the fixture root's path. Release builds ignore it.
     static let fixtureRootArgument = "-ShuckFixtureRoot"
-    /// Large Files' minimum size in bytes, in `UserDefaults` (SET-002, SET-004). Settings gets a control in M5.
+    /// The thresholds in `UserDefaults` (SET-002, SET-004): Large Files' minimum size in bytes, Old Files' period in
+    /// months and its minimum size in bytes. Settings gets controls in M5; until then, a launch argument such as
+    /// `-OldFilesPeriodMonths 3` overrides a value without storing it.
     static let largeFilesMinimumSizeKey = "LargeFilesMinimumSize"
+    static let oldFilesPeriodKey = "OldFilesPeriodMonths"
+    static let oldFilesMinimumSizeKey = "OldFilesMinimumSize"
+
+    /// Reads the stored value for a key, if any.
+    typealias Settings = (String) -> Any?
 
     static var isDebugBuild: Bool {
         #if DEBUG
@@ -27,11 +35,11 @@ nonisolated struct AppEnvironment {
 
     /// - Parameters:
     ///   - arguments: The process's launch arguments.
-    ///   - minimumSizeSetting: The stored value for ``largeFilesMinimumSizeKey``, if any.
+    ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``.
     ///   - debugBuild: Whether the fixture-root argument counts.
     /// - Throws: ``RejectedFixtureRoot`` if a debug build gets a fixture-root argument it does not accept.
     init(
-        arguments: [String], minimumSizeSetting: Any?, debugBuild: Bool = isDebugBuild,
+        arguments: [String], settings: Settings, debugBuild: Bool = isDebugBuild,
         appBundle: URL = Bundle.main.bundleURL
     ) throws(RejectedFixtureRoot) {
         if let root = try Self.fixtureRoot(in: arguments, debugBuild: debugBuild) {
@@ -46,7 +54,13 @@ nonisolated struct AppEnvironment {
             context = ScanContext(
                 home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []))
         }
-        largeFiles = LargeFiles(minimumSize: Self.minimumSize(minimumSizeSetting))
+        largeFiles = LargeFiles(
+            minimumSize: Self.number(settings(Self.largeFilesMinimumSizeKey)) ?? LargeFiles.defaultMinimumSize)
+        // A period of 0 months would list every file, however recently opened.
+        let months = Self.number(settings(Self.oldFilesPeriodKey)).flatMap { $0 > 0 ? Int($0) : nil }
+        oldFiles = OldFiles(
+            periodMonths: months ?? OldFiles.defaultPeriodMonths,
+            minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize)
     }
 
     /// The fixture root after ``fixtureRootArgument`` in a debug build, or `nil` if there is none.
@@ -74,8 +88,9 @@ nonisolated struct AppEnvironment {
         return root
     }
 
-    /// The stored minimum size, or the default if there is none or it is not a size.
-    static func minimumSize(_ setting: Any?) -> Int64 {
+    /// A stored number that is not negative, or `nil` if there is none or it is not one. The caller then uses the
+    /// default.
+    static func number(_ setting: Any?) -> Int64? {
         let value: Int64? =
             switch setting {
             case let number as NSNumber: number.int64Value
@@ -83,7 +98,7 @@ nonisolated struct AppEnvironment {
             case let text as String: Int64(text)
             default: nil
             }
-        guard let value, value >= 0 else { return LargeFiles.defaultMinimumSize }
+        guard let value, value >= 0 else { return nil }
         return value
     }
 }

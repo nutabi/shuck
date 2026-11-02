@@ -14,12 +14,15 @@ final class ShuckUITests: XCTestCase {
         root = nil
     }
 
-    /// Launches the app with the fixture root as its home folder and Large Files' minimum size at 1 MiB, so fixtures
-    /// stay small.
+    /// Launches the app with the fixture root as its home folder and the minimum sizes of Large Files and Old Files at
+    /// 1 MiB, so fixtures stay small.
     @MainActor
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)"]
+        app.launchArguments = [
+            "-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)", "-OldFilesMinimumSize",
+            "\(1 << 20)",
+        ]
         app.launch()
         return app
     }
@@ -43,12 +46,12 @@ final class ShuckUITests: XCTestCase {
     func testSelectingSubToolShowsItsPage() throws {
         let app = launch()
 
-        app.outlines.firstMatch.staticTexts["Old Files"].click()
-        XCTAssertTrue(app.staticTexts["What haven't I opened in a long time?"].waitForExistence(timeout: 5))
+        app.outlines.firstMatch.staticTexts["Developer Junk"].click()
+        XCTAssertTrue(app.staticTexts["What can developer tools rebuild?"].waitForExistence(timeout: 5))
     }
 
-    /// FCL-004: the landing page lists each sub-tool with its summary and its own Scan button. Large Files can scan;
-    /// the others say which milestone builds them.
+    /// FCL-004: the landing page lists each sub-tool with its summary and its own Scan button. Large Files and Old
+    /// Files can scan; the others say which milestone builds them.
     @MainActor
     func testFileCleanupLandingPageListsSubToolsFCL004() throws {
         let app = launch()
@@ -56,7 +59,7 @@ final class ShuckUITests: XCTestCase {
         app.outlines.firstMatch.staticTexts["File Cleanup"].click()
         let subTools = [
             ("Large Files", "What is taking the most space?", true),
-            ("Old Files", "What haven't I opened in a long time?", false),
+            ("Old Files", "What haven't I opened in a long time?", true),
             ("Developer Junk", "What can developer tools rebuild?", false),
             ("Caches & Logs", "Which caches and logs can go?", false),
         ]
@@ -75,8 +78,8 @@ final class ShuckUITests: XCTestCase {
         attachScreenshot(of: app, named: "File Cleanup landing page")
     }
 
-    /// LRG-001, LRG-003, FCL-012: a scan lists files at or above the minimum size, grouped by top-level folder with
-    /// subtotals.
+    /// LRG-001, LRG-003, FCL-012, D-61: opening the page scans, and lists files at or above the minimum size, grouped
+    /// by top-level folder with subtotals.
     @MainActor
     func testLargeFilesListsFilesGroupedByFolderLRG001LRG003() throws {
         try root.file("Movies/Holiday.mov", size: 5 << 20)
@@ -86,8 +89,6 @@ final class ShuckUITests: XCTestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts["Not scanned yet"].waitForExistence(timeout: 5))
-        app.toolbars.buttons["Scan"].click()
 
         XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
         for name in ["Clip.mov", "Installer.dmg", "Movies", "Downloads"] {
@@ -111,7 +112,6 @@ final class ShuckUITests: XCTestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        app.toolbars.buttons["Scan"].click()
         XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
         app.toolbars.checkBoxes["Group by Folder"].click()
 
@@ -137,6 +137,52 @@ final class ShuckUITests: XCTestCase {
         XCTAssertTrue(app.windows["Quick Look"].waitForExistence(timeout: 5), "Space did not open Quick Look")
         app.typeKey(" ", modifierFlags: [])
         XCTAssertTrue(app.windows["Quick Look"].waitForNonExistence(timeout: 5), "Space did not close Quick Look")
+    }
+
+    /// OLD-001, OLD-002, OLD-003: a scan lists files of at least the minimum size not opened for 12 months, the
+    /// longest unopened first. Spotlight has no record of fixture files being opened, so each row says it shows the
+    /// modified date.
+    @MainActor
+    func testOldFilesListsTheLongestUnopenedFirstOLD001OLD003() throws {
+        let year: TimeInterval = 365 * 86_400
+        try root.file("Movies/Holiday.mov", size: 2 << 20, modified: .now.addingTimeInterval(-3 * year))
+        try root.file("Downloads/Installer.dmg", size: 2 << 20, modified: .now.addingTimeInterval(-2 * year))
+        try root.file("Documents/Report.pdf", size: 2 << 20)
+        try root.file("Documents/notes.txt", size: 10, modified: .now.addingTimeInterval(-5 * year))
+        let app = launch()
+
+        app.outlines.firstMatch.staticTexts["Old Files"].click()
+
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
+        XCTAssertFalse(app.staticTexts["Report.pdf"].exists, "A recently changed file is listed")
+        XCTAssertFalse(app.staticTexts["notes.txt"].exists, "A file below the minimum size is listed")
+        XCTAssertTrue(app.buttons["Last Opened"].exists)
+        XCTAssertTrue(app.staticTexts["Modified"].exists, "The fallback to the modified date is not marked")
+
+        XCTAssertLessThan(app.staticTexts["Holiday.mov"].frame.minY, app.staticTexts["Installer.dmg"].frame.minY)
+
+        attachScreenshot(of: app, named: "Old Files, oldest first")
+    }
+
+    /// D-61: with nothing to list, the page shows only its message, without an empty table. Going back to a page
+    /// keeps its scan instead of starting another.
+    @MainActor
+    func testAPageWithNothingToListShowsNoTable() throws {
+        try root.file("Documents/notes.txt", size: 10)
+        let app = launch()
+
+        app.outlines.firstMatch.staticTexts["Large Files"].click()
+        XCTAssertTrue(app.staticTexts["No files of at least 1 MB"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
+        XCTAssertFalse(app.staticTexts["No items selected"].exists, "An empty table's footer is shown")
+
+        // The shared scan already covered Old Files, so its page needs no scan of its own.
+        app.outlines.firstMatch.staticTexts["Old Files"].click()
+        XCTAssertTrue(app.staticTexts["No files left unopened for 12 months"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
+
+        attachScreenshot(of: app, named: "Old Files with nothing to list")
     }
 
     @MainActor

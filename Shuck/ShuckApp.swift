@@ -11,13 +11,12 @@ struct ShuckApp: App {
         let environment: AppEnvironment
         do {
             environment = try AppEnvironment(
-                arguments: CommandLine.arguments,
-                minimumSizeSetting: UserDefaults.standard.object(forKey: AppEnvironment.largeFilesMinimumSizeKey))
+                arguments: CommandLine.arguments, settings: UserDefaults.standard.object(forKey:))
         } catch {
             // Debug builds only: a UI test passed a bad fixture root. Stop rather than scan the real home folder.
             fatalError(error.description)
         }
-        registry = .standard(largeFiles: environment.largeFiles)
+        registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
         _fileCleanup = State(initialValue: FileCleanupModel(subTools: registry.subTools, context: environment.context))
     }
 

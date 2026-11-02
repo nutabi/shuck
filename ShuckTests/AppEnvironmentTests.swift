@@ -12,7 +12,7 @@ struct AppEnvironmentTests {
     let appBundle = URL(filePath: "/Applications/Shuck.app")
 
     private func environment(_ arguments: [String], debugBuild: Bool) throws -> AppEnvironment {
-        try AppEnvironment(arguments: arguments, minimumSizeSetting: nil, debugBuild: debugBuild, appBundle: appBundle)
+        try AppEnvironment(arguments: arguments, settings: { _ in nil }, debugBuild: debugBuild, appBundle: appBundle)
     }
 
     @Test func aReleaseBuildIgnoresTheFixtureRootArgumentNFRQA002() throws {
@@ -64,15 +64,36 @@ struct AppEnvironmentTests {
         }
     }
 
-    @Test func largeFilesMinimumSizeComesFromTheSettingSET002() throws {
-        #expect(AppEnvironment.minimumSize(nil) == 500_000_000)
-        #expect(AppEnvironment.minimumSize(NSNumber(value: 1_048_576)) == 1_048_576)
-        #expect(AppEnvironment.minimumSize("2097152") == 2_097_152)
-        #expect(AppEnvironment.minimumSize("large") == 500_000_000)
-        #expect(AppEnvironment.minimumSize(NSNumber(value: -1)) == 500_000_000)
+    @Test func storedNumbersAreReadAsNumbersOrStrings() {
+        #expect(AppEnvironment.number(nil) == nil)
+        #expect(AppEnvironment.number(NSNumber(value: 1_048_576)) == 1_048_576)
+        #expect(AppEnvironment.number("2097152") == 2_097_152)
+        #expect(AppEnvironment.number("large") == nil)
+        #expect(AppEnvironment.number(NSNumber(value: -1)) == nil)
+    }
 
+    @Test func thresholdsComeFromTheSettingsSET002() throws {
+        let stored: [String: Any] = [
+            AppEnvironment.largeFilesMinimumSizeKey: "1000", AppEnvironment.oldFilesPeriodKey: NSNumber(value: 3),
+            AppEnvironment.oldFilesMinimumSizeKey: "0",
+        ]
         let environment = try AppEnvironment(
-            arguments: [], minimumSizeSetting: "1000", debugBuild: false, appBundle: appBundle)
+            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle)
+
         #expect(environment.largeFiles.minimumSize == 1_000)
+        #expect(environment.oldFiles.periodMonths == 3)
+        #expect(environment.oldFiles.minimumSize == 0)
+    }
+
+    @Test func missingOrInvalidThresholdsUseTheDefaultsSET002() throws {
+        let stored: [String: Any] = [
+            AppEnvironment.largeFilesMinimumSizeKey: "large", AppEnvironment.oldFilesPeriodKey: "0",
+        ]
+        let environment = try AppEnvironment(
+            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle)
+
+        #expect(environment.largeFiles.minimumSize == 500_000_000)
+        #expect(environment.oldFiles.periodMonths == 12)
+        #expect(environment.oldFiles.minimumSize == 50_000_000)
     }
 }

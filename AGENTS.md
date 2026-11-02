@@ -145,9 +145,10 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 1. Implement the `SubTool` protocol in `ShuckKit`: its `ToolInfo` (ID, name, summary, symbol), tiers, allowed roots, and a scan that streams items. Put its name and summary in `ShuckKit`'s String Catalog, loaded with `#bundle`.
 2. Register it in `ToolRegistry.standard`, replacing its `PlannedSubTool` placeholder if it has one. The sidebar and the File Cleanup landing page are built from the registry; do not edit them by hand.
-3. Add its locations to `OwnershipMap.standardEntries`. Within File Cleanup, each location has exactly one owner (FCL-005), the most specific pattern wins, and the ownership test must still pass. Its scan skips anything the map does not give it.
-4. Add fixture tests for its scan and for a full run through the safety pipeline, plus a UI smoke test for its main path (NFR-QA-003).
-5. Its ID goes in the history log's `tool` field (PRD section 8.5). Ask the owner to add it to the PRD.
+3. Its page starts its scan when it opens, if it has not scanned yet (`FileCleanupModel.scanIfNotScanned`). While there is nothing to list, the page shows only a message, never an empty table (D-61).
+4. Add its locations to `OwnershipMap.standardEntries`. Within File Cleanup, each location has exactly one owner (FCL-005), the most specific pattern wins, and the ownership test must still pass. Its scan skips anything the map does not give it.
+5. Add fixture tests for its scan and for a full run through the safety pipeline, plus a UI smoke test for its main path (NFR-QA-003).
+6. Its ID goes in the history log's `tool` field (PRD section 8.5). Ask the owner to add it to the PRD.
 
 A sub-tool must not require changes to other sub-tools or to the safety layer. If it does, stop and ask: that is a design change.
 

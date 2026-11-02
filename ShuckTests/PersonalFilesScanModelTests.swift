@@ -12,10 +12,13 @@ import Testing
 struct PersonalFilesScanModelTests {
     let context = ScanContext(home: URL(filePath: "/StubHome", directoryHint: .isDirectory))
 
-    func file(_ path: String, size: Int64, readOnly: ReadOnlyReason? = nil) -> PersonalFile {
+    func file(
+        _ path: String, size: Int64, modified: Date? = nil, lastOpened: LastOpened? = nil,
+        readOnly: ReadOnlyReason? = nil
+    ) -> PersonalFile {
         PersonalFile(
             url: context.home.appending(path: path), snapshot: ItemSnapshot(kind: .file, allocatedSize: size),
-            modified: nil, readOnly: readOnly)
+            modified: modified, lastOpened: lastOpened, readOnly: readOnly)
     }
 
     @Test func oneScanFillsEveryPersonalFilesListFCL006() async throws {
@@ -27,7 +30,7 @@ struct PersonalFilesScanModelTests {
         ]
         let largeFiles = LargeFiles(minimumSize: 1_000)
         let everything = StubPersonalSubTool()
-        let model = FileCleanupModel(subTools: [largeFiles, everything], context: context) { _ in
+        let model = FileCleanupModel(subTools: [largeFiles, everything], context: context) { _, _ in
             scans.withLock { $0 += 1 }
             return AsyncStream { continuation in
                 for event in events {
@@ -58,7 +61,7 @@ struct PersonalFilesScanModelTests {
     @Test func filesNoSubToolListsAreNotKept() async {
         let largeFiles = LargeFiles(minimumSize: 1_000)
         let files = [file("a.mov", size: 5_000), file("b.txt", size: 10)]
-        let model = FileCleanupModel(subTools: [largeFiles], context: context) { _ in
+        let model = FileCleanupModel(subTools: [largeFiles], context: context) { _, _ in
             AsyncStream { continuation in
                 continuation.yield(.files(files))
                 continuation.finish()
@@ -74,7 +77,7 @@ struct PersonalFilesScanModelTests {
         let largeFiles = LargeFiles(minimumSize: 1_000)
         let everything = StubPersonalSubTool()
         let files = [file("a.mov", size: 5_000)]
-        let model = FileCleanupModel(subTools: [largeFiles, everything], context: context) { _ in
+        let model = FileCleanupModel(subTools: [largeFiles, everything], context: context) { _, _ in
             AsyncStream { continuation in
                 continuation.yield(.files(files))
                 // Never finishes, like a scan of a large home folder.
@@ -94,6 +97,50 @@ struct PersonalFilesScanModelTests {
     @Test func largeFilesListsTheLargestFirstLRG002() {
         let model = FileCleanupModel(subTools: [LargeFiles()], context: context)
         #expect(model.results[.largeFiles]?.sortOrder == [KeyPathComparator(\ResultRow.size, order: .reverse)])
+        #expect(model.results[.largeFiles]?.dateColumn == .modified)
+    }
+
+    @Test func oldFilesListsTheLongestUnopenedFirstByLastOpenedDateOLD003() async {
+        let yearsAgo = Date.now.addingTimeInterval(-3 * 365 * 86_400)
+        let lastYear = Date.now.addingTimeInterval(-400 * 86_400)
+        let files = [
+            file("Movies/older.mov", size: 5_000, lastOpened: LastOpened(date: lastYear, source: .lastUsed)),
+            file("Movies/oldest.mov", size: 5_000, modified: yearsAgo),
+            file("Movies/recent.mov", size: 5_000, modified: .now),
+        ]
+        let oldFiles = OldFiles(minimumSize: 1_000)
+        let model = FileCleanupModel(subTools: [oldFiles], context: context) { _, _ in
+            AsyncStream { continuation in
+                continuation.yield(.files(files))
+                continuation.finish()
+            }
+        }
+
+        await model.scan(oldFiles)?.value
+
+        let results = model.results[.oldFiles]
+        #expect(results?.sortOrder == [KeyPathComparator(\ResultRow.sortDate)])
+        #expect(results?.dateColumn == .lastOpened)
+        #expect(results?.rows.map(\.name) == ["oldest.mov", "older.mov"])
+        #expect(results?.rows.map(\.dateIsModifiedFallback) == [true, false])
+    }
+
+    /// Only files of at least Old Files' minimum size need a Spotlight lookup (OLD-002, D-59).
+    @Test func theSharedScanLooksUpLastOpenedDatesWithOldFilesMinimumSizeOLD002() async {
+        let minimums = Mutex<[Int64?]>([])
+        let scan: FileCleanupModel.PersonalFilesScan = { _, reader in
+            minimums.withLock { $0.append(reader?.minimumSize) }
+            return AsyncStream { $0.finish() }
+        }
+        let largeFiles = LargeFiles(minimumSize: 1_000)
+        let withOldFiles = FileCleanupModel(
+            subTools: [largeFiles, OldFiles(minimumSize: 500)], context: context, personalFilesScan: scan)
+        let largeFilesOnly = FileCleanupModel(subTools: [largeFiles], context: context, personalFilesScan: scan)
+
+        await withOldFiles.scan(largeFiles)?.value
+        await largeFilesOnly.scan(largeFiles)?.value
+
+        #expect(minimums.withLock { $0 } == [500, nil])
     }
 }
 
