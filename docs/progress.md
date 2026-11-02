@@ -68,10 +68,11 @@ exercised).
     the run summary links to it.
   - [ ] App: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
     summary (HIS-003).
-- [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)
+- [x] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003). Two pull requests (D-62).
   - [x] Isolation: debug builds have their own bundle ID, preferences and data folder, and a UI test clears the debug
     build's preferences at launch (D-70).
-  - [ ] Smoke tests for each tool's and sub-tool's main path (NFR-QA-003); the scope is still to be agreed.
+  - [x] Smoke tests: one UI test file per area, a smoke test for each tool's and sub-tool's main path, listed in
+    `ShuckUITestCase` (D-71). Restore's comes with M1-T14's last pull request.
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
 
 Left over from M1 tasks:
