@@ -14,12 +14,13 @@ struct PersonalFilesScannerTests {
 
     private func scanner(
         userExclusions: [URL] = [], batchSize: Int = 256,
-        readValues: @escaping PersonalFilesScanner.ValueReader = EntryValues.read
+        readValues: @escaping PersonalFilesScanner.ValueReader = EntryValues.read,
+        report: @escaping PersonalFilesScanner.Report = PersonalFilesScanner.logFinished
     ) -> PersonalFilesScanner {
         PersonalFilesScanner(
             context: ScanContext(
                 home: root.url, protection: root.pathGuardConfiguration(userExclusions: userExclusions)),
-            batchSize: batchSize, readValues: readValues)
+            batchSize: batchSize, readValues: readValues, report: report)
     }
 
     /// Runs a scan to the end. Items are keyed by their path inside the fixture root.
@@ -217,6 +218,23 @@ struct PersonalFilesScannerTests {
 
         #expect(received < 40)
         #expect(reads.withLock { $0 } == 10)
+    }
+
+    // MARK: - Performance baseline (NFR-PERF-002)
+
+    @Test func aFinishedScanReportsHowManyEntriesItLookedAtNFRPERF002() async throws {
+        try root.file("Documents/report.pdf", size: 10)
+        try root.file("Documents/Notes.rtfd/TXT.rtf", size: 10)
+        try root.file("Downloads/a/b.zip", size: 10)
+        let reports = Mutex<[(entries: Int, duration: Duration)]>([])
+
+        _ = try await scan(
+            scanner(report: { entries, duration in reports.withLock { $0.append((entries, duration)) } }))
+
+        // Documents, report.pdf, Notes.rtfd, Downloads, a and b.zip. The package counts once.
+        let report = try #require(reports.withLock { $0.count == 1 ? $0.first : nil })
+        #expect(report.entries == 6)
+        #expect(report.duration > .zero)
     }
 
     // MARK: - Shared state (FCL-006)

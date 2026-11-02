@@ -79,7 +79,21 @@ exercised).
   - [x] Faster waits: `appears(within:)` and `disappears(within:)` check every 0.1 s, so the 15 UI tests take 74 s
     instead of 123 s (D-74).
   - [x] Workflows: three UI tests, one app launch each, keep every check the 15 made and take 38 s (D-75).
-- [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
+- [ ] M1-T16 Scan performance (NFR-PERF-002, NFR-PERF-003). Owner decisions: optimize the personal-files scan, not
+  only record a baseline, and no cache of scan results yet (D-78). Targets: about a million files in under 2 minutes,
+  so about 8,300 entries a second, and under 1 GB of memory. The owner measures on their own Mac (`AGENTS.md`, "Scan
+  performance"). One pull request for the measurement and one for each change below (D-62).
+  - [x] Measure: a finished scan logs its entry count and duration, and `vmmap` gives Shuck's peak memory. Baseline on
+    the owner's Mac (M3 Pro, 18 GB, macOS 27.0.1), release build: 559,284 entries in 436 s on a second run (294 s on
+    the first), about 1,300 entries a second, with a peak memory footprint of 17.1 GB. Only 25 MB was still allocated
+    after the scans, so the memory is temporary objects that stay alive until the walk ends; the second run was likely
+    slower because the Mac was short of memory. About 80% of the CPU time went to comparing each entry with every
+    protected location.
+  - [ ] Faster: match entries with the protected locations without standardizing both paths for every entry.
+  - [ ] Leaner: free each entry's temporary objects during the walk, so memory stays flat.
+  - [ ] Parallel: a limited pool of workers reads subfolders as the walk finds them, as gdu and dua do, instead of one
+    worker per top-level folder.
+  - [ ] Measure again.
 
 Left over from M1 tasks:
 
