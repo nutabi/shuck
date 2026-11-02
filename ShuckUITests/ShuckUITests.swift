@@ -281,13 +281,15 @@ final class ShuckUITests: XCTestCase {
 
         sheet.buttons["Show in History"].click()
         // A run row reads as one element, as VoiceOver speaks it: area and method, count and size, date, status.
+        // `firstMatch` never finds this combined element, so the query must match exactly one; the rest of the label is
+        // checked in Swift, for a failure message that shows it.
         let run = app.staticTexts.matching(
-            NSPredicate(
-                format: "label BEGINSWITH %@ AND label ENDSWITH %@",
-                "Large Files · Moved to the Trash, 1 item, 5.2 MB, ",
-                ", Completed")
-        ).firstMatch
-        XCTAssertTrue(run.waitForExistence(timeout: 5), "The run's area, method, size or status is missing")
+            NSPredicate(format: "label BEGINSWITH %@", "Large Files · Moved to the Trash")
+        )
+        .element
+        XCTAssertTrue(run.waitForExistence(timeout: 5), "The run is missing")
+        XCTAssertTrue(run.label.contains(", 1 item, 5.2 MB, "), "Wrong count or size: \(run.label)")
+        XCTAssertTrue(run.label.hasSuffix(", Completed"), "Wrong status: \(run.label)")
         XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 5), "The run is not expanded")
         XCTAssertTrue(app.staticTexts["In the Trash"].exists)
         XCTAssertFalse(app.staticTexts["Clip.mov"].exists, "An item the run did not touch is listed")
