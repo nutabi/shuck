@@ -36,50 +36,51 @@ public struct ToolRegistry: Sendable {
 
 extension ToolRegistry {
     /// The registry the app uses: File Cleanup with its four sub-tools (FCL-001), Applications and Startup Items.
-    public static let standard = ToolRegistry(tools: [
-        Tool(
-            info: ToolInfo(
-                id: .fileCleanup, name: LocalizedStringResource("File Cleanup", bundle: #bundle),
-                summary: LocalizedStringResource("Reclaim space from files, one sub-tool at a time.", bundle: #bundle),
-                symbolName: "folder", availability: .available),
-            subTools: [
-                PlannedSubTool(
-                    info: ToolInfo(
-                        id: .largeFiles, name: LocalizedStringResource("Large Files", bundle: #bundle),
-                        summary: LocalizedStringResource("What is taking the most space?", bundle: #bundle),
-                        symbolName: "scalemass", availability: .planned(milestone: "M1")),
-                    tiers: [.yourData]),
-                PlannedSubTool(
-                    info: ToolInfo(
-                        id: .oldFiles, name: LocalizedStringResource("Old Files", bundle: #bundle),
-                        summary: LocalizedStringResource("What haven't I opened in a long time?", bundle: #bundle),
-                        symbolName: "calendar.badge.clock", availability: .planned(milestone: "M1")),
-                    tiers: [.yourData]),
-                // Two rules, Xcode Archives and Docker, are "Your data" (section 8.2).
-                PlannedSubTool(
-                    info: ToolInfo(
-                        id: .developerJunk, name: LocalizedStringResource("Developer Junk", bundle: #bundle),
-                        summary: LocalizedStringResource("What can developer tools rebuild?", bundle: #bundle),
-                        symbolName: "hammer", availability: .planned(milestone: "M2")),
-                    tiers: [.rebuildable, .yourData]),
-                PlannedSubTool(
-                    info: ToolInfo(
-                        id: .cachesAndLogs, name: LocalizedStringResource("Caches & Logs", bundle: #bundle),
-                        summary: LocalizedStringResource("Which caches and logs can go?", bundle: #bundle),
-                        symbolName: "tray.full", availability: .planned(milestone: "M2")),
-                    tiers: [.rebuildable]),
-            ]),
-        Tool(
-            info: ToolInfo(
-                id: .applications, name: LocalizedStringResource("Applications", bundle: #bundle),
-                summary: LocalizedStringResource(
-                    "Uninstall apps together with the files they leave behind.", bundle: #bundle),
-                symbolName: "square.grid.2x2", availability: .planned(milestone: "M3"))),
-        Tool(
-            info: ToolInfo(
-                id: .startupItems, name: LocalizedStringResource("Startup Items", bundle: #bundle),
-                summary: LocalizedStringResource(
-                    "See what starts automatically and turn off what you don't want.", bundle: #bundle),
-                symbolName: "power", availability: .planned(milestone: "M4"))),
-    ])
+    public static let standard = standard()
+
+    /// The standard registry with the user's settings, such as Large Files' minimum size (SET-002).
+    public static func standard(largeFiles: LargeFiles = LargeFiles()) -> ToolRegistry {
+        ToolRegistry(tools: [
+            Tool(
+                info: ToolInfo(
+                    id: .fileCleanup, name: LocalizedStringResource("File Cleanup", bundle: #bundle),
+                    summary: LocalizedStringResource(
+                        "Reclaim space from files, one sub-tool at a time.", bundle: #bundle),
+                    symbolName: "folder", availability: .available),
+                subTools: [
+                    largeFiles,
+                    PlannedSubTool(
+                        info: ToolInfo(
+                            id: .oldFiles, name: LocalizedStringResource("Old Files", bundle: #bundle),
+                            summary: LocalizedStringResource("What haven't I opened in a long time?", bundle: #bundle),
+                            symbolName: "calendar.badge.clock", availability: .planned(milestone: "M1")),
+                        tiers: [.yourData]),
+                    // Two rules, Xcode Archives and Docker, are "Your data" (section 8.2).
+                    PlannedSubTool(
+                        info: ToolInfo(
+                            id: .developerJunk, name: LocalizedStringResource("Developer Junk", bundle: #bundle),
+                            summary: LocalizedStringResource("What can developer tools rebuild?", bundle: #bundle),
+                            symbolName: "hammer", availability: .planned(milestone: "M2")),
+                        tiers: [.rebuildable, .yourData]),
+                    PlannedSubTool(
+                        info: ToolInfo(
+                            id: .cachesAndLogs, name: LocalizedStringResource("Caches & Logs", bundle: #bundle),
+                            summary: LocalizedStringResource("Which caches and logs can go?", bundle: #bundle),
+                            symbolName: "tray.full", availability: .planned(milestone: "M2")),
+                        tiers: [.rebuildable]),
+                ]),
+            Tool(
+                info: ToolInfo(
+                    id: .applications, name: LocalizedStringResource("Applications", bundle: #bundle),
+                    summary: LocalizedStringResource(
+                        "Uninstall apps together with the files they leave behind.", bundle: #bundle),
+                    symbolName: "square.grid.2x2", availability: .planned(milestone: "M3"))),
+            Tool(
+                info: ToolInfo(
+                    id: .startupItems, name: LocalizedStringResource("Startup Items", bundle: #bundle),
+                    summary: LocalizedStringResource(
+                        "See what starts automatically and turn off what you don't want.", bundle: #bundle),
+                    symbolName: "power", availability: .planned(milestone: "M4"))),
+        ])
+    }
 }

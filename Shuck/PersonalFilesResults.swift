@@ -53,6 +53,19 @@ final class PersonalFilesResults {
         selection.subtract(removed)
     }
 
+    /// Empties the list before a new scan.
+    func removeAll() {
+        rows = []
+        selection = []
+    }
+
+    /// The rows grouped by top-level folder, largest group first. Each group keeps the table's sort (LRG-003).
+    var groups: [ResultGroup] {
+        Dictionary(grouping: rows, by: \.topFolder)
+            .map { ResultGroup(topFolder: $0.key, rows: $0.value) }
+            .sorted { ($0.size, $1.topFolder) > ($1.size, $0.topFolder) }
+    }
+
     /// The selected rows a cleanup can act on. Read-only rows are left out (FCL-011).
     var actionableSelection: [ResultRow] {
         rows.filter { selection.contains($0.id) && $0.readOnly == nil }
@@ -75,6 +88,8 @@ nonisolated struct ResultRow: Identifiable, Equatable {
     let name: String
     /// The folder that holds the item, with the home folder shown as `~`.
     let folder: String
+    /// The first folder below the home folder, such as "Downloads". Empty for an item directly in the home folder.
+    let topFolder: String
     /// The file type's name, as Finder shows it, for example "Disk Image".
     let kind: String
     /// Allocated size in bytes (SAF-013).
@@ -90,6 +105,7 @@ nonisolated struct ResultRow: Identifiable, Equatable {
         id = file.url
         name = file.url.lastPathComponent
         folder = Self.folder(of: file.url, home: home)
+        topFolder = Self.topFolder(of: file.url, home: home)
         kind = Self.kind(of: file.url, snapshot: file.snapshot)
         size = file.snapshot.allocatedSize
         date = file.modified
@@ -103,6 +119,13 @@ nonisolated struct ResultRow: Identifiable, Equatable {
         return (["~"] + parent.dropFirst(homeParts.count)).joined(separator: "/")
     }
 
+    static func topFolder(of url: URL, home: URL) -> String {
+        let parent = url.deletingLastPathComponent().pathComponents
+        let homeParts = home.pathComponents
+        guard parent.starts(with: homeParts) else { return parent.dropFirst().first ?? "" }
+        return parent.dropFirst(homeParts.count).first ?? ""
+    }
+
     /// The type's name from the file name extension, so listing a row reads nothing from disk.
     static func kind(of url: URL, snapshot: ItemSnapshot) -> String {
         if !url.pathExtension.isEmpty, let name = UTType(filenameExtension: url.pathExtension)?.localizedDescription {
@@ -110,4 +133,16 @@ nonisolated struct ResultRow: Identifiable, Equatable {
         }
         return snapshot.kind == .folder ? String(localized: "Folder") : String(localized: "Document")
     }
+}
+
+/// The rows in one top-level folder, with their subtotal (LRG-003).
+nonisolated struct ResultGroup: Identifiable, Equatable {
+    /// The first folder below the home folder. Empty for items directly in the home folder.
+    let topFolder: String
+    let rows: [ResultRow]
+
+    var id: String { topFolder }
+
+    /// The allocated size of every row in the group, read-only ones included: it says what takes the space.
+    var size: Int64 { rows.reduce(0) { $0 + $1.size } }
 }

@@ -3,15 +3,27 @@ import SwiftUI
 
 @main
 struct ShuckApp: App {
+    private let registry: ToolRegistry
     /// Kept for the app's lifetime, so scan results survive switching between pages.
-    @State private var fileCleanup = FileCleanupModel(
-        subTools: ToolRegistry.standard.subTools,
-        // The ownership map compares paths with symlinks resolved (D-53).
-        context: ScanContext(home: URL.homeDirectory.resolvingSymlinksInPath()))
+    @State private var fileCleanup: FileCleanupModel
+
+    init() {
+        let environment: AppEnvironment
+        do {
+            environment = try AppEnvironment(
+                arguments: CommandLine.arguments,
+                minimumSizeSetting: UserDefaults.standard.object(forKey: AppEnvironment.largeFilesMinimumSizeKey))
+        } catch {
+            // Debug builds only: a UI test passed a bad fixture root. Stop rather than scan the real home folder.
+            fatalError(error.description)
+        }
+        registry = .standard(largeFiles: environment.largeFiles)
+        _fileCleanup = State(initialValue: FileCleanupModel(subTools: registry.subTools, context: environment.context))
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(registry: .standard, fileCleanup: fileCleanup)
+            ContentView(registry: registry, fileCleanup: fileCleanup)
         }
 
         // Settings opens in its own window from the app menu (⌘,), not from the sidebar (D-27).

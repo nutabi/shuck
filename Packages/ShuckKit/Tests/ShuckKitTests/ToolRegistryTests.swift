@@ -48,6 +48,15 @@ struct ToolRegistryTests {
         }
     }
 
+    @Test func largeFilesIsAvailableWithTheMinimumSizeTheAppPassesSET002() {
+        let standard = ToolRegistry.standard.subTool(.largeFiles) as? LargeFiles
+        #expect(standard?.info.availability == .available)
+        #expect(standard?.minimumSize == LargeFiles.defaultMinimumSize)
+
+        let custom = ToolRegistry.standard(largeFiles: LargeFiles(minimumSize: 1_000)).subTool(.largeFiles)
+        #expect((custom as? LargeFiles)?.minimumSize == 1_000)
+    }
+
     @Test func aTestSubToolRegistersAndIsFoundByIDFCL003() {
         let registry = ToolRegistry(tools: [Tool(info: FixtureSubTool().info, subTools: [FixtureSubTool()])])
         #expect(registry.subTool(FixtureSubTool.id)?.id == FixtureSubTool.id)

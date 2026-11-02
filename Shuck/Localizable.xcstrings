@@ -16,19 +16,37 @@
     "Exclusions, thresholds and project folders." : {
 
     },
+    "Files of at least %@" : {
+
+    },
     "Folder" : {
+
+    },
+    "Group by Folder" : {
+
+    },
+    "Group files by their top-level folder, such as Downloads or Movies." : {
 
     },
     "History" : {
 
     },
+    "Home Folder" : {
+
+    },
     "Kind" : {
+
+    },
+    "Look for large files. Scanning never removes anything." : {
 
     },
     "Modified" : {
 
     },
     "Name" : {
+
+    },
+    "No files of at least %@" : {
 
     },
     "No items selected" : {
@@ -67,10 +85,16 @@
     "Scan All" : {
 
     },
+    "Scan to list files of at least %@. Scanning never removes anything." : {
+
+    },
     "Scan with every sub-tool. Scanning never removes anything." : {
 
     },
     "Scanned %@" : {
+
+    },
+    "Scanning" : {
 
     },
     "Scanning…" : {
