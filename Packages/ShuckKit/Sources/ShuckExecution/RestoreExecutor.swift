@@ -7,8 +7,8 @@ import os
 /// For each item the executor:
 /// 1. picks the destination: the original path, or with "keep both" a free " (restored)" name next to it;
 /// 2. writes an intent record to the history log, naming the destination and the trashed path (SAF-005);
-/// 3. re-validates: the path guard for both paths, the item is directly inside the Trash folder, still exists and is
-///    about the size that was logged (SAF-008);
+/// 3. re-validates: the path guard for both paths, the item is directly inside the Trash folder, still exists, has the
+///    file identity that was logged, if one was, and is about the size that was logged (SAF-008);
 /// 4. moves it back, creating missing parent folders, and never replaces anything already at the destination;
 /// 5. writes a result record with the outcome.
 ///
@@ -88,6 +88,8 @@ public struct RestoreExecutor: Sendable {
             return .skipped(.notInTrash)
         }
         guard let current = ItemSnapshot.read(source) else { return .skipped(.missing) }
+        // Another item can take a trashed item's name once it has left the Trash; only its identity tells them apart.
+        if let identity = item.identity, FileIdentity.read(source) != identity { return .skipped(.otherItem) }
         if let bytes = item.bytes, !ItemSnapshot.sizeMatches(planned: bytes, current: current.allocatedSize) {
             return .skipped(.changed(current))
         }
@@ -181,6 +183,9 @@ public struct RestoreOutcome: Equatable, Sendable {
         case rejected(PathGuardError)
         /// The trashed path is not directly inside the Trash folder.
         case notInTrash
+        /// Another item has the trashed item's name in the Trash: its file identity is not the logged one, so the trashed
+        /// item has left the Trash (HIS-004).
+        case otherItem
         /// The run was cancelled before this item (SAF-014).
         case cancelled
         /// The history log could not be written, so the run stopped (SAF-005).

@@ -13,14 +13,21 @@ public struct TrashedItem: Equatable, Sendable {
     public let trashedURL: URL
     /// The allocated size logged when it was trashed; Restore checks it is still about the same (SAF-008).
     public let bytes: Int64?
+    /// The file identity logged when it was trashed; Restore moves only an item that still has it (HIS-004, SAF-008).
+    /// `nil` for items Shuck 0.1.0 trashed, which did not log it.
+    public let identity: FileIdentity?
 
-    public init(run: UUID, tool: ToolID, tier: Tier, originalURL: URL, trashedURL: URL, bytes: Int64?) {
+    public init(
+        run: UUID, tool: ToolID, tier: Tier, originalURL: URL, trashedURL: URL, bytes: Int64?,
+        identity: FileIdentity? = nil
+    ) {
         self.run = run
         self.tool = tool
         self.tier = tier
         self.originalURL = originalURL
         self.trashedURL = trashedURL
         self.bytes = bytes
+        self.identity = identity
     }
 
     /// Whether something now occupies the original path, so the user must choose what to do (HIS-003).
@@ -87,7 +94,7 @@ extension HistoryLog.Contents {
     public func entries() -> [HistoryEntry] {
         var entries: [HistoryEntry] = []
         // The entry for the item at each trashed path. The Trash can reuse a name once an item has left it, so a
-        // later record for the same path replaces the earlier one.
+        // later record for the same path replaces the earlier one, whose item must have left the Trash (HIS-004).
         var inTrash: [String: Int] = [:]
         for record in records where record.phase == .result && record.status == .ok {
             let restorability: Restorability
@@ -97,11 +104,14 @@ extension HistoryLog.Contents {
                     restorability = .unknownLocation
                     break
                 }
+                if let earlier = inTrash[trashedPath] {
+                    entries[earlier] = HistoryEntry(record: entries[earlier].record, restorability: .trashEmptied)
+                }
                 inTrash[trashedPath] = entries.count
                 restorability = .restorable(
                     TrashedItem(
                         run: record.run, tool: record.tool, tier: record.tier, originalURL: URL(filePath: record.path),
-                        trashedURL: URL(filePath: trashedPath), bytes: record.bytes))
+                        trashedURL: URL(filePath: trashedPath), bytes: record.bytes, identity: record.identity))
             case .restore:
                 if let trashedPath = record.trashedPath, let index = inTrash.removeValue(forKey: trashedPath) {
                     entries[index] = HistoryEntry(record: entries[index].record, restorability: .restored)
@@ -120,10 +130,16 @@ extension HistoryLog.Contents {
         }
     }
 
-    /// Whether `item` is still in the Trash. Does not follow a symlink.
+    /// Whether `item` is still in the Trash. Does not follow a symlink. An item with another file identity at the
+    /// trashed path took the name after `item` left the Trash (HIS-004).
     private static func checkTrash(for item: TrashedItem) -> Restorability {
         var info = stat()
-        if lstat(item.trashedURL.path, &info) == 0 { return .restorable(item) }
-        return errno == ENOENT || errno == ENOTDIR ? .trashEmptied : .notAccessible
+        guard lstat(item.trashedURL.path, &info) == 0 else {
+            return errno == ENOENT || errno == ENOTDIR ? .trashEmptied : .notAccessible
+        }
+        if let identity = item.identity, identity != FileIdentity(volume: info.st_dev, file: info.st_ino) {
+            return .trashEmptied
+        }
+        return .restorable(item)
     }
 }

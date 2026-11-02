@@ -47,6 +47,7 @@ struct TrashExecutorTests {
         let package = try root.folder("Documents/Old.pages")
         try root.file("Documents/Old.pages/Index.zip", size: 8_000)
         let plan = try plan([planned(movie), planned(image), planned(package)])
+        let identities = [movie, image, package].map(FileIdentity.read)
 
         let report = try await run(plan)
 
@@ -66,7 +67,11 @@ struct TrashExecutorTests {
             #expect(result.trashedPath == trashed.path)
             #expect(result.bytes == outcome.item.snapshot.allocatedSize)
             #expect(result.run == plan.run && result.tool == .largeFiles && result.tier == .yourData)
+            #expect(result.identity != nil && result.identity == FileIdentity.read(trashed))
         }
+        // The move into the Trash keeps each item's identity, which Restore checks (HIS-004).
+        #expect(records.filter { $0.phase == .result }.map(\.identity) == identities)
+        #expect(records.filter { $0.phase == .intent }.allSatisfy { $0.identity == nil })
     }
 
     @Test func aNameAlreadyInTheTrashIsLoggedWithItsNewNameSAF005() async throws {

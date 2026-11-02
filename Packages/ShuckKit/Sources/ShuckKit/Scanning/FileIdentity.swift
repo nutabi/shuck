@@ -2,8 +2,10 @@ import Foundation
 
 /// Which file an item is, whichever path leads to it: its volume and its file number on that volume.
 ///
-/// Two paths with the same identity are one file, such as two hard links, so totals count it once (FCL-007).
-public struct FileIdentity: Hashable, Sendable {
+/// Two paths with the same identity are one file, such as two hard links, so totals count it once (FCL-007). A move
+/// within a volume, such as into its Trash, keeps it, so the history log records it to tell a trashed item from another
+/// that later took its name in the Trash (HIS-004).
+public struct FileIdentity: Codable, Hashable, Sendable {
     /// The volume's device number (`st_dev`).
     public let volume: Int32
     /// The file's number on its volume (`st_ino`).

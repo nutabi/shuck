@@ -141,6 +141,8 @@ struct HistoryRestoreSheet: View {
             "Skipped: failed a safety check"
         case .skipped(.notInTrash):
             "Skipped: not in the Trash"
+        case .skipped(.otherItem):
+            "Skipped: no longer in the Trash, and another item has its name"
         case .skipped(.cancelled):
             "Skipped: stopped before it was restored"
         case .skipped(.historyUnavailable):

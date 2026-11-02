@@ -4,7 +4,7 @@ import Foundation
 ///
 /// The executor writes an intent record before each operation and a result record after it (SAF-005, SAF-006), so
 /// after a crash the log still shows what was about to happen. Build records with ``intent(run:tool:operation:path:
-/// tier:trashedPath:bytes:)`` and ``result(run:tool:operation:path:tier:status:trashedPath:bytes:detail:)``.
+/// tier:trashedPath:bytes:)`` and ``result(run:tool:operation:path:tier:status:trashedPath:identity:bytes:detail:)``.
 public struct HistoryRecord: Codable, Equatable, Sendable {
     /// The schema version this code writes and reads.
     public static let currentVersion = 1
@@ -40,6 +40,9 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
     /// Where the item went in the Trash, from `resultingItemURL` (SAF-005): result records of `trash`. For `restore`,
     /// intent and result records, the trashed path the item is taken from, which links it to its `trash` record (D-52).
     public let trashedPath: String?
+    /// The trashed item's file identity, read just before the move: result records of `trash`. Restore moves only an
+    /// item that still has it. Logs written by Shuck 0.1.0 do not have it.
+    public let identity: FileIdentity?
     /// The allocated size estimate in bytes.
     public let bytes: Int64?
     public let tier: Tier
@@ -53,7 +56,7 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
         case timestamp = "ts"
         case run, tool, phase
         case operation = "op"
-        case path, trashedPath, bytes, tier, status, detail
+        case path, trashedPath, identity, bytes, tier, status, detail
     }
 
     /// The record written just before an operation.
@@ -63,19 +66,20 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
     ) -> Self {
         Self(
             version: currentVersion, timestamp: timestamp, run: run, tool: tool, phase: .intent,
-            operation: operation, path: path, trashedPath: trashedPath, bytes: bytes, tier: tier, status: nil,
-            detail: nil)
+            operation: operation, path: path, trashedPath: trashedPath, identity: nil, bytes: bytes, tier: tier,
+            status: nil, detail: nil)
     }
 
     /// The record written just after an operation, with its outcome (SAF-011).
     public static func result(
         run: UUID, tool: ToolID, operation: Operation, path: String, tier: Tier, status: Status,
-        trashedPath: String? = nil, bytes: Int64? = nil, detail: String? = nil, timestamp: Date = Date()
+        trashedPath: String? = nil, identity: FileIdentity? = nil, bytes: Int64? = nil, detail: String? = nil,
+        timestamp: Date = Date()
     ) -> Self {
         Self(
             version: currentVersion, timestamp: timestamp, run: run, tool: tool, phase: .result,
-            operation: operation, path: path, trashedPath: trashedPath, bytes: bytes, tier: tier, status: status,
-            detail: detail)
+            operation: operation, path: path, trashedPath: trashedPath, identity: identity, bytes: bytes, tier: tier,
+            status: status, detail: detail)
     }
 
     // MARK: - JSON Lines

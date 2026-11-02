@@ -156,8 +156,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T01 M1 cleanup: the findings of `docs/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
   to Safety and Execution go in pull requests of their own. The nine form one GitHub stack, in the order below, with
   auto-merge off; the owner merges the whole stack in one go (D-83).
-  - [ ] Restore moves only the file it trashed (TD-01, HIS-003, HIS-004). An item whose name in the Trash a later run
-    reused reads "Not restorable (Trash emptied)", and the trash record keeps the file's identity, which Restore checks.
+  - [x] Restore moves only the file it trashed (TD-01, HIS-003, HIS-004). An item whose name in the Trash a later run
+    reused reads "Not restorable (Trash emptied)", and the trash record keeps the file's identity, which Restore checks
+    (D-84). Left for the owner: the `identity` field in PRD section 8.5's table.
   - [ ] Static checks for M2, and tests kept out of the home folder (TD-02, TD-12, TD-19, SAF-016, SAF-017). The checks
     also catch the `*at` and `_np` calls, `copyfile`, `clonefile`, `ftruncate`, `.write(toFile:)` and `openat`; only
     `ShuckExecution` may start a subprocess; test code never names the real home folder.
