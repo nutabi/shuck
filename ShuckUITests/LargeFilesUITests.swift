@@ -15,7 +15,7 @@ final class LargeFilesUITests: ShuckUITestCase {
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
 
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 10))
         for name in ["Clip.mov", "Installer.dmg", "Movies", "Downloads"] {
             XCTAssertTrue(app.staticTexts[name].exists, "Missing \(name)")
         }
@@ -37,7 +37,7 @@ final class LargeFilesUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 10))
         app.toolbars.checkBoxes["Group by Folder"].click()
 
         func order() -> [String] {
@@ -52,16 +52,16 @@ final class LargeFilesUITests: ShuckUITestCase {
 
         XCTAssertTrue(app.staticTexts["No items selected"].exists)
         app.staticTexts["Holiday.mov"].click()
-        XCTAssertTrue(app.staticTexts["1 item selected, 5.2 MB"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1 item selected, 5.2 MB"].appears(within: 5))
         // 2 MiB and 3 MiB.
         app.staticTexts["Clip.mov"].click()
         XCUIElement.perform(withKeyModifiers: .command) { app.staticTexts["Installer.dmg"].click() }
-        XCTAssertTrue(app.staticTexts["2 items selected, 5.2 MB"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["2 items selected, 5.2 MB"].appears(within: 5))
 
         app.typeKey(" ", modifierFlags: [])
-        XCTAssertTrue(app.windows["Quick Look"].waitForExistence(timeout: 5), "Space did not open Quick Look")
+        XCTAssertTrue(app.windows["Quick Look"].appears(within: 5), "Space did not open Quick Look")
         app.typeKey(" ", modifierFlags: [])
-        XCTAssertTrue(app.windows["Quick Look"].waitForNonExistence(timeout: 5), "Space did not close Quick Look")
+        XCTAssertTrue(app.windows["Quick Look"].disappears(within: 5), "Space did not close Quick Look")
     }
 
     /// SAF-002, LRG-004, SAF-016: "Move to Trash…" opens an itemized review whose title states the count and size, and
@@ -75,7 +75,7 @@ final class LargeFilesUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 10))
         let moveToTrash = app.buttons["Move to Trash…"]
         XCTAssertFalse(moveToTrash.isEnabled, "Nothing is selected, so there is nothing to review")
 
@@ -83,22 +83,22 @@ final class LargeFilesUITests: ShuckUITestCase {
         app.staticTexts["Installer.dmg"].click()
         app.typeKey(.delete, modifierFlags: .command)
         let sheet = app.sheets.firstMatch
-        XCTAssertTrue(sheet.staticTexts["Move 1 item, 3.1 MB, to the Trash?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.staticTexts["Move 1 item, 3.1 MB, to the Trash?"].appears(within: 5))
         sheet.buttons["Cancel"].click()
-        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(sheet.disappears(within: 5))
         XCTAssertTrue(FileManager.default.fileExists(atPath: installer.path))
 
         app.staticTexts["Holiday.mov"].click()
         XCUIElement.perform(withKeyModifiers: .command) { app.staticTexts["Clip.mov"].click() }
         moveToTrash.click()
-        XCTAssertTrue(sheet.staticTexts["Move 2 items, 7.3 MB, to the Trash?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.staticTexts["Move 2 items, 7.3 MB, to the Trash?"].appears(within: 5))
         XCTAssertTrue(sheet.staticTexts["Holiday.mov"].exists)
         XCTAssertTrue(sheet.staticTexts["Clip.mov"].exists)
         XCTAssertTrue(FileManager.default.fileExists(atPath: holiday.path), "An item moved before the confirmation")
         attachScreenshot(of: app, named: "Move to Trash review")
 
         sheet.buttons["Move to Trash"].click()
-        XCTAssertTrue(sheet.staticTexts["Moved 2 items to the Trash"].waitForExistence(timeout: 10))
+        XCTAssertTrue(sheet.staticTexts["Moved 2 items to the Trash"].appears(within: 10))
         let trash = root.url.appending(path: ".Trash")
         for file in [holiday, clip] {
             XCTAssertFalse(FileManager.default.fileExists(atPath: file.path), "\(file.lastPathComponent) did not move")
@@ -107,7 +107,7 @@ final class LargeFilesUITests: ShuckUITestCase {
         attachScreenshot(of: app, named: "Move to Trash summary")
 
         sheet.buttons["Done"].click()
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].disappears(within: 5))
         XCTAssertFalse(app.staticTexts["Clip.mov"].exists)
         XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
     }

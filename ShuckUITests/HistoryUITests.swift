@@ -9,7 +9,7 @@ final class HistoryUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["History"].click()
-        XCTAssertTrue(app.staticTexts["No history yet"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 5))
     }
 
     /// HIS-002, HIS-004: after a run, the summary's "Show in History" opens History with the run expanded: its area,
@@ -21,12 +21,12 @@ final class HistoryUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 10))
         app.staticTexts["Holiday.mov"].click()
         app.buttons["Move to Trash…"].click()
         let sheet = app.sheets.firstMatch
         sheet.buttons["Move to Trash"].click()
-        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].waitForExistence(timeout: 10))
+        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].appears(within: 10))
 
         sheet.buttons["Show in History"].click()
         // A run row reads as one element, as VoiceOver speaks it: area and method, count and size, date, status.
@@ -36,10 +36,10 @@ final class HistoryUITests: ShuckUITestCase {
             NSPredicate(format: "label BEGINSWITH %@", "Large Files · Moved to the Trash")
         )
         .element
-        XCTAssertTrue(run.waitForExistence(timeout: 5), "The run is missing")
+        XCTAssertTrue(run.appears(within: 5), "The run is missing")
         XCTAssertTrue(run.label.contains(", 1 item, 5.2 MB, "), "Wrong count or size: \(run.label)")
         XCTAssertTrue(run.label.hasSuffix(", Completed"), "Wrong status: \(run.label)")
-        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 5), "The run is not expanded")
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].appears(within: 5), "The run is not expanded")
         XCTAssertTrue(app.staticTexts["In the Trash"].exists)
         XCTAssertFalse(app.staticTexts["Clip.mov"].exists, "An item the run did not touch is listed")
 
@@ -55,7 +55,7 @@ final class HistoryUITests: ShuckUITestCase {
         let sheet = try moveToTrashAndShowInHistory(app, "Holiday.mov")
 
         app.buttons["Restore All"].click()
-        XCTAssertTrue(sheet.staticTexts["Restored 1 item"].waitForExistence(timeout: 10))
+        XCTAssertTrue(sheet.staticTexts["Restored 1 item"].appears(within: 10))
         XCTAssertTrue(sheet.staticTexts["Restored"].exists)
         XCTAssertTrue(FileManager.default.fileExists(atPath: holiday.path), "Holiday.mov is not back")
         let trashed = root.url.appending(path: ".Trash/Holiday.mov")
@@ -67,7 +67,7 @@ final class HistoryUITests: ShuckUITestCase {
             NSPredicate(format: "label BEGINSWITH %@", "Restore · Moved back from the Trash")
         )
         .element
-        XCTAssertTrue(restoreRun.waitForExistence(timeout: 5), "The restore is not listed as a run")
+        XCTAssertTrue(restoreRun.appears(within: 5), "The restore is not listed as a run")
         XCTAssertTrue(app.staticTexts["Restored"].exists, "The trashed item is not marked Restored")
         XCTAssertFalse(app.buttons["Restore All"].exists, "A restored run still offers Restore All")
     }
@@ -82,16 +82,16 @@ final class HistoryUITests: ShuckUITestCase {
         let newer = try root.file("Movies/Holiday.mov", size: 1 << 20)
 
         app.staticTexts["Holiday.mov"].click()
-        XCTAssertTrue(app.staticTexts["1 item selected, 5.2 MB"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1 item selected, 5.2 MB"].appears(within: 5))
         app.buttons["Restore"].click()
-        XCTAssertTrue(sheet.staticTexts["The original place of 1 item is taken"].waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.staticTexts["The original place of 1 item is taken"].appears(within: 5))
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: root.url.appending(path: "Movies/Holiday (restored).mov").path),
             "The item moved before the answer")
         attachScreenshot(of: app, named: "Restore question")
 
         sheet.buttons["Keep Both"].click()
-        XCTAssertTrue(sheet.staticTexts["Restored 1 item"].waitForExistence(timeout: 10))
+        XCTAssertTrue(sheet.staticTexts["Restored 1 item"].appears(within: 10))
         XCTAssertTrue(sheet.staticTexts["Restored as “Holiday (restored).mov”"].exists)
         let restored = root.url.appending(path: "Movies/Holiday (restored).mov")
         XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: restored.path)[.size] as? Int, 5 << 20)
@@ -109,14 +109,14 @@ final class HistoryUITests: ShuckUITestCase {
     private func moveToTrashAndShowInHistory(_ app: XCUIApplication, _ name: String) throws -> XCUIElement {
         try root.file("Movies/Clip.mov", size: 2 << 20)
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts[name].appears(within: 10))
         app.staticTexts[name].click()
         app.buttons["Move to Trash…"].click()
         let sheet = app.sheets.firstMatch
         sheet.buttons["Move to Trash"].click()
-        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].waitForExistence(timeout: 10))
+        XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].appears(within: 10))
         sheet.buttons["Show in History"].click()
-        XCTAssertTrue(app.staticTexts["In the Trash"].waitForExistence(timeout: 5), "The run is not expanded")
+        XCTAssertTrue(app.staticTexts["In the Trash"].appears(within: 5), "The run is not expanded")
         return sheet
     }
 }

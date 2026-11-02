@@ -16,7 +16,7 @@ final class FileCleanupUITests: ShuckUITestCase {
             ("Developer Junk", "What can developer tools rebuild?", false),
             ("Caches & Logs", "Which caches and logs can go?", false),
         ]
-        XCTAssertTrue(app.staticTexts[subTools[0].1].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[subTools[0].1].appears(within: 5))
         for (name, summary, available) in subTools {
             XCTAssertTrue(app.staticTexts[summary].exists, "Missing summary for \(name)")
             let scan = app.buttons["Scan \(name)"]
@@ -40,11 +40,11 @@ final class FileCleanupUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["File Cleanup"].click()
-        XCTAssertTrue(app.staticTexts["No total yet"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No total yet"].appears(within: 5))
         app.buttons["Scan All"].click()
 
         // Large Files lists both files (7.3 MB), Old Files only the holiday movie (5.2 MB).
-        XCTAssertTrue(app.staticTexts["7.3 MB reclaimable in total"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["7.3 MB reclaimable in total"].appears(within: 10))
         XCTAssertTrue(app.staticTexts["7.3 MB reclaimable"].exists)
         XCTAssertTrue(app.staticTexts["5.2 MB reclaimable"].exists)
         XCTAssertTrue(app.staticTexts["Each file counts once, even if several sub-tools list it."].exists)
@@ -60,13 +60,13 @@ final class FileCleanupUITests: ShuckUITestCase {
         let app = launch()
 
         app.outlines.firstMatch.staticTexts["Large Files"].click()
-        XCTAssertTrue(app.staticTexts["No files of at least 1 MB"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["No files of at least 1 MB"].appears(within: 10))
         XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
         XCTAssertFalse(app.staticTexts["No items selected"].exists, "An empty table's footer is shown")
 
         // The shared scan already covered Old Files, so its page needs no scan of its own.
         app.outlines.firstMatch.staticTexts["Old Files"].click()
-        XCTAssertTrue(app.staticTexts["No files left unopened for 12 months"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No files left unopened for 12 months"].appears(within: 5))
         XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
 
         attachScreenshot(of: app, named: "Old Files with nothing to list")
