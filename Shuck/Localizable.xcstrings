@@ -7,6 +7,9 @@
     "%@ reclaimable" : {
 
     },
+    "%@ reclaimable in total" : {
+
+    },
     "Can't be moved to the Trash" : {
 
     },
@@ -28,6 +31,9 @@
     "Done" : {
 
     },
+    "Each file counts once, even if several sub-tools list it." : {
+
+    },
     "Every action Shuck has taken, and how to put things back." : {
 
     },
@@ -41,6 +47,9 @@
 
     },
     "Folder" : {
+
+    },
+    "From %lld of %lld sub-tools. Scan the others to complete it." : {
 
     },
     "Group by Folder" : {
@@ -106,6 +115,9 @@
     "No longer there" : {
 
     },
+    "No total yet" : {
+
+    },
     "Not moved" : {
 
     },
@@ -161,6 +173,9 @@
 
     },
     "Scan to list files you haven't opened in %@. Scanning never removes anything." : {
+
+    },
+    "Scan to see how much space File Cleanup could reclaim." : {
 
     },
     "Scan with every sub-tool. Scanning never removes anything." : {

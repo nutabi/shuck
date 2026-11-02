@@ -78,6 +78,16 @@ extension FixtureRoot {
         return target
     }
 
+    /// Creates a hard link at `relativePath` to the existing file at `existingPath`, so both paths are one file
+    /// (FCL-007).
+    @discardableResult
+    public func hardLink(_ relativePath: String, to existingPath: String) throws(FixtureError) -> URL {
+        let existing = try url(existingPath)
+        let target = try newItem(relativePath)
+        try Self.fileSystem { try FileManager.default.linkItem(at: existing, to: target) }
+        return target
+    }
+
     /// Checks a path for a new item and creates its missing parent folders.
     ///
     /// `url(_:)` has already resolved every existing parent, so the folders created here are all inside the root.

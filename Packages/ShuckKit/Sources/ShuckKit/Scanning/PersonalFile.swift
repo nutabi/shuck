@@ -4,6 +4,8 @@ import Foundation
 /// (FCL-006).
 public struct PersonalFile: Equatable, Sendable {
     public let url: URL
+    /// Which file it is, so a file several paths lead to counts once in totals (FCL-007). `nil` if it was not read.
+    public let identity: FileIdentity?
     /// A file, or a package with its total allocated size (FCL-009).
     public let snapshot: ItemSnapshot
     /// The content-modified date.
@@ -15,10 +17,11 @@ public struct PersonalFile: Equatable, Sendable {
     public let readOnly: ReadOnlyReason?
 
     public init(
-        url: URL, snapshot: ItemSnapshot, modified: Date?, lastOpened: LastOpened? = nil,
+        url: URL, identity: FileIdentity? = nil, snapshot: ItemSnapshot, modified: Date?, lastOpened: LastOpened? = nil,
         readOnly: ReadOnlyReason? = nil
     ) {
         self.url = url
+        self.identity = identity
         self.snapshot = snapshot
         self.modified = modified
         self.lastOpened = lastOpened
