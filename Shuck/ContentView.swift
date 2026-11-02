@@ -50,6 +50,10 @@ struct ContentView: View {
             {
                 LargeFilesView(subTool: subTool, model: fileCleanup, results: results, registry: registry)
             }
+        case .tool(.oldFiles)?:
+            if let subTool = registry.subTool(.oldFiles) as? OldFiles, let results = fileCleanup.results[.oldFiles] {
+                OldFilesView(subTool: subTool, model: fileCleanup, results: results, registry: registry)
+            }
         case let destination?:
             if let label = destination.label(in: registry) {
                 PlaceholderView(label: label)

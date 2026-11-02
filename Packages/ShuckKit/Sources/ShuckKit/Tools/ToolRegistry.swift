@@ -38,8 +38,10 @@ extension ToolRegistry {
     /// The registry the app uses: File Cleanup with its four sub-tools (FCL-001), Applications and Startup Items.
     public static let standard = standard()
 
-    /// The standard registry with the user's settings, such as Large Files' minimum size (SET-002).
-    public static func standard(largeFiles: LargeFiles = LargeFiles()) -> ToolRegistry {
+    /// The standard registry with the user's settings, such as Large Files' minimum size and Old Files' period
+    /// (SET-002).
+    public static func standard(largeFiles: LargeFiles = LargeFiles(), oldFiles: OldFiles = OldFiles()) -> ToolRegistry
+    {
         ToolRegistry(tools: [
             Tool(
                 info: ToolInfo(
@@ -49,12 +51,7 @@ extension ToolRegistry {
                     symbolName: "folder", availability: .available),
                 subTools: [
                     largeFiles,
-                    PlannedSubTool(
-                        info: ToolInfo(
-                            id: .oldFiles, name: LocalizedStringResource("Old Files", bundle: #bundle),
-                            summary: LocalizedStringResource("What haven't I opened in a long time?", bundle: #bundle),
-                            symbolName: "calendar.badge.clock", availability: .planned(milestone: "M1")),
-                        tiers: [.yourData]),
+                    oldFiles,
                     // Two rules, Xcode Archives and Docker, are "Your data" (section 8.2).
                     PlannedSubTool(
                         info: ToolInfo(

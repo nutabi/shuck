@@ -25,7 +25,7 @@ struct PersonalFilesTable: View {
             }
             .width(min: 160, ideal: 240)
             TableColumn("Folder", value: \.folder)
-                .width(min: 120, ideal: 200)
+                .width(min: 120, ideal: showsLastOpened ? 160 : 200)
             TableColumn("Kind", value: \.kind)
                 .width(min: 80, ideal: 120)
             TableColumn("Size", value: \.size) { row in
@@ -37,7 +37,9 @@ struct PersonalFilesTable: View {
             TableColumn(dateTitle, value: \.sortDate) { row in
                 DateCell(row: row)
             }
-            .width(min: 90, ideal: 130)
+            // A last-opened date may have the word "Modified" next to it (OLD-002). Folder gives up the room, because
+            // a table wider in total than its ideal width overflows the window instead of shrinking.
+            .width(min: showsLastOpened ? 140 : 90, ideal: showsLastOpened ? 170 : 130)
         } rows: {
             if grouped {
                 ForEach(results.groups) { group in
@@ -76,6 +78,8 @@ struct PersonalFilesTable: View {
             footer
         }
     }
+
+    private var showsLastOpened: Bool { results.dateColumn == .lastOpened }
 
     private var dateTitle: Text {
         switch results.dateColumn {

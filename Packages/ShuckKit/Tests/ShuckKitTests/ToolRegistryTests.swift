@@ -57,6 +57,17 @@ struct ToolRegistryTests {
         #expect((custom as? LargeFiles)?.minimumSize == 1_000)
     }
 
+    @Test func oldFilesIsAvailableWithThePeriodAndMinimumSizeTheAppPassesSET002() {
+        let standard = ToolRegistry.standard.subTool(.oldFiles) as? OldFiles
+        #expect(standard?.info.availability == .available)
+        #expect(standard?.periodMonths == OldFiles.defaultPeriodMonths)
+        #expect(standard?.minimumSize == OldFiles.defaultMinimumSize)
+
+        let custom = ToolRegistry.standard(oldFiles: OldFiles(periodMonths: 3, minimumSize: 0)).subTool(.oldFiles)
+        #expect((custom as? OldFiles)?.periodMonths == 3)
+        #expect((custom as? OldFiles)?.minimumSize == 0)
+    }
+
     @Test func aTestSubToolRegistersAndIsFoundByIDFCL003() {
         let registry = ToolRegistry(tools: [Tool(info: FixtureSubTool().info, subTools: [FixtureSubTool()])])
         #expect(registry.subTool(FixtureSubTool.id)?.id == FixtureSubTool.id)
@@ -66,12 +77,12 @@ struct ToolRegistryTests {
     // MARK: - Planned sub-tools
 
     @Test func aPlannedSubToolFindsNothing() async throws {
-        let oldFiles = try #require(ToolRegistry.standard.subTool(.oldFiles))
-        #expect(oldFiles.info.availability == .planned(milestone: "M1"))
-        try root.file("Downloads/old.zip", size: 10)
+        let cachesAndLogs = try #require(ToolRegistry.standard.subTool(.cachesAndLogs))
+        #expect(cachesAndLogs.info.availability == .planned(milestone: "M2"))
+        try root.file("Library/Caches/com.example.App/cache.db", size: 10)
 
         var events: [ScanEvent] = []
-        for await event in oldFiles.scan(ScanContext(home: root.url)) {
+        for await event in cachesAndLogs.scan(ScanContext(home: root.url)) {
             events.append(event)
         }
         #expect(events.isEmpty)

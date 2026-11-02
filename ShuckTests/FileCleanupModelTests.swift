@@ -64,6 +64,20 @@ struct FileCleanupModelTests {
         #expect(!model.canScanAll)
     }
 
+    /// Opening a sub-tool's page scans only if it has not scanned yet (D-61).
+    @Test func openingAPageScansOnlyTheFirstTime() async {
+        let subTool = StubSubTool("TSA", events: [.item(.stub("a", size: 1_000))])
+        let model = FileCleanupModel(subTools: [subTool], context: context)
+
+        let first = model.scanIfNotScanned(subTool)
+        #expect(first != nil)
+        await first?.value
+        #expect(model.scanIfNotScanned(subTool) == nil)
+
+        let planned = ToolRegistry.standard.subTools.filter { $0.info.availability != .available }
+        #expect(planned.allSatisfy { model.scanIfNotScanned($0) == nil })
+    }
+
     @Test func aSubToolThatIsScanningCannotStartAgain() {
         let stalled = StallingSubTool()
         let model = FileCleanupModel(subTools: [stalled], context: context)

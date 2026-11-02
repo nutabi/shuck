@@ -10,9 +10,14 @@ public protocol PersonalFilesSubTool: SubTool {
     func includes(_ file: PersonalFile) -> Bool
     /// Why `file` is listed, shown next to it.
     func reason(for file: PersonalFile) -> LocalizedStringResource
+    /// Looks up last-opened dates during the scan, for a sub-tool that lists files by them (OLD-002). `nil` for the
+    /// others, so the scan spends no time on lookups for them.
+    var lastOpenedReader: LastOpenedReader? { get }
 }
 
 extension PersonalFilesSubTool {
+    public var lastOpenedReader: LastOpenedReader? { nil }
+
     /// Personal files are "Your data", moved to the Trash (LRG-004, OLD-004).
     public var tiers: Set<Tier> { [.yourData] }
 
@@ -28,7 +33,7 @@ extension PersonalFilesSubTool {
     /// Runs a personal-files scan and streams the items this sub-tool lists. Cancelling the consuming task cancels
     /// the scan (SAF-014).
     public func scan(_ context: ScanContext) -> AsyncStream<ScanEvent> {
-        let events = PersonalFilesScanner(context: context).scan()
+        let events = PersonalFilesScanner(context: context, lastOpened: lastOpenedReader).scan()
         return AsyncStream { continuation in
             let task = Task {
                 for await event in events {

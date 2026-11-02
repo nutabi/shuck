@@ -34,12 +34,13 @@ final class FileCleanupModel {
     private let personalFilesScan: PersonalFilesScan
     private var states: [ToolID: ScanState] = [:]
 
-    /// Starts a personal-files scan. Tests pass made-up events.
-    typealias PersonalFilesScan = @Sendable (ScanContext) -> AsyncStream<PersonalFilesEvent>
+    /// Starts a personal-files scan that looks up last-opened dates with the reader, if there is one (OLD-002). Tests
+    /// pass made-up events.
+    typealias PersonalFilesScan = @Sendable (ScanContext, LastOpenedReader?) -> AsyncStream<PersonalFilesEvent>
 
     init(
         subTools: [any SubTool], context: ScanContext,
-        personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0).scan() }
+        personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0, lastOpened: $1).scan() }
     ) {
         self.subTools = subTools
         self.context = context
@@ -47,14 +48,20 @@ final class FileCleanupModel {
         var results: [ToolID: PersonalFilesResults] = [:]
         for case let subTool as any PersonalFilesSubTool in subTools where subTool.info.availability == .available {
             results[subTool.id] = PersonalFilesResults(
-                home: context.home, sortOrder: Self.defaultSortOrder(subTool.id), includes: subTool.includes)
+                home: context.home, sortOrder: Self.defaultSortOrder(subTool.id),
+                dateColumn: Self.dateColumn(subTool.id), includes: subTool.includes)
         }
         self.results = results
     }
 
-    /// Large Files lists the largest first (LRG-002). Old Files gets its own order in M1-T11 (OLD-003).
+    /// Large Files lists the largest first (LRG-002), Old Files the longest unopened first (OLD-003).
     static func defaultSortOrder(_ id: ToolID) -> [KeyPathComparator<ResultRow>] {
-        [KeyPathComparator(\.size, order: .reverse)]
+        id == .oldFiles ? [KeyPathComparator(\.sortDate)] : [KeyPathComparator(\.size, order: .reverse)]
+    }
+
+    /// Old Files shows when each file was last opened, Large Files when it last changed (OLD-002).
+    static func dateColumn(_ id: ToolID) -> DateColumn {
+        id == .oldFiles ? .lastOpened : .modified
     }
 
     private var personalSubTools: [any PersonalFilesSubTool] {
@@ -90,6 +97,14 @@ final class FileCleanupModel {
         }
     }
 
+    /// Starts `subTool`'s scan if it has not scanned yet, as when the user opens its page. A finished scan is kept, so
+    /// going back to a page shows the same results and selection; the page's Scan button starts a new one.
+    @discardableResult
+    func scanIfNotScanned(_ subTool: any SubTool) -> Task<Void, Never>? {
+        guard state(of: subTool.id) == .notScanned else { return nil }
+        return scan(subTool)
+    }
+
     /// Starts the scan of every sub-tool that can scan now. Scanning never acts on anything (FCL-004).
     func scanAll() {
         for subTool in subTools {
@@ -106,7 +121,9 @@ final class FileCleanupModel {
             results[id]?.removeAll()
         }
         personalFiles = PersonalFilesState()
-        let events = personalFilesScan(context)
+        // Old Files needs last-opened dates. If several sub-tools did, the smallest minimum size would cover them all.
+        let reader = personalSubTools.compactMap(\.lastOpenedReader).min { $0.minimumSize < $1.minimumSize }
+        let events = personalFilesScan(context, reader)
         return Task {
             // Each event is a batch of files, so the main actor takes a few thousand events for a large home folder.
             for await event in events {

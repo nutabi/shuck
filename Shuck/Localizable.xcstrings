@@ -40,6 +40,9 @@
     "Last Opened" : {
 
     },
+    "Look for files you haven't opened in a long time. Scanning never removes anything." : {
+
+    },
     "Look for large files. Scanning never removes anything." : {
 
     },
@@ -49,10 +52,19 @@
     "Name" : {
 
     },
+    "No files left unopened for %@" : {
+
+    },
     "No files of at least %@" : {
 
     },
     "No items selected" : {
+
+    },
+    "Not opened in %@" : {
+
+    },
+    "Not opened in %@, at least %@" : {
 
     },
     "Not scanned yet" : {
@@ -89,6 +101,9 @@
 
     },
     "Scan to list files of at least %@. Scanning never removes anything." : {
+
+    },
+    "Scan to list files you haven't opened in %@. Scanning never removes anything." : {
 
     },
     "Scan with every sub-tool. Scanning never removes anything." : {
