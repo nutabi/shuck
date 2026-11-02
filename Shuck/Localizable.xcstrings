@@ -1,7 +1,22 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ is in the Trash. The space is freed when you empty the Trash." : {
+
+    },
     "%@ reclaimable" : {
+
+    },
+    "Can't be moved to the Trash" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Changed since the scan" : {
+
+    },
+    "Couldn't be moved: %@" : {
 
     },
     "Disk space at a glance, and what each sub-tool could reclaim." : {
@@ -10,10 +25,16 @@
     "Document" : {
 
     },
+    "Done" : {
+
+    },
     "Every action Shuck has taken, and how to put things back." : {
 
     },
     "Exclusions, thresholds and project folders." : {
+
+    },
+    "Failed a safety check" : {
 
     },
     "Files of at least %@" : {
@@ -49,6 +70,27 @@
     "Modified" : {
 
     },
+    "Move ^[%lld item](inflect: true), %@, to the Trash?" : {
+
+    },
+    "Move to Trash" : {
+
+    },
+    "Move to Trash…" : {
+
+    },
+    "Moved %lld of ^[%lld item](inflect: true) to the Trash" : {
+
+    },
+    "Moved ^[%lld item](inflect: true) to the Trash" : {
+
+    },
+    "Moved to the Trash" : {
+
+    },
+    "Moving ^[%lld item](inflect: true) to the Trash…" : {
+
+    },
     "Name" : {
 
     },
@@ -61,6 +103,12 @@
     "No items selected" : {
 
     },
+    "No longer there" : {
+
+    },
+    "Not moved" : {
+
+    },
     "Not opened in %@" : {
 
     },
@@ -68,6 +116,12 @@
 
     },
     "Not scanned yet" : {
+
+    },
+    "Nothing was moved" : {
+
+    },
+    "OK" : {
 
     },
     "Overview" : {
@@ -89,6 +143,9 @@
 
     },
     "Read-only: Shuck never removes this item." : {
+
+    },
+    "Review the selected items before moving them to the Trash." : {
 
     },
     "Scan" : {
@@ -127,6 +184,12 @@
     "Show in Finder" : {
 
     },
+    "Shuck couldn't open its history log, and it never moves anything without recording it first." : {
+
+    },
+    "Shuck records where each item goes, so it can put it back." : {
+
+    },
     "Size" : {
 
     },
@@ -136,10 +199,25 @@
     "Spotlight has no record of this file being opened, so this is when it last changed." : {
 
     },
+    "Stop" : {
+
+    },
+    "Stop before the next item. Items already moved stay in the Trash." : {
+
+    },
+    "Stopped before it was moved" : {
+
+    },
+    "The history log stopped working" : {
+
+    },
     "Unknown" : {
 
     },
     "^[%lld item](inflect: true) selected, %@" : {
+
+    },
+    "“%@” didn't pass Shuck's safety checks, so Shuck moved nothing." : {
 
     }
   },

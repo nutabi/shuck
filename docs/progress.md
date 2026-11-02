@@ -54,11 +54,11 @@ exercised).
   Files uses them from M1-T11 (D-59).
 - [x] M1-T11 Old Files sub-tool (OLD-001, OLD-003). Period and minimum size from `UserDefaults`, one flat list
   oldest first (D-60). Sub-tool pages now scan when first opened and show no empty table (D-61).
-- [ ] M1-T12 Itemized review sheet, confirmation, summary (SAF-002, LRG-004, OLD-004). Two pull requests (D-62, D-63).
+- [x] M1-T12 Itemized review sheet, confirmation, summary (SAF-002, LRG-004, OLD-004). Two pull requests (D-62, D-63).
   - [x] Run: `FolderTrash` in `ShuckExecution` for tests and the app's fixture-root mode; the app's plan, run and
     removal of moved items from both lists (`TrashReview`), with no UI yet.
-  - [ ] UI: the "Move to Trash…" button, the review sheet with its confirmation, progress, Stop and summary, and the
-    UI tests (SAF-002).
+  - [x] UI: the "Move to Trash…" button, the review sheet with its confirmation, progress, Stop and summary, and the
+    UI tests (SAF-002, D-64).
 - [ ] M1-T13 De-duplicated totals across sub-tools (FCL-007)
 - [ ] M1-T14 History view and Restore action (HIS-002)
 - [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)

@@ -22,7 +22,8 @@ final class PersonalFilesResults {
     /// Which date the Date column shows.
     let dateColumn: DateColumn
 
-    private let home: URL
+    /// The scanned home folder, shown as `~`.
+    let home: URL
     private let includes: (PersonalFile) -> Bool
 
     /// - Parameters:
