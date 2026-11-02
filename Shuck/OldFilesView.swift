@@ -24,15 +24,21 @@ struct OldFilesView: View {
         .navigationSubtitle(criteria)
         .toolbar {
             if model.state(of: subTool.id) == .scanning {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityLabel("Scanning")
+                // On its own, without the glass capsule the toolbar would otherwise share with the buttons next to it.
+                ToolbarItem {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Scanning")
+                }
+                .sharedBackgroundVisibility(.hidden)
             }
-            Button("Scan", systemImage: "magnifyingglass") {
-                model.scan(subTool)
+            ToolbarItemGroup {
+                Button("Scan", systemImage: "magnifyingglass") {
+                    model.scan(subTool)
+                }
+                .disabled(!model.canScan(subTool))
+                .help("Look for files you haven't opened in a long time. Scanning never removes anything.")
             }
-            .disabled(!model.canScan(subTool))
-            .help("Look for files you haven't opened in a long time. Scanning never removes anything.")
         }
         .onAppear {
             model.scanIfNotScanned(subTool)

@@ -27,17 +27,23 @@ struct LargeFilesView: View {
         .navigationSubtitle(Text("Files of at least \(minimumSize)"))
         .toolbar {
             if model.state(of: subTool.id) == .scanning {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityLabel("Scanning")
+                // On its own, without the glass capsule the toolbar would otherwise share with the buttons next to it.
+                ToolbarItem {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Scanning")
+                }
+                .sharedBackgroundVisibility(.hidden)
             }
-            Toggle("Group by Folder", systemImage: "folder", isOn: $grouped)
-                .help("Group files by their top-level folder, such as Downloads or Movies.")
-            Button("Scan", systemImage: "magnifyingglass") {
-                model.scan(subTool)
+            ToolbarItemGroup {
+                Toggle("Group by Folder", systemImage: "folder", isOn: $grouped)
+                    .help("Group files by their top-level folder, such as Downloads or Movies.")
+                Button("Scan", systemImage: "magnifyingglass") {
+                    model.scan(subTool)
+                }
+                .disabled(!model.canScan(subTool))
+                .help("Look for large files. Scanning never removes anything.")
             }
-            .disabled(!model.canScan(subTool))
-            .help("Look for large files. Scanning never removes anything.")
         }
         .onAppear {
             model.scanIfNotScanned(subTool)

@@ -80,6 +80,15 @@ nonisolated struct AppEnvironment {
         return await executor.run(plan)
     }
 
+    /// Reads the history log inside the home folder, off the main actor, and groups it into runs, newest first
+    /// (HIS-002). A missing log has no runs.
+    @concurrent
+    func loadHistory() async throws(HistoryError) -> HistoryModel.History {
+        let contents = try HistoryLog.read(folder: HistoryLog.folder(home: context.home))
+        return HistoryModel.History(
+            runs: contents.runs().reversed(), unreadableLineCount: contents.unreadableLines.count)
+    }
+
     /// The fixture root after ``fixtureRootArgument`` in a debug build, or `nil` if there is none.
     ///
     /// Only a folder the test harness creates is accepted: `ShuckFixtures/<UUID>` in the temporary folder, which is

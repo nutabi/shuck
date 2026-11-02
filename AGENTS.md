@@ -114,6 +114,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
 - **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires the `Lint, build and test` check, so a pull request merges once CI passes. If CI fails, fix it on the branch (D-51). A pull request that changes only documentation (Markdown files and `LICENSE`) skips that check, and a skipped check counts as passed (D-66).
 - **Branches:** every change goes through a pull request; `main` accepts only squash merges of pull requests that pass CI and are up to date (ENG-001). Name the branch after the task in lowercase plus a short slug, for example `m1-t02-path-guard`.
+- **Stacked pull requests:** a pull request that needs another one that is still open branches from that one's branch. Keep it up to date by rebasing, never by merging, so its history stays clean. Once the one below is squash-merged, rebase the branch onto `main` with `git rebase --onto main <old base>`, so only its own commits remain, then force-push with `--force-with-lease`.
 - **Pull request description** (ENG-003, without its Screenshots section: D-65). Fill in every section of `.github/pull_request_template.md`:
   - **Summary.**
   - **Requirement IDs.**

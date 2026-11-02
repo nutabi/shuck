@@ -8,13 +8,15 @@ import SwiftUI
 struct ContentView: View {
     let registry: ToolRegistry
     let fileCleanup: FileCleanupModel
+    let history: HistoryModel
 
-    @State private var selection: SidebarDestination? = .overview
+    @Environment(AppNavigation.self) private var navigation
     @State private var collapsedTools: Set<ToolID> = []
 
     var body: some View {
+        @Bindable var navigation = navigation
         NavigationSplitView {
-            List(selection: $selection) {
+            List(selection: $navigation.selection) {
                 SidebarRow(destination: .overview, registry: registry)
                 ForEach(registry.tools, id: \.info.id) { tool in
                     if tool.subTools.isEmpty {
@@ -39,7 +41,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var detail: some View {
-        switch selection {
+        switch navigation.selection {
         case .tool(.fileCleanup)?:
             if let info = registry.info(.fileCleanup) {
                 FileCleanupView(info: info, model: fileCleanup)
@@ -54,6 +56,8 @@ struct ContentView: View {
             if let subTool = registry.subTool(.oldFiles) as? OldFiles, let results = fileCleanup.results[.oldFiles] {
                 OldFilesView(subTool: subTool, model: fileCleanup, results: results, registry: registry)
             }
+        case .history?:
+            HistoryView(model: history, registry: registry)
         case let destination?:
             if let label = destination.label(in: registry) {
                 PlaceholderView(label: label)
@@ -92,5 +96,8 @@ private struct SidebarRow: View {
 #Preview {
     ContentView(
         registry: .standard,
-        fileCleanup: FileCleanupModel(subTools: [], context: ScanContext(home: .temporaryDirectory)))
+        fileCleanup: FileCleanupModel(subTools: [], context: ScanContext(home: .temporaryDirectory)),
+        history: HistoryModel(home: .temporaryDirectory) { .init(runs: [], unreadableLineCount: 0) }
+    )
+    .environment(AppNavigation())
 }
