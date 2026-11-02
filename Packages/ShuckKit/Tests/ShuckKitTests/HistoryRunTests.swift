@@ -21,7 +21,7 @@ struct HistoryRunTests {
         return try HistoryLog.read(folder: folder).runs()
     }
 
-    /// The intent and result records of one trash, as `TrashExecutor` writes them.
+    /// The intent and result records of one trash, as `PlanExecutor` writes them.
     private func trash(
         _ path: String, run: UUID, status: HistoryRecord.Status = .ok, to trashedPath: String? = nil,
         detail: String? = nil

@@ -24,9 +24,9 @@ struct LargeFilesPipelineTests {
         #expect(items.map(\.url.lastPathComponent) == [large.lastPathComponent])
 
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
-        let report = try await TrashExecutor(root: root, pathGuard: pathGuard).run(plan)
+        let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)
 
-        #expect(report.outcomes.allSatisfy { if case .trashed = $0.result { true } else { false } })
+        #expect(report.outcomes.allSatisfy { if case .done = $0.result { true } else { false } })
         #expect(!FileManager.default.fileExists(atPath: large.path))
         #expect(FileManager.default.fileExists(atPath: small.path))
         let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }

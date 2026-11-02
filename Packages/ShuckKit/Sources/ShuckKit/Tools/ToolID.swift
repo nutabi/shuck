@@ -18,4 +18,20 @@ public struct ToolID: RawRepresentable, Codable, Hashable, Sendable {
     public static let startupItems = ToolID(rawValue: "STA")
     /// History itself, for restores.
     public static let history = ToolID(rawValue: "HIS")
+
+    /// The `Logger` category of the tool's diagnostics (NFR-OBS-001): its name without spaces. History's is `Restore`,
+    /// since restoring is what it runs; the history log itself logs under `History`.
+    public var loggerCategory: String {
+        switch self {
+        case .fileCleanup: "FileCleanup"
+        case .largeFiles: "LargeFiles"
+        case .oldFiles: "OldFiles"
+        case .developerJunk: "DeveloperJunk"
+        case .cachesAndLogs: "CachesAndLogs"
+        case .applications: "Applications"
+        case .startupItems: "StartupItems"
+        case .history: "Restore"
+        default: rawValue
+        }
+    }
 }

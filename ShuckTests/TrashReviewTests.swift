@@ -50,7 +50,7 @@ struct TrashReviewTests {
             let outcomes = plan.items.map { item in
                 trashed.contains(item.url.lastPathComponent)
                     ? ItemOutcome(
-                        item: item, result: .trashed(URL(filePath: "/StubHome/.Trash/\(item.url.lastPathComponent)")))
+                        item: item, result: .done(URL(filePath: "/StubHome/.Trash/\(item.url.lastPathComponent)")))
                     : ItemOutcome(item: item, result: .skipped(.changed(item.snapshot)))
             }
             return RunReport(run: plan.run, outcomes: outcomes)

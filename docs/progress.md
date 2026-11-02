@@ -171,8 +171,10 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Run outcomes that say why (TD-05, TD-06, SAF-012): "not accessible" kept apart from "missing", typed Trash
     errors, and stable reason codes in the log's `detail` (D-88). The wording table shared by both sheets and History
     is in the seventh layer.
-  - [ ] One run loop for every method, for Delete, Tool and Launchctl to plug into (TD-04, TD-11, TD-24), with Logger
-    categories per tool and sub-tool (NFR-OBS-001).
+  - [x] One run loop for every method, for Delete, Tool and Launchctl to plug into (TD-04, TD-11, TD-24), with Logger
+    categories per tool and sub-tool (NFR-OBS-001). `PlanExecutor` hands each item to the action for its method, and a
+    plan may mix methods; an item whose method has no action yet is skipped and logged. Restore runs through the same
+    loop. The path guard's `realpath`, "item exists" and case-folding helpers are the only copies (D-89).
   - [ ] History wording in one place (TD-06, TD-08, TD-16): one table from reason codes to words for both sheets and
     the History page, each history item with its own operation, and errors in words.
   - [ ] One page layout for every sub-tool (TD-07, TD-10, TD-13, SAF-014): pages found by tool ID, a Stop button for

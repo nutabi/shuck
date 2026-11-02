@@ -109,7 +109,7 @@ nonisolated struct AppEnvironment {
     @concurrent
     func run(_ plan: Plan) async throws(HistoryError) -> RunReport {
         let log = try HistoryLog(folder: historyFolder)
-        let executor = TrashExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
+        let executor = PlanExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
         return await executor.run(plan)
     }
 

@@ -43,13 +43,13 @@ struct SubToolIndependenceTests {
             subTool: broken, items: brokenItems.filter { $0.url == vanishing }, pathGuard: pathGuard)
         let healthyPlan = try Plan(subTool: healthy, items: healthyItems, pathGuard: pathGuard)
         try FileManager.default.removeItem(at: vanishing)
-        let executor = try TrashExecutor(root: root, pathGuard: pathGuard)
+        let executor = try PlanExecutor(root: root, pathGuard: pathGuard)
         async let healthyRun = executor.run(healthyPlan)
         async let brokenRun = executor.run(brokenPlan)
         let (healthyReport, brokenReport) = await (healthyRun, brokenRun)
 
         #expect(brokenReport.outcomes.map(\.result) == [.skipped(.missing)])
-        #expect(healthyReport.outcomes.allSatisfy { if case .trashed = $0.result { true } else { false } })
+        #expect(healthyReport.outcomes.allSatisfy { if case .done = $0.result { true } else { false } })
         #expect(wanted.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
         #expect(FileManager.default.fileExists(atPath: key.path))
         let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }

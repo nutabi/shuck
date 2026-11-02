@@ -6,7 +6,10 @@ import Foundation
 /// can be checked too. `URL.resolvingSymlinksInPath()` and `URL.standardizedFileURL` are not used: both strip
 /// `/private` from paths such as `/private/var/folders/…`, which would hide them from the protected-locations check
 /// (D-41, D-43).
-struct ResolvedPath {
+///
+/// It has `package` access so that ShuckExecution and the scanner resolve paths and check that items exist with the
+/// path guard's own helpers (TD-24). The fixture-root harness keeps a copy of its own, as an independent check.
+package struct ResolvedPath {
     /// The resolved path.
     let url: URL
     /// The deepest part of ``url`` that exists on disk.
@@ -30,7 +33,7 @@ struct ResolvedPath {
     }
 
     /// Whether anything, including a symlink, exists at `url`. Does not follow a final symlink.
-    static func itemExists(at url: URL) -> Bool {
+    package static func itemExists(at url: URL) -> Bool {
         (try? FileManager.default.attributesOfItem(atPath: url.path)) != nil
     }
 
@@ -41,7 +44,7 @@ struct ResolvedPath {
     }
 
     /// `url` with all symlinks resolved, or `nil` if it doesn't exist.
-    private static func realPath(_ url: URL) -> URL? {
+    package static func realPath(_ url: URL) -> URL? {
         guard let pointer = realpath(url.path, nil) else { return nil }
         defer { free(pointer) }
         return URL(filePath: String(cString: pointer))

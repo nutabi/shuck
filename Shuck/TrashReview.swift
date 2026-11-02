@@ -71,7 +71,7 @@ extension RunReport {
     /// The items the run moved to the Trash, by the URL the scan found them at.
     var trashedURLs: [URL] {
         outcomes.compactMap { outcome in
-            if case .trashed = outcome.result { outcome.item.url } else { nil }
+            if case .done = outcome.result, outcome.item.method == .trash { outcome.item.url } else { nil }
         }
     }
 }

@@ -20,6 +20,17 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
         case tool
         case launchctl
         case restore
+
+        /// The operation that records an action of `method`. Every run writes its records' operation through this, so
+        /// a plan that mixes methods logs each item as what was done to it.
+        public init(_ method: ActionMethod) {
+            switch method {
+            case .trash: self = .trash
+            case .delete: self = .delete
+            case .tool: self = .tool
+            case .launchctl: self = .launchctl
+            }
+        }
     }
 
     public enum Status: String, Codable, Sendable {

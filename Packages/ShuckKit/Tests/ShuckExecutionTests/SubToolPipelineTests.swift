@@ -27,9 +27,9 @@ struct SubToolPipelineTests {
         #expect(Set(items.map(\.url.path)) == Set(wanted.map(\.path)))
 
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
-        let report = try await TrashExecutor(root: root, pathGuard: pathGuard).run(plan)
+        let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)
 
-        #expect(report.outcomes.allSatisfy { if case .trashed = $0.result { true } else { false } })
+        #expect(report.outcomes.allSatisfy { if case .done = $0.result { true } else { false } })
         #expect(wanted.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
         #expect(FileManager.default.fileExists(atPath: notOwned.path))
         let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }

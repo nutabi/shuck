@@ -4,8 +4,8 @@ import ShuckKit
 import ShuckKitTestSupport
 import Testing
 
-/// The Trash executor, run against a fake Trash inside the fixture root (D-47).
-struct TrashExecutorTests {
+/// The plan executor, run against a fake Trash inside the fixture root (D-47).
+struct PlanExecutorTests {
     let root: FixtureRoot
     let pathGuard: PathGuard
     let logFolder: URL
@@ -29,9 +29,23 @@ struct TrashExecutorTests {
     private func run(_ plan: Plan, beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }) async throws
         -> RunReport
     {
-        let executor = try TrashExecutor(root: root, pathGuard: pathGuard, beforeMove: beforeMove)
-        // The run gets a task of its own, so a test that cancels it from `beforeMove` doesn't cancel itself (TD-17).
-        return await Task { await executor.run(plan) }.value
+        try await run(plan, with: try PlanExecutor(root: root, pathGuard: pathGuard, beforeMove: beforeMove))
+    }
+
+    /// Runs `plan` with the fake Trash and `actions` for other methods, writing to `log` if one is given.
+    private func run(_ plan: Plan, actions: [ActionMethod: any PlanAction], log: (any RecordLog)? = nil) async throws
+        -> RunReport
+    {
+        let trash = TrashAction(trash: FakeTrash(folder: trashFolder))
+        let executor = PlanExecutor(
+            pathGuard: pathGuard, log: try log ?? HistoryLog(folder: logFolder),
+            actions: actions.merging([.trash: trash]) { action, _ in action })
+        return try await run(plan, with: executor)
+    }
+
+    private func run(_ plan: Plan, with executor: PlanExecutor) async throws -> RunReport {
+        // The run gets a task of its own, so a test that cancels it from an action doesn't cancel itself (TD-17).
+        await Task { await executor.run(plan) }.value
     }
 
     private func exists(_ url: URL) -> Bool {
@@ -55,7 +69,7 @@ struct TrashExecutorTests {
         let records = try HistoryLog.read(folder: logFolder).records
         #expect(records.map(\.phase) == [.intent, .result, .intent, .result, .intent, .result])
         for (outcome, result) in zip(report.outcomes, records.filter { $0.phase == .result }) {
-            guard case .trashed(let trashed) = outcome.result else {
+            guard case .done(let trashed?) = outcome.result else {
                 Issue.record("Not trashed: \(outcome)")
                 continue
             }
@@ -80,7 +94,7 @@ struct TrashExecutorTests {
 
         let trashedPaths = try HistoryLog.read(folder: logFolder).records.compactMap(\.trashedPath)
         #expect(trashedPaths == [".Trash/report.pdf", ".Trash/report 2.pdf"].map { root.url.appending(path: $0).path })
-        #expect(report.outcomes.map(\.result) == trashedPaths.map { .trashed(URL(filePath: $0)) })
+        #expect(report.outcomes.map(\.result) == trashedPaths.map { .done(URL(filePath: $0)) })
     }
 
     // MARK: - Re-validation
@@ -108,7 +122,7 @@ struct TrashExecutorTests {
         }
         #expect(grownNow.kind == .file && grownNow.allocatedSize >= 1_000_000)
         #expect(replacedNow.kind == .folder)
-        guard case .trashed = results[3] else {
+        guard case .done = results[3] else {
             Issue.record("The unchanged item was not trashed: \(results[3])")
             return
         }
@@ -162,7 +176,7 @@ struct TrashExecutorTests {
         }
 
         #expect(report.outcomes.count == 3)
-        guard case .trashed = report.outcomes[0].result, case .failed = report.outcomes[1].result else {
+        guard case .done = report.outcomes[0].result, case .failed = report.outcomes[1].result else {
             Issue.record("Unexpected outcomes: \(report.outcomes.map(\.result))")
             return
         }
@@ -210,12 +224,42 @@ struct TrashExecutorTests {
         #expect(details.allSatisfy { $0?.contains("ShuckKit.") == false })
     }
 
-    @Test func itemsWithAnotherMethodAreSkippedWithoutActingOrLogging() async throws {
+    // MARK: - Methods
+
+    @Test func aPlanThatMixesMethodsHandsEachItemToItsOwnActionSAF005() async throws {
+        let movie = try root.file("Movies/clip.mov", size: 10)
+        let simulators = try root.folder("Library/Developer/CoreSimulator")
+        let image = try root.file("Downloads/installer.dmg", size: 10)
+        let plan = try plan([planned(movie), planned(simulators, method: .tool), planned(image)])
+
+        let tool = FakeAction()
+        let report = try await run(plan, actions: [.tool: tool])
+
+        let results = report.outcomes.map(\.result)
+        guard case .done(let trashedMovie?) = results[0], case .done(let trashedImage?) = results[2] else {
+            Issue.record("The Trash items were not trashed: \(results)")
+            return
+        }
+        #expect(results[1] == .done(nil))
+        #expect(tool.items == [simulators])
+        #expect(!exists(movie) && exists(simulators) && !exists(image))
+        let records = try HistoryLog.read(folder: logFolder).records
+        #expect(records.map(\.operation) == [.trash, .trash, .tool, .tool, .trash, .trash])
+        #expect(records.compactMap(\.status) == [.ok, .ok, .ok])
+        #expect(records.compactMap(\.trashedPath) == [trashedMovie.path, trashedImage.path])
+        #expect(records.filter { $0.operation == .tool }.allSatisfy { $0.identity == nil })
+    }
+
+    @Test func anItemWhoseMethodHasNoActionIsSkippedAndLoggedSAF011() async throws {
         let item = try planned(try root.file("Downloads/image.raw", size: 10), method: .tool)
         let report = try await run(try plan([item]))
         #expect(report.outcomes.map(\.result) == [.skipped(.unsupportedMethod(.tool))])
         #expect(exists(item.url))
-        #expect(try HistoryLog.read(folder: logFolder).records.isEmpty)
+        let records = try HistoryLog.read(folder: logFolder).records
+        #expect(records.map(\.phase) == [.intent, .result])
+        #expect(records.allSatisfy { $0.operation == .tool })
+        #expect(records.compactMap(\.status) == [.skipped])
+        #expect(records.compactMap(\.detail) == ["unsupportedMethod: tool"])
     }
 
     // MARK: - Crash and cancellation
@@ -253,5 +297,60 @@ struct TrashExecutorTests {
         let records = try HistoryLog.read(folder: logFolder).records
         #expect(Set(records.map(\.path)) == Set(files[..<2].map(\.path)))
         #expect(records.filter { $0.phase == .result }.map(\.status) == [.ok, .ok])
+    }
+
+    @Test func cancellingAMixedRunMidwayLogsWhatWasDoneSAF014() async throws {
+        let first = try root.file("Downloads/first.bin", size: 10)
+        let simulators = try root.folder("Library/Developer/CoreSimulator")
+        let last = try root.file("Downloads/last.bin", size: 10)
+        let plan = try plan([planned(first), planned(simulators, method: .tool), planned(last)])
+
+        let tool = FakeAction { withUnsafeCurrentTask { $0?.cancel() } }
+        let report = try await run(plan, actions: [.tool: tool])
+
+        #expect(report.outcomes[1...].map(\.result) == [.done(nil), .skipped(.cancelled)])
+        #expect(!exists(first) && exists(last))
+        // The tool item was acted on before the run saw the cancellation, so its result is logged; the last item never
+        // started, so it has no records.
+        let records = try HistoryLog.read(folder: logFolder).records
+        #expect(records.map(\.operation) == [.trash, .trash, .tool, .tool])
+        #expect(records.compactMap(\.status) == [.ok, .ok])
+    }
+
+    // MARK: - History log failures
+
+    @Test func aFailedIntentRecordStopsTheRunBeforeTheItemSAF005() async throws {
+        let files = try (1...3).map { try root.file("Downloads/file\($0).bin", size: 10) }
+        let log = FailingLog(log: try HistoryLog(folder: logFolder), recordsBeforeFailing: 2)
+
+        let report = try await run(try plan(files.map { try planned($0) }), actions: [:], log: log)
+
+        let results = report.outcomes.map(\.result)
+        guard case .done = results[0] else {
+            Issue.record("The first item was not trashed: \(results)")
+            return
+        }
+        #expect(results[1...] == [.skipped(.historyUnavailable), .skipped(.historyUnavailable)])
+        #expect(!exists(files[0]) && exists(files[1]) && exists(files[2]))
+        #expect(try HistoryLog.read(folder: logFolder).records.map(\.path) == [files[0].path, files[0].path])
+    }
+
+    @Test func aFailedResultRecordStopsTheRunAfterTheItemSAF005() async throws {
+        let files = try (1...3).map { try root.file("Downloads/file\($0).bin", size: 10) }
+        let log = FailingLog(log: try HistoryLog(folder: logFolder), recordsBeforeFailing: 3)
+
+        let report = try await run(try plan(files.map { try planned($0) }), actions: [:], log: log)
+
+        // The second item was moved before its result record failed: its outcome says so, and the log keeps its intent,
+        // which History shows as interrupted.
+        let results = report.outcomes.map(\.result)
+        guard case .done = results[0], case .done = results[1] else {
+            Issue.record("The first two items were not trashed: \(results)")
+            return
+        }
+        #expect(results[2] == .skipped(.historyUnavailable))
+        #expect(!exists(files[0]) && !exists(files[1]) && exists(files[2]))
+        let records = try HistoryLog.read(folder: logFolder).records
+        #expect(records.map(\.phase) == [.intent, .result, .intent])
     }
 }

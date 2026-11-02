@@ -25,7 +25,7 @@ struct RestoreExecutorTests {
             PlannedItem(url: url, tier: .yourData, method: .trash, snapshot: try #require(ItemSnapshot.read(url)))
         }
         let plan = try Plan(tool: .largeFiles, allowedRoots: [root.url], items: items, pathGuard: pathGuard)
-        _ = try await TrashExecutor(root: root, pathGuard: pathGuard).run(plan)
+        _ = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)
         return try restorable()
     }
 
@@ -61,7 +61,7 @@ struct RestoreExecutorTests {
 
         let results = try await restore(items.map { RestoreRequest(item: $0) })
 
-        #expect(results == [.restored(movie), .restored(package)])
+        #expect(results == [.done(movie), .done(package)])
         let inside = try root.url("Documents/Old.pages/Index.zip")
         #expect(exists(movie) && exists(inside))
         #expect(items.allSatisfy { !exists($0.trashedURL) })
@@ -79,7 +79,7 @@ struct RestoreExecutorTests {
         let items = try await trashed([file])
         try FileManager.default.removeItem(at: try root.url("Projects"))
 
-        #expect(try await restore(items.map { RestoreRequest(item: $0) }) == [.restored(file)])
+        #expect(try await restore(items.map { RestoreRequest(item: $0) }) == [.done(file)])
         #expect(exists(file))
     }
 
@@ -115,7 +115,7 @@ struct RestoreExecutorTests {
         let expected = [
             "Downloads/report (restored 2).pdf", "Downloads/Photos (restored)", "Documents/report (restored).pdf",
         ]
-        #expect(results == (try expected.map { .restored(try root.url($0)) }))
+        #expect(results == (try expected.map { .done(try root.url($0)) }))
         #expect(try expected.allSatisfy { exists(try root.url($0)) })
         #expect(
             try restoreRecords().filter { $0.phase == .result }.map(\.path)
@@ -165,7 +165,7 @@ struct RestoreExecutorTests {
         #expect(!exists(first) && exists(later.trashedURL))
         #expect(try restoreRecords().compactMap(\.detail) == ["otherItem"])
 
-        #expect(try await restore([RestoreRequest(item: later)]) == [.restored(second)])
+        #expect(try await restore([RestoreRequest(item: later)]) == [.done(second)])
         #expect(try HistoryLog.read(folder: logFolder).entries().map(\.restorability) == [.trashEmptied, .restored])
     }
 
@@ -208,7 +208,7 @@ struct RestoreExecutorTests {
         let item = try #require(try restorable().first)
         #expect(item.identity == nil)
 
-        #expect(try await restore([RestoreRequest(item: item)]) == [.restored(original)])
+        #expect(try await restore([RestoreRequest(item: item)]) == [.done(original)])
         #expect(exists(original) && !exists(inTrash))
     }
 
