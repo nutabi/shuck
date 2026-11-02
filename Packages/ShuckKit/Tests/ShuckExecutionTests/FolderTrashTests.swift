@@ -13,7 +13,7 @@ struct FolderTrashTests {
 
     @Test func movesItemsIntoItsFolderAndCreatesIt() throws {
         let file = try root.file("Movies/clip.mov", size: 10)
-        let folder = root.url.appending(path: ".Trash")
+        let folder = root.trashFolder
         #expect(!FileManager.default.fileExists(atPath: folder.path))
 
         let trashed = try FolderTrash(folder: folder).trashItem(at: file)
@@ -24,7 +24,7 @@ struct FolderTrashTests {
     }
 
     @Test func addsANumberToANameThatIsTaken() throws {
-        let trash = FolderTrash(folder: root.url.appending(path: ".Trash"))
+        let trash = FolderTrash(folder: root.trashFolder)
         let first = try trash.trashItem(at: root.file("Movies/clip.mov", size: 10))
         let second = try trash.trashItem(at: root.file("Downloads/clip.mov", size: 10))
         let third = try trash.trashItem(at: root.file("Desktop/clip.mov", size: 10))
@@ -36,7 +36,7 @@ struct FolderTrashTests {
     }
 
     @Test func aMissingItemThrows() {
-        let trash = FolderTrash(folder: root.url.appending(path: ".Trash"))
+        let trash = FolderTrash(folder: root.trashFolder)
         #expect(throws: (any Error).self) {
             try trash.trashItem(at: root.url.appending(path: "Movies/missing.mov"))
         }

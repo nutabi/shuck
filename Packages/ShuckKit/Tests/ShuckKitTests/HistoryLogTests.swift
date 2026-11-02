@@ -13,7 +13,7 @@ struct HistoryLogTests {
 
     init() throws {
         root = try FixtureRoot()
-        folder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
+        folder = root.historyFolder
     }
 
     private var intent: HistoryRecord {

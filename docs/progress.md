@@ -162,8 +162,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Static checks for M2, and tests kept out of the home folder (TD-02, TD-12, TD-19, SAF-016, SAF-017). The checks
     also catch the `*at` and `_np` calls, `copyfile`, `clonefile`, `ftruncate`, `.write(toFile:)` and `openat`; only
     `ShuckExecution` may start a subprocess; test code never names the real home folder (D-85).
-  - [ ] Build settings and test helpers (TD-17, TD-18, TD-20 to TD-22): warnings as errors, a shared scheme, the version
-    set once, fixture helpers for the history folder and the Trash, and UI tests in English with the en_US region.
+  - [x] Build settings and test helpers (TD-17, TD-18, TD-20 to TD-22): warnings as errors, a shared scheme, the version
+    set once, fixture helpers for the history folder and the Trash, and UI tests in English with the en_US region
+    (D-86).
   - [ ] Scanner and History fixes (TD-03, TD-14, TD-15, TD-23): error text logged as private, protected names compared
     with case folded, other listing errors reported, a history reader that refuses a symlinked log, and stale text.
   - [ ] Run outcomes that say why (TD-05, TD-06, SAF-012): "not accessible" kept apart from "missing", typed Trash

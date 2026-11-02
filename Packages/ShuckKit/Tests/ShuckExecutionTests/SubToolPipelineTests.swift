@@ -23,23 +23,16 @@ struct SubToolPipelineTests {
         let registry = ToolRegistry(tools: [Tool(info: FixtureSubTool().info, subTools: [FixtureSubTool()])])
         let subTool = try #require(registry.subTool(FixtureSubTool.id))
 
-        var items: [ScanItem] = []
-        for await event in subTool.scan(context) {
-            if case .item(let item) = event { items.append(item) }
-        }
+        let items = await items(from: subTool, context: context)
         #expect(Set(items.map(\.url.path)) == Set(wanted.map(\.path)))
 
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
-        let logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
-        let executor = TrashExecutor(
-            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder),
-            trash: FakeTrash(folder: root.url.appending(path: ".Trash")))
-        let report = await executor.run(plan)
+        let report = try await TrashExecutor(root: root, pathGuard: pathGuard).run(plan)
 
         #expect(report.outcomes.allSatisfy { if case .trashed = $0.result { true } else { false } })
         #expect(wanted.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
         #expect(FileManager.default.fileExists(atPath: notOwned.path))
-        let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
+        let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }
         #expect(results.count == wanted.count)
         #expect(results.allSatisfy { $0.tool == FixtureSubTool.id && $0.status == .ok })
     }
@@ -48,10 +41,7 @@ struct SubToolPipelineTests {
         let key = try root.file(".ssh/id_ed25519", size: 10)
         let ownership = OwnershipMap(home: root.url, entries: [.init(".ssh", owners: [FixtureSubTool.id])])
 
-        var items: [ScanItem] = []
-        for await event in FixtureSubTool().scan(ScanContext(home: root.url, ownership: ownership)) {
-            if case .item(let item) = event { items.append(item) }
-        }
+        let items = await items(from: FixtureSubTool(), context: ScanContext(home: root.url, ownership: ownership))
         #expect(items.map(\.url.path) == [key.path])
         #expect(throws: PlanError.self) {
             try Plan(subTool: FixtureSubTool(), items: items, pathGuard: pathGuard)
