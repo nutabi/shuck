@@ -22,7 +22,7 @@ struct PersonalFilesSharedStateTests {
 
         var state = PersonalFilesState()
         let scanner = PersonalFilesScanner(
-            context: ScanContext(home: root.url), protection: root.pathGuardConfiguration())
+            context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()))
         for await event in scanner.scan() {
             state.apply(event)
         }

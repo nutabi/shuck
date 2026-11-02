@@ -56,9 +56,16 @@ public struct ScanContext: Sendable {
     public let home: URL
     /// Which sub-tool owns each location; a scan skips what is not its own (FCL-005).
     public let ownership: OwnershipMap
+    /// The path guard's configuration: a scan leaves out protected locations and the user's exclusions (section 8.4,
+    /// SET-001).
+    public let protection: PathGuardConfiguration
 
-    public init(home: URL, ownership: OwnershipMap? = nil) {
+    /// Without `protection`, a scan uses the production list for `home` with Shuck's own bundle. Tests pass the
+    /// fixture root's configuration (D-41).
+    public init(home: URL, ownership: OwnershipMap? = nil, protection: PathGuardConfiguration? = nil) {
         self.home = home
         self.ownership = ownership ?? OwnershipMap(home: home)
+        self.protection =
+            protection ?? .production(home: home, appBundle: Bundle.main.bundleURL, userExclusions: [])
     }
 }

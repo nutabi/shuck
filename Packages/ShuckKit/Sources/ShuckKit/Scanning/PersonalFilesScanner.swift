@@ -14,22 +14,19 @@ public struct PersonalFilesScanner: Sendable {
     public typealias ValueReader = @Sendable (URL) -> EntryValues?
 
     let context: ScanContext
-    let protection: PathGuardConfiguration
     let batchSize: Int
     let readValues: ValueReader
 
     private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "PersonalFiles")
 
     /// - Parameters:
-    ///   - protection: The path guard's configuration, for the protected locations and user exclusions.
     ///   - batchSize: How many files each ``PersonalFilesEvent/files(_:)`` event carries at most.
     ///   - readValues: Reads an entry's resource values; tests stub it (FCL-010).
     public init(
-        context: ScanContext, protection: PathGuardConfiguration, batchSize: Int = 256,
+        context: ScanContext, batchSize: Int = 256,
         readValues: @escaping ValueReader = EntryValues.read
     ) {
         self.context = context
-        self.protection = protection
         self.batchSize = max(1, batchSize)
         self.readValues = readValues
     }
@@ -147,7 +144,7 @@ public struct PersonalFilesScanner: Sendable {
         }
         let shown = PathGuardConfiguration.homeLocations.map { context.home.appending(path: $0) }
         if shown.contains(where: { Self.samePath($0, url) }) { return .shown }
-        if protection.protectedLocations.contains(where: { Self.samePath($0, url) }) { return .hidden }
+        if context.protection.protectedLocations.contains(where: { Self.samePath($0, url) }) { return .hidden }
         return nil
     }
 

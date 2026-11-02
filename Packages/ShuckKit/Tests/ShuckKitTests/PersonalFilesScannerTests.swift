@@ -17,8 +17,8 @@ struct PersonalFilesScannerTests {
         readValues: @escaping PersonalFilesScanner.ValueReader = EntryValues.read
     ) -> PersonalFilesScanner {
         PersonalFilesScanner(
-            context: ScanContext(home: root.url),
-            protection: root.pathGuardConfiguration(userExclusions: userExclusions),
+            context: ScanContext(
+                home: root.url, protection: root.pathGuardConfiguration(userExclusions: userExclusions)),
             batchSize: batchSize, readValues: readValues)
     }
 
