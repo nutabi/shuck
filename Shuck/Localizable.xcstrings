@@ -37,6 +37,9 @@
     "Kind" : {
 
     },
+    "Last Opened" : {
+
+    },
     "Look for large files. Scanning never removes anything." : {
 
     },
@@ -113,6 +116,9 @@
 
     },
     "Some folders were not accessible" : {
+
+    },
+    "Spotlight has no record of this file being opened, so this is when it last changed." : {
 
     },
     "Unknown" : {

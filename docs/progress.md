@@ -50,7 +50,8 @@ exercised).
     `ScanContext` (D-57).
   - [x] App: the debug-only fixture-root argument, one shared personal-files scan, the Large Files page grouped by
     top-level folder, the minimum size from `UserDefaults`, and the UI tests (D-58).
-- [ ] M1-T10 "Last opened" metadata with fallback (OLD-002)
+- [x] M1-T10 "Last opened" metadata with fallback (OLD-002). Engine reader and the table's Last Opened column; Old
+  Files uses them from M1-T11 (D-59).
 - [ ] M1-T11 Old Files sub-tool (OLD-001, OLD-003)
 - [ ] M1-T12 Itemized review sheet, confirmation, summary (SAF-002, LRG-004, OLD-004)
 - [ ] M1-T13 De-duplicated totals across sub-tools (FCL-007)
@@ -65,6 +66,8 @@ Left over from M1 tasks:
 - [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06). It is inside the personal-files scope
   (FCL-008), so the ownership map needs an entry for it (FCL-005, D-53). `~/go/pkg/mod` went to Developer Junk in
   M1-T07 (D-55).
+- [ ] M1-T11: give `FileCleanupModel`'s personal-files scan a `LastOpenedReader` with Old Files' minimum size, and
+  show Old Files' list with `dateColumn: .lastOpened`, oldest first (OLD-003, D-59).
 - [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52).
 

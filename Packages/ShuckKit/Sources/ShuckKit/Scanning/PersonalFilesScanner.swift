@@ -16,19 +16,22 @@ public struct PersonalFilesScanner: Sendable {
     let context: ScanContext
     let batchSize: Int
     let readValues: ValueReader
+    let lastOpened: LastOpenedReader?
 
     private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "PersonalFiles")
 
     /// - Parameters:
     ///   - batchSize: How many files each ``PersonalFilesEvent/files(_:)`` event carries at most.
     ///   - readValues: Reads an entry's resource values; tests stub it (FCL-010).
+    ///   - lastOpened: Looks up last-opened dates for large enough items (OLD-002). Without it, no item gets one.
     public init(
         context: ScanContext, batchSize: Int = 256,
-        readValues: @escaping ValueReader = EntryValues.read
+        readValues: @escaping ValueReader = EntryValues.read, lastOpened: LastOpenedReader? = nil
     ) {
         self.context = context
         self.batchSize = max(1, batchSize)
         self.readValues = readValues
+        self.lastOpened = lastOpened
     }
 
     public func scan() -> AsyncStream<PersonalFilesEvent> {
@@ -116,7 +119,7 @@ public struct PersonalFilesScanner: Sendable {
         }
         guard values.isRegularFile, !values.isPlaceholder else { return .skip }
         let snapshot = ItemSnapshot(kind: .file, allocatedSize: values.allocatedSize)
-        return .item(PersonalFile(url: url, snapshot: snapshot, modified: values.modified))
+        return .item(file(url, snapshot, values, readOnly: nil))
     }
 
     /// A file, or a folder measured as one item with its total size (FCL-009). Skipped if the scan is cancelled.
@@ -126,7 +129,15 @@ public struct PersonalFilesScanner: Sendable {
             ? ItemSnapshot.read(url) { !Task.isCancelled }
             : ItemSnapshot(kind: .file, allocatedSize: values.allocatedSize)
         guard let snapshot else { return .skip }
-        return .item(PersonalFile(url: url, snapshot: snapshot, modified: values.modified, readOnly: readOnly))
+        return .item(file(url, snapshot, values, readOnly: readOnly))
+    }
+
+    private func file(_ url: URL, _ snapshot: ItemSnapshot, _ values: EntryValues, readOnly: ReadOnlyReason?)
+        -> PersonalFile
+    {
+        let lastOpened = lastOpened?.read(url, size: snapshot.allocatedSize, modified: values.modified)
+        return PersonalFile(
+            url: url, snapshot: snapshot, modified: values.modified, lastOpened: lastOpened, readOnly: readOnly)
     }
 
     enum Protection {

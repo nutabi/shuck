@@ -19,26 +19,31 @@ final class PersonalFilesResults {
     /// The rows the user selected. Nothing is selected until the user chooses (D-10).
     var selection: Set<URL> = []
 
+    /// Which date the Date column shows.
+    let dateColumn: DateColumn
+
     private let home: URL
     private let includes: (PersonalFile) -> Bool
 
     /// - Parameters:
     ///   - home: The scanned home folder, shown as `~` in the Folder column.
     ///   - sortOrder: The sub-tool's default order, for example largest first for Large Files (LRG-002).
+    ///   - dateColumn: The modified date for Large Files, the last-opened date for Old Files (OLD-002).
     ///   - includes: Which personal files the sub-tool lists, for example those above Large Files' threshold.
     init(
-        home: URL, sortOrder: [KeyPathComparator<ResultRow>],
+        home: URL, sortOrder: [KeyPathComparator<ResultRow>], dateColumn: DateColumn = .modified,
         includes: @escaping (PersonalFile) -> Bool = { _ in true }
     ) {
         self.home = home
         self.sortOrder = sortOrder
+        self.dateColumn = dateColumn
         self.includes = includes
     }
 
     /// Adds the files of a scan event that this list includes. A file listed again replaces its old row.
     func apply(_ event: PersonalFilesEvent) {
         guard case .files(let files) = event else { return }
-        let incoming = files.filter(includes).map { ResultRow($0, home: home) }
+        let incoming = files.filter(includes).map { ResultRow($0, home: home, dateColumn: dateColumn) }
         guard !incoming.isEmpty else { return }
         let incomingIDs = Set(incoming.map(\.id))
         rows.removeAll { incomingIDs.contains($0.id) }
@@ -82,6 +87,14 @@ final class PersonalFilesResults {
     }
 }
 
+/// Which date a results list shows (OLD-002).
+nonisolated enum DateColumn {
+    /// The content-modified date, for Large Files.
+    case modified
+    /// When the file was last opened, or its modified date when Spotlight has none, for Old Files.
+    case lastOpened
+}
+
 /// A personal file as the results table shows it: name, folder, kind, size and date (FCL-012).
 nonisolated struct ResultRow: Identifiable, Equatable {
     let id: URL
@@ -94,21 +107,31 @@ nonisolated struct ResultRow: Identifiable, Equatable {
     let kind: String
     /// Allocated size in bytes (SAF-013).
     let size: Int64
-    /// The content-modified date. Old Files shows "last opened" instead from M1-T10 (OLD-002).
+    /// The date the Date column shows: the modified date, or the last-opened date (OLD-002).
     let date: Date?
+    /// The last-opened column shows the modified date, because Spotlight has no record of the file being opened. The
+    /// table says so (OLD-002).
+    let dateIsModifiedFallback: Bool
     let readOnly: ReadOnlyReason?
 
     /// `date` for sorting. Rows without a date sort as the oldest.
     var sortDate: Date { date ?? .distantPast }
 
-    init(_ file: PersonalFile, home: URL) {
+    init(_ file: PersonalFile, home: URL, dateColumn: DateColumn = .modified) {
         id = file.url
         name = file.url.lastPathComponent
         folder = Self.folder(of: file.url, home: home)
         topFolder = Self.topFolder(of: file.url, home: home)
         kind = Self.kind(of: file.url, snapshot: file.snapshot)
         size = file.snapshot.allocatedSize
-        date = file.modified
+        switch dateColumn {
+        case .modified:
+            date = file.modified
+            dateIsModifiedFallback = false
+        case .lastOpened:
+            date = file.lastOpened?.date ?? file.modified
+            dateIsModifiedFallback = date != nil && file.lastOpened?.source != .lastUsed
+        }
         readOnly = file.readOnly
     }
 

@@ -13,7 +13,7 @@ struct LargeFilesView: View {
     @State private var grouped = true
 
     var body: some View {
-        PersonalFilesTable(results: results, dateTitle: "Modified", registry: registry, grouped: grouped)
+        PersonalFilesTable(results: results, registry: registry, grouped: grouped)
             .overlay { emptyState }
             .navigationTitle(Text(subTool.info.name))
             .navigationSubtitle(Text("Files of at least \(minimumSize)"))
