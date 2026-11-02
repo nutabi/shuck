@@ -93,8 +93,9 @@ exercised).
     generated fixture of 50,501 entries took 4.0 s instead of 35.5 s in a release build, about 12,500 entries a second.
   - [x] Leaner: each entry's temporary objects are freed before the next (D-80). On the fixture with 20 packages added,
     50,522 entries, the scan's peak memory fell from 534 MB to 16 MB.
-  - [ ] Parallel: a limited pool of workers reads subfolders as the walk finds them, as gdu and dua do, instead of one
-    worker per top-level folder.
+  - [x] Parallel: up to one task per processor core less one reads folders as the walk finds them, as gdu and dua do,
+    instead of one task per top-level folder (D-81). On 11 cores the same fixture took 1.1 s instead of 3.9 s, about
+    47,000 entries a second, with a peak of 20 MB.
   - [ ] Measure again.
 
 Left over from M1 tasks:

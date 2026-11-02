@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import os
 
 /// Lists the personal files that Large Files and Old Files share (FCL-006, FCL-008).
@@ -8,8 +9,8 @@ import os
 /// and iCloud placeholders are skipped (FCL-010). Locations another sub-tool owns (FCL-011) and protected bundles
 /// (section 8.4) are listed read-only. Symlinks are never followed.
 ///
-/// Each top-level folder is walked in its own child task, off the main actor. Cancelling the task that reads the
-/// stream stops the scan before the next entry (SAF-014).
+/// Several folders are read at once, each by a task of the scan, off the main actor (D-81). Cancelling the task that
+/// reads the stream stops the scan before the next entry (SAF-014).
 public struct PersonalFilesScanner: Sendable {
     public typealias ValueReader = @Sendable (URL) -> EntryValues?
     /// Receives how many entries a finished scan looked at and how long it took.
@@ -63,43 +64,127 @@ public struct PersonalFilesScanner: Sendable {
         logger.notice("Scanned \(entries, privacy: .public) entries in \(duration, privacy: .public)")
     }
 
-    /// Walks each top-level item in its own child task. Returns how many entries the walks looked at.
+    /// How many tasks may read folders besides the one that started the scan: one per processor core, less two, so at
+    /// most one folder per core less one is read at once and Swift's shared threads keep one for the app (D-81).
+    static let workers = max(1, ProcessInfo.processInfo.activeProcessorCount - 2)
+
+    /// Walks the home folder, reading several folders at once (D-81). Returns how many entries the walk looked at.
     private func walkHome(_ emit: @escaping @Sendable (PersonalFilesEvent) -> Void) async -> Int {
-        guard let children = contents(of: context.home, emit) else { return 0 }
-        return await withTaskGroup(of: Int.self) { group in
-            for child in children {
-                group.addTask { walk(child, emit) }
+        let walk = Walk(slots: Self.workers, batchSize: batchSize, emit: emit)
+        let entries = await withTaskGroup(of: Int.self) { tasks in
+            let read = readFolder(context.home, inScope: true, walk, starting: &tasks)
+            return await tasks.reduce(read, +)
+        }
+        walk.flush()
+        return entries
+    }
+
+    /// Starts a task, in a slot taken for it, that reads `folder` and the folders below it.
+    private func startTask(_ folder: URL, inScope: Bool, _ walk: Walk, in tasks: inout TaskGroup<Int>) {
+        tasks.addTask {
+            await withTaskGroup(of: Int.self) { subtasks in
+                let read = readFolder(folder, inScope: inScope, walk, starting: &subtasks)
+                // Its own folders are read, so the slot can go to a new task while this one waits for those it started.
+                walk.slots.give()
+                return await subtasks.reduce(read, +)
             }
-            return await group.reduce(0, +)
         }
     }
 
-    /// Walks one top-level item depth first, sending files in batches. Returns how many entries it looked at. An item
-    /// measured as a whole, such as a package, counts once, although measuring it reads everything inside.
-    private func walk(_ root: URL, _ emit: @Sendable (PersonalFilesEvent) -> Void) -> Int {
-        var batch: [PersonalFile] = []
+    /// Classifies the entries of `folder`, sending files in batches, and reads the folders among them: each in a task of
+    /// its own while a slot is free, and otherwise at once, depth first. Returns how many entries it looked at, without
+    /// those of the tasks it started. An item measured as a whole, such as a package, counts once, although measuring
+    /// it reads everything inside.
+    private func readFolder(_ folder: URL, inScope: Bool, _ walk: Walk, starting tasks: inout TaskGroup<Int>) -> Int {
+        let children = autoreleasepool { contents(of: folder, walk.emit) ?? [] }
+        var files: [PersonalFile] = []
         var entries = 0
-        var pending: [(url: URL, parentInScope: Bool)] = [(root, true)]
-        while let (url, parentInScope) = pending.popLast(), !Task.isCancelled {
+        for child in children {
+            guard !Task.isCancelled else { break }
             entries += 1
             // Foundation hands back many of its objects autoreleased. Freeing them after each entry keeps memory flat;
             // otherwise they lived until the walk ended, 17.1 GB at the baseline's peak (D-80).
-            switch autoreleasepool(invoking: { classify(url, parentInScope: parentInScope) }) {
+            switch autoreleasepool(invoking: { classify(child, parentInScope: inScope) }) {
             case .skip:
                 continue
             case .item(let file):
-                batch.append(file)
-                if batch.count >= batchSize {
-                    emit(.files(batch))
-                    batch = []
+                files.append(file)
+                if files.count >= batchSize {
+                    walk.send(files)
+                    files = []
                 }
-            case .descend(let inScope):
-                let children = autoreleasepool { contents(of: url, emit) ?? [] }
-                pending.append(contentsOf: children.reversed().map { ($0, inScope) })
+            case .descend(let childInScope):
+                if walk.slots.take() {
+                    startTask(child, inScope: childInScope, walk, in: &tasks)
+                } else {
+                    entries += readFolder(child, inScope: childInScope, walk, starting: &tasks)
+                }
             }
         }
-        if !batch.isEmpty { emit(.files(batch)) }
+        walk.send(files)
         return entries
+    }
+
+    /// What the tasks of one scan share: the free slots for new tasks, and one batch of files that they all fill, so
+    /// the app gets as few events as from one task (D-81).
+    private final class Walk: Sendable {
+        let slots: Slots
+        let batchSize: Int
+        let emit: @Sendable (PersonalFilesEvent) -> Void
+        private let pending = Mutex<[PersonalFile]>([])
+
+        init(slots: Int, batchSize: Int, emit: @escaping @Sendable (PersonalFilesEvent) -> Void) {
+            self.slots = Slots(slots)
+            self.batchSize = batchSize
+            self.emit = emit
+        }
+
+        /// Adds `files` to the batch, and sends each full batch.
+        func send(_ files: [PersonalFile]) {
+            guard !files.isEmpty else { return }
+            let full = pending.withLock { batch in
+                batch.append(contentsOf: files)
+                var full: [[PersonalFile]] = []
+                while batch.count >= batchSize {
+                    full.append(Array(batch.prefix(batchSize)))
+                    batch.removeFirst(batchSize)
+                }
+                return full
+            }
+            for files in full { emit(.files(files)) }
+        }
+
+        /// Sends the files left in the batch.
+        func flush() {
+            let rest = pending.withLock { batch in
+                defer { batch = [] }
+                return batch
+            }
+            if !rest.isEmpty { emit(.files(rest)) }
+        }
+    }
+
+    /// Counts the slots free for new tasks.
+    private final class Slots: Sendable {
+        private let free: Mutex<Int>
+
+        init(_ count: Int) {
+            free = Mutex(count)
+        }
+
+        /// Takes a slot for a new task, if one is free.
+        func take() -> Bool {
+            free.withLock { count in
+                guard count > 0 else { return false }
+                count -= 1
+                return true
+            }
+        }
+
+        /// Gives back a slot.
+        func give() {
+            free.withLock { $0 += 1 }
+        }
     }
 
     /// Folders whose subfolders are each one item, relative to the home folder: an iPhone or iPad backup is one folder
