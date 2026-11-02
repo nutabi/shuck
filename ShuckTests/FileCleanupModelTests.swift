@@ -57,7 +57,7 @@ struct FileCleanupModelTests {
     }
 
     @Test func aPlannedSubToolCannotScan() {
-        let planned = ToolRegistry.standard.subTools
+        let planned = ToolRegistry.standard.subTools.filter { $0.info.availability != .available }
         let model = FileCleanupModel(subTools: planned, context: context)
 
         #expect(planned.allSatisfy { !model.canScan($0) && model.scan($0) == nil })

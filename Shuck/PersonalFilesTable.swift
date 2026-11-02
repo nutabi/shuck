@@ -13,12 +13,15 @@ struct PersonalFilesTable: View {
     let dateTitle: LocalizedStringResource
     /// For the name of the sub-tool that manages a read-only item (FCL-011).
     let registry: ToolRegistry
+    /// Rows in sections by top-level folder, with subtotals (LRG-003).
+    var grouped = false
 
     @State private var previewURL: URL?
+    @FocusState private var isFocused: Bool
     @State private var previewItems: [URL] = []
 
     var body: some View {
-        Table(results.rows, selection: $results.selection, sortOrder: $results.sortOrder) {
+        Table(of: ResultRow.self, selection: $results.selection, sortOrder: $results.sortOrder) {
             TableColumn("Name", value: \.name) { row in
                 NameCell(row: row, registry: registry)
             }
@@ -41,12 +44,29 @@ struct PersonalFilesTable: View {
                 }
             }
             .width(min: 90, ideal: 110)
+        } rows: {
+            if grouped {
+                ForEach(results.groups) { group in
+                    Section {
+                        ForEach(group.rows) { TableRow($0) }
+                    } header: {
+                        GroupHeader(group: group)
+                    }
+                }
+            } else {
+                ForEach(results.rows) { TableRow($0) }
+            }
         }
         .contextMenu(forSelectionType: URL.self) { urls in
             Button("Quick Look") { preview(urls) }
             Button("Show in Finder") { reveal(urls) }
         } primaryAction: { urls in
             reveal(urls)
+        }
+        // A click on a row selects it but leaves keyboard focus where it was, so Space would not reach the table.
+        .focused($isFocused)
+        .onChange(of: results.selection) {
+            isFocused = true
         }
         // Space toggles the preview, as in Finder.
         .onKeyPress(.space) {
@@ -108,6 +128,23 @@ struct PersonalFilesTable: View {
     }
 }
 
+private struct GroupHeader: View {
+    let group: ResultGroup
+
+    var body: some View {
+        HStack {
+            if group.topFolder.isEmpty {
+                Text("Home Folder")
+            } else {
+                Text(verbatim: group.topFolder)
+            }
+            Spacer()
+            Text(group.size, format: .byteCount(style: .file))
+                .monospacedDigit()
+        }
+    }
+}
+
 private struct NameCell: View {
     let row: ResultRow
     let registry: ToolRegistry
@@ -157,6 +194,6 @@ private struct NameCell: View {
                 snapshot: ItemSnapshot(kind: .folder, allocatedSize: 1_200_000_000), modified: nil,
                 readOnly: .managedBy(.developerJunk)),
         ]))
-    return PersonalFilesTable(results: results, dateTitle: "Modified", registry: .standard)
+    return PersonalFilesTable(results: results, dateTitle: "Modified", registry: .standard, grouped: true)
         .frame(width: 760, height: 320)
 }
