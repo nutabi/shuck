@@ -13,7 +13,7 @@ struct RestorabilityTests {
 
     init() throws {
         root = try FixtureRoot()
-        folder = HistoryLog.folder(home: root.url)
+        folder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
     }
 
     private func trashed(_ original: String, to trashed: URL, status: HistoryRecord.Status = .ok) throws

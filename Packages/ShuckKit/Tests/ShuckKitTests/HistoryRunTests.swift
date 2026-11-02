@@ -12,7 +12,7 @@ struct HistoryRunTests {
 
     init() throws {
         root = try FixtureRoot()
-        folder = HistoryLog.folder(home: root.url)
+        folder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
     }
 
     private func runs(_ records: [HistoryRecord]) async throws -> [HistoryRun] {

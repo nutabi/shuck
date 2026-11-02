@@ -15,7 +15,7 @@ struct RestoreExecutorTests {
     init() throws {
         root = try FixtureRoot()
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
-        logFolder = HistoryLog.folder(home: root.url)
+        logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
         trash = FakeTrash(folder: root.url.appending(path: ".Trash"))
     }
 

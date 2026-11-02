@@ -13,7 +13,7 @@ struct HistoryLogTests {
 
     init() throws {
         root = try FixtureRoot()
-        folder = HistoryLog.folder(home: root.url)
+        folder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
     }
 
     private var intent: HistoryRecord {
@@ -152,8 +152,8 @@ struct HistoryLogTests {
     }
 
     @Test func fixesLoosePermissionsNFRSEC005() throws {
-        try root.folder(ShuckKit.dataFolder, permissions: 0o755)
-        let file = try root.file(ShuckKit.dataFolder + "/" + HistoryLog.fileName)
+        try root.folder(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID), permissions: 0o755)
+        let file = try root.file(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID) + "/" + HistoryLog.fileName)
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
 
         _ = try HistoryLog(folder: folder)
@@ -163,7 +163,7 @@ struct HistoryLogTests {
 
     @Test func refusesADataFolderThatIsASymlink() throws {
         let elsewhere = try root.folder("Elsewhere")
-        try root.symlink(ShuckKit.dataFolder, to: elsewhere)
+        try root.symlink(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID), to: elsewhere)
 
         let error = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }
         #expect(error == .notAFolder(folder.path))
@@ -172,8 +172,9 @@ struct HistoryLogTests {
 
     @Test func refusesALogFileThatIsASymlink() throws {
         let target = try root.file("Documents/notes.txt", size: 5)
-        try root.folder(ShuckKit.dataFolder)
-        let link = try root.symlink(ShuckKit.dataFolder + "/" + HistoryLog.fileName, to: target)
+        try root.folder(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID))
+        let link = try root.symlink(
+            ShuckKit.dataFolder(bundleID: ShuckKit.bundleID) + "/" + HistoryLog.fileName, to: target)
 
         let error = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }
         #expect(error == .cannotOpen(link.path, errno: ELOOP))

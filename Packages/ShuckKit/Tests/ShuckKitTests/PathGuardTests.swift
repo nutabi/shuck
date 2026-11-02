@@ -137,6 +137,14 @@ struct PathGuardTests {
         #expect(rejection(inner) == .protectedLocation(inner, protected: protected.path))
     }
 
+    /// D-70: every build protects both builds' data folders, so a debug build never acts on the release build's log.
+    @Test func protectsTheDataFolderOfEveryBuildSAF007() {
+        for bundleID in ["me.nutabi.shuck", "me.nutabi.shuck.debug"] {
+            let folder = home.appending(path: "Library/Application Support/\(bundleID)/history.jsonl").path
+            #expect(isProtected(rejection(folder)), "\(bundleID)")
+        }
+    }
+
     @Test(arguments: PathGuardConfiguration.systemLocations.filter { $0 != "/private" })
     func rejectsSystemLocationsSAF007(location: String) {
         let path = location + "/inner/file"

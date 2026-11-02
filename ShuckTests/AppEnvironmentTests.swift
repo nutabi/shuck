@@ -13,7 +13,9 @@ struct AppEnvironmentTests {
     let appBundle = URL(filePath: "/Applications/Shuck.app")
 
     private func environment(_ arguments: [String], debugBuild: Bool) throws -> AppEnvironment {
-        try AppEnvironment(arguments: arguments, settings: { _ in nil }, debugBuild: debugBuild, appBundle: appBundle)
+        try AppEnvironment(
+            arguments: arguments, settings: { _ in nil }, debugBuild: debugBuild, appBundle: appBundle,
+            bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID)
     }
 
     @Test func aReleaseBuildIgnoresTheFixtureRootArgumentNFRQA002() throws {
@@ -68,13 +70,54 @@ struct AppEnvironmentTests {
             "/Users/someone/Library/Containers/com.example.App/Data/tmp/ShuckFixtures/\(uuid)",
         ]
         for path in paths {
-            #expect(throws: AppEnvironment.RejectedFixtureRoot.self, "\(path)") {
+            #expect(throws: AppEnvironment.LaunchError.self, "\(path)") {
                 try environment([AppEnvironment.fixtureRootArgument, path], debugBuild: true)
             }
         }
-        #expect(throws: AppEnvironment.RejectedFixtureRoot.self) {
+        #expect(throws: AppEnvironment.LaunchError.self) {
             try environment([AppEnvironment.fixtureRootArgument], debugBuild: true)
         }
+    }
+
+    /// D-70: the release build and the debug build each keep their history log in a data folder named after their own
+    /// bundle ID.
+    @Test func eachBuildKeepsItsHistoryInItsOwnDataFolder() throws {
+        let home = URL.homeDirectory.resolvingSymlinksInPath()
+        let release = try environment(["Shuck"], debugBuild: false)
+        #expect(release.historyFolder == home.appending(path: "Library/Application Support/me.nutabi.shuck"))
+
+        let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
+        #expect(
+            debug.historyFolder
+                == debug.context.home.appending(path: "Library/Application Support/me.nutabi.shuck.debug"))
+    }
+
+    /// D-70: a build with another build's bundle ID, or none, stops at launch instead of sharing that build's
+    /// preferences and data folder.
+    @Test func aBuildWithAnotherBuildsBundleIDStops() {
+        for (bundleID, debugBuild) in [
+            (ShuckKit.bundleID, true), (ShuckKit.debugBundleID, false), ("com.example.Other", false), (nil, true),
+        ] as [(String?, Bool)] {
+            #expect(throws: AppEnvironment.LaunchError.self, "\(bundleID ?? "none")") {
+                try AppEnvironment(
+                    arguments: [], settings: { _ in nil }, debugBuild: debugBuild, appBundle: appBundle,
+                    bundleID: bundleID)
+            }
+        }
+    }
+
+    /// D-70: only a debug build launched on a fixture root clears preferences, and only its own domain.
+    @Test func onlyAUITestsDebugBuildClearsItsOwnPreferences() {
+        let uiTest = ["Shuck", AppEnvironment.fixtureRootArgument, fixture]
+        let debugID = ShuckKit.debugBundleID
+        #expect(AppEnvironment.preferencesToClear(arguments: uiTest, bundleID: debugID, debugBuild: true) == debugID)
+
+        #expect(AppEnvironment.preferencesToClear(arguments: uiTest, bundleID: debugID, debugBuild: false) == nil)
+        #expect(
+            AppEnvironment.preferencesToClear(arguments: uiTest, bundleID: ShuckKit.bundleID, debugBuild: true) == nil)
+        #expect(AppEnvironment.preferencesToClear(arguments: ["Shuck"], bundleID: debugID, debugBuild: true) == nil)
+        let rejected = ["Shuck", AppEnvironment.fixtureRootArgument, "/Users/someone"]
+        #expect(AppEnvironment.preferencesToClear(arguments: rejected, bundleID: debugID, debugBuild: true) == nil)
     }
 
     @Test func storedNumbersAreReadAsNumbersOrStrings() {
@@ -91,7 +134,8 @@ struct AppEnvironmentTests {
             AppEnvironment.oldFilesMinimumSizeKey: "0",
         ]
         let environment = try AppEnvironment(
-            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle)
+            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
+            bundleID: ShuckKit.bundleID)
 
         #expect(environment.largeFiles.minimumSize == 1_000)
         #expect(environment.oldFiles.periodMonths == 3)
@@ -103,7 +147,8 @@ struct AppEnvironmentTests {
             AppEnvironment.largeFilesMinimumSizeKey: "large", AppEnvironment.oldFilesPeriodKey: "0",
         ]
         let environment = try AppEnvironment(
-            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle)
+            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
+            bundleID: ShuckKit.bundleID)
 
         #expect(environment.largeFiles.minimumSize == 500_000_000)
         #expect(environment.oldFiles.periodMonths == 12)

@@ -40,7 +40,8 @@ struct PersonalFilesSharedStateTests {
         let item = try #require(state.items[bigAndOld].flatMap(old.scanItem(for:)))
         let plan = try Plan(subTool: old, items: [item], pathGuard: pathGuard)
         let executor = TrashExecutor(
-            pathGuard: pathGuard, log: try HistoryLog(folder: HistoryLog.folder(home: root.url)),
+            pathGuard: pathGuard,
+            log: try HistoryLog(folder: HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)),
             trash: FakeTrash(folder: root.url.appending(path: ".Trash")))
         let report = await executor.run(plan)
         state.remove(report.outcomes.filter { if case .trashed = $0.result { true } else { false } }.map(\.item.url))

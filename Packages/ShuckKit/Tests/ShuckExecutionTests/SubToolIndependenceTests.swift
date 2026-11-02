@@ -43,7 +43,7 @@ struct SubToolIndependenceTests {
             subTool: broken, items: brokenItems.filter { $0.url == vanishing }, pathGuard: pathGuard)
         let healthyPlan = try Plan(subTool: healthy, items: healthyItems, pathGuard: pathGuard)
         try FileManager.default.removeItem(at: vanishing)
-        let logFolder = HistoryLog.folder(home: root.url)
+        let logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
         let executor = TrashExecutor(
             pathGuard: pathGuard, log: try HistoryLog(folder: logFolder),
             trash: FakeTrash(folder: root.url.appending(path: ".Trash")))

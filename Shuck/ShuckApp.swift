@@ -10,12 +10,19 @@ struct ShuckApp: App {
     @State private var navigation = AppNavigation()
 
     init() {
+        let arguments = CommandLine.arguments
+        // A UI test starts from default preferences (D-70). Only the debug build's own domain is ever cleared.
+        let bundleID = Bundle.main.bundleIdentifier
+        if let domain = AppEnvironment.preferencesToClear(arguments: arguments, bundleID: bundleID) {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
         let environment: AppEnvironment
         do {
             environment = try AppEnvironment(
-                arguments: CommandLine.arguments, settings: UserDefaults.standard.object(forKey:))
+                arguments: arguments, settings: UserDefaults.standard.object(forKey:), bundleID: bundleID)
         } catch {
-            // Debug builds only: a UI test passed a bad fixture root. Stop rather than scan the real home folder.
+            // A UI test passed a bad fixture root, or the build has the wrong bundle ID. Stop rather than scan the real
+            // home folder or share another build's data.
             fatalError(error.description)
         }
         registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)

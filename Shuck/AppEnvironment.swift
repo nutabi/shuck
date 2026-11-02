@@ -11,6 +11,9 @@ nonisolated struct AppEnvironment {
     let trash: any Trash
     let largeFiles: LargeFiles
     let oldFiles: OldFiles
+    /// This build's data folder inside the home folder, which holds its history log: the release build's or the debug
+    /// build's, named after its bundle ID (D-70).
+    let historyFolder: URL
 
     /// The launch argument UI tests pass, followed by the fixture root's path. Release builds ignore it.
     static let fixtureRootArgument = "-ShuckFixtureRoot"
@@ -32,21 +35,36 @@ nonisolated struct AppEnvironment {
         #endif
     }
 
-    /// A fixture-root argument the app refuses. The app stops instead of falling back to the real home folder.
-    struct RejectedFixtureRoot: Error, CustomStringConvertible {
-        let path: String
-        var description: String { "Not a fixture root the test harness made: \(path)" }
+    /// Why the app stops at launch instead of running on the wrong data.
+    enum LaunchError: Error, CustomStringConvertible {
+        /// A fixture-root argument the app refuses, so it never falls back to the real home folder.
+        case rejectedFixtureRoot(String)
+        /// Not this build's bundle ID, so the build would share another build's preferences and data folder, or use
+        /// a data folder the path guard does not protect (D-70).
+        case unexpectedBundleID(String?)
+
+        var description: String {
+            switch self {
+            case .rejectedFixtureRoot(let path): "Not a fixture root the test harness made: \(path)"
+            case .unexpectedBundleID(let bundleID): "Not this build's bundle ID: \(bundleID ?? "none")"
+            }
+        }
     }
 
     /// - Parameters:
     ///   - arguments: The process's launch arguments.
     ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``.
-    ///   - debugBuild: Whether the fixture-root argument counts.
-    /// - Throws: ``RejectedFixtureRoot`` if a debug build gets a fixture-root argument it does not accept.
+    ///   - debugBuild: Whether the fixture-root argument counts, and which bundle ID the build must have.
+    ///   - bundleID: The app's bundle ID, which names its data folder.
+    /// - Throws: ``LaunchError`` if a debug build gets a fixture-root argument it does not accept, or the bundle ID is
+    ///   not the build's own.
     init(
         arguments: [String], settings: Settings, debugBuild: Bool = isDebugBuild,
-        appBundle: URL = Bundle.main.bundleURL
-    ) throws(RejectedFixtureRoot) {
+        appBundle: URL = Bundle.main.bundleURL, bundleID: String? = Bundle.main.bundleIdentifier
+    ) throws(LaunchError) {
+        guard let bundleID, bundleID == (debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID) else {
+            throw .unexpectedBundleID(bundleID)
+        }
         if let root = try Self.fixtureRoot(in: arguments, debugBuild: debugBuild) {
             // The engine tests' configuration (D-41): only the temporary folder's /private prefix is left out.
             let protection = PathGuardConfiguration(
@@ -68,23 +86,35 @@ nonisolated struct AppEnvironment {
         oldFiles = OldFiles(
             periodMonths: months ?? OldFiles.defaultPeriodMonths,
             minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize)
+        historyFolder = HistoryLog.folder(home: context.home, bundleID: bundleID)
     }
 
-    /// Moves a plan's items to the Trash, off the main actor, and logs every step in the history log inside the home
-    /// folder (SAF-005, SAF-011).
+    /// The preferences domain to clear at launch, before anything reads it: the debug build's own when a UI test
+    /// launches it on a fixture root, so every test starts from default preferences and never restores a window
+    /// frame, sidebar width or threshold that an earlier run saved (D-70). `nil` otherwise, and always in a release
+    /// build.
+    static func preferencesToClear(arguments: [String], bundleID: String?, debugBuild: Bool = isDebugBuild) -> String? {
+        guard debugBuild, bundleID == ShuckKit.debugBundleID,
+            (try? fixtureRoot(in: arguments, debugBuild: debugBuild)) != nil
+        else { return nil }
+        return ShuckKit.debugBundleID
+    }
+
+    /// Moves a plan's items to the Trash, off the main actor, and logs every step in the history log in
+    /// ``historyFolder`` (SAF-005, SAF-011).
     /// - Throws: ``HistoryError`` if the log cannot be opened. Then nothing moves.
     @concurrent
     func run(_ plan: Plan) async throws(HistoryError) -> RunReport {
-        let log = try HistoryLog(folder: HistoryLog.folder(home: context.home))
+        let log = try HistoryLog(folder: historyFolder)
         let executor = TrashExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
         return await executor.run(plan)
     }
 
-    /// Reads the history log inside the home folder, off the main actor, and groups it into runs, newest first
+    /// Reads the history log in ``historyFolder``, off the main actor, and groups it into runs, newest first
     /// (HIS-002). A missing log has no runs.
     @concurrent
     func loadHistory() async throws(HistoryError) -> HistoryModel.History {
-        let contents = try HistoryLog.read(folder: HistoryLog.folder(home: context.home))
+        let contents = try HistoryLog.read(folder: historyFolder)
         return HistoryModel.History(
             runs: contents.runs().reversed(), unreadableLineCount: contents.unreadableLines.count)
     }
@@ -95,14 +125,14 @@ nonisolated struct AppEnvironment {
     /// `/private/var/folders/…` for a test process, or the sandboxed UI test runner's container
     /// (`~/Library/Containers/<name>.xctrunner/Data/tmp`). Anything else throws, so a debug build is never pointed at
     /// real data by mistake.
-    static func fixtureRoot(in arguments: [String], debugBuild: Bool) throws(RejectedFixtureRoot) -> URL? {
+    static func fixtureRoot(in arguments: [String], debugBuild: Bool) throws(LaunchError) -> URL? {
         guard debugBuild, let index = arguments.firstIndex(of: fixtureRootArgument) else { return nil }
-        guard index + 1 < arguments.count else { throw RejectedFixtureRoot(path: "") }
+        guard index + 1 < arguments.count else { throw .rejectedFixtureRoot("") }
         let root = URL(filePath: arguments[index + 1], directoryHint: .isDirectory).resolvingSymlinksInPath()
         let parts = root.pathComponents
         guard parts.count > 2, parts[parts.count - 2] == "ShuckFixtures",
             UUID(uuidString: parts[parts.count - 1]) != nil
-        else { throw RejectedFixtureRoot(path: root.path) }
+        else { throw .rejectedFixtureRoot(root.path) }
         let temporary = Array(parts.dropLast(2))
         let isProcessTemporary = temporary.starts(with: ["/", "private", "var", "folders"])
         // …/Library/Containers/<name>.xctrunner/Data/tmp
@@ -110,7 +140,7 @@ nonisolated struct AppEnvironment {
         let isRunnerTemporary =
             tail.count == 5 && tail[0] == "Library" && tail[1] == "Containers" && tail[2].hasSuffix(".xctrunner")
             && tail[3] == "Data" && tail[4] == "tmp"
-        guard isProcessTemporary || isRunnerTemporary else { throw RejectedFixtureRoot(path: root.path) }
+        guard isProcessTemporary || isRunnerTemporary else { throw .rejectedFixtureRoot(root.path) }
         return root
     }
 

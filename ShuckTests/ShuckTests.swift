@@ -5,9 +5,11 @@ import Testing
 @testable import Shuck
 
 struct EngineLinkTests {
-    /// The app links ShuckKit, and the engine's logger subsystem is the app's bundle ID (D-21).
-    @Test func loggerSubsystemIsTheAppBundleID() {
-        #expect(Bundle.main.bundleIdentifier == ShuckKit.loggerSubsystem)
+    /// The app links ShuckKit. The debug build, which hosts these tests, has its own bundle ID and logs under the
+    /// release build's, which is the engine's logger subsystem (D-21, D-70).
+    @Test func theDebugBuildHasItsOwnBundleIDAndTheReleaseSubsystem() {
+        #expect(Bundle.main.bundleIdentifier == "me.nutabi.shuck.debug")
+        #expect(ShuckKit.loggerSubsystem == "me.nutabi.shuck")
     }
 }
 
