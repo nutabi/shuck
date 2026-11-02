@@ -155,8 +155,8 @@ struct TrashReviewSheet: View {
     }
 }
 
-/// An item's name and folder, with a trailing detail such as its size.
-private struct ItemRow<Detail: View>: View {
+/// An item's name and folder, with a trailing detail such as its size. The Restore sheet uses it too.
+struct ItemRow<Detail: View>: View {
     let url: URL
     let home: URL
     @ViewBuilder let detail: Detail

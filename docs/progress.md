@@ -61,20 +61,20 @@ exercised).
     UI tests (SAF-002, D-64).
 - [x] M1-T13 De-duplicated totals across sub-tools (FCL-007). Totals count each file once by file-system identity,
   so hard links count once too; the landing page shows the total above the sub-tools (D-67).
-- [ ] M1-T14 History view and Restore action (HIS-002). Four pull requests (D-62, D-68, D-72).
+- [x] M1-T14 History view and Restore action (HIS-002). Four pull requests (D-62, D-68, D-72, D-73).
   - [x] Engine: `HistoryLog.Contents.runs()` groups the log into runs with every logged item, its outcome and whether
     Restore can undo it; restores are runs of their own.
   - [x] App: the History page lists runs (date, area, item count, size, method, status), each expanding to its items;
     the run summary links to it.
   - [x] Run: `HistoryRestore` and `AppEnvironment.restore(_:)`: the run, the check for taken paths and the answer
     passed to every request, without UI (D-72).
-  - [ ] UI: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
-    summary (HIS-003).
+  - [x] UI: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
+    summary (HIS-003, D-73).
 - [x] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003). Two pull requests (D-62).
   - [x] Isolation: debug builds have their own bundle ID, preferences and data folder, and a UI test clears the debug
     build's preferences at launch (D-70).
   - [x] Smoke tests: one UI test file per area, a smoke test for each tool's and sub-tool's main path, listed in
-    `ShuckUITestCase` (D-71). Restore's comes with M1-T14's last pull request.
+    `ShuckUITestCase` (D-71). Restore's came with M1-T14's last pull request (D-73).
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
 
 Left over from M1 tasks:
@@ -89,8 +89,11 @@ Left over from M1 tasks:
 - [x] M1-T15: UI tests share the app's real preferences domain, `me.nutabi.shuck`. AppKit saves the main window's
   frame and sidebar width there, and the next run, UI test or not, restores them (D-60). Done in M1-T15 (D-70).
 - [x] M1-T14: the run summary links to History once the History page exists (D-63). Done in M1-T14 (D-69).
-- [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
-  `RestoreRequest` (HIS-003). The engine skips by default (D-52).
+- [x] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
+  `RestoreRequest` (HIS-003). The engine skips by default (D-52). Done in M1-T14 (D-73).
+- [ ] M1-T12: Move to Trash's summary disappears when the run empties the sub-tool's list. The page then shows its
+  message instead of the table (D-61), and the review sheet, attached to the table, goes with it, so the user never
+  sees the outcome (SAF-011). Found by M1-T14's Restore UI tests, which keep a second file listed to avoid it.
 
 Carried over from M0:
 

@@ -131,4 +131,44 @@ struct HistoryRestoreTests {
 
         #expect(run.restorableItems == [inTrash])
     }
+
+    /// HIS-003: Restore acts on the selected items still in the Trash, in the page's order.
+    @Test func theSelectionRestoresItsItemsStillInTheTrashHIS003() {
+        let first = trashed(home.appending(path: "Movies/big.mov"))
+        let second = trashed(home.appending(path: "Movies/clip.mov"))
+        let runs = [[second, first], [trashed(home.appending(path: "Movies/other.mov"))]].map { items in
+            HistoryRun(
+                id: UUID(), tool: .largeFiles, operation: .trash, started: .now,
+                items: items.map { item in
+                    HistoryRun.Item(
+                        path: item.originalURL.path, trashedPath: item.trashedURL.path, bytes: 100, tier: .yourData,
+                        outcome: .succeeded, restorability: .restorable(item))
+                })
+        }
+        let history = HistoryModel.History(runs: runs, unreadableLineCount: 0)
+        let elsewhere = URL(filePath: "/StubHome/.Trash/gone.mov")
+
+        let selected = HistoryView.items([first.trashedURL, second.trashedURL, elsewhere], in: history)
+        #expect(selected == [second, first])
+        #expect(HistoryView.items([], in: history).isEmpty)
+    }
+
+    /// SAF-011: the summary says what happened to every item, in words.
+    @Test func theSummarySaysWhatHappenedToEachItemSAF011() {
+        let item = trashed(home.appending(path: "Movies/clip.mov"))
+        func text(_ result: RestoreOutcome.Result) -> String {
+            String(
+                localized: HistoryRestoreSheet.outcome(
+                    RestoreOutcome(request: RestoreRequest(item: item, ifTaken: .keepBoth), result: result)))
+        }
+
+        #expect(text(.restored(item.originalURL)) == "Restored")
+        #expect(
+            text(.restored(home.appending(path: "Movies/clip (restored).mov")))
+                == "Restored as “clip (restored).mov”")
+        #expect(text(.skipped(.originalTaken)) == "Skipped: its original place is taken")
+        #expect(text(.skipped(.missing)) == "Skipped: no longer in the Trash")
+        #expect(text(.skipped(.cancelled)) == "Skipped: stopped before it was restored")
+        #expect(text(.failed("Permission denied")) == "Failed: Permission denied")
+    }
 }

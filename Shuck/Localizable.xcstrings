@@ -1,6 +1,63 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Items whose original place is free are restored either way." : {
+
+    },
+    "Keep Both" : {
+
+    },
+    "Keep Both puts each one back next to what is there now, with “(restored)” added to its name. Skip leaves each one in the Trash. Nothing is replaced." : {
+
+    },
+    "Nothing was restored" : {
+
+    },
+    "Restore All" : {
+
+    },
+    "Restored %lld of ^[%lld item](inflect: true)" : {
+
+    },
+    "Restored ^[%lld item](inflect: true)" : {
+
+    },
+    "Restored as “%@”" : {
+
+    },
+    "Restoring ^[%lld item](inflect: true)…" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Skipped: changed since it was moved to the Trash" : {
+
+    },
+    "Skipped: failed a safety check" : {
+
+    },
+    "Skipped: its original place is taken" : {
+
+    },
+    "Skipped: no longer in the Trash" : {
+
+    },
+    "Skipped: not in the Trash" : {
+
+    },
+    "Skipped: stopped before it was restored" : {
+
+    },
+    "Skipped: the history log stopped working" : {
+
+    },
+    "Stop before the next item. Items already restored stay where they are." : {
+
+    },
+    "The original place of ^[%lld item](inflect: true) is taken" : {
+
+    },
     "“%@” didn't pass Shuck's safety checks, so Shuck moved nothing." : {
 
     },

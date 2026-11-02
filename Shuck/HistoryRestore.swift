@@ -7,7 +7,7 @@ import ShuckKit
 ///
 /// Without a taken path the restore starts at once, without a confirmation, because Restore never overwrites and only
 /// puts back what Shuck moved (D-68). With taken paths it waits for one answer, Keep Both or Skip, which applies to all
-/// of them. A restore runs at most once. The History page shows it (M1-T14, next pull request).
+/// of them. A restore runs at most once. The History page shows it in a ``HistoryRestoreSheet``.
 @Observable
 final class HistoryRestore: Identifiable {
     /// Where the restore stands.
@@ -85,8 +85,13 @@ final class HistoryRestore: Identifiable {
 extension HistoryRun {
     /// The items Restore can put back now: moved to the Trash by this run, and still there (HIS-003, HIS-004).
     var restorableItems: [TrashedItem] {
-        items.compactMap { item in
-            if case .restorable(let trashed)? = item.restorability { trashed } else { nil }
-        }
+        items.compactMap(\.restorableItem)
+    }
+}
+
+extension HistoryRun.Item {
+    /// The item as Restore puts it back, if it is still in the Trash (HIS-004).
+    var restorableItem: TrashedItem? {
+        if case .restorable(let trashed)? = restorability { trashed } else { nil }
     }
 }
