@@ -20,8 +20,9 @@ struct TrashReviewTests {
 
     func url(_ path: String) -> URL { context.home.appending(path: path) }
 
-    /// A model whose scan found two large old movies, a small old note and a read-only folder.
-    func scannedModel() async -> FileCleanupModel {
+    /// A model whose scan found two large old movies, a small old note and a read-only folder, and whose runs go to
+    /// `runPlan`.
+    func scannedModel(runPlan: @escaping TrashReview.RunPlan) async -> FileCleanupModel {
         let files = [
             ("Movies/big.mov", 5_000, nil), ("Movies/clip.mov", 3_000, nil), ("Documents/note.txt", 10, nil),
             ("go/pkg/mod", 9_000, ReadOnlyReason.managedBy(.developerJunk)),
@@ -30,12 +31,14 @@ struct TrashReviewTests {
                 url: url(path), snapshot: ItemSnapshot(kind: .file, allocatedSize: Int64(size)), modified: yearsAgo,
                 readOnly: readOnly)
         }
-        let model = FileCleanupModel(subTools: [largeFiles, oldFiles], context: context) { _, _ in
+        let scan: FileCleanupModel.PersonalFilesScan = { _, _ in
             AsyncStream { continuation in
                 continuation.yield(.files(files))
                 continuation.finish()
             }
         }
+        let model = FileCleanupModel(
+            subTools: [largeFiles, oldFiles], context: context, personalFilesScan: scan, runPlan: runPlan)
         await model.scan(largeFiles)?.value
         return model
     }
@@ -55,10 +58,10 @@ struct TrashReviewTests {
     }
 
     @Test func thePlanHoldsTheSelectedItemsInOrderWithoutReadOnlyOnesSAF002() async throws {
-        let model = await scannedModel()
+        let model = await scannedModel(runPlan: run(trashing: []))
         let selection = [url("Movies/clip.mov"), url("go/pkg/mod"), url("Movies/big.mov"), url("Documents/note.txt")]
 
-        let review = try model.reviewMoveToTrash(largeFiles, urls: selection, runPlan: run(trashing: []))
+        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: selection))
 
         // The note is too small for Large Files, and the Go module cache is read-only (FCL-011).
         #expect(review.plan.tool == .largeFiles)
@@ -69,9 +72,9 @@ struct TrashReviewTests {
     }
 
     @Test func movedItemsLeaveBothListsAndTheEstimatesFCL006SAF011() async throws {
-        let model = await scannedModel()
-        let review = try model.reviewMoveToTrash(
-            oldFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")], runPlan: run(trashing: ["big.mov"]))
+        let model = await scannedModel(runPlan: run(trashing: ["big.mov"]))
+        let review = try #require(
+            try model.reviewMoveToTrash(oldFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
 
         await review.start()?.value
 
@@ -94,9 +97,8 @@ struct TrashReviewTests {
 
     @Test func aReviewRunsOnce() async throws {
         let calls = Mutex(0)
-        let model = await scannedModel()
-        let review = try model.reviewMoveToTrash(
-            largeFiles, urls: [url("Movies/big.mov")], runPlan: run(trashing: []) { calls.withLock { $0 += 1 } })
+        let model = await scannedModel(runPlan: run(trashing: []) { calls.withLock { $0 += 1 } })
+        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
 
         let first = review.start()
         #expect(review.phase == .running)
@@ -107,11 +109,9 @@ struct TrashReviewTests {
     }
 
     @Test func withoutAHistoryLogNothingMovesSAF005() async throws {
-        let model = await scannedModel()
         let failure = HistoryError.cannotOpen("/StubHome/Library/Application Support/me.nutabi.shuck", errno: EACCES)
-        let review = try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) {
-            (_: Plan) async throws(HistoryError) -> RunReport in throw failure
-        }
+        let model = await scannedModel { (_: Plan) async throws(HistoryError) -> RunReport in throw failure }
+        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
 
         await review.start()?.value
 
@@ -120,14 +120,14 @@ struct TrashReviewTests {
     }
 
     @Test func stoppingCancelsTheRunBeforeTheNextItemSAF014() async throws {
-        let model = await scannedModel()
-        let review = try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]) {
-            (plan: Plan) async throws(HistoryError) -> RunReport in
+        let model = await scannedModel { (plan: Plan) async throws(HistoryError) -> RunReport in
             // Like the executor: wait, then skip every item that has not started.
             while !Task.isCancelled { await Task.yield() }
             return RunReport(
                 run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .skipped(.cancelled)) })
         }
+        let review = try #require(
+            try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
 
         let task = review.start()
         review.stop()
@@ -139,5 +139,12 @@ struct TrashReviewTests {
         }
         #expect(report.outcomes.map(\.result) == [.skipped(.cancelled), .skipped(.cancelled)])
         #expect(model.results[.largeFiles]?.rows.count == 3)
+    }
+
+    /// Tests and previews give the model no run, so nothing in them can move a file.
+    @Test func aModelWithoutARunOffersNoReview() async throws {
+        let model = FileCleanupModel(subTools: [largeFiles], context: context)
+        #expect(!model.canMoveToTrash)
+        #expect(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
     }
 }

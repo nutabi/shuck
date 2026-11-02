@@ -32,18 +32,23 @@ final class FileCleanupModel {
     private(set) var personalFiles = PersonalFilesState()
     private let context: ScanContext
     private let personalFilesScan: PersonalFilesScan
+    /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
+    private let runPlan: TrashReview.RunPlan?
     private var states: [ToolID: ScanState] = [:]
 
     /// Starts a personal-files scan that looks up last-opened dates with the reader, if there is one (OLD-002). Tests
     /// pass made-up events.
     typealias PersonalFilesScan = @Sendable (ScanContext, LastOpenedReader?) -> AsyncStream<PersonalFilesEvent>
 
+    /// - Parameter runPlan: The app passes ``AppEnvironment/run(_:)``.
     init(
         subTools: [any SubTool], context: ScanContext,
-        personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0, lastOpened: $1).scan() }
+        personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0, lastOpened: $1).scan() },
+        runPlan: TrashReview.RunPlan? = nil
     ) {
         self.subTools = subTools
         self.context = context
+        self.runPlan = runPlan
         self.personalFilesScan = personalFilesScan
         var results: [ToolID: PersonalFilesResults] = [:]
         for case let subTool as any PersonalFilesSubTool in subTools where subTool.info.availability == .available {
@@ -147,12 +152,15 @@ final class FileCleanupModel {
         urls.compactMap { personalFiles.items[$0] }.compactMap(subTool.scanItem(for:))
     }
 
-    /// A review of moving the rows at `urls` to the Trash (SAF-002). Every item passes the path guard now, and again
-    /// just before it moves (SAF-007, SAF-008). When the run ends, the moved items leave every list.
+    /// Whether the model can move items to the Trash. Pages leave the action out when it cannot.
+    var canMoveToTrash: Bool { runPlan != nil }
+
+    /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot move anything. Every
+    /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). When the run ends, the moved
+    /// items leave every list.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
-    func reviewMoveToTrash(
-        _ subTool: any PersonalFilesSubTool, urls: [URL], runPlan: @escaping TrashReview.RunPlan
-    ) throws(PlanError) -> TrashReview {
+    func reviewMoveToTrash(_ subTool: any PersonalFilesSubTool, urls: [URL]) throws(PlanError) -> TrashReview? {
+        guard let runPlan else { return nil }
         let plan = try Plan(
             subTool: subTool, items: scanItems(subTool, urls: urls),
             pathGuard: PathGuard(configuration: context.protection))

@@ -17,7 +17,9 @@ struct ShuckApp: App {
             fatalError(error.description)
         }
         registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
-        _fileCleanup = State(initialValue: FileCleanupModel(subTools: registry.subTools, context: environment.context))
+        _fileCleanup = State(
+            initialValue: FileCleanupModel(
+                subTools: registry.subTools, context: environment.context, runPlan: environment.run))
     }
 
     var body: some Scene {

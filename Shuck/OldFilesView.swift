@@ -17,7 +17,7 @@ struct OldFilesView: View {
             if results.rows.isEmpty {
                 emptyState
             } else {
-                PersonalFilesTable(results: results, registry: registry)
+                PersonalFilesTable(results: results, registry: registry, moveToTrash: moveToTrash)
             }
         }
         .navigationTitle(Text(subTool.info.name))
@@ -46,6 +46,11 @@ struct OldFilesView: View {
         } else {
             Text("Not opened in \(subTool.period), at least \(subTool.minimumSize.formatted(.byteCount(style: .file)))")
         }
+    }
+
+    /// "Move to Trash" for the table, or `nil` when the model cannot move anything, as in previews.
+    private var moveToTrash: MoveToTrash? {
+        model.canMoveToTrash ? MoveToTrash(model: model, subTool: subTool) : nil
     }
 
     /// What the page shows while there are no rows.

@@ -185,6 +185,54 @@ final class ShuckUITests: XCTestCase {
         attachScreenshot(of: app, named: "Old Files with nothing to list")
     }
 
+    /// SAF-002, LRG-004, SAF-016: "Move to Trash…" opens an itemized review whose title states the count and size, and
+    /// nothing moves until its button is pressed. Cancelling moves nothing. Confirming moves the items into the
+    /// fixture root's own Trash, never the real one, and the summary says so; the moved rows leave the list.
+    @MainActor
+    func testMoveToTrashReviewsThenMovesSAF002LRG004() throws {
+        let holiday = try root.file("Movies/Holiday.mov", size: 5 << 20)
+        let clip = try root.file("Movies/Clip.mov", size: 2 << 20)
+        let installer = try root.file("Downloads/Installer.dmg", size: 3 << 20)
+        let app = launch()
+
+        app.outlines.firstMatch.staticTexts["Large Files"].click()
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForExistence(timeout: 10))
+        let moveToTrash = app.buttons["Move to Trash…"]
+        XCTAssertFalse(moveToTrash.isEnabled, "Nothing is selected, so there is nothing to review")
+
+        // ⌘⌫ opens the review; Cancel moves nothing.
+        app.staticTexts["Installer.dmg"].click()
+        app.typeKey(.delete, modifierFlags: .command)
+        let sheet = app.sheets.firstMatch
+        XCTAssertTrue(sheet.staticTexts["Move 1 item, 3.1 MB, to the Trash?"].waitForExistence(timeout: 5))
+        sheet.buttons["Cancel"].click()
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: installer.path))
+
+        app.staticTexts["Holiday.mov"].click()
+        XCUIElement.perform(withKeyModifiers: .command) { app.staticTexts["Clip.mov"].click() }
+        moveToTrash.click()
+        XCTAssertTrue(sheet.staticTexts["Move 2 items, 7.3 MB, to the Trash?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(sheet.staticTexts["Holiday.mov"].exists)
+        XCTAssertTrue(sheet.staticTexts["Clip.mov"].exists)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: holiday.path), "An item moved before the confirmation")
+        attachScreenshot(of: app, named: "Move to Trash review")
+
+        sheet.buttons["Move to Trash"].click()
+        XCTAssertTrue(sheet.staticTexts["Moved 2 items to the Trash"].waitForExistence(timeout: 10))
+        let trash = root.url.appending(path: ".Trash")
+        for file in [holiday, clip] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: file.path), "\(file.lastPathComponent) did not move")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: trash.appending(path: file.lastPathComponent).path))
+        }
+        attachScreenshot(of: app, named: "Move to Trash summary")
+
+        sheet.buttons["Done"].click()
+        XCTAssertTrue(app.staticTexts["Holiday.mov"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Clip.mov"].exists)
+        XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
+    }
+
     @MainActor
     private func attachScreenshot(of app: XCUIApplication, named name: String) {
         let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())

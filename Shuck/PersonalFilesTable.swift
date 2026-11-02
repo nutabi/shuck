@@ -7,13 +7,19 @@ import SwiftUI
 ///
 /// Rows appear as the scan finds them, and every column sorts. Selecting rows only marks them: nothing is removed
 /// before the review (SAF-002). Space opens a Quick Look preview of the selection, and "Show in Finder" reveals it.
+/// "Move to Trash…" (⌘⌫) opens the review sheet for the selection.
 struct PersonalFilesTable: View {
     @Bindable var results: PersonalFilesResults
     /// For the name of the sub-tool that manages a read-only item (FCL-011).
     let registry: ToolRegistry
     /// Rows in sections by top-level folder, with subtotals (LRG-003).
     var grouped = false
+    /// `nil` leaves "Move to Trash" out, as in previews.
+    var moveToTrash: MoveToTrash?
 
+    @State private var review: TrashReview?
+    /// A plan the path guard refused; nothing moves (SAF-007).
+    @State private var refusal: PlanError?
     @State private var previewURL: URL?
     @FocusState private var isFocused: Bool
     @State private var previewItems: [URL] = []
@@ -56,6 +62,11 @@ struct PersonalFilesTable: View {
         .contextMenu(forSelectionType: URL.self) { urls in
             Button("Quick Look") { preview(urls) }
             Button("Show in Finder") { reveal(urls) }
+            if moveToTrash != nil {
+                Divider()
+                Button("Move to Trash…") { review(urls) }
+                    .disabled(!results.rows.contains { urls.contains($0.id) && $0.readOnly == nil })
+            }
         } primaryAction: { urls in
             reveal(urls)
         }
@@ -74,6 +85,14 @@ struct PersonalFilesTable: View {
             return .handled
         }
         .quickLookPreview($previewURL, in: previewItems)
+        .sheet(item: $review) { review in
+            TrashReviewSheet(review: review, home: results.home)
+        }
+        .alert("Nothing was moved", isPresented: isRefused, presenting: refusal) { _ in
+            Button("OK") {}
+        } message: { refusal in
+            Text("“\(Self.name(in: refusal))” didn't pass Shuck's safety checks, so Shuck moved nothing.")
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             footer
         }
@@ -107,6 +126,12 @@ struct PersonalFilesTable: View {
                 .disabled(results.selection.isEmpty)
             Button("Show in Finder") { reveal(results.selection) }
                 .disabled(results.selection.isEmpty)
+            if moveToTrash != nil {
+                Button("Move to Trash…") { review(results.selection) }
+                    .disabled(results.actionableSelection.isEmpty)
+                    .keyboardShortcut(.delete, modifiers: .command)
+                    .help("Review the selected items before moving them to the Trash.")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -125,12 +150,47 @@ struct PersonalFilesTable: View {
         previewURL = first
     }
 
+    /// Opens the review for `urls`. Nothing moves until the user confirms in it (SAF-002).
+    private func review(_ urls: Set<URL>) {
+        guard let moveToTrash else { return }
+        do throws(PlanError) {
+            review = try moveToTrash.model.reviewMoveToTrash(moveToTrash.subTool, urls: ordered(urls))
+        } catch {
+            refusal = error
+        }
+    }
+
+    private var isRefused: Binding<Bool> {
+        Binding {
+            refusal != nil
+        } set: {
+            if !$0 { refusal = nil }
+        }
+    }
+
+    /// The name of the item a refused plan stopped at.
+    private static func name(in error: PlanError) -> String {
+        let path: String =
+            switch error {
+            case .otherSubTool(let path, _), .tierNotAllowed(let path, _), .methodNotAllowed(let path, _, _),
+                .rejected(let path, _):
+                path
+            }
+        return URL(filePath: path).lastPathComponent
+    }
+
     /// Opens Finder with the items selected. It only shows them; nothing is moved.
     private func reveal(_ urls: Set<URL>) {
         let items = ordered(urls)
         guard !items.isEmpty else { return }
         NSWorkspace.shared.activateFileViewerSelecting(items)
     }
+}
+
+/// What a table needs to offer "Move to Trash" for one personal-files sub-tool.
+struct MoveToTrash {
+    let model: FileCleanupModel
+    let subTool: any PersonalFilesSubTool
 }
 
 private struct GroupHeader: View {
