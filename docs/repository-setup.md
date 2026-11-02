@@ -20,6 +20,9 @@ In **Settings → Rules → Rulesets**, create a branch ruleset:
 
 The status check appears in the picker only after CI has run once, so push a first pull request before adding it.
 
+A pull request that changes only documentation skips **Lint, build and test**, and GitHub counts a skipped check as
+passed (D-66). The **Code changes** job that decides this is not a required check: if it fails, the full check runs.
+
 In **Settings → General → Pull Requests**:
 
 - Allow squash merging only, with the default commit message set to **Pull request title and description**, so the `[<task ID>] <deliverable>` title becomes the commit title on `main`.

@@ -35,6 +35,7 @@ Run commands from the repository root. When a task adds or changes a command, it
 | All tests, as CI runs them (`--no-ui` skips UI tests) | `scripts/test.sh` | available |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | available |
 | Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
+| Whether a change touches code; CI skips lint, build and test if not (D-66) | `scripts/code-changed.sh BASE [HEAD]` | available |
 | Build, sign and notarize the release DMG (docs/releasing.md) | `scripts/build-dmg.sh` | available |
 | Notarize one file (called by `build-dmg.sh`) | `scripts/notarize.sh FILE` | available |
 
@@ -61,7 +62,7 @@ shuck/
 │   ├── Sources/ShuckExecution/        the only code that mutates user files or launchd state
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
-├── scripts/                   lint, test, static checks, build-dmg, notarize
+├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize
 └── .github/                   CI and release workflows, pull request template
 ```
 
@@ -111,7 +112,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - **Titles:** the pull request title and every commit title use `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`. `main` is squash-merged, so the pull request title becomes the commit title on `main`.
 - **Commit bodies:** a blank line after the title, then text wrapped at 72 characters explaining what changed and why. End with the requirement IDs, for example `Requirements: SAF-007, SAF-016`.
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
-- **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires the `Lint, build and test` check, so a pull request merges once CI passes. If CI fails, fix it on the branch (D-51).
+- **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires the `Lint, build and test` check, so a pull request merges once CI passes. If CI fails, fix it on the branch (D-51). A pull request that changes only documentation (Markdown files and `LICENSE`) skips that check, and a skipped check counts as passed (D-66).
 - **Branches:** every change goes through a pull request; `main` accepts only squash merges of pull requests that pass CI and are up to date (ENG-001). Name the branch after the task in lowercase plus a short slug, for example `m1-t02-path-guard`.
 - **Pull request description** (ENG-003, without its Screenshots section: D-65). Fill in every section of `.github/pull_request_template.md`:
   - **Summary.**
