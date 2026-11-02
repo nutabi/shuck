@@ -5,6 +5,7 @@ import SwiftUI
 /// LRG-002), grouped by top-level folder unless the user turns grouping off (LRG-003).
 ///
 /// The page scans when it opens if Large Files has not scanned yet, and shows the table only when it has rows (D-61).
+/// Move to Trash's review sheet belongs to the page, so its summary stays when a run empties the list (D-77).
 struct LargeFilesView: View {
     let subTool: LargeFiles
     let model: FileCleanupModel
@@ -13,9 +14,13 @@ struct LargeFilesView: View {
 
     /// On at every launch. Not stored, so UI tests that turn it off write nothing to the real preferences.
     @State private var grouped = true
+    /// The open Move to Trash review, from the table's selection until the user closes the summary.
+    @State private var review: TrashReview?
 
     var body: some View {
-        Group {
+        // A ZStack, not a Group: a Group passes its modifiers on to the view inside it, so the sheet would belong to
+        // the table and close with it. The ZStack stays while the table gives way to the message.
+        ZStack {
             if results.rows.isEmpty {
                 emptyState
             } else {
@@ -48,6 +53,9 @@ struct LargeFilesView: View {
         .onAppear {
             model.scanIfNotScanned(subTool)
         }
+        .sheet(item: $review) { review in
+            TrashReviewSheet(review: review, home: results.home)
+        }
     }
 
     private var minimumSize: String {
@@ -56,7 +64,7 @@ struct LargeFilesView: View {
 
     /// "Move to Trash" for the table, or `nil` when the model cannot move anything, as in previews.
     private var moveToTrash: MoveToTrash? {
-        model.canMoveToTrash ? MoveToTrash(model: model, subTool: subTool) : nil
+        model.canMoveToTrash ? MoveToTrash(model: model, subTool: subTool, review: $review) : nil
     }
 
     /// What the page shows while there are no rows.

@@ -7,7 +7,8 @@ import SwiftUI
 ///
 /// Rows appear as the scan finds them, and every column sorts. Selecting rows only marks them: nothing is removed
 /// before the review (SAF-002). Space opens a Quick Look preview of the selection, and "Show in Finder" reveals it.
-/// "Move to Trash…" (⌘⌫) opens the review sheet for the selection.
+/// "Move to Trash…" (⌘⌫) opens the review sheet for the selection. The page shows the sheet, not the table, because a
+/// run that moves every row empties the list and the page then replaces the table with its message (D-61, D-77).
 struct PersonalFilesTable: View {
     @Bindable var results: PersonalFilesResults
     /// For the name of the sub-tool that manages a read-only item (FCL-011).
@@ -17,7 +18,6 @@ struct PersonalFilesTable: View {
     /// `nil` leaves "Move to Trash" out, as in previews.
     var moveToTrash: MoveToTrash?
 
-    @State private var review: TrashReview?
     /// A plan the path guard refused; nothing moves (SAF-007).
     @State private var refusal: PlanError?
     @State private var previewURL: URL?
@@ -85,9 +85,6 @@ struct PersonalFilesTable: View {
             return .handled
         }
         .quickLookPreview($previewURL, in: previewItems)
-        .sheet(item: $review) { review in
-            TrashReviewSheet(review: review, home: results.home)
-        }
         .alert("Nothing was moved", isPresented: isRefused, presenting: refusal) { _ in
             Button("OK") {}
         } message: { refusal in
@@ -154,7 +151,8 @@ struct PersonalFilesTable: View {
     private func review(_ urls: Set<URL>) {
         guard let moveToTrash else { return }
         do throws(PlanError) {
-            review = try moveToTrash.model.reviewMoveToTrash(moveToTrash.subTool, urls: ordered(urls))
+            moveToTrash.review.wrappedValue = try moveToTrash.model.reviewMoveToTrash(
+                moveToTrash.subTool, urls: ordered(urls))
         } catch {
             refusal = error
         }
@@ -191,6 +189,8 @@ struct PersonalFilesTable: View {
 struct MoveToTrash {
     let model: FileCleanupModel
     let subTool: any PersonalFilesSubTool
+    /// Where the table puts the review it opens. The page owns it and shows the sheet (D-77).
+    let review: Binding<TrashReview?>
 }
 
 private struct GroupHeader: View {

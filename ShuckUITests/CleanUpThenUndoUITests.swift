@@ -6,14 +6,11 @@ import XCTest
 final class CleanUpThenUndoUITests: ShuckUITestCase {
     @MainActor
     func testCleanUpThenUndo() throws {
-        let year: TimeInterval = 365 * 86_400
-        let holiday = try root.file("Movies/Holiday.mov", size: 5 << 20, modified: .now.addingTimeInterval(-3 * year))
+        // Old Files lists only the installer, and Large Files lists all three, so each run empties its list.
+        let holiday = try root.file("Movies/Holiday.mov", size: 5 << 20)
         let clip = try root.file("Movies/Clip.mov", size: 2 << 20)
         let installer = try root.file(
-            "Downloads/Installer.dmg", size: 3 << 20, modified: .now.addingTimeInterval(-2 * year))
-        // Stays in Large Files. When a list empties, the page drops the table, and with it Move to Trash's summary
-        // (`docs/progress.md`, left over from M1-T12).
-        try root.file("Documents/Report.pdf", size: 2 << 20)
+            "Downloads/Installer.dmg", size: 3 << 20, modified: .now.addingTimeInterval(-2 * 365 * 86_400))
         // Tests never use the real Trash: the app moves items into the fixture root's own (SAF-016, D-47).
         let trash = root.url.appending(path: ".Trash")
         let app = launch()
@@ -45,11 +42,17 @@ final class CleanUpThenUndoUITests: ShuckUITestCase {
             XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].appears(within: 10))
             XCTAssertFalse(FileManager.default.fileExists(atPath: installer.path), "Installer.dmg did not move")
             XCTAssertTrue(FileManager.default.fileExists(atPath: trash.appending(path: "Installer.dmg").path))
+        }
+
+        step("Old Files: the summary stays though the run emptied the list, and Done shows the message (SAF-011)") {
+            // The moved item left the list as the run ended, before the summary appeared, and the summary is still up.
+            XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].exists)
             attachScreenshot(of: app, named: "Old Files Move to Trash summary")
 
             sheet.buttons["Done"].click()
-            XCTAssertTrue(app.staticTexts["Installer.dmg"].disappears(within: 5))
-            XCTAssertTrue(app.staticTexts["Holiday.mov"].exists)
+            XCTAssertTrue(sheet.disappears(within: 5))
+            XCTAssertTrue(app.staticTexts["No files left unopened for 12 months"].appears(within: 5))
+            XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown (D-61)")
         }
 
         step("Large Files no longer lists the file moved from Old Files (FCL-006)") {
@@ -92,7 +95,6 @@ final class CleanUpThenUndoUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["In the Trash"].exists)
             XCTAssertTrue(
                 runRow(in: app, startingWith: "Old Files · Moved to the Trash").exists, "The first run is missing")
-            XCTAssertFalse(app.staticTexts["Report.pdf"].exists, "An item no run touched is listed")
             attachScreenshot(of: app, named: "History with two runs")
         }
 
