@@ -4,17 +4,18 @@ import XCTest
 /// The base of every UI test: each test launches the app on its own fixture root, so the app never sees real user data
 /// (NFR-QA-002, SAF-016), and from default preferences (D-70).
 ///
-/// Each tool and sub-tool has a smoke test of its main path (NFR-QA-003). A new tool or sub-tool adds its own here:
+/// UI tests are user workflows (D-75): each test launches the app once and follows one realistic path through several
+/// tools, in named steps (`step(_:_:)`). Each tool's and sub-tool's main path is a step of a workflow (NFR-QA-003). A
+/// new tool or sub-tool adds its step to the workflow a user would follow, or adds a workflow, and lists it here:
 ///
-/// - File Cleanup: Scan All and the de-duplicated total,
-///   `FileCleanupUITests.testLandingPageTotalCountsEachFileOnceFCL007`.
-/// - Large Files: scan, review and Move to Trash, `LargeFilesUITests.testMoveToTrashReviewsThenMovesSAF002LRG004`.
-/// - Old Files: scan, review and Move to Trash, `OldFilesUITests.testMoveToTrashFromOldFilesOLD004`.
-/// - History: a run's summary opens the run in History, `HistoryUITests.testRunSummaryOpensTheRunInHistoryHIS002`.
-/// - History's Restore: Restore All puts a run back, `HistoryUITests.testRestoreAllPutsTheRunBackHIS003`.
-/// - Overview, Developer Junk, Caches & Logs, Applications and Startup Items: a placeholder that names its
-///   milestone, `NavigationUITests.testPlaceholderPagesNameTheirMilestone`.
-/// - Settings: ⌘, opens its own window, `NavigationUITests.testCommandCommaOpensSettingsInItsOwnWindowD27`.
+/// - File Cleanup: Scan All and the de-duplicated total, in `FindWhatTakesSpaceUITests`.
+/// - Large Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
+/// - Old Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
+/// - History: a run's summary opens the run in History, in `CleanUpThenUndoUITests`.
+/// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
+/// - Overview, Developer Junk, Caches & Logs, Applications and Startup Items: a placeholder that names its milestone,
+///   in `FirstLookUITests`.
+/// - Settings: ⌘, opens its own window, in `FirstLookUITests`.
 ///
 /// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).
 class ShuckUITestCase: XCTestCase {
@@ -40,6 +41,12 @@ class ShuckUITestCase: XCTestCase {
         ]
         app.launch()
         return app
+    }
+
+    /// Runs one step of a workflow under its name in the test results, so a failure shows which step it was in.
+    @MainActor
+    func step(_ name: String, _ body: () throws -> Void) rethrows {
+        try XCTContext.runActivity(named: name) { _ in try body() }
     }
 
     /// Kept in the test results, so reviewers can see the page (ENG-003).

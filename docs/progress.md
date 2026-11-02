@@ -70,7 +70,7 @@ exercised).
     passed to every request, without UI (D-72).
   - [x] UI: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
     summary (HIS-003, D-73).
-- [x] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003). Four pull requests (D-62).
+- [x] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003). Five pull requests (D-62).
   - [x] Isolation: debug builds have their own bundle ID, preferences and data folder, and a UI test clears the debug
     build's preferences at launch (D-70).
   - [x] Smoke tests: one UI test file per area, a smoke test for each tool's and sub-tool's main path, listed in
@@ -78,6 +78,7 @@ exercised).
   - [x] Notes on running and writing UI tests, moved from agents' own memory into `AGENTS.md`.
   - [x] Faster waits: `appears(within:)` and `disappears(within:)` check every 0.1 s, so the 15 UI tests take 74 s
     instead of 123 s (D-74).
+  - [x] Workflows: three UI tests, one app launch each, keep every check the 15 made and take 38 s (D-75).
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
 
 Left over from M1 tasks:
