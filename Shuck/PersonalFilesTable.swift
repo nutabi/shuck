@@ -9,8 +9,6 @@ import SwiftUI
 /// before the review (SAF-002). Space opens a Quick Look preview of the selection, and "Show in Finder" reveals it.
 struct PersonalFilesTable: View {
     @Bindable var results: PersonalFilesResults
-    /// The title of the date column, for example "Modified".
-    let dateTitle: LocalizedStringResource
     /// For the name of the sub-tool that manages a read-only item (FCL-011).
     let registry: ToolRegistry
     /// Rows in sections by top-level folder, with subtotals (LRG-003).
@@ -36,14 +34,10 @@ struct PersonalFilesTable: View {
             }
             .width(min: 70, ideal: 90)
             .alignment(.numeric)
-            TableColumn(Text(dateTitle), value: \.sortDate) { row in
-                if let date = row.date {
-                    Text(date, format: .dateTime.day().month().year())
-                } else {
-                    Text("Unknown")
-                }
+            TableColumn(dateTitle, value: \.sortDate) { row in
+                DateCell(row: row)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 90, ideal: 130)
         } rows: {
             if grouped {
                 ForEach(results.groups) { group in
@@ -80,6 +74,13 @@ struct PersonalFilesTable: View {
         .quickLookPreview($previewURL, in: previewItems)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             footer
+        }
+    }
+
+    private var dateTitle: Text {
+        switch results.dateColumn {
+        case .modified: Text("Modified")
+        case .lastOpened: Text("Last Opened")
         }
     }
 
@@ -145,6 +146,27 @@ private struct GroupHeader: View {
     }
 }
 
+/// A date, marked in words when the last-opened column falls back to the modified date (OLD-002).
+private struct DateCell: View {
+    let row: ResultRow
+
+    var body: some View {
+        if let date = row.date {
+            HStack(spacing: 4) {
+                Text(date, format: .dateTime.day().month().year())
+                if row.dateIsModifiedFallback {
+                    Text("Modified")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help("Spotlight has no record of this file being opened, so this is when it last changed.")
+                }
+            }
+        } else {
+            Text("Unknown")
+        }
+    }
+}
+
 private struct NameCell: View {
     let row: ResultRow
     let registry: ToolRegistry
@@ -194,6 +216,6 @@ private struct NameCell: View {
                 snapshot: ItemSnapshot(kind: .folder, allocatedSize: 1_200_000_000), modified: nil,
                 readOnly: .managedBy(.developerJunk)),
         ]))
-    return PersonalFilesTable(results: results, dateTitle: "Modified", registry: .standard, grouped: true)
+    return PersonalFilesTable(results: results, registry: .standard, grouped: true)
         .frame(width: 760, height: 320)
 }

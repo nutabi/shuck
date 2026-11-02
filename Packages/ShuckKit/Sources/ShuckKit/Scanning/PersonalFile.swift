@@ -6,15 +6,22 @@ public struct PersonalFile: Equatable, Sendable {
     public let url: URL
     /// A file, or a package with its total allocated size (FCL-009).
     public let snapshot: ItemSnapshot
-    /// The content-modified date. "Last opened" comes in M1-T10 (OLD-002).
+    /// The content-modified date.
     public let modified: Date?
+    /// When the item was last opened (OLD-002). `nil` if the scan did not look it up, because the item is smaller than
+    /// the reader's minimum or no reader was given, or if the item has no date at all.
+    public let lastOpened: LastOpened?
     /// Set when the item is listed but can never be selected (FCL-011, section 8.4).
     public let readOnly: ReadOnlyReason?
 
-    public init(url: URL, snapshot: ItemSnapshot, modified: Date?, readOnly: ReadOnlyReason? = nil) {
+    public init(
+        url: URL, snapshot: ItemSnapshot, modified: Date?, lastOpened: LastOpened? = nil,
+        readOnly: ReadOnlyReason? = nil
+    ) {
         self.url = url
         self.snapshot = snapshot
         self.modified = modified
+        self.lastOpened = lastOpened
         self.readOnly = readOnly
     }
 

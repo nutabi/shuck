@@ -127,4 +127,48 @@ struct PersonalFilesResultsTests {
         #expect(ResultRow.kind(of: URL(filePath: "/README"), snapshot: file) == "Document")
         #expect(ResultRow.kind(of: URL(filePath: "/Backup/00008110"), snapshot: folder) == "Folder")
     }
+
+    @Test func theLastOpenedColumnShowsSpotlightsDateOrALabelledFallbackOLD002() {
+        let opened = Date(timeIntervalSince1970: 1_600_000_000)
+        let modified = Date(timeIntervalSince1970: 1_500_000_000)
+        let used = PersonalFile(
+            url: home.appending(path: "used.mov"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
+            modified: modified, lastOpened: LastOpened(date: opened, source: .lastUsed))
+        let neverOpened = PersonalFile(
+            url: home.appending(path: "new.dmg"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
+            modified: modified, lastOpened: LastOpened(date: modified, source: .modified))
+        let notLookedUp = PersonalFile(
+            url: home.appending(path: "small.txt"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
+            modified: modified)
+        let noDate = PersonalFile(
+            url: home.appending(path: "odd"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1), modified: nil)
+
+        let usedRow = ResultRow(used, home: home, dateColumn: .lastOpened)
+        #expect(usedRow.date == opened && !usedRow.dateIsModifiedFallback)
+        for file in [neverOpened, notLookedUp] {
+            let row = ResultRow(file, home: home, dateColumn: .lastOpened)
+            #expect(row.date == modified && row.dateIsModifiedFallback)
+        }
+        #expect(!ResultRow(noDate, home: home, dateColumn: .lastOpened).dateIsModifiedFallback)
+
+        // The modified column never marks a fallback.
+        let modifiedRow = ResultRow(used, home: home, dateColumn: .modified)
+        #expect(modifiedRow.date == modified && !modifiedRow.dateIsModifiedFallback)
+    }
+
+    @Test func aLastOpenedListSortsByTheDateItShows() {
+        let results = PersonalFilesResults(
+            home: home, sortOrder: [KeyPathComparator(\.sortDate)], dateColumn: .lastOpened)
+        results.apply(
+            .files([
+                PersonalFile(
+                    url: home.appending(path: "recent"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
+                    modified: Date(timeIntervalSince1970: 100),
+                    lastOpened: LastOpened(date: Date(timeIntervalSince1970: 900), source: .lastUsed)),
+                PersonalFile(
+                    url: home.appending(path: "stale"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
+                    modified: Date(timeIntervalSince1970: 500)),
+            ]))
+        #expect(names(results) == ["stale", "recent"])
+    }
 }
