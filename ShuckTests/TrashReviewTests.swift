@@ -1,0 +1,143 @@
+import Foundation
+import ShuckExecution
+import ShuckKit
+import Synchronization
+import Testing
+
+@testable import Shuck
+
+/// "Move to Trash" from a personal-files list: the plan, the run and the removal of moved items (SAF-002, SAF-011,
+/// FCL-006).
+///
+/// The scan and the run are stubs, so these tests never touch the file system. The engine's fixture tests move real
+/// files (`LargeFilesPipelineTests`, `OldFilesPipelineTests`).
+@MainActor
+struct TrashReviewTests {
+    let context = ScanContext(home: URL(filePath: "/StubHome", directoryHint: .isDirectory))
+    let largeFiles = LargeFiles(minimumSize: 1_000)
+    let oldFiles = OldFiles(minimumSize: 0) { _ in nil }
+    let yearsAgo = Date.now.addingTimeInterval(-3 * 365 * 86_400)
+
+    func url(_ path: String) -> URL { context.home.appending(path: path) }
+
+    /// A model whose scan found two large old movies, a small old note and a read-only folder.
+    func scannedModel() async -> FileCleanupModel {
+        let files = [
+            ("Movies/big.mov", 5_000, nil), ("Movies/clip.mov", 3_000, nil), ("Documents/note.txt", 10, nil),
+            ("go/pkg/mod", 9_000, ReadOnlyReason.managedBy(.developerJunk)),
+        ].map { path, size, readOnly in
+            PersonalFile(
+                url: url(path), snapshot: ItemSnapshot(kind: .file, allocatedSize: Int64(size)), modified: yearsAgo,
+                readOnly: readOnly)
+        }
+        let model = FileCleanupModel(subTools: [largeFiles, oldFiles], context: context) { _, _ in
+            AsyncStream { continuation in
+                continuation.yield(.files(files))
+                continuation.finish()
+            }
+        }
+        await model.scan(largeFiles)?.value
+        return model
+    }
+
+    /// A run that moves the items named in `trashed` and skips the others as changed.
+    func run(trashing trashed: Set<String>, onCall: @escaping @Sendable () -> Void = {}) -> TrashReview.RunPlan {
+        { (plan: Plan) async throws(HistoryError) -> RunReport in
+            onCall()
+            let outcomes = plan.items.map { item in
+                trashed.contains(item.url.lastPathComponent)
+                    ? ItemOutcome(
+                        item: item, result: .trashed(URL(filePath: "/StubHome/.Trash/\(item.url.lastPathComponent)")))
+                    : ItemOutcome(item: item, result: .skipped(.changed(item.snapshot)))
+            }
+            return RunReport(run: plan.run, outcomes: outcomes)
+        }
+    }
+
+    @Test func thePlanHoldsTheSelectedItemsInOrderWithoutReadOnlyOnesSAF002() async throws {
+        let model = await scannedModel()
+        let selection = [url("Movies/clip.mov"), url("go/pkg/mod"), url("Movies/big.mov"), url("Documents/note.txt")]
+
+        let review = try model.reviewMoveToTrash(largeFiles, urls: selection, runPlan: run(trashing: []))
+
+        // The note is too small for Large Files, and the Go module cache is read-only (FCL-011).
+        #expect(review.plan.tool == .largeFiles)
+        #expect(review.plan.items.map(\.url) == [url("Movies/clip.mov"), url("Movies/big.mov")])
+        #expect(review.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
+        #expect(review.totalBytes == 8_000)
+        #expect(review.phase == .reviewing)
+    }
+
+    @Test func movedItemsLeaveBothListsAndTheEstimatesFCL006SAF011() async throws {
+        let model = await scannedModel()
+        let review = try model.reviewMoveToTrash(
+            oldFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")], runPlan: run(trashing: ["big.mov"]))
+
+        await review.start()?.value
+
+        guard case .finished(let report) = review.phase else {
+            Issue.record("Not finished: \(review.phase)")
+            return
+        }
+        #expect(report.trashedURLs == [url("Movies/big.mov")])
+        // The skipped clip stays listed in both sub-tools.
+        #expect(model.results[.largeFiles]?.rows.map(\.name) == ["mod", "clip.mov"])
+        #expect(model.results[.oldFiles]?.rows.map(\.name).contains("big.mov") == false)
+        #expect(model.results[.oldFiles]?.rows.map(\.name).contains("clip.mov") == true)
+        #expect(model.personalFiles.items[url("Movies/big.mov")] == nil)
+        guard case .scanned(let summary) = model.state(of: .largeFiles) else {
+            Issue.record("Large Files lost its scan")
+            return
+        }
+        #expect(summary.reclaimableBytes == 3_000)
+    }
+
+    @Test func aReviewRunsOnce() async throws {
+        let calls = Mutex(0)
+        let model = await scannedModel()
+        let review = try model.reviewMoveToTrash(
+            largeFiles, urls: [url("Movies/big.mov")], runPlan: run(trashing: []) { calls.withLock { $0 += 1 } })
+
+        let first = review.start()
+        #expect(review.phase == .running)
+        #expect(review.start() == nil)
+        await first?.value
+        #expect(review.start() == nil)
+        #expect(calls.withLock { $0 } == 1)
+    }
+
+    @Test func withoutAHistoryLogNothingMovesSAF005() async throws {
+        let model = await scannedModel()
+        let failure = HistoryError.cannotOpen("/StubHome/Library/Application Support/me.nutabi.shuck", errno: EACCES)
+        let review = try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) {
+            (_: Plan) async throws(HistoryError) -> RunReport in throw failure
+        }
+
+        await review.start()?.value
+
+        #expect(review.phase == .failed(failure))
+        #expect(model.results[.largeFiles]?.rows.count == 3)
+    }
+
+    @Test func stoppingCancelsTheRunBeforeTheNextItemSAF014() async throws {
+        let model = await scannedModel()
+        let review = try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]) {
+            (plan: Plan) async throws(HistoryError) -> RunReport in
+            // Like the executor: wait, then skip every item that has not started.
+            while !Task.isCancelled { await Task.yield() }
+            return RunReport(
+                run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .skipped(.cancelled)) })
+        }
+
+        let task = review.start()
+        review.stop()
+        await task?.value
+
+        guard case .finished(let report) = review.phase else {
+            Issue.record("Not finished: \(review.phase)")
+            return
+        }
+        #expect(report.outcomes.map(\.result) == [.skipped(.cancelled), .skipped(.cancelled)])
+        #expect(model.results[.largeFiles]?.rows.count == 3)
+    }
+}

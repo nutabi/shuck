@@ -54,7 +54,11 @@ exercised).
   Files uses them from M1-T11 (D-59).
 - [x] M1-T11 Old Files sub-tool (OLD-001, OLD-003). Period and minimum size from `UserDefaults`, one flat list
   oldest first (D-60). Sub-tool pages now scan when first opened and show no empty table (D-61).
-- [ ] M1-T12 Itemized review sheet, confirmation, summary (SAF-002, LRG-004, OLD-004)
+- [ ] M1-T12 Itemized review sheet, confirmation, summary (SAF-002, LRG-004, OLD-004). Two pull requests (D-62, D-63).
+  - [x] Run: `FolderTrash` in `ShuckExecution` for tests and the app's fixture-root mode; the app's plan, run and
+    removal of moved items from both lists (`TrashReview`), with no UI yet.
+  - [ ] UI: the "Move to Trash…" button, the review sheet with its confirmation, progress, Stop and summary, and the
+    UI tests (SAF-002).
 - [ ] M1-T13 De-duplicated totals across sub-tools (FCL-007)
 - [ ] M1-T14 History view and Restore action (HIS-002)
 - [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)
@@ -62,8 +66,8 @@ exercised).
 
 Left over from M1 tasks:
 
-- [ ] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
-  Trash for its debug-only fixture-root mode (D-47).
+- [x] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
+  Trash for its debug-only fixture-root mode (D-47). Done in M1-T12 (D-63).
 - [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06). It is inside the personal-files scope
   (FCL-008), so the ownership map needs an entry for it (FCL-005, D-53). `~/go/pkg/mod` went to Developer Junk in
   M1-T07 (D-55).
@@ -71,6 +75,7 @@ Left over from M1 tasks:
   show Old Files' list with `dateColumn: .lastOpened`, oldest first (OLD-003, D-59). Done in M1-T11.
 - [ ] M1-T15: UI tests share the app's real preferences domain, `me.nutabi.shuck`. AppKit saves the main window's
   frame and sidebar width there, and the next run, UI test or not, restores them (D-60).
+- [ ] M1-T14: the run summary links to History once the History page exists (D-63).
 - [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52).
 

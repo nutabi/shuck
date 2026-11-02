@@ -1,4 +1,5 @@
 import Foundation
+import ShuckExecution
 import ShuckKit
 import Testing
 
@@ -23,6 +24,7 @@ struct AppEnvironmentTests {
         let release = try environment(arguments, debugBuild: false)
         #expect(release.context.home == URL.homeDirectory.resolvingSymlinksInPath())
         #expect(release.context.protection.protectedLocations.contains(URL(filePath: "/private")))
+        #expect(release.trash is SystemTrash)
     }
 
     @Test func aDebugBuildScansTheFixtureRootWithTheTestConfigurationNFRQA002() throws {
@@ -33,6 +35,17 @@ struct AppEnvironmentTests {
         let protected = Set(debug.context.protection.protectedLocations.map(\.path))
         #expect(!protected.contains("/private"))
         #expect(protected.isSuperset(of: ["/System", "/usr", "/Library", appBundle.path]))
+    }
+
+    /// A UI test's runs move items into the fixture root's own Trash, never the real one (D-47, D-63).
+    @Test func aDebugBuildOnAFixtureRootUsesAFolderTrashInsideItSAF016() throws {
+        let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
+
+        let trash = try #require(debug.trash as? FolderTrash)
+        #expect(trash.folder == debug.context.home.appending(path: ".Trash"))
+        #expect(!(debug.trash is SystemTrash))
+        // The run the review sheet calls has the type the review expects.
+        let _: TrashReview.RunPlan = debug.run
     }
 
     @Test func theUITestRunnersContainerIsAccepted() throws {

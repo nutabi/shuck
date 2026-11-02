@@ -46,6 +46,10 @@
           "product-name": "ShuckKit",
           "build-phase": { "build-phase": "frameworks" },
         },
+        {
+          "product-name": "ShuckExecution",
+          "build-phase": { "build-phase": "frameworks" },
+        },
       ],
       "build-settings": {
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",

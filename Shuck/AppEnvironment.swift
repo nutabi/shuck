@@ -1,9 +1,14 @@
 import Foundation
+import ShuckExecution
 import ShuckKit
 
-/// Where the app scans and with which settings: the real home folder, or a UI test's fixture root (NFR-QA-002).
+/// Where the app scans and acts, and with which settings: the real home folder and Trash, or a UI test's fixture root
+/// (NFR-QA-002).
 nonisolated struct AppEnvironment {
     let context: ScanContext
+    /// Where "Move to Trash" puts items: the user's Trash, or `.Trash` inside a UI test's fixture root, so tests never
+    /// touch the real one (D-47, D-63).
+    let trash: any Trash
     let largeFiles: LargeFiles
     let oldFiles: OldFiles
 
@@ -48,11 +53,13 @@ nonisolated struct AppEnvironment {
                 home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
                 appBundle: appBundle, userExclusions: [])
             context = ScanContext(home: root, protection: protection)
+            trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
             let home = URL.homeDirectory.resolvingSymlinksInPath()
             context = ScanContext(
                 home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []))
+            trash = SystemTrash()
         }
         largeFiles = LargeFiles(
             minimumSize: Self.number(settings(Self.largeFilesMinimumSizeKey)) ?? LargeFiles.defaultMinimumSize)
@@ -61,6 +68,16 @@ nonisolated struct AppEnvironment {
         oldFiles = OldFiles(
             periodMonths: months ?? OldFiles.defaultPeriodMonths,
             minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize)
+    }
+
+    /// Moves a plan's items to the Trash, off the main actor, and logs every step in the history log inside the home
+    /// folder (SAF-005, SAF-011).
+    /// - Throws: ``HistoryError`` if the log cannot be opened. Then nothing moves.
+    @concurrent
+    func run(_ plan: Plan) async throws(HistoryError) -> RunReport {
+        let log = try HistoryLog(folder: HistoryLog.folder(home: context.home))
+        let executor = TrashExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
+        return await executor.run(plan)
     }
 
     /// The fixture root after ``fixtureRootArgument`` in a debug build, or `nil` if there is none.
