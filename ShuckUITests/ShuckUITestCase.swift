@@ -11,6 +11,7 @@ import XCTest
 /// - Large Files: scan, review and Move to Trash, `LargeFilesUITests.testMoveToTrashReviewsThenMovesSAF002LRG004`.
 /// - Old Files: scan, review and Move to Trash, `OldFilesUITests.testMoveToTrashFromOldFilesOLD004`.
 /// - History: a run's summary opens the run in History, `HistoryUITests.testRunSummaryOpensTheRunInHistoryHIS002`.
+/// - History's Restore: Restore All puts a run back, `HistoryUITests.testRestoreAllPutsTheRunBackHIS003`.
 /// - Overview, Developer Junk, Caches & Logs, Applications and Startup Items: a placeholder that names its
 ///   milestone, `NavigationUITests.testPlaceholderPagesNameTheirMilestone`.
 /// - Settings: ⌘, opens its own window, `NavigationUITests.testCommandCommaOpensSettingsInItsOwnWindowD27`.

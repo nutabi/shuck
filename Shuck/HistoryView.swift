@@ -4,13 +4,16 @@ import SwiftUI
 /// The History page: every run Shuck logged, newest first, each expanding to its items (HIS-002).
 ///
 /// A run shows its date, area, item count, size, method and status; each item shows what happened to it and whether
-/// Restore can put it back (HIS-004). Restore itself comes in the next pull request.
+/// Restore can put it back (HIS-004). Restore acts on the selected items, or on a run's with "Restore All" (HIS-003,
+/// D-68); only items still in the Trash can be selected.
 struct HistoryView: View {
     let model: HistoryModel
     let registry: ToolRegistry
 
     @Environment(AppNavigation.self) private var navigation: AppNavigation?
     @State private var expanded: Set<UUID> = []
+    /// The trashed paths of the selected items.
+    @State private var selection: Set<URL> = []
 
     var body: some View {
         content
@@ -22,6 +25,9 @@ struct HistoryView: View {
                     navigation?.revealedRun = nil
                 }
                 await model.reload()
+            }
+            .sheet(item: restoreSheet) { restore in
+                HistoryRestoreSheet(restore: restore, home: model.home)
             }
     }
 
@@ -40,7 +46,7 @@ struct HistoryView: View {
                 "No history yet", systemImage: "clock.arrow.circlepath",
                 description: Text("Everything Shuck moves to the Trash is listed here, with a way to put it back."))
         case .loaded(let history):
-            List {
+            List(selection: $selection) {
                 if history.unreadableLineCount > 0 {
                     // No silent failures (SAF-011): lines cut short by a crash are skipped, but not hidden.
                     Label(
@@ -50,14 +56,77 @@ struct HistoryView: View {
                 ForEach(history.runs) { run in
                     DisclosureGroup(isExpanded: isExpanded(run.id)) {
                         ForEach(run.items.indices, id: \.self) { index in
-                            HistoryItemRow(item: run.items[index], home: model.home)
+                            let item = run.items[index]
+                            // Only a row with a tag can be selected.
+                            if let trashed = item.restorableItem {
+                                HistoryItemRow(item: item, home: model.home)
+                                    .tag(trashed.trashedURL)
+                            } else {
+                                HistoryItemRow(item: item, home: model.home)
+                            }
+                        }
+                        // A row of its own: in the run's row, the list would read the button as part of its label.
+                        if model.canRestore, !run.restorableItems.isEmpty {
+                            HStack {
+                                Spacer()
+                                Button("Restore All") { restore(run.restorableItems) }
+                                    .disabled(model.isRestoring)
+                            }
                         }
                     } label: {
                         HistoryRunRow(run: run, area: Self.area(of: run, in: registry))
                     }
                 }
             }
+            .contextMenu(forSelectionType: URL.self) { urls in
+                if model.canRestore {
+                    Button("Restore") { restore(Self.items(urls, in: history)) }
+                        .disabled(model.isRestoring || Self.items(urls, in: history).isEmpty)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if model.canRestore {
+                    footer(Self.items(selection, in: history))
+                }
+            }
         }
+    }
+
+    /// The selection's total, and Restore for keyboard and VoiceOver users.
+    private func footer(_ selected: [TrashedItem]) -> some View {
+        HStack(spacing: 12) {
+            if selected.isEmpty {
+                Text("No items selected")
+            } else {
+                let bytes = selected.reduce(0) { $0 + ($1.bytes ?? 0) }
+                Text("^[\(selected.count) item](inflect: true) selected, \(bytes, format: .byteCount(style: .file))")
+            }
+            Spacer()
+            Button("Restore") { restore(selected) }
+                .disabled(selected.isEmpty || model.isRestoring)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    private func restore(_ items: [TrashedItem]) {
+        // Restored items leave the Trash, so their rows can no longer be selected.
+        if model.restore(items) != nil { selection.removeAll() }
+    }
+
+    /// Shows the restore while it waits, runs and reports; closing the sheet ends it.
+    private var restoreSheet: Binding<HistoryRestore?> {
+        Binding {
+            model.restore
+        } set: { restore in
+            if restore == nil { model.dismissRestore() }
+        }
+    }
+
+    /// The items still in the Trash whose trashed paths are in `selection`, in the page's order.
+    static func items(_ selection: Set<URL>, in history: HistoryModel.History) -> [TrashedItem] {
+        history.runs.flatMap(\.restorableItems).filter { selection.contains($0.trashedURL) }
     }
 
     private func isExpanded(_ id: UUID) -> Binding<Bool> {
