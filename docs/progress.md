@@ -61,7 +61,13 @@ exercised).
     UI tests (SAF-002, D-64).
 - [x] M1-T13 De-duplicated totals across sub-tools (FCL-007). Totals count each file once by file-system identity,
   so hard links count once too; the landing page shows the total above the sub-tools (D-67).
-- [ ] M1-T14 History view and Restore action (HIS-002)
+- [ ] M1-T14 History view and Restore action (HIS-002). Three pull requests (D-62, D-68).
+  - [x] Engine: `HistoryLog.Contents.runs()` groups the log into runs with every logged item, its outcome and whether
+    Restore can undo it; restores are runs of their own.
+  - [ ] App: the History page lists runs (date, area, item count, size, method, status), each expanding to its items;
+    the run summary links to it.
+  - [ ] App: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
+    summary (HIS-003).
 - [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
 
