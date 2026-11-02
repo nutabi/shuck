@@ -29,7 +29,9 @@ struct ShuckApp: App {
         _fileCleanup = State(
             initialValue: FileCleanupModel(
                 subTools: registry.subTools, context: environment.context, runPlan: environment.run))
-        _history = State(initialValue: HistoryModel(home: environment.context.home, load: environment.loadHistory))
+        _history = State(
+            initialValue: HistoryModel(
+                home: environment.context.home, load: environment.loadHistory, runRestore: environment.restore))
     }
 
     var body: some Scene {

@@ -189,10 +189,20 @@ public struct RestoreOutcome: Equatable, Sendable {
 
     public let request: RestoreRequest
     public let result: Result
+
+    public init(request: RestoreRequest, result: Result) {
+        self.request = request
+        self.result = result
+    }
 }
 
 /// The outcomes of one restore run, in request order.
 public struct RestoreReport: Equatable, Sendable {
     public let run: UUID
     public let outcomes: [RestoreOutcome]
+
+    public init(run: UUID, outcomes: [RestoreOutcome]) {
+        self.run = run
+        self.outcomes = outcomes
+    }
 }

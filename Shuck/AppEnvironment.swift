@@ -110,6 +110,16 @@ nonisolated struct AppEnvironment {
         return await executor.run(plan)
     }
 
+    /// Moves trashed items back, off the main actor, and logs every step in the history log in ``historyFolder``
+    /// (HIS-003, SAF-005, SAF-011).
+    /// - Throws: ``HistoryError`` if the log cannot be opened. Then nothing moves.
+    @concurrent
+    func restore(_ requests: [RestoreRequest]) async throws(HistoryError) -> RestoreReport {
+        let log = try HistoryLog(folder: historyFolder)
+        let executor = RestoreExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
+        return await executor.run(requests)
+    }
+
     /// Reads the history log in ``historyFolder``, off the main actor, and groups it into runs, newest first
     /// (HIS-002). A missing log has no runs.
     @concurrent
