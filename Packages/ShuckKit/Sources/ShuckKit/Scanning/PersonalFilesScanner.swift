@@ -20,6 +20,9 @@ public struct PersonalFilesScanner: Sendable {
     let readValues: ValueReader
     let lastOpened: LastOpenedReader?
     let report: Report
+    /// The home folder's path and a slash. Every entry the walk finds starts with it.
+    let homePrefix: String
+    let locationKeys: LocationKeys
 
     private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "PersonalFiles")
 
@@ -39,6 +42,8 @@ public struct PersonalFilesScanner: Sendable {
         self.readValues = readValues
         self.lastOpened = lastOpened
         self.report = report
+        homePrefix = context.home.path + "/"
+        locationKeys = LocationKeys(home: context.home, protectedLocations: context.protection.protectedLocations)
     }
 
     public func scan() -> AsyncStream<PersonalFilesEvent> {
@@ -121,7 +126,8 @@ public struct PersonalFilesScanner: Sendable {
                 && context.ownership.hasLocations(below: url, ownedBy: .largeFiles)
             return lookInside ? .descend(inScope: false) : .skip
         }
-        switch protectionOf(url) {
+        let key = self.key(url)
+        switch protectionOf(url, key: key) {
         case .shown: return measured(url, values, readOnly: .protected)
         case .hidden: return .skip
         case nil: break
@@ -132,9 +138,7 @@ public struct PersonalFilesScanner: Sendable {
             return measured(url, values, readOnly: nil)
         }
         if values.isDirectory {
-            let isWhole = Self.wholeFolderLocations.contains {
-                Self.samePath(context.home.appending(path: $0), url.deletingLastPathComponent())
-            }
+            let isWhole = key.map { locationKeys.wholeFolders.contains(Self.parentKey($0)) } ?? false
             return isWhole ? measured(url, values, readOnly: nil) : .descend(inScope: true)
         }
         guard values.isRegularFile, !values.isPlaceholder else { return .skip }
@@ -168,21 +172,65 @@ public struct PersonalFilesScanner: Sendable {
         case hidden
     }
 
-    func protectionOf(_ url: URL) -> Protection? {
+    /// How `url`, whose key is `key`, is protected, if it is.
+    func protectionOf(_ url: URL, key: String?) -> Protection? {
         if PathGuardConfiguration.protectedNames.contains(url.lastPathComponent)
             || PathGuardConfiguration.protectedExtensions.contains(url.pathExtension.lowercased())
         {
             return .shown
         }
-        let shown = PathGuardConfiguration.homeLocations.map { context.home.appending(path: $0) }
-        if shown.contains(where: { Self.samePath($0, url) }) { return .shown }
-        if context.protection.protectedLocations.contains(where: { Self.samePath($0, url) }) { return .hidden }
+        guard let key else { return nil }
+        if locationKeys.shown.contains(key) { return .shown }
+        if locationKeys.hidden.contains(key) { return .hidden }
         return nil
     }
 
-    /// Compares paths ignoring case, like the startup volume.
-    private static func samePath(_ lhs: URL, _ rhs: URL) -> Bool {
-        lhs.standardizedFileURL.path.caseInsensitiveCompare(rhs.standardizedFileURL.path) == .orderedSame
+    /// The locations the walk treats specially, as keys (``PersonalFilesScanner/key(_:)``), worked out once per scan.
+    /// Comparing standardized paths for every entry and location took most of a scan's time (D-78).
+    struct LocationKeys: Sendable {
+        /// Listed read-only (``Protection/shown``).
+        let shown: Set<String>
+        /// Left out (``Protection/hidden``).
+        let hidden: Set<String>
+        /// ``PersonalFilesScanner/wholeFolderLocations``.
+        let wholeFolders: Set<String>
+
+        init(home: URL, protectedLocations: [URL]) {
+            func keys(_ locations: [URL]) -> Set<String> {
+                Set(locations.compactMap { PersonalFilesScanner.locationKey($0, home: home) })
+            }
+            shown = keys(PathGuardConfiguration.homeLocations.map { home.appending(path: $0) })
+            hidden = keys(protectedLocations)
+            wholeFolders = keys(PersonalFilesScanner.wholeFolderLocations.map { home.appending(path: $0) })
+        }
+    }
+
+    /// `url`'s key: its path inside the home folder with case folded, or `nil` if it is not inside. An entry the walk
+    /// finds starts with the home folder's own path, so its key takes no file-system call.
+    func key(_ url: URL) -> String? {
+        let path = url.path
+        guard path.hasPrefix(homePrefix) else { return Self.locationKey(url, home: context.home) }
+        return Self.fold(String(path.dropFirst(homePrefix.count)))
+    }
+
+    /// A location's key, or `nil` if it is not inside `home`. Both paths are standardized first, so `/private/var` and
+    /// `/var` are the same folder.
+    static func locationKey(_ location: URL, home: URL) -> String? {
+        let homePath = fold(home.standardizedFileURL.path) + "/"
+        let path = fold(location.standardizedFileURL.path)
+        guard path.hasPrefix(homePath) else { return nil }
+        return String(path.dropFirst(homePath.count))
+    }
+
+    /// The key of the folder that holds the item with `key`. The home folder's key is empty.
+    static func parentKey(_ key: String) -> String {
+        key.lastIndex(of: "/").map { String(key[..<$0]) } ?? ""
+    }
+
+    /// Full Unicode case folding, as the path guard compares names: `ß` matches `SS` as well as `A` matching `a`, like
+    /// the startup volume. Swift's `==` already treats Unicode canonical forms (é and e + ´) as equal.
+    static func fold(_ path: String) -> String {
+        path.folding(options: .caseInsensitive, locale: nil)
     }
 
     /// The entries of `folder`, or `nil` if it cannot be read. A folder macOS will not let Shuck read is reported as
