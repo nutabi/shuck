@@ -107,7 +107,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 ## Pull requests and commits
 
-- **One pull request = one roadmap task** (ENG-002). Aim for about 200 changed lines of production code. Above 400 lines, split the task or explain why in the pull request.
+- **One pull request = one roadmap task** (ENG-002). Aim for about 200 changed lines of production code. When a task needs more, split it into several pull requests that are each small and reviewable on their own, for example engine first and then UI, or the Execution change before the code that uses it (D-62). Plan the split at the start of the task and say in each pull request what the next one adds.
 - **Titles:** the pull request title and every commit title use `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`. `main` is squash-merged, so the pull request title becomes the commit title on `main`.
 - **Commit bodies:** a blank line after the title, then text wrapped at 72 characters explaining what changed and why. End with the requirement IDs, for example `Requirements: SAF-007, SAF-016`.
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`

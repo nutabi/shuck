@@ -130,10 +130,20 @@ public struct ItemOutcome: Equatable, Sendable {
 
     public let item: PlannedItem
     public let result: Result
+
+    public init(item: PlannedItem, result: Result) {
+        self.item = item
+        self.result = result
+    }
 }
 
 /// The outcomes of one run, in plan order.
 public struct RunReport: Equatable, Sendable {
     public let run: UUID
     public let outcomes: [ItemOutcome]
+
+    public init(run: UUID, outcomes: [ItemOutcome]) {
+        self.run = run
+        self.outcomes = outcomes
+    }
 }

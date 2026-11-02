@@ -141,6 +141,38 @@ final class FileCleanupModel {
         }
     }
 
+    /// The items `subTool` acts on for the rows at `urls`, in that order. Read-only rows and rows the sub-tool no longer
+    /// lists are left out (FCL-011).
+    func scanItems(_ subTool: any PersonalFilesSubTool, urls: [URL]) -> [ScanItem] {
+        urls.compactMap { personalFiles.items[$0] }.compactMap(subTool.scanItem(for:))
+    }
+
+    /// A review of moving the rows at `urls` to the Trash (SAF-002). Every item passes the path guard now, and again
+    /// just before it moves (SAF-007, SAF-008). When the run ends, the moved items leave every list.
+    /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
+    func reviewMoveToTrash(
+        _ subTool: any PersonalFilesSubTool, urls: [URL], runPlan: @escaping TrashReview.RunPlan
+    ) throws(PlanError) -> TrashReview {
+        let plan = try Plan(
+            subTool: subTool, items: scanItems(subTool, urls: urls),
+            pathGuard: PathGuard(configuration: context.protection))
+        return TrashReview(plan: plan, runPlan: runPlan) { [weak self] report in
+            self?.remove(report.trashedURLs)
+        }
+    }
+
+    /// Removes items that are gone, such as those a run moved to the Trash, from the shared state and from every list,
+    /// so they leave Large Files and Old Files together (FCL-006). Each landing-page estimate is updated to match.
+    func remove(_ urls: [URL]) {
+        personalFiles.remove(urls)
+        for (id, list) in results {
+            list.remove(urls)
+            if case .scanned(let summary) = states[id] {
+                states[id] = .scanned(self.summary(of: id, finished: summary.finished))
+            }
+        }
+    }
+
     /// Keeps only the files some sub-tool lists, so a home folder of a million files does not stay in memory.
     private func apply(_ event: PersonalFilesEvent) {
         guard case .files(let files) = event else {
