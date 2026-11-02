@@ -69,6 +69,9 @@ exercised).
   - [ ] App: Restore for selected items and "Restore All", one Keep Both or Skip question for taken paths, and a
     summary (HIS-003).
 - [ ] M1-T15 UI smoke tests with the fixture root (NFR-QA-002, NFR-QA-003)
+  - [x] Isolation: debug builds have their own bundle ID, preferences and data folder, and a UI test clears the debug
+    build's preferences at launch (D-70).
+  - [ ] Smoke tests for each tool's and sub-tool's main path (NFR-QA-003); the scope is still to be agreed.
 - [ ] M1-T16 Performance baseline recorded (NFR-PERF-002)
 
 Left over from M1 tasks:
@@ -80,8 +83,8 @@ Left over from M1 tasks:
   M1-T07 (D-55).
 - [x] M1-T11: give `FileCleanupModel`'s personal-files scan a `LastOpenedReader` with Old Files' minimum size, and
   show Old Files' list with `dateColumn: .lastOpened`, oldest first (OLD-003, D-59). Done in M1-T11.
-- [ ] M1-T15: UI tests share the app's real preferences domain, `me.nutabi.shuck`. AppKit saves the main window's
-  frame and sidebar width there, and the next run, UI test or not, restores them (D-60).
+- [x] M1-T15: UI tests share the app's real preferences domain, `me.nutabi.shuck`. AppKit saves the main window's
+  frame and sidebar width there, and the next run, UI test or not, restores them (D-60). Done in M1-T15 (D-70).
 - [ ] M1-T14: the run summary links to History once the History page exists (D-63).
 - [ ] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52).

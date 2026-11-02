@@ -18,8 +18,8 @@ public struct PathGuardConfiguration: Sendable, Equatable {
         ".ssh", ".gnupg", ".aws", ".kube", ".azure", ".docker", ".netrc", ".password-store", ".config/gcloud",
         // Music and TV libraries in their default places. Photos libraries are matched by extension.
         "Music/Music", "Movies/TV",
-        // Shuck's own data folder (D-21).
-        ShuckKit.dataFolder,
+        // Shuck's own data folders: the release build's and the debug build's (D-21, D-70).
+        ShuckKit.dataFolder(bundleID: ShuckKit.bundleID), ShuckKit.dataFolder(bundleID: ShuckKit.debugBundleID),
     ]
 
     /// Bundles protected wherever they are: Photos, iPhoto, Music and TV libraries, and Time Machine backups.

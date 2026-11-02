@@ -16,9 +16,9 @@ public actor HistoryLog {
 
     private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "History")
 
-    /// Shuck's data folder inside `home`, where the app keeps its log.
-    public static func folder(home: URL) -> URL {
-        home.appending(path: ShuckKit.dataFolder)
+    /// The data folder inside `home` of the build with `bundleID`, where that build keeps its log (D-70).
+    public static func folder(home: URL, bundleID: String) -> URL {
+        home.appending(path: ShuckKit.dataFolder(bundleID: bundleID))
     }
 
     /// Opens the log in `folder` for appending, creating the folder and the file if needed.

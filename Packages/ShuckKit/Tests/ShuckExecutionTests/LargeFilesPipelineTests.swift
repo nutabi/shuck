@@ -27,7 +27,7 @@ struct LargeFilesPipelineTests {
         #expect(items.map(\.url.lastPathComponent) == [large.lastPathComponent])
 
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
-        let logFolder = HistoryLog.folder(home: root.url)
+        let logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
         let trash = root.url.appending(path: ".Trash")
         let executor = TrashExecutor(
             pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: FakeTrash(folder: trash))
