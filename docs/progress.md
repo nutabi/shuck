@@ -95,9 +95,10 @@ Left over from M1 tasks:
 - [x] M1-T14: the run summary links to History once the History page exists (D-63). Done in M1-T14 (D-69).
 - [x] M1-T14: when an item's original path is taken, ask "keep both" or "skip" and pass the answer in
   `RestoreRequest` (HIS-003). The engine skips by default (D-52). Done in M1-T14 (D-73).
-- [ ] M1-T12: Move to Trash's summary disappears when the run empties the sub-tool's list. The page then shows its
+- [x] M1-T12: Move to Trash's summary disappears when the run empties the sub-tool's list. The page then shows its
   message instead of the table (D-61), and the review sheet, attached to the table, goes with it, so the user never
-  sees the outcome (SAF-011). Found by M1-T14's Restore UI tests, which keep a second file listed to avoid it.
+  sees the outcome (SAF-011). Found by M1-T14's Restore UI tests, which keep a second file listed to avoid it. Done
+  in M1-T12 (D-77).
 
 Carried over from M0:
 
