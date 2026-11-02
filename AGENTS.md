@@ -84,7 +84,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - The main thread is never blocked for more than 250 ms (NFR-PERF-001).
 - User-facing strings live in String Catalogs; no hard-coded UI strings (NFR-L10N-001).
 - Every control has a VoiceOver label and works from the keyboard. Never convey information by color alone (NFR-A11Y-001).
-- Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004).
+- Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004). Only `ShuckExecution` may start one, tests included (D-82).
 - No network APIs (`URLSession`, Network framework, `NSURLConnection`, sockets) and no authorization or privilege APIs (NFR-SEC-001, ONB-003).
 - Code is `swift-format` clean: 4-space indentation and 120-character lines (`.swift-format`). `Packages/ShuckKit/.swift-format` adds the engine-only rules against force unwraps, `try!` and implicitly unwrapped optionals. Run `scripts/lint.sh --fix` before committing.
 
@@ -118,7 +118,7 @@ Shuck deletes files. These rules are not negotiable, and CI enforces them where 
 
 1. **Every mutation goes through the Execution layer.** No code outside the `ShuckExecution` module may delete, move, rename or modify user files or launchd state (SAF-017). That includes the app target, other engine modules and scripts.
 2. **The path guard is mandatory.** Every target passes the path guard (SAF-007) and the protected-locations list (PRD section 8.4) when planned, and is re-validated just before acting (SAF-008). Never bypass, weaken or special-case the guard, not even to make a test pass. The only test difference allowed is D-41: tests configure the guard with the fixture root as home and without the temporary folder's `/private` prefix. If a guard rule looks wrong, stop and ask the owner.
-3. **Tests stay inside the fixture root.** Use the fixture-root harness from test support (SAF-016). Never build test paths from `homeDirectoryForCurrentUser`, `NSHomeDirectory()`, `~` or environment variables. UI tests launch the app with the debug-only fixture-root argument (NFR-QA-002).
+3. **Tests stay inside the fixture root.** Use the fixture-root harness from test support (SAF-016). Never build test paths from `homeDirectoryForCurrentUser`, `NSHomeDirectory()`, `~` or environment variables. A test of code that takes a home folder passes a made-up one, such as `/Users/someone`. UI tests launch the app with the debug-only fixture-root argument (NFR-QA-002).
 4. **Never touch the real home folder.** Not in tests, not in experiments and not to "try out" a deletion. Never run the app against real data to test a change.
 5. **The tier sets the review and limits the method** (SAF-004). "Your data" is never deleted permanently. Data owned by a tool (Docker, simulators, Homebrew, npm, pip) is cleaned only through that tool's documented command (SAF-010).
 6. **No silent failures.** Every operation is logged as an intent before it runs and as a result after (SAF-005, SAF-006). Every run ends with a per-item outcome (SAF-011).
