@@ -100,6 +100,17 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 - `firstMatch` does not find a SwiftUI `DisclosureGroup` row's combined accessibility element, such as a run on the History page. Use `.element` on a query that matches exactly one element.
 - `scripts/test.sh` prints only each suite's time. Per-test times are in the result bundles in `build/DerivedData/Logs/Test/`, which CI uploads only when a run fails (D-34). `xcrun xcresulttool get test-results tests --path <bundle>` lists each test's duration, and `xcrun xcresulttool get test-results activities --test-id "<Class>/<method>()" --path <bundle>` lists one test's steps with their start times.
 
+## Scan performance
+
+A personal-files scan that is not cancelled logs one line in the `PersonalFiles` category, such as `Scanned 812345 entries in 74.2 seconds` (NFR-PERF-002, D-78). An entry is a file or folder the scan looked at. A package or a device backup counts as one entry, although measuring its size reads everything inside it.
+
+The measurements in `docs/progress.md` come from the owner's own home folder. Agents never scan a real home folder (safety rule 4), so an agent gives the owner these steps instead of running them:
+
+1. Build the release app: `SHUCK_SIGN_IDENTITY=- scripts/build-dmg.sh --skip-notarization` writes `build/release/Shuck.app`. A debug build is not optimized, so its times say little.
+2. Open `build/release/Shuck.app` and click Large Files, which starts the scan. macOS asks once about each protected folder, such as Documents, and the scan waits for the answer. When the scan has finished, click Scan to run it again.
+3. Read both lines with `/usr/bin/log show --last 1h --style compact --predicate 'process == "Shuck" AND subsystem == "me.nutabi.shuck" AND eventMessage BEGINSWITH "Scanned"'` and record the second. The process filter leaves out engine tests, which log the same line. In zsh, `log` is a shell builtin, so the command needs the full path.
+4. While Shuck is still open, read its peak memory with `vmmap --summary $(pgrep -x Shuck) | grep 'Physical footprint'` and record the peak (NFR-PERF-003). Only 25 MB of the baseline's 17.1 GB peak was still allocated after the scan, so the current footprint says little.
+
 ## Safety rules
 
 Shuck deletes files. These rules are not negotiable, and CI enforces them where it can (ENG-006). `scripts/static-checks.sh` lists what is checked automatically. Creating or writing files is allowed only in `ShuckExecution` and in `ShuckKit`'s `History/` folder, which writes Shuck's own log. `History/` may also change the permissions of Shuck's own data folder and log, never anything else (D-45). If a check blocks legitimate code, ask the owner; do not weaken the check.

@@ -12,11 +12,14 @@ import os
 /// stream stops the scan before the next entry (SAF-014).
 public struct PersonalFilesScanner: Sendable {
     public typealias ValueReader = @Sendable (URL) -> EntryValues?
+    /// Receives how many entries a finished scan looked at and how long it took.
+    public typealias Report = @Sendable (_ entries: Int, _ duration: Duration) -> Void
 
     let context: ScanContext
     let batchSize: Int
     let readValues: ValueReader
     let lastOpened: LastOpenedReader?
+    let report: Report
 
     private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "PersonalFiles")
 
@@ -24,40 +27,56 @@ public struct PersonalFilesScanner: Sendable {
     ///   - batchSize: How many files each ``PersonalFilesEvent/files(_:)`` event carries at most.
     ///   - readValues: Reads an entry's resource values; tests stub it (FCL-010).
     ///   - lastOpened: Looks up last-opened dates for large enough items (OLD-002). Without it, no item gets one.
+    ///   - report: Receives the entry count and duration of a scan that was not cancelled. By default they are logged
+    ///     for the performance baseline (NFR-PERF-002); tests check them.
     public init(
         context: ScanContext, batchSize: Int = 256,
-        readValues: @escaping ValueReader = EntryValues.read, lastOpened: LastOpenedReader? = nil
+        readValues: @escaping ValueReader = EntryValues.read, lastOpened: LastOpenedReader? = nil,
+        report: @escaping Report = PersonalFilesScanner.logFinished
     ) {
         self.context = context
         self.batchSize = max(1, batchSize)
         self.readValues = readValues
         self.lastOpened = lastOpened
+        self.report = report
     }
 
     public func scan() -> AsyncStream<PersonalFilesEvent> {
         AsyncStream { continuation in
             let task = Task {
-                await walkHome { continuation.yield($0) }
+                let start = ContinuousClock.now
+                let entries = await walkHome { continuation.yield($0) }
+                if !Task.isCancelled { report(entries, start.duration(to: .now)) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
         }
     }
 
-    private func walkHome(_ emit: @escaping @Sendable (PersonalFilesEvent) -> Void) async {
-        guard let children = contents(of: context.home, emit) else { return }
-        await withTaskGroup(of: Void.self) { group in
+    /// Logs a finished scan's entry count and duration, the figures the performance baseline records (NFR-PERF-002).
+    public static func logFinished(entries: Int, duration: Duration) {
+        logger.notice("Scanned \(entries, privacy: .public) entries in \(duration, privacy: .public)")
+    }
+
+    /// Walks each top-level item in its own child task. Returns how many entries the walks looked at.
+    private func walkHome(_ emit: @escaping @Sendable (PersonalFilesEvent) -> Void) async -> Int {
+        guard let children = contents(of: context.home, emit) else { return 0 }
+        return await withTaskGroup(of: Int.self) { group in
             for child in children {
                 group.addTask { walk(child, emit) }
             }
+            return await group.reduce(0, +)
         }
     }
 
-    /// Walks one top-level item depth first, sending files in batches.
-    private func walk(_ root: URL, _ emit: @Sendable (PersonalFilesEvent) -> Void) {
+    /// Walks one top-level item depth first, sending files in batches. Returns how many entries it looked at. An item
+    /// measured as a whole, such as a package, counts once, although measuring it reads everything inside.
+    private func walk(_ root: URL, _ emit: @Sendable (PersonalFilesEvent) -> Void) -> Int {
         var batch: [PersonalFile] = []
+        var entries = 0
         var pending: [(url: URL, parentInScope: Bool)] = [(root, true)]
         while let (url, parentInScope) = pending.popLast(), !Task.isCancelled {
+            entries += 1
             switch classify(url, parentInScope: parentInScope) {
             case .skip:
                 continue
@@ -73,6 +92,7 @@ public struct PersonalFilesScanner: Sendable {
             }
         }
         if !batch.isEmpty { emit(.files(batch)) }
+        return entries
     }
 
     /// Folders whose subfolders are each one item, relative to the home folder: an iPhone or iPad backup is one folder
