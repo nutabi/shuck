@@ -192,7 +192,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     near-copy Large Files and Old Files pipeline tests (TD-18).
 - [ ] M2-T02 Delete in the run loop: re-validation, nothing followed out of the target, only a folder's contents when
   the item says so, and records marked non-restorable (SAF-004, SAF-006 to SAF-008, SAF-011, SAF-014, CAC-004). Five
-  pull requests in one GitHub stack, in the order below, each with auto-merge on (D-100).
+  pull requests in one GitHub stack, in the order below. GitHub refuses auto-merge for stacked pull requests, so the
+  owner merges the stack with `gh stack merge` (D-100).
   - [x] Items that remove only a folder's contents: `ItemScope` on `ScanItem` and `PlannedItem`; a plan refuses it for
     any method but Delete, and for anything but a folder (CAC-004, SAF-004, D-100).
   - [ ] The Delete action: nothing followed out of the target, logged as `delete` (SAF-006, SAF-007, SAF-011).
