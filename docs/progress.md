@@ -237,7 +237,8 @@ Fixes from the review of `main` at 380a07d (#55 to #73), before M2-T02:
 
 - [x] The static checks catch the URL folder properties, `.allDomainsMask`, the date and attribute-list calls,
   `SMAppService`, FIFOs and folders created on request; `AppEnvironment`'s home has no default (#56, D-97).
-- [ ] Documentation-only pull requests still run the static checks (#57).
+- [x] Documentation-only pull requests still run the static checks, and every change checks `CHANGELOG.md`'s form
+  (#57, D-98).
 - [ ] Closing the main window keeps Shuck running, or the docs say it quits; the owner picks (#55).
 
 Exit criteria (PRD section 13):
