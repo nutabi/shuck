@@ -19,9 +19,10 @@ public struct PlanExecutor: Sendable {
     let actions: [ActionMethod: any PlanAction]
 
     /// An executor that moves Trash items to `trash`: ``SystemTrash`` in the app, a fake in tests, which must never reach
-    /// the user's own Trash. M2 adds Delete and Tool, and M3 Launchctl.
+    /// the user's own Trash. It deletes Delete items permanently (SAF-006). M2-T10 adds Tool, and M3 Launchctl.
     public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash) {
-        self.init(pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash)])
+        self.init(
+            pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash), .delete: DeleteAction()])
     }
 
     /// An executor with `actions`, one per method it can act on. Tests pass actions of their own.
@@ -63,8 +64,8 @@ public struct PlanExecutor: Sendable {
     }
 }
 
-/// What a run does to an item of one method, once the item has passed re-validation: ``TrashAction`` now; M2 adds
-/// Delete and Tool, and M3 Launchctl (TD-04).
+/// What a run does to an item of one method, once the item has passed re-validation: ``TrashAction`` and
+/// ``DeleteAction`` now; M2-T10 adds Tool, and M3 Launchctl (TD-04).
 package protocol PlanAction: Sendable {
     /// Acts on `item`, at `target`, the path the guard returned for it, and says what it did.
     func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason>
