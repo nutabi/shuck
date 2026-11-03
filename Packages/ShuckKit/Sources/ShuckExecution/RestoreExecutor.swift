@@ -89,7 +89,9 @@ public struct RestoreExecutor: Sendable {
         }
         guard let current = ItemSnapshot.read(source) else { return .skipped(.missing) }
         // Another item can take a trashed item's name once it has left the Trash; only its identity tells them apart.
-        if let identity = item.identity, FileIdentity.read(source) != identity { return .skipped(.otherItem) }
+        if let identity = item.identity, FileIdentity.read(source).map({ identity.isSameTrashedFile(as: $0) }) != true {
+            return .skipped(.otherItem)
+        }
         if let bytes = item.bytes, !ItemSnapshot.sizeMatches(planned: bytes, current: current.allocatedSize) {
             return .skipped(.changed(current))
         }

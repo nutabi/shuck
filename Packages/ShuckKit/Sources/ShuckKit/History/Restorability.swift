@@ -93,8 +93,9 @@ extension HistoryLog.Contents {
     /// item from, which is how they are matched (D-52).
     public func entries() -> [HistoryEntry] {
         var entries: [HistoryEntry] = []
-        // The entry for the item at each trashed path. The Trash can reuse a name once an item has left it, so a
-        // later record for the same path replaces the earlier one, whose item must have left the Trash (HIS-004).
+        // The entry for the item at each trashed path, with case folded as the startup volume compares names. The
+        // Trash can reuse a name once an item has left it, so a later record for the same path replaces the earlier
+        // one, whose item must have left the Trash (HIS-004).
         var inTrash: [String: Int] = [:]
         for record in records where record.phase == .result && record.status == .ok {
             let restorability: Restorability
@@ -104,16 +105,18 @@ extension HistoryLog.Contents {
                     restorability = .unknownLocation
                     break
                 }
-                if let earlier = inTrash[trashedPath] {
+                if let earlier = inTrash[PathGuard.fold(trashedPath)] {
                     entries[earlier] = HistoryEntry(record: entries[earlier].record, restorability: .trashEmptied)
                 }
-                inTrash[trashedPath] = entries.count
+                inTrash[PathGuard.fold(trashedPath)] = entries.count
                 restorability = .restorable(
                     TrashedItem(
                         run: record.run, tool: record.tool, tier: record.tier, originalURL: URL(filePath: record.path),
                         trashedURL: URL(filePath: trashedPath), bytes: record.bytes, identity: record.identity))
             case .restore:
-                if let trashedPath = record.trashedPath, let index = inTrash.removeValue(forKey: trashedPath) {
+                if let trashedPath = record.trashedPath,
+                    let index = inTrash.removeValue(forKey: PathGuard.fold(trashedPath))
+                {
                     entries[index] = HistoryEntry(record: entries[index].record, restorability: .restored)
                 }
                 continue
@@ -137,7 +140,9 @@ extension HistoryLog.Contents {
         guard lstat(item.trashedURL.path, &info) == 0 else {
             return errno == ENOENT || errno == ENOTDIR ? .trashEmptied : .notAccessible
         }
-        if let identity = item.identity, identity != FileIdentity(volume: info.st_dev, file: info.st_ino) {
+        if let identity = item.identity,
+            !identity.isSameTrashedFile(as: FileIdentity(volume: info.st_dev, file: info.st_ino))
+        {
             return .trashEmptied
         }
         return .restorable(item)

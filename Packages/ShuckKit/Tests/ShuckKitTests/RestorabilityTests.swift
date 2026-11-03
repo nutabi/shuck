@@ -84,6 +84,32 @@ struct RestorabilityTests {
         #expect(try HistoryLog.read(folder: folder).entries().map(\.restorability) == [.trashEmptied])
     }
 
+    @Test func anItemStaysRestorableWhenItsVolumeIsNumberedDifferentlyAfterARestartHIS003() async throws {
+        let inTrash = try root.file(".Trash/clip.mov", size: 100)
+        let now = try #require(FileIdentity.read(inTrash))
+        // A volume's device number can change when the Mac restarts; the file number stays.
+        let logged = FileIdentity(volume: now.volume &+ 1, file: now.file)
+        let entries = try await entries([try trashed("Movies/clip.mov", to: inTrash, identity: logged)])
+        guard case .restorable(let item) = entries.first?.restorability else {
+            Issue.record("The item is not restorable: \(entries)")
+            return
+        }
+        #expect(item.identity == logged)
+    }
+
+    @Test func aTrashNameReusedWithOtherCaseMarksTheEarlierItemHIS004() async throws {
+        // Shuck 0.1.0 logged Report.pdf without an identity. It left the Trash, and report.pdf took its name, which
+        // the startup volume compares without case.
+        let inTrash = try root.file(".Trash/report.pdf", size: 100)
+        let first = try trashed("Downloads/Report.pdf", to: try root.url(".Trash/Report.pdf"))
+        let second = try trashed("Documents/report.pdf", to: inTrash)
+
+        let entries = try await entries([first, second])
+
+        #expect(entries.map(\.restorability).first == .trashEmptied)
+        #expect(entries.count == 2)
+    }
+
     @Test func aTrashShuckMayNotReadIsReportedAsNotAccessibleSAF012() async throws {
         try root.folder(".Trash", permissions: 0o000)
         let entries = try await entries([try trashed("Movies/clip.mov", to: try root.url(".Trash/clip.mov"))])

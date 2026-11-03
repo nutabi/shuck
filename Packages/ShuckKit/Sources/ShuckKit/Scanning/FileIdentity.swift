@@ -23,4 +23,12 @@ public struct FileIdentity: Codable, Hashable, Sendable {
         guard result == 0 else { return nil }
         return FileIdentity(volume: info.st_dev, file: info.st_ino)
     }
+
+    /// Whether `current`, read now at a trashed item's path, is the file this identity was logged for, in this session
+    /// or an earlier one. Compares only the file number: a volume's device number can change when the Mac restarts,
+    /// and both identities are of an item directly inside the Trash, whose volume the path fixes and whose file
+    /// numbers APFS never reuses (D-84).
+    public func isSameTrashedFile(as current: FileIdentity) -> Bool {
+        file == current.file
+    }
 }

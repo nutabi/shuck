@@ -85,8 +85,9 @@ public struct PathGuard: Sendable {
         url.pathComponents.map(fold)
     }
 
-    /// Full Unicode case folding, so `ß` matches `SS` as well as `A` matching `a`.
-    private static func fold(_ name: String) -> String {
+    /// Full Unicode case folding, so `ß` matches `SS` as well as `A` matching `a`. The history log matches trashed
+    /// paths with it too.
+    static func fold(_ name: String) -> String {
         name.folding(options: .caseInsensitive, locale: nil)
     }
 }

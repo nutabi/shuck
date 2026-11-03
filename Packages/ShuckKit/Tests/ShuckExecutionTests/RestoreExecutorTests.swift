@@ -170,6 +170,21 @@ struct RestoreExecutorTests {
         #expect(!exists(file) && exists(item.trashedURL))
     }
 
+    @Test func anItemLoggedBeforeARestartThatRenumberedItsVolumeStillRestoresHIS003() async throws {
+        let inTrash = try root.file(".Trash/clip.mov", size: 1_000)
+        let original = try root.url("Movies/clip.mov")
+        let now = try #require(FileIdentity.read(inTrash))
+        try await HistoryLog(folder: logFolder).append(
+            .result(
+                run: UUID(), tool: .largeFiles, operation: .trash, path: original.path, tier: .yourData, status: .ok,
+                trashedPath: inTrash.path, identity: FileIdentity(volume: now.volume &+ 1, file: now.file),
+                bytes: try #require(ItemSnapshot.read(inTrash)).allocatedSize))
+        let item = try #require(try restorable().first)
+
+        #expect(try await restore([RestoreRequest(item: item)]) == [.restored(original)])
+        #expect(exists(original) && !exists(inTrash))
+    }
+
     @Test func anItemLoggedWithoutAnIdentityAsShuck010LoggedItStillRestoresHIS003() async throws {
         let inTrash = try root.file(".Trash/clip.mov", size: 1_000)
         let original = try root.url("Movies/clip.mov")
