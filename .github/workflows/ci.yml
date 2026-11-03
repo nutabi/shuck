@@ -1,4 +1,5 @@
-# Lint, build and test every pull request and every push to main that changes code (ENG-005, D-66).
+# Lint, build and test every pull request and every push to main that changes code (ENG-005, D-66). The static checks
+# and the changelog check run for every change (D-98).
 # Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
 name: CI
 
@@ -27,6 +28,18 @@ jobs:
         with:
           # A pull request checks out a merge commit whose first parent is the base branch.
           fetch-depth: 2
+
+      # The static checks and the changelog's form apply to documentation too, such as a CLAUDE.md (ENG-010) or a
+      # broken CHANGELOG.md (D-95), so they run here for every change (D-98). They use only bash, grep, sed and awk.
+      # They run before the comparison: if one fails, the job sets no output, so the full check runs and fails too,
+      # instead of being skipped (D-66).
+      - name: Static checks
+        run: |
+          scripts/static-checks-test.sh
+          scripts/static-checks.sh
+
+      - name: Changelog
+        run: scripts/release-notes.sh --check
 
       - name: Compare with the base
         id: diff
@@ -66,6 +79,9 @@ jobs:
         run: |
           scripts/static-checks-test.sh
           scripts/static-checks.sh
+
+      - name: Changelog
+        run: scripts/release-notes.sh --check
 
       - name: Test
         run: scripts/test.sh
