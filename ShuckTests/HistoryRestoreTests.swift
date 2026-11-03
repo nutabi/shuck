@@ -168,8 +168,9 @@ struct HistoryRestoreTests {
                 == "Restored as “clip (restored).mov”")
         #expect(text(.skipped(.originalTaken)) == "Skipped: its original place is taken")
         #expect(text(.skipped(.missing)) == "Skipped: no longer in the Trash")
+        #expect(text(.skipped(.notAccessible)) == "Skipped: not accessible")
         #expect(text(.skipped(.otherItem)) == "Skipped: no longer in the Trash, and another item has its name")
         #expect(text(.skipped(.cancelled)) == "Skipped: stopped before it was restored")
-        #expect(text(.failed("Permission denied")) == "Failed: Permission denied")
+        #expect(text(.failed(ActionError(errno: EACCES))) == "Failed: Permission denied")
     }
 }

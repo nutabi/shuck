@@ -11,8 +11,7 @@ public struct FolderTrash: Trash {
         self.folder = folder
     }
 
-    public func trashItem(at url: URL) throws -> URL {
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    public func trashItem(at url: URL) throws(ActionError) -> URL {
         let name = url.deletingPathExtension().lastPathComponent
         let suffix = url.pathExtension.isEmpty ? "" : "." + url.pathExtension
         var destination = folder.appending(path: url.lastPathComponent)
@@ -21,7 +20,12 @@ public struct FolderTrash: Trash {
             destination = folder.appending(path: "\(name) \(number)\(suffix)")
             number += 1
         }
-        try FileManager.default.moveItem(at: url, to: destination)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try FileManager.default.moveItem(at: url, to: destination)
+        } catch {
+            throw ActionError(error)
+        }
         return destination
     }
 }

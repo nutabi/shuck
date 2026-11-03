@@ -139,6 +139,8 @@ struct TrashReviewSheet: View {
             Text("Moved to the Trash")
         case .skipped(.missing):
             Text("No longer there")
+        case .skipped(.notAccessible):
+            Text("Not accessible")
         case .skipped(.changed):
             Text("Changed since the scan")
         case .skipped(.rejected):
@@ -150,7 +152,7 @@ struct TrashReviewSheet: View {
         case .skipped(.unsupportedMethod):
             Text("Can't be moved to the Trash")
         case .failed(let error):
-            Text("Couldn't be moved: \(error)")
+            Text("Couldn't be moved: \(error.message)")
         }
     }
 }

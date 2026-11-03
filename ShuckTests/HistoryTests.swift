@@ -91,12 +91,20 @@ struct HistoryTests {
                 == "Interrupted before its outcome was recorded")
     }
 
-    /// SAF-011: logged skip reasons read as words; one the app does not know is shown as logged.
+    /// SAF-011: logged skip reasons read as words, as this version and Shuck 0.1.0 wrote them (D-88); one the app does
+    /// not know is shown as logged.
     @Test func skipReasonsReadAsWordsSAF011() {
         #expect(String(localized: HistoryView.skipReason("missing")) == "no longer there")
+        #expect(String(localized: HistoryView.skipReason("notAccessible")) == "not accessible")
+        #expect(String(localized: HistoryView.skipReason("changed: file, 4096 bytes")) == "changed since the scan")
         #expect(
-            String(localized: HistoryView.skipReason("changed(ItemSnapshot(kind: file, allocatedSize: 4))"))
+            String(
+                localized: HistoryView.skipReason(
+                    "changed(ShuckKit.ItemSnapshot(kind: ShuckKit.ItemSnapshot.Kind.file, allocatedSize: 4))"))
                 == "changed since the scan")
+        #expect(
+            String(localized: HistoryView.skipReason(#"rejected(ShuckKit.PathGuardError.outsideAllowedRoots("/x/y"))"#))
+                == "failed a safety check")
         #expect(String(localized: HistoryView.skipReason("originalTaken")) == "its original place is taken")
         #expect(String(localized: HistoryView.skipReason("otherItem")) == "another item has its name in the Trash")
         #expect(String(localized: HistoryView.skipReason("somethingNew")) == "somethingNew")

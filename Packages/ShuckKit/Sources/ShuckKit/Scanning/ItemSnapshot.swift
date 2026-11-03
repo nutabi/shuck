@@ -43,6 +43,30 @@ public struct ItemSnapshot: Equatable, Sendable {
         return ItemSnapshot(kind: .folder, allocatedSize: total)
     }
 
+    /// What re-validation finds at an item's path (SAF-008, SAF-012).
+    public enum Check: Equatable, Sendable {
+        case found(ItemSnapshot)
+        case missing
+        /// Permission was denied (EPERM or EACCES), for example by macOS privacy protection (SAF-012).
+        case notAccessible
+    }
+
+    /// Measures the item at `url` as ``read(_:while:)`` does, telling a missing item from one Shuck may not read. A
+    /// folder whose contents can't be listed is not accessible, rather than empty. Any other error counts as missing.
+    public static func check(_ url: URL) -> Check {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else { return failure(errno) }
+        if info.st_mode & S_IFMT == S_IFDIR {
+            guard let folder = opendir(url.path) else { return failure(errno) }
+            closedir(folder)
+        }
+        return read(url).map(Check.found) ?? .missing
+    }
+
+    private static func failure(_ code: Int32) -> Check {
+        code == EPERM || code == EACCES ? .notAccessible : .missing
+    }
+
     /// The allocated size of the enumerator's next item, or `nil` when it has none left.
     private static func nextSize(_ contents: FileManager.DirectoryEnumerator?, _ keys: Set<URLResourceKey>) -> Int64? {
         guard let child = contents?.nextObject() as? URL else { return nil }

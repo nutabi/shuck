@@ -135,6 +135,8 @@ struct HistoryRestoreSheet: View {
             "Skipped: its original place is taken"
         case .skipped(.missing):
             "Skipped: no longer in the Trash"
+        case .skipped(.notAccessible):
+            "Skipped: not accessible"
         case .skipped(.changed):
             "Skipped: changed since it was moved to the Trash"
         case .skipped(.rejected):
@@ -148,7 +150,7 @@ struct HistoryRestoreSheet: View {
         case .skipped(.historyUnavailable):
             "Skipped: the history log stopped working"
         case .failed(let error):
-            "Failed: \(error)"
+            "Failed: \(error.message)"
         }
     }
 }
