@@ -278,4 +278,22 @@ struct RestoreExecutorTests {
         #expect(files.allSatisfy { !exists($0) })
         #expect(try restoreRecords().isEmpty)
     }
+
+    // MARK: - Stopping
+
+    @Test func stoppingWhileATrashedFolderIsMeasuredLeavesItInTheTrashSAF014() async throws {
+        let package = try root.folder("Documents/Old.pages")
+        try root.file("Documents/Old.pages/Index.zip", size: 8_000)
+        let item = try #require(try await trashed([package]).first)
+        let executor = RestoreExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash)
+
+        // The task is cancelled when re-validation starts, as when the user clicks Stop while it measures the folder.
+        let result = await Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return executor.act(on: item, to: item.originalURL)
+        }.value
+
+        #expect(result == .skipped(.cancelled))
+        #expect(!exists(package) && exists(item.trashedURL))
+    }
 }

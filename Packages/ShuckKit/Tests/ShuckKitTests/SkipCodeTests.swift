@@ -50,4 +50,23 @@ struct SkipCodeTests {
         #expect(ItemSnapshot.check(locked) == .notAccessible)
         #expect(ItemSnapshot.check(locked.appending(path: "inside.db")) == .notAccessible)
     }
+
+    /// SAF-014: measuring a folder stops as soon as it is asked to, and says so rather than calling the item missing.
+    @Test func reValidationStopsMeasuringAFolderWhenAskedSAF014() throws {
+        let root = try FixtureRoot()
+        let backup = try root.folder("Library/Application Support/MobileSync/Backup/0000")
+        for index in 1...10 { try root.file("Library/Application Support/MobileSync/Backup/0000/\(index)", size: 10) }
+        let file = try root.file("Downloads/clip.mov", size: 4_096)
+
+        var asked = 0
+        #expect(
+            ItemSnapshot.check(backup) {
+                asked += 1
+                return asked < 2
+            } == .stopped)
+        // It stopped after the first entry, rather than reading all ten.
+        #expect(asked < 10)
+        #expect(ItemSnapshot.check(file) { false } == ItemSnapshot.read(file).map(ItemSnapshot.Check.found))
+        #expect(ItemSnapshot.check(root.url.appending(path: "Downloads/gone.mov")) { false } == .missing)
+    }
 }

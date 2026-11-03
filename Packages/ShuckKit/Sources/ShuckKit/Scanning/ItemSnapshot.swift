@@ -49,18 +49,23 @@ public struct ItemSnapshot: Equatable, Sendable {
         case missing
         /// Permission was denied (EPERM or EACCES), for example by macOS privacy protection (SAF-012).
         case notAccessible
+        /// `shouldContinue` returned `false` while a folder was being measured, as when the user stops a run (SAF-014).
+        case stopped
     }
 
     /// Measures the item at `url` as ``read(_:while:)`` does, telling a missing item from one Shuck may not read. A
     /// folder whose contents can't be listed is not accessible, rather than empty. Any other error counts as missing.
-    public static func check(_ url: URL) -> Check {
+    /// Measuring a large folder, such as a device backup, can take a while, so it stops as soon as `shouldContinue`
+    /// returns `false`.
+    public static func check(_ url: URL, while shouldContinue: () -> Bool = { true }) -> Check {
         var info = stat()
         guard lstat(url.path, &info) == 0 else { return failure(errno) }
         if info.st_mode & S_IFMT == S_IFDIR {
             guard let folder = opendir(url.path) else { return failure(errno) }
             closedir(folder)
         }
-        return read(url).map(Check.found) ?? .missing
+        if let snapshot = read(url, while: shouldContinue) { return .found(snapshot) }
+        return shouldContinue() ? .missing : .stopped
     }
 
     private static func failure(_ code: Int32) -> Check {
