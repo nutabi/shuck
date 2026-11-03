@@ -201,6 +201,7 @@ struct HistoryView: View {
         case "unsupportedMethod": "method not supported"
         case "originalTaken": "its original place is taken"
         case "notInTrash": "not in the Trash"
+        case "otherItem": "another item has its name in the Trash"
         default: "\(detail ?? "")"
         }
     }

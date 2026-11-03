@@ -9,7 +9,7 @@ import os
 /// 2. re-validates the item: the path guard again, then that it still exists with the same type and about the same
 ///    size as at scan time (SAF-008);
 /// 3. moves it to the Trash, or skips it with a reason;
-/// 4. writes a result record with the outcome and, for a trashed item, where it went (SAF-005).
+/// 4. writes a result record with the outcome and, for a trashed item, where it went and its file identity (SAF-005).
 ///
 /// Every item ends with an outcome (SAF-011). If the history log cannot be written, the run stops: nothing is acted
 /// on without a log record. Cancelling the task stops the run before the next item (SAF-014).
@@ -47,10 +47,10 @@ public struct TrashExecutor: Sendable {
                 continue
             }
 
-            let result = act(on: item, allowedRoots: plan.allowedRoots)
+            let (result, identity) = act(on: item, allowedRoots: plan.allowedRoots)
             outcomes.append(ItemOutcome(item: item, result: result))
             do {
-                try await log.append(record(for: item, in: plan, result: result))
+                try await log.append(record(for: item, in: plan, result: result, identity: identity))
             } catch {
                 stopReason = .historyUnavailable
             }
@@ -58,26 +58,30 @@ public struct TrashExecutor: Sendable {
         return RunReport(run: plan.run, outcomes: outcomes)
     }
 
-    /// Re-validates `item` and moves it to the Trash (SAF-008).
-    private func act(on item: PlannedItem, allowedRoots: [URL]) -> ItemOutcome.Result {
+    /// Re-validates `item` and moves it to the Trash (SAF-008). Also returns the file identity of what it moved, which
+    /// a move into the Trash on the same volume keeps, so Restore can tell it from a later item with its name.
+    private func act(on item: PlannedItem, allowedRoots: [URL]) -> (ItemOutcome.Result, FileIdentity?) {
         let target: URL
         do {
             target = try pathGuard.validate(item.url, allowedRoots: allowedRoots)
         } catch {
-            return .skipped(.rejected(error))
+            return (.skipped(.rejected(error)), nil)
         }
-        guard let current = ItemSnapshot.read(target) else { return .skipped(.missing) }
-        guard item.snapshot.matches(current) else { return .skipped(.changed(current)) }
+        guard let current = ItemSnapshot.read(target) else { return (.skipped(.missing), nil) }
+        guard item.snapshot.matches(current) else { return (.skipped(.changed(current)), nil) }
+        guard let identity = FileIdentity.read(target) else { return (.skipped(.missing), nil) }
         do {
-            return .trashed(try trash.trashItem(at: target))
+            return (.trashed(try trash.trashItem(at: target)), identity)
         } catch {
             Self.logger.error("Cannot move an item to the Trash: \(String(describing: error), privacy: .private)")
-            return .failed(String(describing: error))
+            return (.failed(String(describing: error)), nil)
         }
     }
 
     /// The intent record for `item`, or its result record when `result` is given.
-    private func record(for item: PlannedItem, in plan: Plan, result: ItemOutcome.Result?) -> HistoryRecord {
+    private func record(
+        for item: PlannedItem, in plan: Plan, result: ItemOutcome.Result?, identity: FileIdentity? = nil
+    ) -> HistoryRecord {
         let path = item.url.path
         let bytes = item.snapshot.allocatedSize
         guard let result else {
@@ -99,7 +103,7 @@ public struct TrashExecutor: Sendable {
         }
         return .result(
             run: plan.run, tool: plan.tool, operation: .trash, path: path, tier: item.tier, status: status,
-            trashedPath: trashedPath, bytes: bytes, detail: detail)
+            trashedPath: trashedPath, identity: identity, bytes: bytes, detail: detail)
     }
 }
 

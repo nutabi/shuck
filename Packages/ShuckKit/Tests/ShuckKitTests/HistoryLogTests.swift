@@ -84,6 +84,28 @@ struct HistoryLogTests {
         #expect(contents.unreadableLines.isEmpty)
     }
 
+    @Test func theTrashedItemsIdentityRoundTripsAndRecordsWithoutItStillReadSAF005() async throws {
+        let identity = FileIdentity(volume: 16_777_232, file: 9_876_543)
+        let withIdentity = HistoryRecord.result(
+            run: run, tool: .largeFiles, operation: .trash, path: "/Users/me/Movies/clip.mov", tier: .yourData,
+            status: .ok, trashedPath: "/Users/me/.Trash/clip.mov", identity: identity, bytes: 4096,
+            timestamp: timestamp)
+        let log = try HistoryLog(folder: folder)
+        try await log.append(withIdentity)
+        // The same record as Shuck 0.1.0 wrote it, without the identity.
+        try appendRaw(
+            #"{"bytes":4096,"detail":"Moved to the Trash","op":"trash","path":"/Users/me/Movies/clip.mov","#
+                + #""phase":"result","run":"\#(run.uuidString)","status":"ok","tier":"yourData","tool":"LRG","#
+                + #""trashedPath":"/Users/me/.Trash/clip.mov","ts":"2026-11-02T00:00:00.000Z","v":1}"# + "\n")
+
+        let lines = try logLines()
+        #expect(lines[0]["identity"] as? [String: Int] == ["volume": 16_777_232, "file": 9_876_543])
+        let contents = try HistoryLog.read(folder: folder)
+        #expect(contents.records == [withIdentity, result])
+        #expect(contents.records.map(\.identity) == [identity, nil])
+        #expect(contents.unreadableLines.isEmpty)
+    }
+
     // MARK: - Writing
 
     @Test func eachRecordIsOnDiskWhenAppendReturnsHIS001() async throws {

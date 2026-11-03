@@ -98,6 +98,7 @@ struct HistoryTests {
             String(localized: HistoryView.skipReason("changed(ItemSnapshot(kind: file, allocatedSize: 4))"))
                 == "changed since the scan")
         #expect(String(localized: HistoryView.skipReason("originalTaken")) == "its original place is taken")
+        #expect(String(localized: HistoryView.skipReason("otherItem")) == "another item has its name in the Trash")
         #expect(String(localized: HistoryView.skipReason("somethingNew")) == "somethingNew")
     }
 }

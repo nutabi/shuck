@@ -134,6 +134,72 @@ struct RestoreExecutorTests {
         #expect(try HistoryLog.read(folder: logFolder).entries().map(\.restorability) == [.trashEmptied])
     }
 
+    @Test func aTrashNameALaterRunReusedRestoresOnlyTheLaterItemHIS004SAF008() async throws {
+        let first = try root.file("Downloads/report.pdf", size: 1_000)
+        let earlier = try #require(try await trashed([first]).first)
+        // The user empties the Trash, and a later run trashes another report.pdf, which gets the same name.
+        let second = try root.file("Documents/report.pdf", size: 1_000)
+        try FileManager.default.removeItem(at: earlier.trashedURL)
+        let later = try #require(try await trashed([second]).first)
+        #expect(later.trashedURL == earlier.trashedURL)
+        #expect(try restorable() == [later])
+        #expect(
+            try HistoryLog.read(folder: logFolder).entries().map(\.restorability) == [
+                .trashEmptied, .restorable(later),
+            ])
+
+        // A History page read before the later run still offers the earlier item.
+        #expect(try await restore([RestoreRequest(item: earlier)]) == [.skipped(.otherItem)])
+        #expect(!exists(first) && exists(later.trashedURL))
+        #expect(try restoreRecords().compactMap(\.detail) == ["otherItem"])
+
+        #expect(try await restore([RestoreRequest(item: later)]) == [.restored(second)])
+        #expect(try HistoryLog.read(folder: logFolder).entries().map(\.restorability) == [.trashEmptied, .restored])
+    }
+
+    @Test func aSameNamedItemSomeoneElsePutInTheTrashIsNeverRestoredHIS004SAF008() async throws {
+        let file = try root.file("Downloads/report.pdf", size: 1_000)
+        let item = try #require(try await trashed([file]).first)
+        // The Trash is emptied, and another app moves its own report.pdf, of the same size, there.
+        let other = try root.file("Desktop/report.pdf", size: 1_000)
+        try FileManager.default.removeItem(at: item.trashedURL)
+        try FileManager.default.moveItem(at: other, to: item.trashedURL)
+        #expect(try restorable().isEmpty)
+
+        #expect(try await restore([RestoreRequest(item: item)]) == [.skipped(.otherItem)])
+        #expect(!exists(file) && exists(item.trashedURL))
+    }
+
+    @Test func anItemLoggedBeforeARestartThatRenumberedItsVolumeStillRestoresHIS003() async throws {
+        let inTrash = try root.file(".Trash/clip.mov", size: 1_000)
+        let original = try root.url("Movies/clip.mov")
+        let now = try #require(FileIdentity.read(inTrash))
+        try await HistoryLog(folder: logFolder).append(
+            .result(
+                run: UUID(), tool: .largeFiles, operation: .trash, path: original.path, tier: .yourData, status: .ok,
+                trashedPath: inTrash.path, identity: FileIdentity(volume: now.volume &+ 1, file: now.file),
+                bytes: try #require(ItemSnapshot.read(inTrash)).allocatedSize))
+        let item = try #require(try restorable().first)
+
+        #expect(try await restore([RestoreRequest(item: item)]) == [.restored(original)])
+        #expect(exists(original) && !exists(inTrash))
+    }
+
+    @Test func anItemLoggedWithoutAnIdentityAsShuck010LoggedItStillRestoresHIS003() async throws {
+        let inTrash = try root.file(".Trash/clip.mov", size: 1_000)
+        let original = try root.url("Movies/clip.mov")
+        let bytes = try #require(ItemSnapshot.read(inTrash)).allocatedSize
+        try await HistoryLog(folder: logFolder).append(
+            .result(
+                run: UUID(), tool: .largeFiles, operation: .trash, path: original.path, tier: .yourData, status: .ok,
+                trashedPath: inTrash.path, bytes: bytes))
+        let item = try #require(try restorable().first)
+        #expect(item.identity == nil)
+
+        #expect(try await restore([RestoreRequest(item: item)]) == [.restored(original)])
+        #expect(exists(original) && !exists(inTrash))
+    }
+
     @Test func anItemThatChangedInTheTrashIsSkippedSAF008() async throws {
         let file = try root.file("Downloads/report.pdf", size: 1_000)
         let item = try #require(try await trashed([file]).first)
