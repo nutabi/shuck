@@ -451,7 +451,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
-| HIS-001 | The history log follows section 8.5. Records are flushed to disk (`synchronize`) after each write. | Must | Kill-during-run test: log intent records match the disk state. |
+| HIS-001 | The history log follows section 8.5. Each record is flushed with a barrier (`F_BARRIERFSYNC`) after it is written, so the drive writes it before what follows, and the whole log is flushed to permanent storage (`F_FULLFSYNC`) when a run ends (D-104). | Must | Kill-during-run test: log intent records match the disk state. |
 | HIS-002 | The History view lists runs (date, area, item count, size, method, status). Each run expands to its items. | Must | UI test. |
 | HIS-003 | **Restore** moves a trashed item from its trashed path back to its original path, recreating missing parent folders. If the original path is taken, ask: keep both (add " (restored)") or skip. Never overwrite. | Must | Fixture tests: normal restore, occupied path, missing parent. |
 | HIS-004 | If an item's trashed path no longer exists, mark it "Not restorable (Trash emptied)". Permanent deletions and tool runs are shown as non-restorable. | Must | Fixture test. |

@@ -39,7 +39,10 @@ package struct Acted<SkipReason: RunSkipReason>: Sendable {
 
 /// Where a run writes its records: the history log. Tests pass one that fails, to check that the run stops (SAF-005).
 package protocol RecordLog: Sendable {
+    /// Writes `record`, flushed so that the drive writes it before anything the run does next (HIS-001).
     func append(_ record: HistoryRecord) async throws(HistoryError)
+    /// Asks the drive to write every record to permanent storage, once the run has ended (D-104).
+    func flushFully() async throws(HistoryError)
 }
 
 extension HistoryLog: RecordLog {}
@@ -84,7 +87,8 @@ struct LoggedItem {
 /// 3. runs the item's action, which re-validates it (SAF-008) and acts, or says why not;
 /// 4. writes the result record with the outcome (SAF-005, SAF-011); if that fails, stops the run.
 ///
-/// So every item ends with an outcome (SAF-011), and nothing is acted on without an intent record.
+/// So every item ends with an outcome (SAF-011), and nothing is acted on without an intent record. When the last item
+/// is done, the loop asks the drive to write the whole log to permanent storage (D-104).
 struct RunLoop {
     let log: any RecordLog
     /// Logs failed actions, under the category of the tool the run is for (NFR-OBS-001).
@@ -132,6 +136,13 @@ struct RunLoop {
             } catch {
                 stopReason = .historyUnavailable
             }
+        }
+        do {
+            try await log.flushFully()
+        } catch {
+            // Every record already went out with a barrier, so the log still matches the disk in order; the run's
+            // outcomes stand, but a power loss now could lose its last records.
+            logger.error("Cannot flush the history log at the end of a run")
         }
         return results
     }

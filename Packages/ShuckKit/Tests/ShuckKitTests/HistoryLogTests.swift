@@ -127,6 +127,15 @@ struct HistoryLogTests {
         #expect(try HistoryLog.read(folder: folder).records == [intent, result])
     }
 
+    @Test func aFullFlushKeepsEveryRecordAndTheLogStaysOpenHIS001() async throws {
+        let log = try HistoryLog(folder: folder)
+        try await log.append(intent)
+        try await log.flushFully()
+        try await log.append(result)
+        try await log.flushFully()
+        #expect(try HistoryLog.read(folder: folder).records == [intent, result])
+    }
+
     @Test func aLineCutShortByACrashIsReportedAndSkippedHIS001() async throws {
         do {
             let log = try HistoryLog(folder: folder)
