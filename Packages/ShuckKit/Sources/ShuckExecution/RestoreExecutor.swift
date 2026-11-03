@@ -12,16 +12,14 @@ import os
 /// 4. moves it back, creating missing parent folders, and never replaces anything already at the destination;
 /// 5. writes a result record with the outcome.
 ///
-/// The move is Shuck's own, not Finder's "Put Back" (HIS-006). Like ``TrashExecutor``, the run stops if the log cannot
-/// be written, and cancelling stops it before the next item (SAF-014).
+/// The move is Shuck's own, not Finder's "Put Back" (HIS-006). Steps 2 to 5 are ``RunLoop``'s, as for a plan: the run
+/// stops if the log cannot be written, and cancelling stops it before the next item (SAF-014).
 public struct RestoreExecutor: Sendable {
     let pathGuard: PathGuard
     let log: HistoryLog
     let trash: any Trash
 
-    private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "Restore")
-
-    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash = SystemTrash()) {
+    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash) {
         self.pathGuard = pathGuard
         self.log = log
         self.trash = trash
@@ -29,31 +27,18 @@ public struct RestoreExecutor: Sendable {
 
     /// Restores `requests` and returns one outcome per request, in order.
     public func run(_ requests: [RestoreRequest], run: UUID = UUID()) async -> RestoreReport {
-        var outcomes: [RestoreOutcome] = []
-        var stopReason: RestoreOutcome.SkipReason?
-        for request in requests {
-            if let reason = stopReason ?? (Task.isCancelled ? .cancelled : nil) {
-                outcomes.append(RestoreOutcome(request: request, result: .skipped(reason)))
-                continue
-            }
+        let loop = RunLoop(log: log, logger: Logger(tool: .history))
+        let results = await loop.run(requests) { request in
+            let item = request.item
+            // Chosen before the intent record, which names it, and after earlier items took their " (restored)" names.
             let destination = destination(for: request)
-            do {
-                try await log.append(record(for: request, to: destination, run: run, result: nil))
-            } catch {
-                stopReason = .historyUnavailable
-                outcomes.append(RestoreOutcome(request: request, result: .skipped(.historyUnavailable)))
-                continue
-            }
-
-            let result = act(on: request.item, to: destination)
-            outcomes.append(RestoreOutcome(request: request, result: result))
-            do {
-                try await log.append(record(for: request, to: destination, run: run, result: result))
-            } catch {
-                stopReason = .historyUnavailable
-            }
+            let logged = LoggedItem(
+                run: run, tool: .history, operation: .restore, path: (destination ?? item.originalURL).path,
+                tier: item.tier, bytes: item.bytes, trashedPath: item.trashedURL.path)
+            return RunLoop.Step(logged: logged) { Acted(act(on: item, to: destination)) }
         }
-        return RestoreReport(run: run, outcomes: outcomes)
+        return RestoreReport(
+            run: run, outcomes: zip(requests, results).map { RestoreOutcome(request: $0, result: $1) })
     }
 
     /// Where `request` should go, or `nil` when the original path is taken and the user chose to skip.
@@ -61,7 +46,9 @@ public struct RestoreExecutor: Sendable {
         let original = request.item.originalURL
         guard request.item.originalIsTaken else { return original }
         guard request.ifTaken == .keepBoth else { return nil }
-        return (1...99).lazy.map { Self.keepBothURL(for: original, number: $0) }.first { !Self.itemExists(at: $0) }
+        return (1...99).lazy.map { Self.keepBothURL(for: original, number: $0) }.first {
+            !ResolvedPath.itemExists(at: $0)
+        }
     }
 
     /// Re-validates `item` and moves it to `destination` (SAF-008).
@@ -84,7 +71,8 @@ public struct RestoreExecutor: Sendable {
             return .skipped(.rejected(error))
         }
         // Items are only ever taken from directly inside the Trash, never from elsewhere in the home folder.
-        guard source.deletingLastPathComponent().pathComponents == Self.realPath(trashFolder)?.pathComponents else {
+        guard source.deletingLastPathComponent().pathComponents == ResolvedPath.realPath(trashFolder)?.pathComponents
+        else {
             return .skipped(.notInTrash)
         }
         let current: ItemSnapshot
@@ -104,53 +92,15 @@ public struct RestoreExecutor: Sendable {
             try FileManager.default.createDirectory(
                 at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         } catch {
-            let error = ActionError(error)
-            Self.logger.error(
-                """
-                Cannot recreate a parent folder: \(error.domain, privacy: .public) \(error.code, privacy: .public), \
-                \(error.message, privacy: .private)
-                """)
-            return .failed(error)
+            return .failed(ActionError(error))
         }
         // RENAME_EXCL fails instead of replacing an item that appeared at the destination since it was checked.
         guard renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 else {
             let code = errno
             if code == EEXIST { return .skipped(.originalTaken) }
-            let error = ActionError(errno: code)
-            Self.logger.error("Cannot restore an item: \(error.logged, privacy: .public)")
-            return .failed(error)
+            return .failed(ActionError(errno: code))
         }
-        return .restored(target)
-    }
-
-    /// The intent record for `request`, or its result record when `result` is given. The record's path is where the
-    /// item goes, and its trashed path is where it comes from (D-52).
-    private func record(for request: RestoreRequest, to destination: URL?, run: UUID, result: RestoreOutcome.Result?)
-        -> HistoryRecord
-    {
-        let item = request.item
-        let path = (destination ?? item.originalURL).path
-        let trashedPath = item.trashedURL.path
-        guard let result else {
-            return .intent(
-                run: run, tool: .history, operation: .restore, path: path, tier: item.tier, trashedPath: trashedPath,
-                bytes: item.bytes)
-        }
-        let status: HistoryRecord.Status
-        var detail: String?
-        switch result {
-        case .restored:
-            status = .ok
-        case .skipped(let reason):
-            status = .skipped
-            detail = reason.logged
-        case .failed(let error):
-            status = .failed
-            detail = error.logged
-        }
-        return .result(
-            run: run, tool: .history, operation: .restore, path: path, tier: item.tier, status: status,
-            trashedPath: trashedPath, bytes: item.bytes, detail: detail)
+        return .done(target)
     }
 
     /// `original` with " (restored)" added before its extension, numbered from the second try:
@@ -161,31 +111,14 @@ public struct RestoreExecutor: Sendable {
         let label = number == 1 ? "restored" : "restored \(number)"
         return original.deletingLastPathComponent().appending(path: "\(name) (\(label))\(suffix)")
     }
-
-    /// Whether anything, including a symlink, exists at `url`. Does not follow a final symlink.
-    private static func itemExists(at url: URL) -> Bool {
-        (try? FileManager.default.attributesOfItem(atPath: url.path)) != nil
-    }
-
-    /// `url` with all symlinks resolved as the path guard resolves them, or `nil` if it doesn't exist.
-    private static func realPath(_ url: URL) -> URL? {
-        guard let pointer = realpath(url.path, nil) else { return nil }
-        defer { free(pointer) }
-        return URL(filePath: String(cString: pointer))
-    }
 }
 
 /// The outcome of one restore request (SAF-011).
 public struct RestoreOutcome: Equatable, Sendable {
-    public enum Result: Equatable, Sendable {
-        /// Moved back; the URL is where it went.
-        case restored(URL)
-        case skipped(SkipReason)
-        /// The move failed.
-        case failed(ActionError)
-    }
+    /// Done (moved back, to the URL it has), skipped or failed, as for a plan's items.
+    public typealias Result = ActionResult<SkipReason>
 
-    public enum SkipReason: Equatable, Sendable {
+    public enum SkipReason: RunSkipReason {
         /// Something occupies the original path, and the user chose to skip, or no free name was found (HIS-003).
         case originalTaken
         /// The item is no longer in the Trash: "Not restorable (Trash emptied)" (HIS-004).

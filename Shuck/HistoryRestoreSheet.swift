@@ -85,7 +85,7 @@ struct HistoryRestoreSheet: View {
 
     /// Every item with its outcome, so a skipped or failed one is visible (SAF-011).
     @ViewBuilder private func summary(_ report: RestoreReport) -> some View {
-        let restored = report.outcomes.filter { if case .restored = $0.result { true } else { false } }.count
+        let restored = report.outcomes.filter { if case .done = $0.result { true } else { false } }.count
         if restored == report.outcomes.count {
             Text("Restored ^[\(restored) item](inflect: true)")
                 .font(.title2.bold())
@@ -127,10 +127,10 @@ struct HistoryRestoreSheet: View {
     /// What happened to an item, in words (SAF-011).
     static func outcome(_ outcome: RestoreOutcome) -> LocalizedStringResource {
         switch outcome.result {
-        case .restored(let url) where url == outcome.request.item.originalURL:
-            "Restored"
-        case .restored(let url):
+        case .done(let url?) where url != outcome.request.item.originalURL:
             "Restored as “\(url.lastPathComponent)”"
+        case .done:
+            "Restored"
         case .skipped(.originalTaken):
             "Skipped: its original place is taken"
         case .skipped(.missing):

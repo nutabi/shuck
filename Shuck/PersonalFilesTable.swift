@@ -2,6 +2,7 @@ import AppKit
 import QuickLook
 import ShuckKit
 import SwiftUI
+import os
 
 /// The results table Large Files and Old Files share (FCL-012).
 ///
@@ -154,6 +155,8 @@ struct PersonalFilesTable: View {
             moveToTrash.review.wrappedValue = try moveToTrash.model.reviewMoveToTrash(
                 moveToTrash.subTool, urls: ordered(urls))
         } catch {
+            // Private: the error names the item the plan stopped at (NFR-SEC-006).
+            Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
             refusal = error
         }
     }

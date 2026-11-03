@@ -25,7 +25,8 @@ public struct PersonalFilesScanner: Sendable {
     let homePrefix: String
     let locationKeys: LocationKeys
 
-    private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "PersonalFiles")
+    /// The scan is shared by File Cleanup's personal-files sub-tools, so it logs under File Cleanup (NFR-OBS-001).
+    private static let logger = Logger(tool: .fileCleanup)
 
     /// - Parameters:
     ///   - batchSize: How many files each ``PersonalFilesEvent/files(_:)`` event carries at most.
@@ -261,12 +262,12 @@ public struct PersonalFilesScanner: Sendable {
     }
 
     /// ``PathGuardConfiguration/protectedNames`` with case folded.
-    private static let protectedNames = Set(PathGuardConfiguration.protectedNames.map(fold))
+    private static let protectedNames = Set(PathGuardConfiguration.protectedNames.map(PathGuard.fold))
 
     /// How `url`, whose key is `key`, is protected, if it is.
     func protectionOf(_ url: URL, key: String?) -> Protection? {
         // Names and extensions are compared with case folded, as the path guard compares them (D-79).
-        let name = Self.fold(url.lastPathComponent)
+        let name = PathGuard.fold(url.lastPathComponent)
         if Self.protectedNames.contains(name)
             || PathGuardConfiguration.protectedExtensions.contains((name as NSString).pathExtension)
         {
@@ -303,14 +304,14 @@ public struct PersonalFilesScanner: Sendable {
     func key(_ url: URL) -> String? {
         let path = url.path
         guard path.hasPrefix(homePrefix) else { return Self.locationKey(url, home: context.home) }
-        return Self.fold(String(path.dropFirst(homePrefix.count)))
+        return PathGuard.fold(String(path.dropFirst(homePrefix.count)))
     }
 
     /// A location's key, or `nil` if it is not inside `home`. Both paths are standardized first, so `/private/var` and
     /// `/var` are the same folder.
     static func locationKey(_ location: URL, home: URL) -> String? {
-        let homePath = fold(home.standardizedFileURL.path) + "/"
-        let path = fold(location.standardizedFileURL.path)
+        let homePath = PathGuard.fold(home.standardizedFileURL.path) + "/"
+        let path = PathGuard.fold(location.standardizedFileURL.path)
         guard path.hasPrefix(homePath) else { return nil }
         return String(path.dropFirst(homePath.count))
     }
@@ -318,12 +319,6 @@ public struct PersonalFilesScanner: Sendable {
     /// The key of the folder that holds the item with `key`. The home folder's key is empty.
     static func parentKey(_ key: String) -> String {
         key.lastIndex(of: "/").map { String(key[..<$0]) } ?? ""
-    }
-
-    /// Full Unicode case folding, as the path guard compares names: `ß` matches `SS` as well as `A` matching `a`, like
-    /// the startup volume. Swift's `==` already treats Unicode canonical forms (é and e + ´) as equal.
-    static func fold(_ path: String) -> String {
-        path.folding(options: .caseInsensitive, locale: nil)
     }
 
     /// The entries of `folder`, or `nil` if it cannot be read. A folder macOS will not let Shuck read is reported as

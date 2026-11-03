@@ -1,5 +1,6 @@
 import Foundation
 import ShuckKit
+import os
 
 /// The runs the History page lists, newest first, read from the history log (HIS-002).
 ///
@@ -72,6 +73,7 @@ final class HistoryModel {
         do throws(HistoryError) {
             state = .loaded(try await load())
         } catch {
+            Logger.app.error("Cannot read the history log: \(String(describing: error), privacy: .private)")
             state = .failed(error)
         }
     }

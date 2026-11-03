@@ -38,7 +38,7 @@ struct HistoryRestoreTests {
             calls.requests.withLock { $0 += batch }
             return RestoreReport(
                 run: UUID(),
-                outcomes: batch.map { RestoreOutcome(request: $0, result: .restored($0.item.originalURL)) })
+                outcomes: batch.map { RestoreOutcome(request: $0, result: .done($0.item.originalURL)) })
         }
     }
 
@@ -162,9 +162,9 @@ struct HistoryRestoreTests {
                     RestoreOutcome(request: RestoreRequest(item: item, ifTaken: .keepBoth), result: result)))
         }
 
-        #expect(text(.restored(item.originalURL)) == "Restored")
+        #expect(text(.done(item.originalURL)) == "Restored")
         #expect(
-            text(.restored(home.appending(path: "Movies/clip (restored).mov")))
+            text(.done(home.appending(path: "Movies/clip (restored).mov")))
                 == "Restored as “clip (restored).mov”")
         #expect(text(.skipped(.originalTaken)) == "Skipped: its original place is taken")
         #expect(text(.skipped(.missing)) == "Skipped: no longer in the Trash")

@@ -85,9 +85,10 @@ public struct PathGuard: Sendable {
         url.pathComponents.map(fold)
     }
 
-    /// Full Unicode case folding, so `ß` matches `SS` as well as `A` matching `a`. The history log matches trashed
-    /// paths with it too.
-    static func fold(_ name: String) -> String {
+    /// Full Unicode case folding, so `ß` matches `SS` as well as `A` matching `a`, like the startup volume. Swift's `==`
+    /// already treats Unicode canonical forms (é and e + ´) as equal. The scanner folds names with this function too,
+    /// so the two always agree on what is protected (D-79), and the history log matches trashed paths with it.
+    package static func fold(_ name: String) -> String {
         name.folding(options: .caseInsensitive, locale: nil)
     }
 }

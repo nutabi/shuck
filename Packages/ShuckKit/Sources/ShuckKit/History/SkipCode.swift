@@ -14,6 +14,7 @@ public enum SkipCode: String, CaseIterable, Sendable {
     case cancelled
     case historyUnavailable
     case unsupportedMethod
+    case notAllowed
     case originalTaken
     case notInTrash
     case otherItem

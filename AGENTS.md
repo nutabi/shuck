@@ -71,7 +71,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 
 - `ShuckKit` holds Tools, Scanning, Rules, Planning, Safety and History, one folder each. It never mutates user files or launchd state.
 - `ShuckExecution` depends on `ShuckKit` and is the only code that mutates user files or launchd state, including Restore's moves. `ShuckKit` cannot import it.
-- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan. Execution tests build a Trash executor for a fixture root with `TrashExecutor(root:pathGuard:)`.
+- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan. Execution tests build a plan executor for a fixture root with `PlanExecutor(root:pathGuard:)`.
 - Tests for `ShuckExecution` go in its own test target, `Tests/ShuckExecutionTests/`.
 
 ## Coding conventions
@@ -82,7 +82,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - A compiler warning fails the build, in the app and in the engine (D-86). Fix the warning; don't silence it.
 - No force unwraps, `try!` or `as!` in `ShuckKit`.
 - Engine APIs throw typed errors (`throws(SomeError)`) whose cases callers can act on.
-- Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool (NFR-OBS-001). Mark paths and file names `privacy: .private` (NFR-SEC-006). No `print` in shipped code.
+- Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool (NFR-OBS-001): `Logger(tool:)` in the engine. Code shared by several tools, such as an executor, logs under the tool it runs for; a scan Large Files and Old Files share logs under File Cleanup. The history log logs under `History`, and the app's own diagnostics under `Logger.app`. Mark paths and file names `privacy: .private` (NFR-SEC-006). No `print` in shipped code.
 - The main thread is never blocked for more than 250 ms (NFR-PERF-001).
 - User-facing strings live in String Catalogs; no hard-coded UI strings (NFR-L10N-001).
 - Every control has a VoiceOver label and works from the keyboard. Never convey information by color alone (NFR-A11Y-001).
@@ -105,7 +105,7 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 
 ## Scan performance
 
-A personal-files scan that is not cancelled logs one line in the `PersonalFiles` category, such as `Scanned 812345 entries in 74.2 seconds` (NFR-PERF-002, D-78). An entry is a file or folder the scan looked at. A package or a device backup counts as one entry, although measuring its size reads everything inside it.
+A personal-files scan that is not cancelled logs one line in the `FileCleanup` category, such as `Scanned 812345 entries in 74.2 seconds` (NFR-PERF-002, D-78). An entry is a file or folder the scan looked at. A package or a device backup counts as one entry, although measuring its size reads everything inside it.
 
 The measurements in `docs/progress.md` come from the owner's own home folder. Agents never scan a real home folder (safety rule 4), so an agent gives the owner these steps instead of running them:
 

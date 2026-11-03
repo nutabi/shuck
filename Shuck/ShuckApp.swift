@@ -1,5 +1,6 @@
 import ShuckKit
 import SwiftUI
+import os
 
 @main
 struct ShuckApp: App {
@@ -23,6 +24,7 @@ struct ShuckApp: App {
         } catch {
             // A UI test passed a bad fixture root, or the build has the wrong bundle ID. Stop rather than scan the real
             // home folder or share another build's data.
+            Logger.app.fault("Cannot launch: \(error.description, privacy: .private)")
             fatalError(error.description)
         }
         registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)

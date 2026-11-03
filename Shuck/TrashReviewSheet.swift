@@ -75,8 +75,8 @@ struct TrashReviewSheet: View {
     }
 
     @ViewBuilder private func summary(_ report: RunReport) -> some View {
-        let moved = report.outcomes.filter { if case .trashed = $0.result { true } else { false } }
-        let notMoved = report.outcomes.filter { if case .trashed = $0.result { false } else { true } }
+        let moved = report.outcomes.filter { if case .done = $0.result { true } else { false } }
+        let notMoved = report.outcomes.filter { if case .done = $0.result { false } else { true } }
         let bytes = moved.reduce(0) { $0 + $1.item.snapshot.allocatedSize }
         if notMoved.isEmpty {
             Text("Moved ^[\(moved.count) item](inflect: true) to the Trash")
@@ -135,7 +135,7 @@ struct TrashReviewSheet: View {
     /// Why an item was not moved, in words (SAF-011).
     static func reason(_ result: ItemOutcome.Result) -> Text {
         switch result {
-        case .trashed:
+        case .done:
             Text("Moved to the Trash")
         case .skipped(.missing):
             Text("No longer there")
@@ -151,6 +151,8 @@ struct TrashReviewSheet: View {
             Text("The history log stopped working")
         case .skipped(.unsupportedMethod):
             Text("Can't be moved to the Trash")
+        case .skipped(.notAllowed):
+            Text("Not allowed for this kind of item")
         case .failed(let error):
             Text("Couldn't be moved: \(error.message)")
         }

@@ -2,6 +2,7 @@ import Foundation
 import ShuckExecution
 import ShuckKit
 import ShuckKitTestSupport
+import Synchronization
 
 /// A ``FolderTrash`` inside the fixture root, so tests never touch the real Trash (D-47).
 ///
@@ -21,7 +22,7 @@ struct FakeTrash: Trash {
     }
 }
 
-extension TrashExecutor {
+extension PlanExecutor {
     /// An executor for tests in `root`: it writes the root's history log and moves items into its fake Trash, running
     /// `beforeMove` just before each move.
     init(
@@ -30,5 +31,44 @@ extension TrashExecutor {
         self.init(
             pathGuard: pathGuard, log: try HistoryLog(folder: root.historyFolder),
             trash: FakeTrash(folder: root.trashFolder, beforeMove: beforeMove))
+    }
+}
+
+/// An action for a method the executor has no real action for yet, such as Tool. It records which items it was handed
+/// and acts on none of them; `onAct` runs as it is handed each one, so a test can cancel the run there.
+final class FakeAction: PlanAction {
+    private let handed = Mutex<[URL]>([])
+    private let onAct: @Sendable () -> Void
+
+    init(onAct: @escaping @Sendable () -> Void = {}) {
+        self.onAct = onAct
+    }
+
+    /// The items the action was handed, in order.
+    var items: [URL] {
+        handed.withLock { $0 }
+    }
+
+    func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason> {
+        handed.withLock { $0.append(item.url) }
+        onAct()
+        return Acted(.done(nil))
+    }
+}
+
+/// A history log that fails once it has written `recordsBeforeFailing` records, as a full disk would (SAF-005).
+actor FailingLog: RecordLog {
+    let log: HistoryLog
+    var recordsBeforeFailing: Int
+
+    init(log: HistoryLog, recordsBeforeFailing: Int) {
+        self.log = log
+        self.recordsBeforeFailing = recordsBeforeFailing
+    }
+
+    func append(_ record: HistoryRecord) async throws(HistoryError) {
+        guard recordsBeforeFailing > 0 else { throw .cannotWrite(log.fileURL.path, "The test's log is full") }
+        recordsBeforeFailing -= 1
+        try await log.append(record)
     }
 }
