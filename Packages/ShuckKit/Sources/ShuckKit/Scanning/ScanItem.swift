@@ -15,10 +15,12 @@ public struct ScanItem: Equatable, Sendable {
     /// The sub-tool whose scan found the item.
     public let source: ToolID
     public let confidence: Confidence?
+    /// Whether the action removes the item or only what is inside it (CAC-004).
+    public let scope: ItemScope
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
-        source: ToolID, confidence: Confidence? = nil
+        source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item
     ) {
         self.url = url
         self.snapshot = snapshot
@@ -27,10 +29,20 @@ public struct ScanItem: Equatable, Sendable {
         self.reason = reason
         self.source = source
         self.confidence = confidence
+        self.scope = scope
     }
 
     /// Allocated size in bytes (SAF-013).
     public var allocatedSize: Int64 { snapshot.allocatedSize }
+}
+
+/// What an action removes: the item itself, or only what is inside a folder (CAC-004).
+public enum ItemScope: String, Codable, Sendable {
+    /// The item itself, whatever its kind.
+    case item
+    /// Everything inside a folder, which is kept, as Caches & Logs keeps each cache folder an app expects to find
+    /// (CAC-004). Only Delete removes a folder's contents; a plan refuses it for any other method or kind (SAF-004).
+    case contents
 }
 
 /// How sure a scan is that an item belongs to what it matched, for example an app's leftovers (APP-003).

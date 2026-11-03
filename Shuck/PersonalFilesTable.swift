@@ -171,13 +171,7 @@ struct PersonalFilesTable: View {
 
     /// The name of the item a refused plan stopped at.
     private static func name(in error: PlanError) -> String {
-        let path: String =
-            switch error {
-            case .otherSubTool(let path, _), .tierNotAllowed(let path, _), .methodNotAllowed(let path, _, _),
-                .rejected(let path, _):
-                path
-            }
-        return URL(filePath: path).lastPathComponent
+        URL(filePath: error.path).lastPathComponent
     }
 
     /// Opens Finder with the items selected. It only shows them; nothing is moved.
