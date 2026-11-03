@@ -220,6 +220,11 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
   DEV-006, SET-003, FCL-005)
 
+Patch releases during M2 (D-94):
+
+- [x] `MARKETING_VERSION` is 0.1.1, set in a pull request, for M2-T01's fixes to TD-01 and TD-03 (`docs/releasing.md`).
+- [ ] A `v0.1.1` tag produces a notarized draft pre-release, which the owner checks on their Mac and publishes.
+
 Exit criteria (PRD section 13):
 
 - [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
