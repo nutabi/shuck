@@ -233,6 +233,13 @@ Process changes during M2:
 - [ ] CodeQL also scans the app target, once it can build the Xcode 27 project, or in M5's security pass at the latest
   (D-96).
 
+Fixes from the review of `main` at 380a07d (#55 to #73), before M2-T02:
+
+- [x] The static checks catch the URL folder properties, `.allDomainsMask`, the date and attribute-list calls,
+  `SMAppService`, FIFOs and folders created on request; `AppEnvironment`'s home has no default (#56, D-97).
+- [ ] Documentation-only pull requests still run the static checks (#57).
+- [ ] Closing the main window keeps Shuck running, or the docs say it quits; the owner picks (#55).
+
 Exit criteria (PRD section 13):
 
 - [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and

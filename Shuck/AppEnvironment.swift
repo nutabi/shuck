@@ -61,14 +61,14 @@ nonisolated struct AppEnvironment {
     ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``.
     ///   - debugBuild: Whether the fixture-root argument counts, and which bundle ID the build must have.
     ///   - bundleID: The app's bundle ID, which names its data folder.
-    ///   - home: The home folder the app scans without a fixture root: the user's own. Tests pass another, so they
-    ///     never name the real one (SAF-016).
+    ///   - home: The home folder the app scans without a fixture root: the user's own. It has no default, so a test
+    ///     that leaves it out does not compile instead of using the real one; tests pass a made-up one (SAF-016).
     /// - Throws: ``LaunchError`` if a debug build gets a fixture-root argument it does not accept, or the bundle ID is
     ///   not the build's own.
     init(
         arguments: [String], settings: Settings, debugBuild: Bool = isDebugBuild,
         appBundle: URL = Bundle.main.bundleURL, bundleID: String? = Bundle.main.bundleIdentifier,
-        home: URL = .homeDirectory
+        home: URL
     ) throws(LaunchError) {
         guard let bundleID, bundleID == (debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID) else {
             throw .unexpectedBundleID(bundleID)

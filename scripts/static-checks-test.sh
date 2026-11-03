@@ -70,6 +70,16 @@ for call in 'renamex_np(from, to, flags)' 'renameat(fd, from, fd, to)' 'renameat
     'try url.setResourceValue(true, forKey: .isHiddenKey)'; do
     new_tree "mutation-${call%%(*}" && put "$engine" "let result = $call" && expect_rule mutation SAF-017
 done
+# Dates, attribute lists, Finder icons and login items (#56).
+for call in 'utimes(path, nil)' 'lutimes(path, nil)' 'futimes(fd, nil)' 'utimensat(fd, path, &times, 0)' \
+    'futimens(fd, &times)' 'setattrlist(path, &list, &buffer, size, 0)' 'fsetattrlist(fd, &list, &buffer, size, 0)' \
+    'setattrlistat(fd, path, &list, &buffer, size, 0)' 'NSWorkspace.shared.setIcon(image, forFile: path)' \
+    'SMLoginItemSetEnabled(identifier as CFString, true)'; do
+    new_tree "mutation-${call%%(*}" && put "$app" "let result = $call" && expect_rule mutation SAF-017
+done
+new_tree login-item && put "$app" 'try SMAppService.agent(plistName: "agent.plist").register()' &&
+    expect_rule mutation SAF-017
+new_tree login-item-type && put "$engine" 'let service: SMAppService = .mainApp' && expect_rule mutation SAF-017
 new_tree write && put "$engine" 'try data.write(to: url)' && expect_rule file-write SAF-017
 for call in 'try "text".write(toFile: path, atomically: true, encoding: .utf8)' 'let fd = openat(dir, path, O_CREAT)' \
     'mkdirat(dir, path, 0o700)' 'let stream = OutputStream(url: url, append: true)' \
@@ -77,6 +87,14 @@ for call in 'try "text".write(toFile: path, atomically: true, encoding: .utf8)' 
     'symlinkat(target, fd, path)' 'link(from, to)' 'linkat(fd, from, fd, to, 0)'; do
     new_tree "file-write-$(tr -cd '[:alnum:]' <<<"${call:0:16}")" && put "$app" "$call" && expect_rule file-write SAF-017
 done
+# FIFOs, device nodes, folders that FileManager creates on request, and NSWorkspace's copies (#56).
+for call in 'mkfifo(path, 0o600)' 'mkfifoat(fd, path, 0o600)' 'mknod(path, S_IFIFO | 0o600, 0)' \
+    'mknodat(fd, path, S_IFIFO | 0o600, 0)' 'NSWorkspace.shared.duplicate([url]) { _, _ in }'; do
+    new_tree "file-write-${call%%(*}" && put "$engine" "let result = $call" && expect_rule file-write SAF-017
+done
+new_tree replacement-folder && put "$engine" 'let folder = try FileManager.default.url(
+    for: .itemReplacementDirectory, in: .localDomainMask, appropriateFor: target, create: true)' &&
+    expect_rule file-write SAF-017
 new_tree process && put "$app" 'let process = Process()' && expect_rule process D-82
 new_tree process-run && put "$engine" 'try Process.run(url, arguments: [path])' && expect_rule process D-82
 new_tree process-type && put "$app" 'let process: Process = .init()' && expect_rule process D-82
@@ -95,6 +113,17 @@ new_tree home-environment && put ShuckTests/SomeTests.swift 'let home = ProcessI
 new_tree home-domain && put ShuckTests/SomeTests.swift \
     'let folder = try FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false)' &&
     expect_rule real-home SAF-016
+new_tree home-all-domains && put ShuckTests/SomeTests.swift \
+    'let folders = FileManager.default.urls(for: .downloadsDirectory, in: .allDomainsMask)' && expect_rule real-home SAF-016
+# The user's folders as URL properties, by type name or as an implicit member (#56).
+for folder in userDirectory documentsDirectory desktopDirectory downloadsDirectory libraryDirectory \
+    applicationSupportDirectory cachesDirectory moviesDirectory musicDirectory picturesDirectory sharedPublicDirectory \
+    trashDirectory; do
+    new_tree "home-$folder" && put ShuckTests/SomeTests.swift "let folder = URL.$folder.appending(path: \"a\")" &&
+        expect_rule real-home SAF-016
+done
+new_tree home-implicit-member && put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift \
+    'let folder: URL = .downloadsDirectory' && expect_rule real-home SAF-016
 new_tree home-trash && put Packages/ShuckKit/Tests/ShuckExecutionTests/SomeTests.swift \
     'let action = TrashAction(trash: SystemTrash())' && expect_rule real-home SAF-016
 new_tree permissions && put "$engine" 'try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path)' &&
@@ -114,7 +143,10 @@ new_tree allowed
 put "$execution" 'try FileManager.default.trashItem(at: url, resultingItemURL: &trashed)
 let arguments = ["bootout", target]
 guard renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 else { return }
-let process = Process()'
+let process = Process()
+try SMAppService.agent(plistName: "agent.plist").unregister()
+let replacement = try FileManager.default.url(
+    for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: target, create: true)'
 put Packages/ShuckKit/Sources/ShuckKit/History/HistoryWriter.swift 'try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
 fchmod(descriptor, 0o600)'
@@ -123,13 +155,17 @@ try script.write(to: url, atomically: true, encoding: .utf8)'
 put ShuckTests/TrashTests.swift '#expect(environment.trash is SystemTrash)'
 put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift 'print("debug output in a test")
 #expect(ResultRow.folder(of: file, home: home) == "~/Downloads")
-let info = ProcessInfo.processInfo'
+let info = ProcessInfo.processInfo
+let scratch = URL.temporaryDirectory.appending(path: "scratch")
+let duplicate = entries.filter { $0.isDuplicate }'
 put "$app" '// URLSession is banned, and this comment mentions it without using it.
 NSWorkspace.shared.open(settingsURL)
 Link("Privacy settings", destination: settingsURL)
 let processName = ProcessInfo.processInfo.processName
 let n = items.remove(at: 0)
-let home = URL.homeDirectory'
+let home = URL.homeDirectory
+let downloads = URL.downloadsDirectory
+let trash = try FileManager.default.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: nil, create: false)'
 put Shuck.xcodeproj/project.xcproj '"packages": [ { "kind": "local", "path": "Packages/ShuckKit" } ]'
 expect_clean "allowed code"
 
