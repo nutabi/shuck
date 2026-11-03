@@ -196,7 +196,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   owner merges the stack with `gh stack merge` (D-100).
   - [x] Items that remove only a folder's contents: `ItemScope` on `ScanItem` and `PlannedItem`; a plan refuses it for
     any method but Delete, and for anything but a folder (CAC-004, SAF-004, D-100).
-  - [ ] The Delete action: nothing followed out of the target, logged as `delete` (SAF-006, SAF-007, SAF-011).
+  - [x] The Delete action: nothing followed out of the target, logged as `delete` (SAF-006, SAF-007, SAF-011, D-101).
+    Left over: no test mounts a volume inside a target, since tests may not start `hdiutil` (D-82).
   - [ ] Stop interrupts re-measuring a large folder during a run or a restore (#70, SAF-014).
   - [ ] Re-validation compares the file identity the scan read, so a replaced file is skipped (#71, SAF-008).
   - [ ] History records are flushed with a barrier, and the log fully at the end of each run (#72, HIS-001).
