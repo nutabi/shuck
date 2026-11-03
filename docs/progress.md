@@ -239,7 +239,8 @@ Fixes from the review of `main` at 380a07d (#55 to #73), before M2-T02:
   `SMAppService`, FIFOs and folders created on request; `AppEnvironment`'s home has no default (#56, D-97).
 - [x] Documentation-only pull requests still run the static checks, and every change checks `CHANGELOG.md`'s form
   (#57, D-98).
-- [ ] Closing the main window keeps Shuck running, or the docs say it quits; the owner picks (#55).
+- [x] Closing the main window quits Shuck, and the code comment and the 0.1.1 notes say so (#55, D-99). The 0.1.1 notes
+  also say that only Large Files remembers Group by Folder (#58).
 
 Exit criteria (PRD section 13):
 

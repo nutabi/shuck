@@ -42,7 +42,8 @@ struct ShuckApp: App {
 
     var body: some Scene {
         // One main window: a `WindowGroup` would let File > New Window (⌘N) open a second one that shares the
-        // navigation and the selection (TD-13). The Window menu reopens it after it is closed.
+        // navigation and the selection (TD-13). As the app's first scene, a `Window` quits the app when it is closed
+        // (D-99).
         Window(Text(verbatim: "Shuck"), id: "main") {
             ContentView(registry: registry, pages: pages, fileCleanup: fileCleanup, history: history)
                 .environment(navigation)
