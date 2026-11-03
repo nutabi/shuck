@@ -1,4 +1,5 @@
 import Foundation
+import ShuckExecution
 import ShuckKit
 import Synchronization
 import Testing
@@ -13,14 +14,18 @@ import Testing
 struct HistoryTests {
     let home = URL(filePath: "/StubHome", directoryHint: .isDirectory)
 
-    func item(_ outcome: HistoryRun.Item.Outcome, restorability: Restorability? = nil) -> HistoryRun.Item {
+    func item(
+        _ outcome: HistoryRun.Item.Outcome, restorability: Restorability? = nil,
+        operation: HistoryRecord.Operation = .trash
+    ) -> HistoryRun.Item {
         HistoryRun.Item(
-            path: "/StubHome/Movies/clip.mov", trashedPath: nil, bytes: 100, tier: .yourData, outcome: outcome,
+            operation: operation, path: "/StubHome/Movies/clip.mov", trashedPath: nil, bytes: 100, tier: .yourData,
+            outcome: outcome,
             restorability: restorability)
     }
 
     func run(_ items: [HistoryRun.Item], tool: ToolID = .largeFiles) -> HistoryRun {
-        HistoryRun(id: UUID(), tool: tool, operation: .trash, started: .now, items: items)
+        HistoryRun(id: UUID(), tool: tool, started: .now, items: items)
     }
 
     @Test func reloadShowsTheLogAndThenItsChanges() async {
@@ -91,22 +96,92 @@ struct HistoryTests {
                 == "Interrupted before its outcome was recorded")
     }
 
+    /// HIS-002: a run is labelled by its items' one operation, or by every operation they used (D-90).
+    @Test func aRunsMethodComesFromItsItemsHIS002() {
+        #expect(OutcomeWording.method(of: run([item(.succeeded), item(.succeeded)])) == "Moved to the Trash")
+        let restore = run([item(.succeeded, operation: .restore)], tool: .history)
+        #expect(OutcomeWording.method(of: restore) == "Moved back from the Trash")
+        let mixed = run([
+            item(.succeeded, operation: .delete), item(.succeeded, operation: .tool),
+            item(.succeeded, operation: .delete),
+        ])
+        #expect(OutcomeWording.method(of: mixed) == "Deleted permanently and cleaned by tools")
+        let uninstall = run([
+            item(.succeeded, operation: .launchctl), item(.succeeded, operation: .trash),
+            item(.succeeded, operation: .tool),
+        ])
+        #expect(
+            OutcomeWording.method(of: uninstall) == "Changed with launchctl, moved to the Trash, and cleaned by tools")
+    }
+
     /// SAF-011: logged skip reasons read as words, as this version and Shuck 0.1.0 wrote them (D-88); one the app does
     /// not know is shown as logged.
     @Test func skipReasonsReadAsWordsSAF011() {
-        #expect(String(localized: HistoryView.skipReason("missing")) == "no longer there")
-        #expect(String(localized: HistoryView.skipReason("notAccessible")) == "not accessible")
-        #expect(String(localized: HistoryView.skipReason("changed: file, 4096 bytes")) == "changed since the scan")
+        func text(_ detail: String?, _ operation: HistoryRecord.Operation = .trash) -> String {
+            String(localized: HistoryView.status(of: item(.skipped(detail), operation: operation)))
+        }
+
+        #expect(text("missing") == "Skipped: no longer there")
+        #expect(text("missing", .restore) == "Skipped: no longer in the Trash")
+        #expect(text("notAccessible") == "Skipped: not accessible")
+        #expect(text("changed: file, 4096 bytes") == "Skipped: changed since the scan")
+        #expect(text("changed: file, 4096 bytes", .restore) == "Skipped: changed since it was moved to the Trash")
+        #expect(text("rejected: outsideAllowedRoots") == "Skipped: failed a safety check")
+        #expect(text("unsupportedMethod: tool", .tool) == "Skipped: this version of Shuck can't do this")
+        #expect(text("notAllowed: delete", .delete) == "Skipped: not allowed for this kind of item")
+        #expect(text("originalTaken", .restore) == "Skipped: its original place is taken")
+        #expect(text("otherItem", .restore) == "Skipped: no longer in the Trash, and another item has its name")
+        #expect(text("somethingNew") == "Skipped: somethingNew")
+        #expect(text(nil) == "Skipped")
+    }
+
+    /// SAF-011: Shuck 0.1.0 logged Swift's description of a reason; its code reads the same (D-88).
+    @Test func reasonsLoggedByShuck010ReadTheSameSAF011() {
+        func text(_ outcome: HistoryRun.Item.Outcome) -> String {
+            String(localized: HistoryView.status(of: item(outcome)))
+        }
+
         #expect(
-            String(
-                localized: HistoryView.skipReason(
-                    "changed(ShuckKit.ItemSnapshot(kind: ShuckKit.ItemSnapshot.Kind.file, allocatedSize: 4))"))
-                == "changed since the scan")
+            text(.skipped("changed(ShuckKit.ItemSnapshot(kind: ShuckKit.ItemSnapshot.Kind.file, allocatedSize: 4))"))
+                == "Skipped: changed since the scan")
         #expect(
-            String(localized: HistoryView.skipReason(#"rejected(ShuckKit.PathGuardError.outsideAllowedRoots("/x/y"))"#))
-                == "failed a safety check")
-        #expect(String(localized: HistoryView.skipReason("originalTaken")) == "its original place is taken")
-        #expect(String(localized: HistoryView.skipReason("otherItem")) == "another item has its name in the Trash")
-        #expect(String(localized: HistoryView.skipReason("somethingNew")) == "somethingNew")
+            text(.skipped(#"rejected(ShuckKit.PathGuardError.outsideAllowedRoots("/x/y"))"#))
+                == "Skipped: failed a safety check")
+        // A failure's description is all 0.1.0 logged, so it is shown as logged.
+        #expect(text(.failed("denied")) == "Failed: denied")
+    }
+
+    /// SAF-011, NFR-L10N-001: a logged failure shows its error's description, without the domain and code.
+    @Test func aLoggedFailureShowsItsDescriptionSAF011() {
+        let error = ActionError(errno: EACCES)
+        #expect(String(localized: HistoryView.status(of: item(.failed(error.logged)))) == "Failed: Permission denied")
+        #expect(String(localized: HistoryView.status(of: item(.failed(nil)))) == "Failed")
+    }
+
+    /// The sheets and the History page word a reason the same, from its code (D-90).
+    @Test func theSheetsAndHistoryShareTheirWordsSAF011() {
+        for code in SkipCode.allCases {
+            for operation in [HistoryRecord.Operation.trash, .restore] {
+                #expect(
+                    String(localized: OutcomeWording.skipped(code, operation: operation))
+                        == String(localized: OutcomeWording.skipped(detail: code.logged("x"), operation: operation)))
+            }
+        }
+    }
+
+    /// TD-16: a history log error reads as a message, with its path apart, never as Swift's description of it.
+    @Test func historyErrorsReadAsWords() {
+        let path = "/StubHome/Library/Application Support/me.nutabi.shuck/history.jsonl"
+        let errors: [HistoryError] = [
+            .notAFolder(path), .notARegularFile(path), .cannotPrepareFolder(path, "x"), .cannotOpen(path, errno: ELOOP),
+            .cannotOpen(path, errno: EACCES), .cannotOpen(path, errno: EIO), .cannotWrite(path, "x"),
+            .cannotRead(path, "x"),
+        ]
+        let messages = errors.map { OutcomeWording.message($0) }
+
+        #expect(messages.allSatisfy { $0.path == path })
+        #expect(Set(messages.map { String(localized: $0.text) }).count == errors.count)
+        #expect(messages.allSatisfy { !String(localized: $0.text).contains(path) })
+        #expect(String(localized: messages[7].text) == "Shuck couldn't read its history log.")
     }
 }

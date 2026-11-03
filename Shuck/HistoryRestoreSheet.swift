@@ -111,11 +111,8 @@ struct HistoryRestoreSheet: View {
         Text("Nothing was restored")
             .font(.title2.bold())
         // Every action is logged before it runs, so without the log nothing runs (SAF-005).
-        Text("Shuck couldn't open its history log, and it never moves anything without recording it first.")
-        Text(verbatim: String(describing: error))
-            .font(.callout.monospaced())
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
+        Text("Shuck never moves anything without recording it first, and it couldn't record this run.")
+        HistoryErrorText(error: error)
         Spacer()
         HStack {
             Spacer()
@@ -131,26 +128,10 @@ struct HistoryRestoreSheet: View {
             "Restored as “\(url.lastPathComponent)”"
         case .done:
             "Restored"
-        case .skipped(.originalTaken):
-            "Skipped: its original place is taken"
-        case .skipped(.missing):
-            "Skipped: no longer in the Trash"
-        case .skipped(.notAccessible):
-            "Skipped: not accessible"
-        case .skipped(.changed):
-            "Skipped: changed since it was moved to the Trash"
-        case .skipped(.rejected):
-            "Skipped: failed a safety check"
-        case .skipped(.notInTrash):
-            "Skipped: not in the Trash"
-        case .skipped(.otherItem):
-            "Skipped: no longer in the Trash, and another item has its name"
-        case .skipped(.cancelled):
-            "Skipped: stopped before it was restored"
-        case .skipped(.historyUnavailable):
-            "Skipped: the history log stopped working"
+        case .skipped(let reason):
+            OutcomeWording.skipped(reason.code, operation: .restore)
         case .failed(let error):
-            "Failed: \(error.message)"
+            OutcomeWording.failed(error)
         }
     }
 }

@@ -147,4 +147,32 @@ struct TrashReviewTests {
         #expect(!model.canMoveToTrash)
         #expect(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
     }
+
+    /// SAF-011: the summary says why an item was not moved, in the words History uses for the same code (D-90).
+    @Test func theSummarySaysWhyAnItemWasNotMovedSAF011() {
+        func text(_ result: ItemOutcome.Result, method: ActionMethod = .trash) -> String {
+            let item = PlannedItem(
+                url: url("Movies/clip.mov"), tier: .yourData, method: method,
+                snapshot: ItemSnapshot(kind: .file, allocatedSize: 10))
+            return String(localized: TrashReviewSheet.reason(ItemOutcome(item: item, result: result)))
+        }
+
+        #expect(text(.skipped(.missing)) == "Skipped: no longer there")
+        #expect(text(.skipped(.notAccessible)) == "Skipped: not accessible")
+        #expect(
+            text(.skipped(.changed(ItemSnapshot(kind: .file, allocatedSize: 20)))) == "Skipped: changed since the scan")
+        #expect(text(.skipped(.cancelled)) == "Skipped: stopped before it was acted on")
+        #expect(
+            text(.skipped(.unsupportedMethod(.tool)), method: .tool) == "Skipped: this version of Shuck can't do this")
+        #expect(text(.skipped(.notAllowed(.delete)), method: .delete) == "Skipped: not allowed for this kind of item")
+        #expect(text(.failed(ActionError(errno: EACCES))) == "Failed: Permission denied")
+        #expect(
+            text(.skipped(.missing))
+                == String(
+                    localized: HistoryView.status(
+                        of: HistoryRun.Item(
+                            operation: .trash, path: "/StubHome/Movies/clip.mov", trashedPath: nil, bytes: 10,
+                            tier: .yourData,
+                            outcome: .skipped("missing"), restorability: nil))))
+    }
 }

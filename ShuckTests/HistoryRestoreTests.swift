@@ -124,10 +124,11 @@ struct HistoryRestoreTests {
             Restorability.restorable(inTrash), .trashEmptied, .restored, .notAccessible,
         ].map { restorability in
             HistoryRun.Item(
-                path: "/StubHome/Movies/x.mov", trashedPath: nil, bytes: 100, tier: .yourData, outcome: .succeeded,
+                operation: .trash, path: "/StubHome/Movies/x.mov", trashedPath: nil, bytes: 100, tier: .yourData,
+                outcome: .succeeded,
                 restorability: restorability)
         }
-        let run = HistoryRun(id: UUID(), tool: .largeFiles, operation: .trash, started: .now, items: items)
+        let run = HistoryRun(id: UUID(), tool: .largeFiles, started: .now, items: items)
 
         #expect(run.restorableItems == [inTrash])
     }
@@ -138,10 +139,11 @@ struct HistoryRestoreTests {
         let second = trashed(home.appending(path: "Movies/clip.mov"))
         let runs = [[second, first], [trashed(home.appending(path: "Movies/other.mov"))]].map { items in
             HistoryRun(
-                id: UUID(), tool: .largeFiles, operation: .trash, started: .now,
+                id: UUID(), tool: .largeFiles, started: .now,
                 items: items.map { item in
                     HistoryRun.Item(
-                        path: item.originalURL.path, trashedPath: item.trashedURL.path, bytes: 100, tier: .yourData,
+                        operation: .trash, path: item.originalURL.path, trashedPath: item.trashedURL.path, bytes: 100,
+                        tier: .yourData,
                         outcome: .succeeded, restorability: .restorable(item))
                 })
         }

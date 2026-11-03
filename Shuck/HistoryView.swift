@@ -39,7 +39,7 @@ struct HistoryView: View {
             ContentUnavailableView {
                 Label("Can't read the history log", systemImage: "exclamationmark.triangle")
             } description: {
-                Text(verbatim: String(describing: error))
+                HistoryErrorText(error: error)
             }
         case .loaded(let history) where history.runs.isEmpty && history.unreadableLineCount == 0:
             ContentUnavailableView(
@@ -143,16 +143,6 @@ struct HistoryView: View {
         return registry.info(run.tool)?.name ?? "\(run.tool.rawValue)"
     }
 
-    static func method(_ operation: HistoryRecord.Operation) -> LocalizedStringResource {
-        switch operation {
-        case .trash: "Moved to the Trash"
-        case .delete: "Deleted permanently"
-        case .tool: "Cleaned by its tool"
-        case .launchctl: "Changed with launchctl"
-        case .restore: "Moved back from the Trash"
-        }
-    }
-
     /// How a run ended, in words and with a symbol, never by color alone (NFR-A11Y-001).
     static func status(of run: HistoryRun) -> (text: LocalizedStringResource, symbol: String) {
         if run.items.contains(where: { $0.outcome == .interrupted }) {
@@ -180,32 +170,11 @@ struct HistoryView: View {
             case nil: "Moved back"
             }
         case .skipped(let detail):
-            "Skipped: \(skipReason(detail))"
-        case .failed(let detail?):
-            "Failed: \(detail)"
-        case .failed(nil):
-            "Failed"
+            OutcomeWording.skipped(detail: detail, operation: item.operation)
+        case .failed(let detail):
+            OutcomeWording.failed(detail: detail)
         case .interrupted:
             "Interrupted before its outcome was recorded"
-        }
-    }
-
-    /// A logged skip reason in words. The executors log the reason's code, followed by any detail (D-88); a code
-    /// this version does not know is shown as logged.
-    static func skipReason(_ detail: String?) -> LocalizedStringResource {
-        switch detail.flatMap(SkipCode.init(detail:)) {
-        case .missing: "no longer there"
-        case .notAccessible: "not accessible"
-        case .changed: "changed since the scan"
-        case .rejected: "failed a safety check"
-        case .cancelled: "stopped before it was acted on"
-        case .historyUnavailable: "the history log stopped working"
-        case .unsupportedMethod: "method not supported"
-        case .notAllowed: "not allowed for this kind of item"
-        case .originalTaken: "its original place is taken"
-        case .notInTrash: "not in the Trash"
-        case .otherItem: "another item has its name in the Trash"
-        case nil: "\(detail ?? "")"
         }
     }
 }
@@ -219,7 +188,7 @@ private struct HistoryRunRow: View {
         let status = HistoryView.status(of: run)
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(Text(area)) · \(Text(HistoryView.method(run.operation)))")
+                Text("\(Text(area)) · \(OutcomeWording.method(of: run))")
                     .font(.headline)
                 // The size of what changed: a skipped item changed nothing (SAF-013).
                 Text(
@@ -242,7 +211,7 @@ private struct HistoryRunRow: View {
     }
 }
 
-/// An item's name and folder, its outcome and its size.
+/// An item's name and folder, what was done to it, its outcome and its size.
 private struct HistoryItemRow: View {
     let item: HistoryRun.Item
     let home: URL
@@ -252,7 +221,8 @@ private struct HistoryItemRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: url.lastPathComponent)
-                Text(verbatim: ResultRow.folder(of: url, home: home))
+                // Each item says what was done to it: a run may mix methods (HIS-002).
+                Text("\(ResultRow.folder(of: url, home: home)) · \(Text(OutcomeWording.method(item.operation)))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

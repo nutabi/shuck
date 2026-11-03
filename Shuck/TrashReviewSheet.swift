@@ -93,7 +93,7 @@ struct TrashReviewSheet: View {
                 .font(.headline)
             List(notMoved, id: \.item.url) { outcome in
                 ItemRow(url: outcome.item.url, home: home) {
-                    Self.reason(outcome.result)
+                    Text(Self.reason(outcome))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -119,11 +119,8 @@ struct TrashReviewSheet: View {
         Text("Nothing was moved")
             .font(.title2.bold())
         // Every action is logged before it runs, so without the log nothing runs (SAF-005).
-        Text("Shuck couldn't open its history log, and it never moves anything without recording it first.")
-        Text(verbatim: String(describing: error))
-            .font(.callout.monospaced())
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
+        Text("Shuck never moves anything without recording it first, and it couldn't record this run.")
+        HistoryErrorText(error: error)
         Spacer()
         HStack {
             Spacer()
@@ -133,28 +130,12 @@ struct TrashReviewSheet: View {
     }
 
     /// Why an item was not moved, in words (SAF-011).
-    static func reason(_ result: ItemOutcome.Result) -> Text {
-        switch result {
-        case .done:
-            Text("Moved to the Trash")
-        case .skipped(.missing):
-            Text("No longer there")
-        case .skipped(.notAccessible):
-            Text("Not accessible")
-        case .skipped(.changed):
-            Text("Changed since the scan")
-        case .skipped(.rejected):
-            Text("Failed a safety check")
-        case .skipped(.cancelled):
-            Text("Stopped before it was moved")
-        case .skipped(.historyUnavailable):
-            Text("The history log stopped working")
-        case .skipped(.unsupportedMethod):
-            Text("Can't be moved to the Trash")
-        case .skipped(.notAllowed):
-            Text("Not allowed for this kind of item")
-        case .failed(let error):
-            Text("Couldn't be moved: \(error.message)")
+    static func reason(_ outcome: ItemOutcome) -> LocalizedStringResource {
+        let operation = HistoryRecord.Operation(outcome.item.method)
+        return switch outcome.result {
+        case .done: OutcomeWording.method(operation)
+        case .skipped(let reason): OutcomeWording.skipped(reason.code, operation: operation)
+        case .failed(let error): OutcomeWording.failed(error)
         }
     }
 }

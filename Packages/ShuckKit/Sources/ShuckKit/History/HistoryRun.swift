@@ -18,6 +18,9 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
             case interrupted
         }
 
+        /// What was done to the item, or was to be done. A plan may mix methods, so the items of one run may differ
+        /// (D-89).
+        public let operation: HistoryRecord.Operation
         /// The original path; for a restore, where the item went (D-52).
         public let path: String
         /// Where the item went in the Trash; for a restore, where it came from.
@@ -30,9 +33,10 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
         public let restorability: Restorability?
 
         public init(
-            path: String, trashedPath: String?, bytes: Int64?, tier: Tier, outcome: Outcome,
-            restorability: Restorability?
+            operation: HistoryRecord.Operation, path: String, trashedPath: String?, bytes: Int64?, tier: Tier,
+            outcome: Outcome, restorability: Restorability?
         ) {
+            self.operation = operation
             self.path = path
             self.trashedPath = trashedPath
             self.bytes = bytes
@@ -46,18 +50,24 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
     public let id: UUID
     /// The sub-tool or tool that ran: ``ToolID/history`` for a restore.
     public let tool: ToolID
-    public let operation: HistoryRecord.Operation
     /// When the run logged its first record.
     public let started: Date
     /// The items in the order the run logged them.
     public let items: [Item]
 
-    public init(id: UUID, tool: ToolID, operation: HistoryRecord.Operation, started: Date, items: [Item]) {
+    public init(id: UUID, tool: ToolID, started: Date, items: [Item]) {
         self.id = id
         self.tool = tool
-        self.operation = operation
         self.started = started
         self.items = items
+    }
+
+    /// What the run did, each operation once, in the order its items first used it: one for most runs, several for a
+    /// run whose plan mixed methods, such as Delete and Tool (HIS-002, D-89).
+    public var operations: [HistoryRecord.Operation] {
+        items.reduce(into: []) { operations, item in
+            if !operations.contains(item.operation) { operations.append(item.operation) }
+        }
     }
 
     /// The size of the items that succeeded, in bytes (SAF-013).
@@ -110,9 +120,7 @@ extension HistoryLog.Contents {
         }
         return order.compactMap { id in
             runs[id].map { run in
-                HistoryRun(
-                    id: id, tool: run.first.tool, operation: run.first.operation, started: run.first.timestamp,
-                    items: run.items)
+                HistoryRun(id: id, tool: run.first.tool, started: run.first.timestamp, items: run.items)
             }
         }
     }
@@ -121,7 +129,8 @@ extension HistoryLog.Contents {
         -> HistoryRun.Item
     {
         HistoryRun.Item(
-            path: record.path, trashedPath: record.trashedPath, bytes: record.bytes, tier: record.tier,
+            operation: record.operation, path: record.path, trashedPath: record.trashedPath, bytes: record.bytes,
+            tier: record.tier,
             outcome: outcome, restorability: restorability)
     }
 
