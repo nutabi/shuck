@@ -364,6 +364,17 @@ struct PlanExecutorTests {
 
     // MARK: - History log failures
 
+    @Test func aRunFlushesTheLogFullyOnceWhenItEndsHIS001() async throws {
+        let files = try (1...3).map { try root.file("Downloads/file\($0).bin", size: 10) }
+        let log = FailingLog(log: try HistoryLog(folder: logFolder))
+
+        let report = try await run(try plan(files.map { try planned($0) }), actions: [:], log: log)
+
+        #expect(report.outcomes.count == 3)
+        #expect(await log.fullFlushes == 1)
+        #expect(try HistoryLog.read(folder: logFolder).records.count == 6)
+    }
+
     @Test func aFailedIntentRecordStopsTheRunBeforeTheItemSAF005() async throws {
         let files = try (1...3).map { try root.file("Downloads/file\($0).bin", size: 10) }
         let log = FailingLog(log: try HistoryLog(folder: logFolder), recordsBeforeFailing: 2)
@@ -377,6 +388,8 @@ struct PlanExecutorTests {
         }
         #expect(results[1...] == [.skipped(.historyUnavailable), .skipped(.historyUnavailable)])
         #expect(!exists(files[0]) && exists(files[1]) && exists(files[2]))
+        // The full flush at the end fails too, and the outcomes stand.
+        #expect(await log.fullFlushes == 1)
         #expect(try HistoryLog.read(folder: logFolder).records.map(\.path) == [files[0].path, files[0].path])
     }
 

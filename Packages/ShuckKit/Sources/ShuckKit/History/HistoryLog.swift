@@ -4,9 +4,15 @@ import os
 /// Shuck's history log: an append-only JSON Lines file in Shuck's data folder (PRD section 8.5, HIS-001).
 ///
 /// The folder is kept at mode 0700 and the file at 0600 (NFR-SEC-005); wrong modes are fixed when the log opens
-/// (D-45). Each record is written with one `write` call and flushed to disk before ``append(_:)`` returns, so a crash
-/// can lose at most the record being written. A line cut short by a crash is skipped by the reader and reported in
-/// ``Contents/unreadableLines``, and the writer starts the next record on a new line.
+/// (D-45). Each record is written with one `write` call, so a crash can lose at most the record being written. A line
+/// cut short by a crash is skipped by the reader and reported in ``Contents/unreadableLines``, and the writer starts
+/// the next record on a new line.
+///
+/// On macOS, `fsync` hands data to the drive, which may write it later and out of order. So each record is flushed
+/// with a barrier (`F_BARRIERFSYNC`) before ``append(_:)`` returns: the drive writes it before anything written after
+/// it, such as the move or deletion its intent record announces, and the log never claims less than the disk shows.
+/// ``flushFully()`` asks the drive to write everything to permanent storage (`F_FULLFSYNC`), which takes longer; a run
+/// calls it once, when it ends (HIS-001, NFR-REL-001, D-104).
 public actor HistoryLog {
     public static let fileName = "history.jsonl"
 
@@ -44,16 +50,37 @@ public actor HistoryLog {
         self.handle = handle
     }
 
-    /// Appends `record` and flushes it to disk (HIS-001).
+    /// Appends `record` and flushes it with a barrier, so the drive writes it before anything written after it
+    /// (HIS-001).
     public func append(_ record: HistoryRecord) throws(HistoryError) {
         do {
             try handle.write(contentsOf: record.jsonLine() + Data("\n".utf8))
-            try handle.synchronize()
         } catch {
             // Private: a Foundation error's description can include the file's path (NFR-SEC-006).
             Self.logger.error("Cannot write to the history log: \(String(describing: error), privacy: .private)")
             throw .cannotWrite(fileURL.path, String(describing: error))
         }
+        try flush(F_BARRIERFSYNC)
+    }
+
+    /// Asks the drive to write everything appended so far to permanent storage. A run calls it when it ends (D-104).
+    public func flushFully() throws(HistoryError) {
+        try flush(F_FULLFSYNC)
+    }
+
+    /// Flushes the log with `command`, `F_BARRIERFSYNC` or `F_FULLFSYNC`. A file system that supports neither, such as
+    /// some network volumes, gets an `fsync` instead.
+    private func flush(_ command: Int32) throws(HistoryError) {
+        let descriptor = handle.fileDescriptor
+        guard fcntl(descriptor, command) == -1 else { return }
+        var code = errno
+        if code == ENOTSUP || code == EINVAL || code == ENOTTY {
+            guard fsync(descriptor) == -1 else { return }
+            code = errno
+        }
+        let message = String(cString: strerror(code))
+        Self.logger.error("Cannot flush the history log: \(message, privacy: .public)")
+        throw .cannotWrite(fileURL.path, message)
     }
 
     // MARK: - Reading

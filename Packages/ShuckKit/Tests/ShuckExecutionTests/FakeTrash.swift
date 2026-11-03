@@ -56,12 +56,14 @@ final class FakeAction: PlanAction {
     }
 }
 
-/// A history log that fails once it has written `recordsBeforeFailing` records, as a full disk would (SAF-005).
+/// A history log that fails once it has written `recordsBeforeFailing` records, as a full disk would (SAF-005). It
+/// counts the full flushes it is asked for, and fails them too once it is full.
 actor FailingLog: RecordLog {
     let log: HistoryLog
     var recordsBeforeFailing: Int
+    private(set) var fullFlushes = 0
 
-    init(log: HistoryLog, recordsBeforeFailing: Int) {
+    init(log: HistoryLog, recordsBeforeFailing: Int = .max) {
         self.log = log
         self.recordsBeforeFailing = recordsBeforeFailing
     }
@@ -70,5 +72,11 @@ actor FailingLog: RecordLog {
         guard recordsBeforeFailing > 0 else { throw .cannotWrite(log.fileURL.path, "The test's log is full") }
         recordsBeforeFailing -= 1
         try await log.append(record)
+    }
+
+    func flushFully() async throws(HistoryError) {
+        fullFlushes += 1
+        guard recordsBeforeFailing > 0 else { throw .cannotWrite(log.fileURL.path, "The test's log is full") }
+        try await log.flushFully()
     }
 }
