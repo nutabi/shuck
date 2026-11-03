@@ -178,8 +178,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] History wording in one place (TD-06, TD-08, TD-16): one table from reason codes to words for both sheets and
     the History page, each history item with its own operation, and errors in words. A run whose items mix methods is
     labelled by all of them, and a logged failure shows its error's description (D-90).
-  - [ ] One page layout for every sub-tool (TD-07, TD-10, TD-13, SAF-014): pages found by tool ID, a Stop button for
-    scans, and one main window.
+  - [x] One page layout for every sub-tool (TD-07, TD-10, TD-13, SAF-014): pages found by tool ID, a Stop button for
+    scans, and one main window. A stopped scan stays stopped until the user clicks Scan (D-91).
   - [ ] A results list that merges new rows instead of sorting every row again (TD-09, NFR-PERF-001).
 - [ ] M2-T02 Delete in the run loop: re-validation, nothing followed out of the target, only a folder's contents when
   the item says so, and records marked non-restorable (SAF-004, SAF-006 to SAF-008, SAF-011, SAF-014, CAC-004)

@@ -5,6 +5,7 @@ import os
 @main
 struct ShuckApp: App {
     private let registry: ToolRegistry
+    private let pages: SubToolPages
     /// Kept for the app's lifetime, so scan results survive switching between pages.
     @State private var fileCleanup: FileCleanupModel
     @State private var history: HistoryModel
@@ -28,17 +29,21 @@ struct ShuckApp: App {
             fatalError(error.description)
         }
         registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
+        pages = SubToolPages(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
         _fileCleanup = State(
             initialValue: FileCleanupModel(
-                subTools: registry.subTools, context: environment.context, runPlan: environment.run))
+                subTools: registry.subTools, context: environment.context,
+                personalFilesScan: environment.personalFilesScan, runPlan: environment.run))
         _history = State(
             initialValue: HistoryModel(
                 home: environment.context.home, load: environment.loadHistory, runRestore: environment.restore))
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView(registry: registry, fileCleanup: fileCleanup, history: history)
+        // One main window: a `WindowGroup` would let File > New Window (⌘N) open a second one that shares the
+        // navigation and the selection (TD-13). The Window menu reopens it after it is closed.
+        Window(Text(verbatim: "Shuck"), id: "main") {
+            ContentView(registry: registry, pages: pages, fileCleanup: fileCleanup, history: history)
                 .environment(navigation)
         }
 

@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Click Scan to scan again." : {
+
+    },
     "Items whose original place is free are restored either way." : {
 
     },
@@ -26,6 +29,9 @@
 
     },
     "Restoring ^[%lld item](inflect: true)…" : {
+
+    },
+    "Scan stopped" : {
 
     },
     "Skip" : {
@@ -115,7 +121,16 @@
     "Something other than a folder is where Shuck keeps its data." : {
 
     },
+    "Stop Scanning" : {
+
+    },
     "Stop before the next item. Items already restored stay where they are." : {
+
+    },
+    "Stop scanning %@" : {
+
+    },
+    "Stop scanning (⌘.). Scanning never removes anything." : {
 
     },
     "The history log is a link to another place, so Shuck doesn't open it." : {

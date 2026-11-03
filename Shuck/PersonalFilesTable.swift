@@ -188,10 +188,10 @@ struct PersonalFilesTable: View {
     }
 }
 
-/// What a table needs to offer "Move to Trash" for one personal-files sub-tool.
+/// What a list needs to offer "Move to Trash" for one sub-tool. ``SubToolPage`` makes it.
 struct MoveToTrash {
     let model: FileCleanupModel
-    let subTool: any PersonalFilesSubTool
+    let subTool: any SubTool
     /// Where the table puts the review it opens. The page owns it and shows the sheet (D-77).
     let review: Binding<TrashReview?>
 }

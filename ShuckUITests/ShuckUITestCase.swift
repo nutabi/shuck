@@ -9,13 +9,13 @@ import XCTest
 /// new tool or sub-tool adds its step to the workflow a user would follow, or adds a workflow, and lists it here:
 ///
 /// - File Cleanup: Scan All and the de-duplicated total, in `FindWhatTakesSpaceUITests`.
-/// - Large Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
+/// - Large Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`; Stop a scan, in `FirstLookUITests`.
 /// - Old Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
 /// - History: a run's summary opens the run in History, in `CleanUpThenUndoUITests`.
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
 /// - Overview, Developer Junk, Caches & Logs, Applications and Startup Items: a placeholder that names its milestone,
 ///   in `FirstLookUITests`.
-/// - Settings: ⌘, opens its own window, in `FirstLookUITests`.
+/// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
 ///
 /// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).
 class ShuckUITestCase: XCTestCase {
@@ -33,13 +33,17 @@ class ShuckUITestCase: XCTestCase {
     /// Launches the app with the fixture root as its home folder and the minimum sizes of Large Files and Old Files at
     /// 1 MiB, so fixtures stay small. The app runs in English with the United States region, so the tests' expected
     /// text, such as "10.5 MB", doesn't depend on the Mac's own settings (TD-20).
+    /// - Parameter scanDelay: Seconds each personal-files scan waits before it starts, so a test can stop one.
     @MainActor
-    func launch() -> XCUIApplication {
+    func launch(scanDelay: Int? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)", "-OldFilesMinimumSize",
             "\(1 << 20)", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
         ]
+        if let scanDelay {
+            app.launchArguments += ["-ShuckScanDelaySeconds", "\(scanDelay)"]
+        }
         app.launch()
         return app
     }

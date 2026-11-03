@@ -2,8 +2,7 @@ import Foundation
 import ShuckExecution
 import ShuckKit
 
-/// One "Move to Trash" in a personal-files sub-tool: the plan the review lists, the run, and its report (SAF-002,
-/// SAF-011).
+/// One "Move to Trash" in a sub-tool: the plan the review lists, the run, and its report (SAF-002, SAF-011).
 ///
 /// The plan is fixed when the review opens, and the run acts on exactly that list (PRD section 8.1). A review runs at
 /// most once. `TrashReviewSheet` shows it.

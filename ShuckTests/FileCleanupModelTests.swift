@@ -49,10 +49,10 @@ struct FileCleanupModelTests {
         #expect(succeeded.reclaimableBytes == 2_000)
         #expect(succeeded.notAccessibleCount == 0)
 
-        // Stopping the stalled scan puts back its previous state and leaves the others as they were.
+        // Stopping the stalled scan leaves it stopped and the others as they were.
         stalledScan?.cancel()
         await stalledScan?.value
-        #expect(model.state(of: stalled.id) == .notScanned)
+        #expect(model.state(of: stalled.id) == .stopped)
         #expect(model.state(of: healthy.id) == .scanned(succeeded))
     }
 
@@ -108,6 +108,70 @@ struct FileCleanupModelTests {
         #expect(model.scan(stalled) == nil)
         #expect(!model.canScanAll)
         scan?.cancel()
+    }
+
+    /// Each sub-tool keeps its own list and selection: removing an item one list shows leaves another list as it was
+    /// (FCL-002).
+    @Test func eachSubToolListsItsOwnItemsFCL002() async throws {
+        let first = StubSubTool("TSA", events: [.item(.stub("a", size: 1_000)), .item(.stub("b", size: 3_000))])
+        let second = StubSubTool("TSB", events: [.item(.stub("c", size: 2_000))])
+        let model = FileCleanupModel(subTools: [first, second], context: context)
+        #expect(model.results(of: first.id)?.isEmpty == true)
+
+        await model.scan(first)?.value
+        await model.scan(second)?.value
+        let firstList = try #require(model.scanResults[first.id])
+        let secondList = try #require(model.scanResults[second.id])
+        #expect(firstList.items.map(\.url.lastPathComponent) == ["a", "b"])
+        #expect(secondList.items.map(\.url.lastPathComponent) == ["c"])
+        firstList.selection = [URL(filePath: "/StubHome/b")]
+        secondList.selection = [URL(filePath: "/StubHome/c")]
+
+        // A review acts on the selected rows in the order given, and only on rows the list still has.
+        let urls = ["b", "gone", "a"].map { URL(filePath: "/StubHome/\($0)") }
+        #expect(model.scanItems(first, urls: urls).map(\.url.lastPathComponent) == ["b", "a"])
+
+        model.remove([URL(filePath: "/StubHome/b")])
+        #expect(firstList.items.map(\.url.lastPathComponent) == ["a"])
+        #expect(firstList.selection.isEmpty)
+        #expect(secondList.selection == [URL(filePath: "/StubHome/c")])
+        guard case .scanned(let summary) = model.state(of: first.id) else {
+            Issue.record("Not scanned: \(model.state(of: first.id))")
+            return
+        }
+        #expect(summary.itemCount == 1)
+        #expect(summary.reclaimableBytes == 1_000)
+    }
+
+    /// Stop cancels the scan's task and leaves the sub-tool not scanned with an empty list, so it can scan again
+    /// (SAF-014).
+    @Test func stoppingAScanLeavesItNotScannedSAF014() async throws {
+        let stalled = StallingSubTool()
+        let other = StubSubTool("TSA", events: [.item(.stub("a", size: 1_000))])
+        let model = FileCleanupModel(subTools: [stalled, other], context: context)
+        await model.scan(other)?.value
+
+        let scan = model.scan(stalled)
+        model.cancelScan(stalled)
+        // Stopping a sub-tool that isn't scanning does nothing.
+        model.cancelScan(other)
+        await scan?.value
+
+        #expect(scan?.isCancelled == true)
+        #expect(model.state(of: stalled.id) == .stopped)
+        #expect(model.results(of: stalled.id)?.isEmpty == true)
+        #expect(model.canScan(stalled))
+        // Opening its page again doesn't restart a stopped scan; Scan does.
+        #expect(model.scanIfNotScanned(stalled) == nil)
+        #expect(model.state(of: stalled.id) == .stopped)
+        let again = model.scan(stalled)
+        #expect(model.state(of: stalled.id) == .scanning)
+        again?.cancel()
+        await again?.value
+        guard case .scanned = model.state(of: other.id) else {
+            Issue.record("Stopping one scan changed another sub-tool: \(model.state(of: other.id))")
+            return
+        }
     }
 }
 

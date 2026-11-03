@@ -87,11 +87,18 @@ private struct SubToolRow: View {
             status
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Scan") {
-                model.scan(subTool)
+            if model.state(of: subTool.id) == .scanning {
+                Button("Stop") {
+                    model.cancelScan(subTool)
+                }
+                .accessibilityLabel(Text("Stop scanning \(String(localized: subTool.info.name))"))
+            } else {
+                Button("Scan") {
+                    model.scan(subTool)
+                }
+                .disabled(!model.canScan(subTool))
+                .accessibilityLabel(Text("Scan \(String(localized: subTool.info.name))"))
             }
-            .disabled(!model.canScan(subTool))
-            .accessibilityLabel(Text("Scan \(String(localized: subTool.info.name))"))
         }
         .padding(.vertical, 6)
     }
@@ -109,6 +116,8 @@ private struct SubToolRow: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("Scanning…")
+            case .stopped:
+                Text("Scan stopped")
             case .scanned(let summary):
                 Text("\(summary.reclaimableBytes, format: .byteCount(style: .file)) reclaimable")
                 Text("Scanned \(summary.finished, format: .relative(presentation: .named))")

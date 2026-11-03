@@ -84,9 +84,9 @@ struct TrashReviewTests {
         }
         #expect(report.trashedURLs == [url("Movies/big.mov")])
         // The skipped clip stays listed in both sub-tools.
-        #expect(model.results[.largeFiles]?.rows.map(\.name) == ["mod", "clip.mov"])
-        #expect(model.results[.oldFiles]?.rows.map(\.name).contains("big.mov") == false)
-        #expect(model.results[.oldFiles]?.rows.map(\.name).contains("clip.mov") == true)
+        #expect(model.personalFilesResults[.largeFiles]?.rows.map(\.name) == ["mod", "clip.mov"])
+        #expect(model.personalFilesResults[.oldFiles]?.rows.map(\.name).contains("big.mov") == false)
+        #expect(model.personalFilesResults[.oldFiles]?.rows.map(\.name).contains("clip.mov") == true)
         #expect(model.personalFiles.items[url("Movies/big.mov")] == nil)
         guard case .scanned(let summary) = model.state(of: .largeFiles) else {
             Issue.record("Large Files lost its scan")
@@ -116,7 +116,7 @@ struct TrashReviewTests {
         await review.start()?.value
 
         #expect(review.phase == .failed(failure))
-        #expect(model.results[.largeFiles]?.rows.count == 3)
+        #expect(model.personalFilesResults[.largeFiles]?.rows.count == 3)
     }
 
     @Test func stoppingCancelsTheRunBeforeTheNextItemSAF014() async throws {
@@ -138,7 +138,7 @@ struct TrashReviewTests {
             return
         }
         #expect(report.outcomes.map(\.result) == [.skipped(.cancelled), .skipped(.cancelled)])
-        #expect(model.results[.largeFiles]?.rows.count == 3)
+        #expect(model.personalFilesResults[.largeFiles]?.rows.count == 3)
     }
 
     /// Tests and previews give the model no run, so nothing in them can move a file.

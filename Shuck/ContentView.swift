@@ -4,9 +4,10 @@ import SwiftUI
 /// The main window: a sidebar of tools and the selected tool's page.
 ///
 /// The sidebar is built from `registry` (FCL-001, FCL-003): Overview, every tool with its sub-tools nested under it,
-/// then History.
+/// then History. A sub-tool's page comes from `pages`, by tool ID.
 struct ContentView: View {
     let registry: ToolRegistry
+    let pages: SubToolPages
     let fileCleanup: FileCleanupModel
     let history: HistoryModel
 
@@ -46,15 +47,13 @@ struct ContentView: View {
             if let info = registry.info(.fileCleanup) {
                 FileCleanupView(info: info, model: fileCleanup)
             }
-        case .tool(.largeFiles)?:
-            if let subTool = registry.subTool(.largeFiles) as? LargeFiles,
-                let results = fileCleanup.results[.largeFiles]
-            {
-                LargeFilesView(subTool: subTool, model: fileCleanup, results: results, registry: registry)
-            }
-        case .tool(.oldFiles)?:
-            if let subTool = registry.subTool(.oldFiles) as? OldFiles, let results = fileCleanup.results[.oldFiles] {
-                OldFilesView(subTool: subTool, model: fileCleanup, results: results, registry: registry)
+        case .tool(let id)?:
+            if let page = pages.page(id, model: fileCleanup, registry: registry) {
+                // Each sub-tool's page has its own identity, so two pages of the same type never share state, such as
+                // an open review.
+                page.id(id)
+            } else if let label = SidebarDestination.tool(id).label(in: registry) {
+                PlaceholderView(label: label)
             }
         case .history?:
             HistoryView(model: history, registry: registry)
@@ -95,7 +94,7 @@ private struct SidebarRow: View {
 
 #Preview {
     ContentView(
-        registry: .standard,
+        registry: .standard, pages: SubToolPages(largeFiles: LargeFiles(), oldFiles: OldFiles()),
         fileCleanup: FileCleanupModel(subTools: [], context: ScanContext(home: .temporaryDirectory)),
         history: HistoryModel(home: .temporaryDirectory) { .init(runs: [], unreadableLineCount: 0) }
     )

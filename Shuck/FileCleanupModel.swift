@@ -1,17 +1,20 @@
 import Foundation
 import ShuckKit
 
-/// The state of File Cleanup's scans, one per sub-tool, for the landing page (FCL-004).
+/// The state of File Cleanup's scans and results, one per sub-tool, for the landing page (FCL-004) and each sub-tool's
+/// page.
 ///
 /// Each scan runs in its own task and writes only its own sub-tool's state, so scanning, stalling or failing one never
 /// blocks or changes another (FCL-002). The exception is the personal-files sub-tools, Large Files and Old Files: they
-/// share one scan and its item state, and each shows its own list of it (FCL-006).
+/// share one scan and its item state, and each shows its own list of it (FCL-006). Stop cancels a scan (SAF-014).
 @Observable
 final class FileCleanupModel {
     /// Where one sub-tool's scan stands.
     nonisolated enum ScanState: Equatable {
         case notScanned
         case scanning
+        /// The user stopped the scan. Opening the page again doesn't restart it; Scan does (SAF-014).
+        case stopped
         case scanned(ScanSummary)
     }
 
@@ -38,7 +41,9 @@ final class FileCleanupModel {
 
     let subTools: [any SubTool]
     /// The list each available personal-files sub-tool shows (FCL-012).
-    let results: [ToolID: PersonalFilesResults]
+    let personalFilesResults: [ToolID: PersonalFilesResults]
+    /// The list each other available sub-tool shows, such as Developer Junk.
+    let scanResults: [ToolID: ScanResults]
     /// The files the personal-files sub-tools list, from their shared scan (FCL-006).
     private(set) var personalFiles = PersonalFilesState()
     private let context: ScanContext
@@ -46,6 +51,8 @@ final class FileCleanupModel {
     /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
     private let runPlan: TrashReview.RunPlan?
     private var states: [ToolID: ScanState] = [:]
+    /// The task of each running scan, so Stop can cancel it. The personal-files sub-tools share one.
+    private var scans: [ToolID: Task<Void, Never>] = [:]
 
     /// Starts a personal-files scan that looks up last-opened dates with the reader, if there is one (OLD-002). Tests
     /// pass made-up events.
@@ -61,13 +68,27 @@ final class FileCleanupModel {
         self.context = context
         self.runPlan = runPlan
         self.personalFilesScan = personalFilesScan
-        var results: [ToolID: PersonalFilesResults] = [:]
-        for case let subTool as any PersonalFilesSubTool in subTools where subTool.info.availability == .available {
-            results[subTool.id] = PersonalFilesResults(
-                home: context.home, sortOrder: Self.defaultSortOrder(subTool.id),
-                dateColumn: Self.dateColumn(subTool.id), includes: subTool.includes)
+        var personalFilesResults: [ToolID: PersonalFilesResults] = [:]
+        var scanResults: [ToolID: ScanResults] = [:]
+        for subTool in subTools where subTool.info.availability == .available {
+            if let subTool = subTool as? any PersonalFilesSubTool {
+                personalFilesResults[subTool.id] = PersonalFilesResults(
+                    home: context.home, sortOrder: Self.defaultSortOrder(subTool.id),
+                    dateColumn: Self.dateColumn(subTool.id), includes: subTool.includes)
+            } else {
+                scanResults[subTool.id] = ScanResults()
+            }
         }
-        self.results = results
+        self.personalFilesResults = personalFilesResults
+        self.scanResults = scanResults
+    }
+
+    /// The scanned home folder, shown as `~` in folder paths.
+    var home: URL { context.home }
+
+    /// The results of the available sub-tool with `id`, or `nil` for a planned one.
+    func results(of id: ToolID) -> (any SubToolResults)? {
+        personalFilesResults[id] ?? scanResults[id]
     }
 
     /// Large Files lists the largest first (LRG-002), Old Files the longest unopened first (OLD-003).
@@ -81,7 +102,7 @@ final class FileCleanupModel {
     }
 
     private var personalSubTools: [any PersonalFilesSubTool] {
-        subTools.compactMap { $0 as? any PersonalFilesSubTool }.filter { results[$0.id] != nil }
+        subTools.compactMap { $0 as? any PersonalFilesSubTool }.filter { personalFilesResults[$0.id] != nil }
     }
 
     func state(of id: ToolID) -> ScanState {
@@ -97,24 +118,44 @@ final class FileCleanupModel {
         subTools.contains { canScan($0) }
     }
 
-    /// Starts `subTool`'s scan, or returns `nil` if it cannot scan now. Cancelling the returned task stops the scan
-    /// and puts back the state it had before.
+    /// Starts `subTool`'s scan, or returns `nil` if it cannot scan now. Items stream into the sub-tool's list as the
+    /// scan finds them (FCL-012). Cancelling the returned task, or ``cancelScan(_:)``, stops the scan and leaves the
+    /// sub-tool stopped, with an empty list.
     @discardableResult
     func scan(_ subTool: any SubTool) -> Task<Void, Never>? {
         guard canScan(subTool) else { return nil }
         if subTool is any PersonalFilesSubTool { return scanPersonalFiles() }
         let id = subTool.id
-        let previous = state(of: id)
+        guard let list = scanResults[id] else { return nil }
+        list.removeAll()
         states[id] = .scanning
         let context = context
-        return Task {
-            let summary = await Self.summarize(subTool, context: context)
-            states[id] = summary.map(ScanState.scanned) ?? previous
+        let task = Task {
+            // Each event is one item. A sub-tool lists few enough of them for the main actor (NFR-PERF-001).
+            for await event in await Self.start(subTool, context: context) {
+                list.apply(event)
+            }
+            scans[id] = nil
+            if Task.isCancelled {
+                list.removeAll()
+                states[id] = .stopped
+            } else {
+                states[id] = .scanned(list.summary(finished: .now))
+            }
         }
+        scans[id] = task
+        return task
+    }
+
+    /// Stops `subTool`'s scan, if it is scanning (SAF-014). Scanning never acts on anything, so there is nothing to
+    /// undo. For Large Files or Old Files, this stops the scan both share (FCL-006).
+    func cancelScan(_ subTool: any SubTool) {
+        scans[subTool.id]?.cancel()
     }
 
     /// Starts `subTool`'s scan if it has not scanned yet, as when the user opens its page. A finished scan is kept, so
-    /// going back to a page shows the same results and selection; the page's Scan button starts a new one.
+    /// going back to a page shows the same results and selection, and a stopped one stays stopped, so a long scan the
+    /// user stopped doesn't start again behind their back; the page's Scan button starts a new one.
     @discardableResult
     func scanIfNotScanned(_ subTool: any SubTool) -> Task<Void, Never>? {
         guard state(of: subTool.id) == .notScanned else { return nil }
@@ -134,33 +175,41 @@ final class FileCleanupModel {
         let ids = personalSubTools.map(\.id)
         for id in ids {
             states[id] = .scanning
-            results[id]?.removeAll()
+            personalFilesResults[id]?.removeAll()
         }
         personalFiles = PersonalFilesState()
         // Old Files needs last-opened dates. If several sub-tools did, the smallest minimum size would cover them all.
         let reader = personalSubTools.compactMap(\.lastOpenedReader).min { $0.minimumSize < $1.minimumSize }
         let events = personalFilesScan(context, reader)
-        return Task {
+        let task = Task {
             // Each event is a batch of files, so the main actor takes a few thousand events for a large home folder.
             for await event in events {
                 apply(event)
             }
             let finished = Date.now
             for id in ids {
+                scans[id] = nil
                 if Task.isCancelled {
-                    results[id]?.removeAll()
-                    states[id] = .notScanned
+                    personalFilesResults[id]?.removeAll()
+                    states[id] = .stopped
                 } else {
                     states[id] = .scanned(summary(of: id, finished: finished))
                 }
             }
         }
+        for id in ids {
+            scans[id] = task
+        }
+        return task
     }
 
     /// The items `subTool` acts on for the rows at `urls`, in that order. Read-only rows and rows the sub-tool no longer
     /// lists are left out (FCL-011).
-    func scanItems(_ subTool: any PersonalFilesSubTool, urls: [URL]) -> [ScanItem] {
-        urls.compactMap { personalFiles.items[$0] }.compactMap(subTool.scanItem(for:))
+    func scanItems(_ subTool: any SubTool, urls: [URL]) -> [ScanItem] {
+        guard let subTool = subTool as? any PersonalFilesSubTool else {
+            return scanResults[subTool.id]?.items(at: urls) ?? []
+        }
+        return urls.compactMap { personalFiles.items[$0] }.compactMap(subTool.scanItem(for:))
     }
 
     /// Whether the model can move items to the Trash. Pages leave the action out when it cannot.
@@ -170,7 +219,7 @@ final class FileCleanupModel {
     /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). When the run ends, the moved
     /// items leave every list.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
-    func reviewMoveToTrash(_ subTool: any PersonalFilesSubTool, urls: [URL]) throws(PlanError) -> TrashReview? {
+    func reviewMoveToTrash(_ subTool: any SubTool, urls: [URL]) throws(PlanError) -> TrashReview? {
         guard let runPlan else { return nil }
         let plan = try Plan(
             subTool: subTool, items: scanItems(subTool, urls: urls),
@@ -184,7 +233,8 @@ final class FileCleanupModel {
     /// so they leave Large Files and Old Files together (FCL-006). Each landing-page estimate is updated to match.
     func remove(_ urls: [URL]) {
         personalFiles.remove(urls)
-        for (id, list) in results {
+        for id in subTools.map(\.id) {
+            guard let list = results(of: id) else { continue }
             list.remove(urls)
             if case .scanned(let summary) = states[id] {
                 states[id] = .scanned(self.summary(of: id, finished: summary.finished))
@@ -204,7 +254,7 @@ final class FileCleanupModel {
         for subTool in available {
             guard case .scanned(let summary) = state(of: subTool.id) else { continue }
             scannedCount += 1
-            if results[subTool.id] != nil {
+            if personalFilesResults[subTool.id] != nil {
                 personal.add(contentsOf: listedFiles(subTool.id))
             } else {
                 otherBytes += summary.reclaimableBytes
@@ -217,7 +267,7 @@ final class FileCleanupModel {
 
     /// The files a personal-files sub-tool lists, read-only ones included.
     private func listedFiles(_ id: ToolID) -> [PersonalFile] {
-        results[id]?.rows.compactMap { personalFiles.items[$0.id] } ?? []
+        personalFilesResults[id]?.rows.compactMap { personalFiles.items[$0.id] } ?? []
     }
 
     /// Keeps only the files some sub-tool lists, so a home folder of a million files does not stay in memory.
@@ -230,40 +280,25 @@ final class FileCleanupModel {
         let listed = files.filter { file in subTools.contains { $0.includes(file) } }
         guard !listed.isEmpty else { return }
         personalFiles.apply(.files(listed))
-        for list in results.values {
+        for list in personalFilesResults.values {
             list.apply(.files(listed))
         }
     }
 
+    /// Starts a scan off the main actor, in case a sub-tool does some of its work before it returns the stream
+    /// (NFR-PERF-001).
+    @concurrent
+    private nonisolated static func start(_ subTool: any SubTool, context: ScanContext) async -> AsyncStream<ScanEvent>
+    {
+        subTool.scan(context)
+    }
+
     /// The reclaimable estimate leaves out read-only items (FCL-011) and counts each file once (FCL-007).
     private func summary(of id: ToolID, finished: Date) -> ScanSummary {
+        if let list = scanResults[id] { return list.summary(finished: finished) }
         let total = ReclaimableTotal(listedFiles(id))
         return ScanSummary(
             finished: finished, itemCount: total.count, reclaimableBytes: total.bytes,
             notAccessibleCount: personalFiles.notAccessible.count, unreadableCount: personalFiles.unreadable.count)
-    }
-
-    /// Runs a scan off the main actor (NFR-PERF-001). Returns `nil` if the task was cancelled.
-    @concurrent
-    private nonisolated static func summarize(_ subTool: any SubTool, context: ScanContext) async -> ScanSummary? {
-        var itemCount = 0
-        var reclaimableBytes: Int64 = 0
-        var notAccessibleCount = 0
-        var unreadableCount = 0
-        for await event in subTool.scan(context) {
-            switch event {
-            case .item(let item):
-                itemCount += 1
-                reclaimableBytes += item.allocatedSize
-            case .notAccessible:
-                notAccessibleCount += 1
-            case .unreadable:
-                unreadableCount += 1
-            }
-        }
-        guard !Task.isCancelled else { return nil }
-        return ScanSummary(
-            finished: .now, itemCount: itemCount, reclaimableBytes: reclaimableBytes,
-            notAccessibleCount: notAccessibleCount, unreadableCount: unreadableCount)
     }
 }

@@ -44,8 +44,9 @@ struct PersonalFilesScanModelTests {
         await model.scan(largeFiles)?.value
 
         #expect(scans.withLock { $0 } == 1)
-        #expect(model.results[largeFiles.id]?.rows.map(\.name) == ["mod", "big.mov"])
-        #expect(Set(model.results[everything.id]?.rows.map(\.name) ?? []) == ["mod", "big.mov", "small.txt"])
+        #expect(model.personalFilesResults[largeFiles.id]?.rows.map(\.name) == ["mod", "big.mov"])
+        #expect(
+            Set(model.personalFilesResults[everything.id]?.rows.map(\.name) ?? []) == ["mod", "big.mov", "small.txt"])
         for id in [largeFiles.id, everything.id] {
             guard case .scanned = model.state(of: id) else {
                 Issue.record("\(id.rawValue) not scanned: \(model.state(of: id))")
@@ -92,14 +93,40 @@ struct PersonalFilesScanModelTests {
 
         scan?.cancel()
         await scan?.value
-        #expect(model.state(of: largeFiles.id) == .notScanned)
-        #expect(model.results[largeFiles.id]?.rows.isEmpty == true)
+        #expect(model.state(of: largeFiles.id) == .stopped)
+        #expect(model.personalFilesResults[largeFiles.id]?.rows.isEmpty == true)
+    }
+
+    /// Stop on either page stops the scan both share (FCL-006, SAF-014).
+    @Test func stoppingOnePersonalFilesSubToolStopsTheSharedScanSAF014() async {
+        let largeFiles = LargeFiles(minimumSize: 1_000)
+        let oldFiles = OldFiles(minimumSize: 1_000) { _ in nil }
+        let files = [file("a.mov", size: 5_000)]
+        let model = FileCleanupModel(subTools: [largeFiles, oldFiles], context: context) { _, _ in
+            AsyncStream { continuation in
+                continuation.yield(.files(files))
+                // Never finishes, like a scan of a large home folder.
+            }
+        }
+
+        let scan = model.scan(largeFiles)
+        model.cancelScan(oldFiles)
+        await scan?.value
+
+        for id in [largeFiles.id, oldFiles.id] {
+            #expect(model.state(of: id) == .stopped)
+            #expect(model.results(of: id)?.isEmpty == true)
+        }
+        #expect(model.canScan(largeFiles) && model.canScan(oldFiles))
+        // Opening the other page doesn't start the shared scan again (D-91).
+        #expect(model.scanIfNotScanned(oldFiles) == nil)
     }
 
     @Test func largeFilesListsTheLargestFirstLRG002() {
         let model = FileCleanupModel(subTools: [LargeFiles()], context: context)
-        #expect(model.results[.largeFiles]?.sortOrder == [KeyPathComparator(\ResultRow.size, order: .reverse)])
-        #expect(model.results[.largeFiles]?.dateColumn == .modified)
+        #expect(
+            model.personalFilesResults[.largeFiles]?.sortOrder == [KeyPathComparator(\ResultRow.size, order: .reverse)])
+        #expect(model.personalFilesResults[.largeFiles]?.dateColumn == .modified)
     }
 
     @Test func oldFilesListsTheLongestUnopenedFirstByLastOpenedDateOLD003() async {
@@ -120,7 +147,7 @@ struct PersonalFilesScanModelTests {
 
         await model.scan(oldFiles)?.value
 
-        let results = model.results[.oldFiles]
+        let results = model.personalFilesResults[.oldFiles]
         #expect(results?.sortOrder == [KeyPathComparator(\ResultRow.sortDate)])
         #expect(results?.dateColumn == .lastOpened)
         #expect(results?.rows.map(\.name) == ["oldest.mov", "older.mov"])
