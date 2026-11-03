@@ -265,8 +265,8 @@ private struct NameCell: View {
 #Preview {
     let home = URL(filePath: "/Users/example", directoryHint: .isDirectory)
     let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size, order: .reverse)])
-    results.apply(
-        .files([
+    results.insert(
+        [
             PersonalFile(
                 url: home.appending(path: "Downloads/Installer.dmg"),
                 snapshot: ItemSnapshot(kind: .file, allocatedSize: 2_400_000_000), modified: .now),
@@ -282,7 +282,7 @@ private struct NameCell: View {
                 url: home.appending(path: "go/pkg/mod"),
                 snapshot: ItemSnapshot(kind: .folder, allocatedSize: 1_200_000_000), modified: nil,
                 readOnly: .managedBy(.developerJunk)),
-        ]))
+        ].map { ResultRow($0, home: home) })
     return PersonalFilesTable(results: results, registry: .standard, grouped: true)
         .frame(width: 760, height: 320)
 }

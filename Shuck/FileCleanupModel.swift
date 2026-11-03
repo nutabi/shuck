@@ -183,8 +183,9 @@ final class FileCleanupModel {
         let events = personalFilesScan(context, reader)
         let task = Task {
             // Each event is a batch of files, so the main actor takes a few thousand events for a large home folder.
+            // Each list builds its rows off the main actor and merges them in (NFR-PERF-001).
             for await event in events {
-                apply(event)
+                await apply(event)
             }
             let finished = Date.now
             for id in ids {
@@ -271,7 +272,7 @@ final class FileCleanupModel {
     }
 
     /// Keeps only the files some sub-tool lists, so a home folder of a million files does not stay in memory.
-    private func apply(_ event: PersonalFilesEvent) {
+    private func apply(_ event: PersonalFilesEvent) async {
         guard case .files(let files) = event else {
             personalFiles.apply(event)
             return
@@ -281,7 +282,7 @@ final class FileCleanupModel {
         guard !listed.isEmpty else { return }
         personalFiles.apply(.files(listed))
         for list in personalFilesResults.values {
-            list.apply(.files(listed))
+            await list.apply(.files(listed))
         }
     }
 
