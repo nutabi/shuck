@@ -193,7 +193,7 @@ struct RestoreExecutorTests {
                 bytes: try #require(ItemSnapshot.read(inTrash)).allocatedSize))
         let item = try #require(try restorable().first)
 
-        #expect(try await restore([RestoreRequest(item: item)]) == [.restored(original)])
+        #expect(try await restore([RestoreRequest(item: item)]) == [.done(original)])
         #expect(exists(original) && !exists(inTrash))
     }
 

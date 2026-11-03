@@ -262,6 +262,20 @@ struct PlanExecutorTests {
         #expect(records.compactMap(\.detail) == ["unsupportedMethod: tool"])
     }
 
+    @Test func anItemWhoseTierForbidsItsMethodNeverReachesItsActionSAF004() async throws {
+        // `Plan` refuses this item, so the test asks the executor to act on it directly.
+        let item = try planned(try root.file("Documents/report.pdf", size: 10), tier: .yourData, method: .delete)
+        let delete = FakeAction()
+        let executor = PlanExecutor(
+            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), actions: [.delete: delete])
+
+        let acted = executor.act(on: item, allowedRoots: [root.url])
+
+        #expect(acted.result == .skipped(.notAllowed(.delete)))
+        #expect(ItemOutcome.SkipReason.notAllowed(.delete).logged == "notAllowed: delete")
+        #expect(delete.items.isEmpty && exists(item.url))
+    }
+
     // MARK: - Crash and cancellation
 
     @Test func theLogMatchesTheDiskAtEveryMomentOfARunHIS001() async throws {

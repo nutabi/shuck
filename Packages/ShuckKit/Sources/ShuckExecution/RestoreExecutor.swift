@@ -19,7 +19,7 @@ public struct RestoreExecutor: Sendable {
     let log: HistoryLog
     let trash: any Trash
 
-    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash = SystemTrash()) {
+    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash) {
         self.pathGuard = pathGuard
         self.log = log
         self.trash = trash

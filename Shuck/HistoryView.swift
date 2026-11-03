@@ -201,6 +201,7 @@ struct HistoryView: View {
         case .cancelled: "stopped before it was acted on"
         case .historyUnavailable: "the history log stopped working"
         case .unsupportedMethod: "method not supported"
+        case .notAllowed: "not allowed for this kind of item"
         case .originalTaken: "its original place is taken"
         case .notInTrash: "not in the Trash"
         case .otherItem: "another item has its name in the Trash"

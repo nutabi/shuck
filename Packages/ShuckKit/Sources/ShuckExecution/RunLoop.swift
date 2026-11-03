@@ -26,7 +26,7 @@ public protocol RunSkipReason: Equatable, Sendable {
 /// What an action did to an item, and what the result record adds to the intent record: where a trashed item went
 /// and its file identity (D-84).
 package struct Acted<SkipReason: RunSkipReason>: Sendable {
-    let result: ActionResult<SkipReason>
+    package let result: ActionResult<SkipReason>
     let trashedPath: String?
     let identity: FileIdentity?
 

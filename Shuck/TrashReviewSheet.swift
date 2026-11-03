@@ -151,6 +151,8 @@ struct TrashReviewSheet: View {
             Text("The history log stopped working")
         case .skipped(.unsupportedMethod):
             Text("Can't be moved to the Trash")
+        case .skipped(.notAllowed):
+            Text("Not allowed for this kind of item")
         case .failed(let error):
             Text("Couldn't be moved: \(error.message)")
         }

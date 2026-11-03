@@ -11,13 +11,16 @@ import os
 ///
 /// A plan may mix methods, as a Developer Junk run mixes Delete and Tool items behind one confirmation (section 8.2).
 /// An item whose method has no action yet is skipped as `unsupportedMethod` and logged like any other skip (D-89).
+/// Each item's tier is checked against its method again before its action runs, so "Your data" never reaches Delete,
+/// however its plan was built (SAF-004).
 public struct PlanExecutor: Sendable {
     let pathGuard: PathGuard
     let log: any RecordLog
     let actions: [ActionMethod: any PlanAction]
 
-    /// An executor that moves Trash items to `trash`. M2 adds Delete and Tool, and M3 Launchctl.
-    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash = SystemTrash()) {
+    /// An executor that moves Trash items to `trash`: ``SystemTrash`` in the app, a fake in tests, which must never reach
+    /// the user's own Trash. M2 adds Delete and Tool, and M3 Launchctl.
+    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash) {
         self.init(pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash)])
     }
 
@@ -40,8 +43,10 @@ public struct PlanExecutor: Sendable {
         return RunReport(run: plan.run, outcomes: zip(plan.items, results).map { ItemOutcome(item: $0, result: $1) })
     }
 
-    /// Re-validates `item` and hands it to the action for its method (SAF-008).
-    private func act(on item: PlannedItem, allowedRoots: [URL]) -> Acted<ItemOutcome.SkipReason> {
+    /// Re-validates `item` and hands it to the action for its method (SAF-004, SAF-008).
+    package func act(on item: PlannedItem, allowedRoots: [URL]) -> Acted<ItemOutcome.SkipReason> {
+        // `Plan` refuses such an item too; checking again keeps SAF-004 in the executor, next to the actions.
+        guard item.tier.allows(item.method) else { return Acted(.skipped(.notAllowed(item.method))) }
         guard let action = actions[item.method] else { return Acted(.skipped(.unsupportedMethod(item.method))) }
         let target: URL
         do {
@@ -85,6 +90,9 @@ public struct ItemOutcome: Equatable, Sendable {
         case historyUnavailable
         /// The executor has no action for the item's method yet (D-89).
         case unsupportedMethod(ActionMethod)
+        /// The item's tier does not allow its method, as "Your data" is never deleted permanently (SAF-004). `Plan`
+        /// refuses such an item, so only a plan built some other way could have one.
+        case notAllowed(ActionMethod)
 
         /// The reason's stable code, which the history log records (D-88).
         public var code: SkipCode {
@@ -96,6 +104,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .cancelled: .cancelled
             case .historyUnavailable: .historyUnavailable
             case .unsupportedMethod: .unsupportedMethod
+            case .notAllowed: .notAllowed
             }
         }
 
@@ -104,7 +113,7 @@ public struct ItemOutcome: Equatable, Sendable {
             switch self {
             case .changed(let current): code.logged(current.logged)
             case .rejected(let error): code.logged(error.logged)
-            case .unsupportedMethod(let method): code.logged(method.rawValue)
+            case .unsupportedMethod(let method), .notAllowed(let method): code.logged(method.rawValue)
             default: code.logged()
             }
         }
