@@ -229,7 +229,7 @@ Process changes during M2:
 
 - [x] Release notes come from `CHANGELOG.md`, in the Keep a Changelog format, instead of GitHub's list of pull
   requests. Each pull request adds its user-facing changes under Unreleased (D-95).
-- [x] CodeQL scans the engine package and the workflows on every push to `main` that changes code, and weekly (D-96).
+- [x] CodeQL scans the engine package and the workflows on every push to `main` that changes code (D-96).
 - [ ] CodeQL also scans the app target, once it can build the Xcode 27 project, or in M5's security pass at the latest
   (D-96).
 

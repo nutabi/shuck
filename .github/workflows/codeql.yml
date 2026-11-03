@@ -1,4 +1,4 @@
-# CodeQL code scanning of main: every push to main that changes code, and once a week (D-96, supersedes D-50).
+# CodeQL code scanning of main: every push to main that changes code (D-96, supersedes D-50).
 # It analyzes the engine package (ShuckKit, ShuckExecution, ShuckKitTestSupport) and the workflows themselves. The app
 # target is not analyzed: CodeQL cannot build the Xcode 27 project yet (D-50). Pull requests are not scanned, and the
 # check is not required.
@@ -11,8 +11,6 @@ on:
     paths-ignore:
       - "**/*.md"
       - LICENSE
-  schedule:
-    - cron: "28 22 * * 0"
 
 permissions:
   contents: read
