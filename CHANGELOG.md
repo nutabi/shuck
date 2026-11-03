@@ -17,10 +17,10 @@ All notable changes to Shuck are listed here. The format follows
 
 - Run summaries and History say why an item was skipped. An item Shuck may not read shows as "not accessible" instead
   of "missing", and a failure shows its error in words.
-- Large Files and Old Files remember whether Group by Folder is on.
+- Large Files remembers whether Group by Folder is on.
 - Long result lists stay responsive while a scan adds rows.
-- Shuck has one main window. ⌘N no longer opens a second window that shared the first one's selection; the Window menu
-  reopens the main window.
+- Shuck has one main window, and closing it quits Shuck. ⌘N no longer opens a second window that shared the first
+  one's selection.
 
 ### Fixed
 
