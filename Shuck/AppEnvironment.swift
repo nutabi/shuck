@@ -56,11 +56,14 @@ nonisolated struct AppEnvironment {
     ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``.
     ///   - debugBuild: Whether the fixture-root argument counts, and which bundle ID the build must have.
     ///   - bundleID: The app's bundle ID, which names its data folder.
+    ///   - home: The home folder the app scans without a fixture root: the user's own. Tests pass another, so they
+    ///     never name the real one (SAF-016).
     /// - Throws: ``LaunchError`` if a debug build gets a fixture-root argument it does not accept, or the bundle ID is
     ///   not the build's own.
     init(
         arguments: [String], settings: Settings, debugBuild: Bool = isDebugBuild,
-        appBundle: URL = Bundle.main.bundleURL, bundleID: String? = Bundle.main.bundleIdentifier
+        appBundle: URL = Bundle.main.bundleURL, bundleID: String? = Bundle.main.bundleIdentifier,
+        home: URL = .homeDirectory
     ) throws(LaunchError) {
         guard let bundleID, bundleID == (debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID) else {
             throw .unexpectedBundleID(bundleID)
@@ -74,7 +77,7 @@ nonisolated struct AppEnvironment {
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
-            let home = URL.homeDirectory.resolvingSymlinksInPath()
+            let home = home.resolvingSymlinksInPath()
             context = ScanContext(
                 home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []))
             trash = SystemTrash()
@@ -133,16 +136,28 @@ nonisolated struct AppEnvironment {
     ///
     /// Only a folder the test harness creates is accepted: `ShuckFixtures/<UUID>` in the temporary folder, which is
     /// `/private/var/folders/…` for a test process, or the sandboxed UI test runner's container
-    /// (`~/Library/Containers/<name>.xctrunner/Data/tmp`). Anything else throws, so a debug build is never pointed at
-    /// real data by mistake.
+    /// (`~/Library/Containers/<name>.xctrunner/Data/tmp`). The folder must exist; its path is resolved with `realpath`,
+    /// as the test harness resolves it. Anything else throws, so a debug build is never pointed at real data by
+    /// mistake.
     static func fixtureRoot(in arguments: [String], debugBuild: Bool) throws(LaunchError) -> URL? {
         guard debugBuild, let index = arguments.firstIndex(of: fixtureRootArgument) else { return nil }
         guard index + 1 < arguments.count else { throw .rejectedFixtureRoot("") }
-        let root = URL(filePath: arguments[index + 1], directoryHint: .isDirectory).resolvingSymlinksInPath()
+        let path = arguments[index + 1]
+        // `resolvingSymlinksInPath()` would turn /private/var back into /var, which the check below rejects (TD-12).
+        guard let resolved = realpath(path, nil) else { throw .rejectedFixtureRoot(path) }
+        defer { free(resolved) }
+        let root = URL(filePath: String(cString: resolved), directoryHint: .isDirectory)
+        guard isFixtureRootShape(root) else { throw .rejectedFixtureRoot(root.path) }
+        return root
+    }
+
+    /// Whether a resolved path has the shape of a folder the test harness creates: `ShuckFixtures/<UUID>` in a test
+    /// process's temporary folder or in the UI test runner's container.
+    static func isFixtureRootShape(_ root: URL) -> Bool {
         let parts = root.pathComponents
         guard parts.count > 2, parts[parts.count - 2] == "ShuckFixtures",
             UUID(uuidString: parts[parts.count - 1]) != nil
-        else { throw .rejectedFixtureRoot(root.path) }
+        else { return false }
         let temporary = Array(parts.dropLast(2))
         let isProcessTemporary = temporary.starts(with: ["/", "private", "var", "folders"])
         // …/Library/Containers/<name>.xctrunner/Data/tmp
@@ -150,8 +165,7 @@ nonisolated struct AppEnvironment {
         let isRunnerTemporary =
             tail.count == 5 && tail[0] == "Library" && tail[1] == "Containers" && tail[2].hasSuffix(".xctrunner")
             && tail[3] == "Data" && tail[4] == "tmp"
-        guard isProcessTemporary || isRunnerTemporary else { throw .rejectedFixtureRoot(root.path) }
-        return root
+        return isProcessTemporary || isRunnerTemporary
     }
 
     /// A stored number that is not negative, or `nil` if there is none or it is not one. The caller then uses the

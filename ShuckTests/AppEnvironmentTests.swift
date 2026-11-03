@@ -7,15 +7,30 @@ import Testing
 
 /// The app scans the real home folder, or a UI test's fixture root in a debug build only (NFR-QA-002).
 ///
-/// These tests only build URLs and configurations; nothing reads the folders they name.
-struct AppEnvironmentTests {
-    let fixture = "/private/var/folders/ab/xyz/T/ShuckFixtures/\(UUID().uuidString)"
+/// The tests pass a made-up home folder, so they never name the real one (SAF-016), and create an empty fixture root
+/// in the temporary folder, as the test harness does. They only build URLs and configurations; nothing writes to the
+/// folders they name.
+final class AppEnvironmentTests {
+    /// An empty `ShuckFixtures/<UUID>` folder, as the temporary folder spells it: `/var/folders/…`, through the
+    /// symlink to `/private/var` (TD-12).
+    let fixture: String
+    let home = URL(filePath: "/Users/someone", directoryHint: .isDirectory)
     let appBundle = URL(filePath: "/Applications/Shuck.app")
+
+    init() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "ShuckFixtures/\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        fixture = folder.path(percentEncoded: false)
+    }
+
+    deinit {
+        try? FileManager.default.removeItem(atPath: fixture)
+    }
 
     private func environment(_ arguments: [String], debugBuild: Bool) throws -> AppEnvironment {
         try AppEnvironment(
             arguments: arguments, settings: { _ in nil }, debugBuild: debugBuild, appBundle: appBundle,
-            bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID)
+            bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
     }
 
     @Test func aReleaseBuildIgnoresTheFixtureRootArgumentNFRQA002() throws {
@@ -24,7 +39,7 @@ struct AppEnvironmentTests {
         #expect(try AppEnvironment.fixtureRoot(in: [AppEnvironment.fixtureRootArgument], debugBuild: false) == nil)
 
         let release = try environment(arguments, debugBuild: false)
-        #expect(release.context.home == URL.homeDirectory.resolvingSymlinksInPath())
+        #expect(release.context.home == home)
         #expect(release.context.protection.protectedLocations.contains(URL(filePath: "/private")))
         #expect(release.trash is SystemTrash)
     }
@@ -32,7 +47,9 @@ struct AppEnvironmentTests {
     @Test func aDebugBuildScansTheFixtureRootWithTheTestConfigurationNFRQA002() throws {
         let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
 
-        #expect(debug.context.home.path(percentEncoded: false).hasPrefix(fixture))
+        // The root with its symlinks resolved, as the test harness reports it: /private/var, not /var (TD-12).
+        #expect(debug.context.home.pathComponents.starts(with: ["/", "private", "var", "folders"]))
+        #expect(debug.context.home.lastPathComponent == URL(filePath: fixture).lastPathComponent)
         // D-41: only the temporary folder's /private prefix leaves the protected list.
         let protected = Set(debug.context.protection.protectedLocations.map(\.path))
         #expect(!protected.contains("/private"))
@@ -52,18 +69,19 @@ struct AppEnvironmentTests {
         let _: HistoryRestore.RunRestore = debug.restore
     }
 
-    @Test func theUITestRunnersContainerIsAccepted() throws {
-        let runner =
-            "/Users/someone/Library/Containers/me.nutabi.ShuckUITests.xctrunner/Data/tmp/ShuckFixtures/"
-            + UUID().uuidString
-        let root = try AppEnvironment.fixtureRoot(in: [AppEnvironment.fixtureRootArgument, runner], debugBuild: true)
-        #expect(root?.path(percentEncoded: false).hasPrefix(runner) == true)
+    @Test func aTestProcessesAndTheUITestRunnersTemporaryFoldersHaveTheShapeOfAFixtureRoot() {
+        let uuid = UUID().uuidString
+        let accepted = [
+            "/private/var/folders/ab/xyz/T/ShuckFixtures/\(uuid)",
+            "/Users/someone/Library/Containers/me.nutabi.ShuckUITests.xctrunner/Data/tmp/ShuckFixtures/\(uuid)",
+        ]
+        for path in accepted { #expect(AppEnvironment.isFixtureRootShape(URL(filePath: path)), "\(path)") }
     }
 
     /// A rejected root stops the app instead of letting it fall back to the real home folder (SAF-016).
     @Test func anyOtherFolderIsRejectedSAF016() {
         let uuid = UUID().uuidString
-        let paths = [
+        let shapes = [
             "/Users/someone",
             "/Users/someone/ShuckFixtures/\(uuid)",
             "/private/var/folders/ab/xyz/T/Other/\(uuid)",
@@ -71,7 +89,10 @@ struct AppEnvironmentTests {
             "/tmp/ShuckFixtures/\(uuid)",
             "/Users/someone/Library/Containers/com.example.App/Data/tmp/ShuckFixtures/\(uuid)",
         ]
-        for path in paths {
+        for path in shapes { #expect(!AppEnvironment.isFixtureRootShape(URL(filePath: path)), "\(path)") }
+        // A fixture root that does not exist, although its shape is right.
+        let missing = URL(filePath: fixture).deletingLastPathComponent().appending(path: UUID().uuidString).path
+        for path in shapes + [missing] {
             #expect(throws: AppEnvironment.LaunchError.self, "\(path)") {
                 try environment([AppEnvironment.fixtureRootArgument, path], debugBuild: true)
             }
@@ -84,7 +105,6 @@ struct AppEnvironmentTests {
     /// D-70: the release build and the debug build each keep their history log in a data folder named after their own
     /// bundle ID.
     @Test func eachBuildKeepsItsHistoryInItsOwnDataFolder() throws {
-        let home = URL.homeDirectory.resolvingSymlinksInPath()
         let release = try environment(["Shuck"], debugBuild: false)
         #expect(release.historyFolder == home.appending(path: "Library/Application Support/me.nutabi.shuck"))
 
@@ -103,7 +123,7 @@ struct AppEnvironmentTests {
             #expect(throws: AppEnvironment.LaunchError.self, "\(bundleID ?? "none")") {
                 try AppEnvironment(
                     arguments: [], settings: { _ in nil }, debugBuild: debugBuild, appBundle: appBundle,
-                    bundleID: bundleID)
+                    bundleID: bundleID, home: home)
             }
         }
     }
@@ -137,7 +157,7 @@ struct AppEnvironmentTests {
         ]
         let environment = try AppEnvironment(
             arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
-            bundleID: ShuckKit.bundleID)
+            bundleID: ShuckKit.bundleID, home: home)
 
         #expect(environment.largeFiles.minimumSize == 1_000)
         #expect(environment.oldFiles.periodMonths == 3)
@@ -150,7 +170,7 @@ struct AppEnvironmentTests {
         ]
         let environment = try AppEnvironment(
             arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
-            bundleID: ShuckKit.bundleID)
+            bundleID: ShuckKit.bundleID, home: home)
 
         #expect(environment.largeFiles.minimumSize == 500_000_000)
         #expect(environment.oldFiles.periodMonths == 12)

@@ -19,18 +19,19 @@ new_tree() {
     mkdir -p "$tree"
 }
 
-# expect_rule RULE: the checks fail on the current tree and report RULE.
+# expect_rule RULE [REQUIREMENT]: the checks fail on the current tree and report RULE. REQUIREMENT names the
+# requirement the case tests, such as SAF-017 (NFR-QA-001).
 expect_rule() {
-    local output
+    local output label="[$1]${2:+ ($2)}"
     if output="$("$checks" "$tree" 2>&1)"; then
-        echo "FAIL: [$1] expected a failure, got none" >&2
+        echo "FAIL: $label expected a failure in $(basename "$tree"), got none" >&2
         failed=1
     elif ! grep -q "\[$1\]" <<<"$output"; then
-        echo "FAIL: [$1] not reported. Output was:" >&2
+        echo "FAIL: $label not reported in $(basename "$tree"). Output was:" >&2
         echo "$output" >&2
         failed=1
     else
-        echo "ok: [$1] reported"
+        echo "ok: $label reported in $(basename "$tree")"
     fi
 }
 
@@ -55,10 +56,47 @@ new_tree network-import && put "$engine" 'import Network' && expect_rule network
 new_tree shell && put "$engine" 'let shell = URL(filePath: "/bin/sh")' && expect_rule shell
 new_tree popen && put "$execution" 'let pipe = popen("ls", "r")' && expect_rule shell
 new_tree privilege && put "$app" 'var ref: AuthorizationRef?' && expect_rule privilege
-new_tree trash && put "$engine" 'try FileManager.default.trashItem(at: url, resultingItemURL: nil)' && expect_rule mutation
-new_tree remove-app && put "$app" 'try FileManager.default.removeItem(at: url)' && expect_rule mutation
-new_tree launchctl && put "$engine" 'let arguments = ["bootout", target]' && expect_rule mutation
-new_tree write && put "$engine" 'try data.write(to: url)' && expect_rule file-write
+new_tree trash && put "$engine" 'try FileManager.default.trashItem(at: url, resultingItemURL: nil)' &&
+    expect_rule mutation SAF-017
+new_tree remove-app && put "$app" 'try FileManager.default.removeItem(at: url)' && expect_rule mutation SAF-017
+new_tree launchctl && put "$engine" 'let arguments = ["bootout", target]' && expect_rule mutation SAF-017
+# The C calls' *at, _np and f* variants (TD-02).
+for call in 'renamex_np(from, to, flags)' 'renameat(fd, from, fd, to)' 'renameatx_np(fd, from, fd, to, flags)' \
+    'unlinkat(fd, path, 0)' 'exchangedata(a, b, 0)' 'removefileat(fd, path, nil, 0)' 'ftruncate(fd, 0)' \
+    'copyfile(from, to, nil, flags)' 'fcopyfile(a, b, nil, flags)' 'clonefile(from, to, 0)' \
+    'clonefileat(fd, from, fd, to, 0)' 'fclonefileat(fd, dirfd, to, 0)' 'chflags(path, UInt32(UF_HIDDEN))' \
+    'lchflags(path, 0)' 'fchflags(fd, 0)' 'setxattr(path, name, value, size, 0, 0)' 'fsetxattr(fd, name, v, n, 0, 0)' \
+    'removexattr(path, name, 0)' 'fremovexattr(fd, name, 0)' 'try url.setResourceValues(values)' \
+    'try url.setResourceValue(true, forKey: .isHiddenKey)'; do
+    new_tree "mutation-${call%%(*}" && put "$engine" "let result = $call" && expect_rule mutation SAF-017
+done
+new_tree write && put "$engine" 'try data.write(to: url)' && expect_rule file-write SAF-017
+for call in 'try "text".write(toFile: path, atomically: true, encoding: .utf8)' 'let fd = openat(dir, path, O_CREAT)' \
+    'mkdirat(dir, path, 0o700)' 'let stream = OutputStream(url: url, append: true)' \
+    'let fd = Darwin.open(path, O_WRONLY | O_CREAT, 0o600)' 'Darwin.mkdir(path, 0o700)' 'symlink(target, path)' \
+    'symlinkat(target, fd, path)' 'link(from, to)' 'linkat(fd, from, fd, to, 0)'; do
+    new_tree "file-write-$(tr -cd '[:alnum:]' <<<"${call:0:16}")" && put "$app" "$call" && expect_rule file-write SAF-017
+done
+new_tree process && put "$app" 'let process = Process()' && expect_rule process D-82
+new_tree process-run && put "$engine" 'try Process.run(url, arguments: [path])' && expect_rule process D-82
+new_tree process-type && put "$app" 'let process: Process = .init()' && expect_rule process D-82
+new_tree posix-spawn && put "$engine" 'posix_spawn(&pid, path, nil, nil, argv, envp)' && expect_rule process D-82
+new_tree process-test && put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift 'let process = Process()' &&
+    expect_rule process D-82
+new_tree home-url && put ShuckTests/SomeTests.swift 'let file = URL.homeDirectory.appending(path: "Downloads/a.dmg")' &&
+    expect_rule real-home SAF-016
+new_tree home-manager && put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift \
+    'let home = FileManager.default.homeDirectoryForCurrentUser' && expect_rule real-home SAF-016
+new_tree home-function && put ShuckUITests/SomeTests.swift 'let home = NSHomeDirectory()' && expect_rule real-home SAF-016
+new_tree home-tilde && put Packages/ShuckKit/Sources/ShuckKitTestSupport/Helper.swift \
+    'let path = ("~/Downloads" as NSString).expandingTildeInPath' && expect_rule real-home SAF-016
+new_tree home-environment && put ShuckTests/SomeTests.swift 'let home = ProcessInfo.processInfo.environment["HOME"]' &&
+    expect_rule real-home SAF-016
+new_tree home-domain && put ShuckTests/SomeTests.swift \
+    'let folder = try FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false)' &&
+    expect_rule real-home SAF-016
+new_tree home-trash && put Packages/ShuckKit/Tests/ShuckExecutionTests/SomeTests.swift \
+    'let action = TrashAction(trash: SystemTrash())' && expect_rule real-home SAF-016
 new_tree permissions && put "$engine" 'try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path)' &&
     expect_rule permissions
 new_tree fchmod && put "$app" 'fchmod(descriptor, 0o600)' && expect_rule permissions
@@ -74,16 +112,24 @@ new_tree claude && put docs/CLAUDE.md '# no' && expect_rule agents
 
 new_tree allowed
 put "$execution" 'try FileManager.default.trashItem(at: url, resultingItemURL: &trashed)
-let arguments = ["bootout", target]'
+let arguments = ["bootout", target]
+guard renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 else { return }
+let process = Process()'
 put Packages/ShuckKit/Sources/ShuckKit/History/HistoryWriter.swift 'try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
 fchmod(descriptor, 0o600)'
 put Packages/ShuckKit/Sources/ShuckKitTestSupport/FakeTool.swift 'let script = "#!/bin/sh\nexit 0"
 try script.write(to: url, atomically: true, encoding: .utf8)'
-put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift 'print("debug output in a test")'
+put ShuckTests/TrashTests.swift '#expect(environment.trash is SystemTrash)'
+put Packages/ShuckKit/Tests/ShuckKitTests/SomeTests.swift 'print("debug output in a test")
+#expect(ResultRow.folder(of: file, home: home) == "~/Downloads")
+let info = ProcessInfo.processInfo'
 put "$app" '// URLSession is banned, and this comment mentions it without using it.
 NSWorkspace.shared.open(settingsURL)
-let n = items.remove(at: 0)'
+Link("Privacy settings", destination: settingsURL)
+let processName = ProcessInfo.processInfo.processName
+let n = items.remove(at: 0)
+let home = URL.homeDirectory'
 put Shuck.xcodeproj/project.xcproj '"packages": [ { "kind": "local", "path": "Packages/ShuckKit" } ]'
 expect_clean "allowed code"
 

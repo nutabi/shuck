@@ -21,6 +21,10 @@ swift_files="$(find . -name '*.swift' -not -path '*/.build/*' -not -path './buil
 shipped='^(Shuck|Packages/ShuckKit/Sources/(ShuckKit|ShuckExecution))/'
 # Shipped code outside the Execution module (SAF-017, D-28).
 outside_execution='^(Shuck|Packages/ShuckKit/Sources/ShuckKit)/'
+# The Execution module, the only code that may mutate files or start a subprocess.
+execution='^Packages/ShuckKit/Sources/ShuckExecution/'
+# Test code: the app's unit and UI tests, the engine's tests and its test support.
+tests='^(ShuckTests|ShuckUITests|Packages/ShuckKit/(Tests|Sources/ShuckKitTestSupport))/'
 
 report() {
     echo "$1" >&2
@@ -58,9 +62,10 @@ scan privilege "authorization or privilege API; the MVP never asks for admin rig
     '\b(Authorization(Create|ExecuteWithPrivileges|CopyRights|MakeExternalForm)|AuthorizationRef|SMJobBless|kAuthorizationRight[A-Za-z]*|setuid|seteuid|setgid)\b|SMAppService\.daemon|\bsudo\b' \
     '.'
 
-# SAF-017: only ShuckExecution may delete, move or modify files, or change launchd state.
+# SAF-017: only ShuckExecution may delete, move or modify files, or change launchd state. The C calls include their
+# `*at`, `_np` and `f*` variants. Flags, extended attributes and resource values change a file too.
 scan mutation "file or launchd mutation outside ShuckExecution (SAF-017)" \
-    '\b(removeItem|trashItem|recycle|moveItem|replaceItem|replaceItemAt|unlink|rmdir|rename|removefile|truncate)\(|"(bootout|bootstrap|kickstart|load|unload|enable|disable)"' \
+    '\b(removeItem|trashItem|recycle|moveItem|replaceItem|replaceItemAt|unlink|unlinkat|rmdir|rename|renameat|renamex_np|renameatx_np|exchangedata|removefile|removefileat|truncate|ftruncate|copyfile|fcopyfile|clonefile|clonefileat|fclonefileat|chflags|lchflags|fchflags|setxattr|fsetxattr|removexattr|fremovexattr|setResourceValue|setResourceValues)\(|"(bootout|bootstrap|kickstart|load|unload|enable|disable)"' \
     "$outside_execution"
 
 # SAF-017, NFR-SEC-005: permissions and ownership change only in ShuckExecution, and in History for Shuck's own data
@@ -71,10 +76,26 @@ scan permissions "permission or owner change outside ShuckExecution and History 
     '^Packages/ShuckKit/Sources/ShuckKit/History/'
 
 # SAF-017: creating or writing files is allowed only in ShuckExecution and in History, which writes Shuck's own log.
+# The C calls count with or without a `Darwin.` prefix, but not as other types' methods, such as `NSWorkspace.open`.
 scan file-write "file creation or write outside ShuckExecution and History (SAF-017)" \
-    '\b(createFile|createDirectory|createSymbolicLink|linkItem|copyItem)\(|\.write\(to:|FileHandle\((forWritingTo|forWritingAtPath|forUpdating|forUpdatingAtPath)|(^|[^.[:alnum:]_])(fopen|open|creat|mkdir)\(' \
+    '\b(createFile|createDirectory|createSymbolicLink|linkItem|copyItem|OutputStream)\(|\.write\((to|toFile):|FileHandle\((forWritingTo|forWritingAtPath|forUpdating|forUpdatingAtPath)|(^|[^.[:alnum:]_]|\bDarwin\.)(fopen|open|openat|creat|mkdir|mkdirat|symlink|symlinkat|link|linkat)\(' \
     "$outside_execution" \
     '^Packages/ShuckKit/Sources/ShuckKit/History/'
+
+# D-82: only ShuckExecution may start a subprocess, so every tool command goes through its checks (DEV-004, SAF-010).
+# Any use of the `Process` type counts, so `let p: Process = .init()` does too; `ProcessInfo` is a different word.
+scan process "subprocess outside ShuckExecution (D-82)" \
+    '\bProcess\b|\bNSTask\b|\b(posix_spawn|posix_spawnp|fork|vfork|execv|execve|execvp|execl|execle|execlp)\(' \
+    '.' \
+    "$execution"
+
+# SAF-016, AGENTS.md safety rule 3: test code never names the real home folder; it uses the fixture root. A "~/" string
+# is fine, since nothing expands it unless asked. The user's folders (`.userDomainMask`) and a real Trash
+# (`SystemTrash()`, which moves items to the user's own Trash) count as the home folder; tests use `FakeTrash`. Checking
+# a value's type, as in `trash is SystemTrash`, is fine.
+scan real-home "the real home folder in test code; use the fixture root (SAF-016)" \
+    '\b(homeDirectory|NSHomeDirectory|getpwuid|getpwnam|CFCopyHomeDirectoryURL|userDomainMask)|\bSystemTrash\(|expandingTildeInPath|"HOME"' \
+    "$tests"
 
 # AGENTS.md: shipped code logs through Logger, never print.
 scan print "print or NSLog in shipped code; use Logger (NFR-OBS-001)" \

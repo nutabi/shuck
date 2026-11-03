@@ -159,9 +159,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Restore moves only the file it trashed (TD-01, HIS-003, HIS-004). An item whose name in the Trash a later run
     reused reads "Not restorable (Trash emptied)", and the trash record keeps the file's identity, which Restore checks
     (D-84). Left for the owner: the `identity` field in PRD section 8.5's table.
-  - [ ] Static checks for M2, and tests kept out of the home folder (TD-02, TD-12, TD-19, SAF-016, SAF-017). The checks
+  - [x] Static checks for M2, and tests kept out of the home folder (TD-02, TD-12, TD-19, SAF-016, SAF-017). The checks
     also catch the `*at` and `_np` calls, `copyfile`, `clonefile`, `ftruncate`, `.write(toFile:)` and `openat`; only
-    `ShuckExecution` may start a subprocess; test code never names the real home folder.
+    `ShuckExecution` may start a subprocess; test code never names the real home folder (D-85).
   - [ ] Build settings and test helpers (TD-17, TD-18, TD-20 to TD-22): warnings as errors, a shared scheme, the version
     set once, fixture helpers for the history folder and the Trash, and UI tests in English with the en_US region.
   - [ ] Scanner and History fixes (TD-03, TD-14, TD-15, TD-23): error text logged as private, protected names compared
