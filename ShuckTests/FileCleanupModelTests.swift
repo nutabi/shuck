@@ -56,6 +56,27 @@ struct FileCleanupModelTests {
         #expect(model.state(of: healthy.id) == .scanned(succeeded))
     }
 
+    /// The landing page counts the folders a scan could not read apart from those macOS did not let it read (SAF-011,
+    /// SAF-012).
+    @Test func foldersAScanCouldNotReadAreCountedSAF011() async throws {
+        let subTool = StubSubTool(
+            "TSA",
+            events: [
+                .notAccessible(URL(filePath: "/StubHome/Locked")), .unreadable(URL(filePath: "/StubHome/Broken")),
+                .unreadable(URL(filePath: "/StubHome/Gone")),
+            ])
+        let model = FileCleanupModel(subTools: [subTool], context: context)
+
+        await model.scan(subTool)?.value
+
+        guard case .scanned(let summary) = model.state(of: subTool.id) else {
+            Issue.record("Not scanned: \(model.state(of: subTool.id))")
+            return
+        }
+        #expect(summary.notAccessibleCount == 1)
+        #expect(summary.unreadableCount == 2)
+    }
+
     @Test func aPlannedSubToolCannotScan() {
         let planned = ToolRegistry.standard.subTools.filter { $0.info.availability != .available }
         let model = FileCleanupModel(subTools: planned, context: context)

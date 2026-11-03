@@ -25,15 +25,8 @@ public actor HistoryLog {
     public init(folder: URL) throws(HistoryError) {
         try Self.prepare(folder: folder)
         let fileURL = folder.appending(path: Self.fileName)
-        // O_NOFOLLOW: never write through a symlink planted where the log should be.
-        let descriptor = open(fileURL.path, O_RDWR | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
-        guard descriptor >= 0 else { throw .cannotOpen(fileURL.path, errno: errno) }
-        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
-
-        var info = stat()
-        guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
-            throw .notARegularFile(fileURL.path)
-        }
+        let (handle, info) = try Self.openFile(fileURL, flags: O_RDWR | O_APPEND | O_CREAT)
+        let descriptor = handle.fileDescriptor
         if info.st_mode & 0o777 != 0o600 {
             Self.logger.notice("Fixing the history log's permissions")
             guard fchmod(descriptor, 0o600) == 0 else { throw .cannotOpen(fileURL.path, errno: errno) }
@@ -73,14 +66,24 @@ public actor HistoryLog {
     }
 
     /// Reads the log in `folder`. A missing log reads as empty.
+    ///
+    /// Like the writer, the reader refuses a data folder or a log that is a symlink, so History never lists records
+    /// from a file Shuck did not write (D-46).
     public static func read(folder: URL) throws(HistoryError) -> Contents {
+        let empty = Contents(records: [], unreadableLines: [])
+        guard try existingFolder(folder) != nil else { return empty }
         let fileURL = folder.appending(path: fileName)
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return Contents(records: [], unreadableLines: [])
+        let handle: FileHandle
+        do {
+            // O_NONBLOCK: a FIFO planted there would block the open until something writes to it. This way the file
+            // check refuses it.
+            (handle, _) = try openFile(fileURL, flags: O_RDONLY | O_NONBLOCK)
+        } catch .cannotOpen(_, errno: ENOENT) {
+            return empty
         }
         let data: Data
         do {
-            data = try Data(contentsOf: fileURL)
+            data = try handle.readToEnd() ?? Data()
         } catch {
             throw .cannotRead(fileURL.path, String(describing: error))
         }
@@ -100,17 +103,34 @@ public actor HistoryLog {
         return Contents(records: records, unreadableLines: unreadable)
     }
 
-    // MARK: - The data folder
+    // MARK: - The data folder and the log file
+
+    /// Opens the log file with `flags`, never through a symlink planted where the log should be (O_NOFOLLOW, D-46),
+    /// and checks that it is a regular file.
+    private static func openFile(_ fileURL: URL, flags: Int32) throws(HistoryError) -> (FileHandle, stat) {
+        let descriptor = open(fileURL.path, flags | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard descriptor >= 0 else { throw .cannotOpen(fileURL.path, errno: errno) }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        var info = stat()
+        guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
+            throw .notARegularFile(fileURL.path)
+        }
+        return (handle, info)
+    }
+
+    /// The data folder's attributes, or `nil` if nothing is there. Anything but a folder is refused: attributesOfItem
+    /// does not follow a symlink, so a symlink fails the type check (D-46).
+    private static func existingFolder(_ folder: URL) throws(HistoryError) -> [FileAttributeKey: Any]? {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: folder.path) else { return nil }
+        guard attributes[.type] as? FileAttributeType == .typeDirectory else { throw .notAFolder(folder.path) }
+        return attributes
+    }
 
     /// Creates the data folder with mode 0700, or checks an existing one and fixes its mode (NFR-SEC-005, D-45).
     private static func prepare(folder: URL) throws(HistoryError) {
         let manager = FileManager.default
         do {
-            // attributesOfItem does not follow a symlink, so a symlink here fails the type check below.
-            if let attributes = try? manager.attributesOfItem(atPath: folder.path) {
-                guard attributes[.type] as? FileAttributeType == .typeDirectory else {
-                    throw HistoryError.notAFolder(folder.path)
-                }
+            if let attributes = try existingFolder(folder) {
                 if attributes[.posixPermissions] as? Int != 0o700 {
                     logger.notice("Fixing the data folder's permissions")
                     try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
@@ -137,7 +157,8 @@ public actor HistoryLog {
 public enum HistoryError: Error, Equatable {
     /// Something other than a folder, such as a symlink or a file, is where the data folder should be.
     case notAFolder(String)
-    /// Something other than a regular file, such as a symlink, is where the log file should be.
+    /// Something other than a regular file, such as a folder, is where the log file should be. A symlink there fails
+    /// to open instead, with `ELOOP`.
     case notARegularFile(String)
     /// The data folder could not be created or its permissions fixed.
     case cannotPrepareFolder(String, String)

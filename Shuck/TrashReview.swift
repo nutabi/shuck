@@ -6,7 +6,7 @@ import ShuckKit
 /// SAF-011).
 ///
 /// The plan is fixed when the review opens, and the run acts on exactly that list (PRD section 8.1). A review runs at
-/// most once. The review sheet shows it (M1-T12, second pull request).
+/// most once. `TrashReviewSheet` shows it.
 @Observable
 final class TrashReview: Identifiable {
     /// Where the review stands.

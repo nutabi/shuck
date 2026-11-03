@@ -47,8 +47,10 @@ public enum ReadOnlyReason: Equatable, Sendable {
 /// event per file.
 public enum PersonalFilesEvent: Equatable, Sendable {
     case files([PersonalFile])
-    /// A folder the scan could not read (SAF-012). The scan goes on.
+    /// A folder macOS does not let Shuck read (SAF-012). The scan goes on.
     case notAccessible(URL)
+    /// A folder the scan could not read for another reason, such as a disk error (SAF-011). The scan goes on.
+    case unreadable(URL)
 }
 
 /// The item state Large Files and Old Files share (FCL-006). One scan fills it; an item trashed through either
@@ -56,6 +58,7 @@ public enum PersonalFilesEvent: Equatable, Sendable {
 public struct PersonalFilesState: Sendable {
     public private(set) var items: [URL: PersonalFile] = [:]
     public private(set) var notAccessible: Set<URL> = []
+    public private(set) var unreadable: Set<URL> = []
 
     public init() {}
 
@@ -67,6 +70,8 @@ public struct PersonalFilesState: Sendable {
             }
         case .notAccessible(let url):
             notAccessible.insert(url)
+        case .unreadable(let url):
+            unreadable.insert(url)
         }
     }
 

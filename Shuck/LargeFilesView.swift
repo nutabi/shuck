@@ -12,8 +12,9 @@ struct LargeFilesView: View {
     let results: PersonalFilesResults
     let registry: ToolRegistry
 
-    /// On at every launch. Not stored, so UI tests that turn it off write nothing to the real preferences.
-    @State private var grouped = true
+    /// On until the user turns it off, and remembered in the build's own preferences (SET-004, D-87). UI tests start
+    /// with it on: a debug build launched on a fixture root clears its preferences first (D-70).
+    @AppStorage("LargeFilesGroupByFolder") private var grouped = true
     /// The open Move to Trash review, from the table's selection until the user closes the summary.
     @State private var review: TrashReview?
 

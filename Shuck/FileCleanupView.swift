@@ -115,6 +115,9 @@ private struct SubToolRow: View {
                 if summary.notAccessibleCount > 0 {
                     Label("Some folders were not accessible", systemImage: "exclamationmark.triangle")
                 }
+                if summary.unreadableCount > 0 {
+                    Label("Some folders could not be read", systemImage: "exclamationmark.triangle")
+                }
             }
         }
     }

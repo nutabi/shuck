@@ -160,6 +160,9 @@ struct HistoryLogTests {
         let contents = try HistoryLog.read(folder: folder)
         #expect(contents.records.isEmpty)
         #expect(contents.unreadableLines.isEmpty)
+        // So does a data folder without a log.
+        try root.folder(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID))
+        #expect(try HistoryLog.read(folder: folder) == contents)
     }
 
     // MARK: - Permissions and symlinks
@@ -201,5 +204,29 @@ struct HistoryLogTests {
         let error = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }
         #expect(error == .cannotOpen(link.path, errno: ELOOP))
         #expect(try target.resourceValues(forKeys: [.fileSizeKey]).fileSize == 5)
+    }
+
+    /// The reader refuses what the writer refuses, so History never lists records from a file Shuck did not write
+    /// (D-46).
+    @Test func theReaderRefusesADataFolderThatIsASymlinkHIS001() async throws {
+        let elsewhere = try root.folder("Elsewhere")
+        let planted = try HistoryLog(folder: elsewhere)
+        try await planted.append(intent)
+        try root.symlink(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID), to: elsewhere)
+
+        let error = #expect(throws: HistoryError.self) { try HistoryLog.read(folder: folder) }
+        #expect(error == .notAFolder(folder.path))
+    }
+
+    @Test func theReaderRefusesALogFileThatIsASymlinkHIS001() async throws {
+        let elsewhere = try root.folder("Elsewhere")
+        let planted = try HistoryLog(folder: elsewhere)
+        try await planted.append(intent)
+        try root.folder(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID))
+        let link = try root.symlink(
+            ShuckKit.dataFolder(bundleID: ShuckKit.bundleID) + "/" + HistoryLog.fileName, to: planted.fileURL)
+
+        let error = #expect(throws: HistoryError.self) { try HistoryLog.read(folder: folder) }
+        #expect(error == .cannotOpen(link.path, errno: ELOOP))
     }
 }
