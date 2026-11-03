@@ -31,13 +31,14 @@ class ShuckUITestCase: XCTestCase {
     }
 
     /// Launches the app with the fixture root as its home folder and the minimum sizes of Large Files and Old Files at
-    /// 1 MiB, so fixtures stay small.
+    /// 1 MiB, so fixtures stay small. The app runs in English with the United States region, so the tests' expected
+    /// text, such as "10.5 MB", doesn't depend on the Mac's own settings (TD-20).
     @MainActor
     func launch() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)", "-OldFilesMinimumSize",
-            "\(1 << 20)",
+            "\(1 << 20)", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
         ]
         app.launch()
         return app

@@ -71,13 +71,15 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 
 - `ShuckKit` holds Tools, Scanning, Rules, Planning, Safety and History, one folder each. It never mutates user files or launchd state.
 - `ShuckExecution` depends on `ShuckKit` and is the only code that mutates user files or launchd state, including Restore's moves. `ShuckKit` cannot import it.
-- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests.
+- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan. Execution tests build a Trash executor for a fixture root with `TrashExecutor(root:pathGuard:)`.
 - Tests for `ShuckExecution` go in `Tests/ShuckExecutionTests/`, a test target added with the first executor (M1-T04).
 
 ## Coding conventions
 
 - Swift 6 language mode with strict concurrency checking. Scans run off the main actor in task groups; UI state and view models are `@Observable` and `@MainActor`.
 - The app target makes code main-actor isolated by default (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`). Mark plain data types there `nonisolated`.
+- The app and the engine compile with different concurrency settings (D-86). The app turns on approachable concurrency (`SWIFT_APPROACHABLE_CONCURRENCY`), so a `nonisolated` async function there runs on its caller's actor: mark one that must leave the main actor `@concurrent`, as `AppEnvironment`'s runs are. The engine keeps Swift 6's defaults, where such a function runs on the global executor.
+- A compiler warning fails the build, in the app and in the engine (D-86). Fix the warning; don't silence it.
 - No force unwraps, `try!` or `as!` in `ShuckKit`.
 - Engine APIs throw typed errors (`throws(SomeError)`) whose cases callers can act on.
 - Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool (NFR-OBS-001). Mark paths and file names `privacy: .private` (NFR-SEC-006). No `print` in shipped code.

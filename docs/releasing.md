@@ -6,8 +6,8 @@ the owner publishes.
 ## Cutting a release
 
 1. In a pull request, set **MARKETING_VERSION** in `Shuck.xcodeproj/project.xcproj` to the new version (Semantic
-   Versioning, ENG-009). It appears in all three targets; change all of them. The release fails if the tag and the app's
-   version differ. The build number is set automatically from the commit count.
+   Versioning, ENG-009). It is set once, in the project's own build settings, and every target inherits it (D-86). The
+   release fails if the tag and the app's version differ. The build number is set automatically from the commit count.
 2. Merge the pull request.
 3. Tag the merge commit on `main` and push the tag:
 

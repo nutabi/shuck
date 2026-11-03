@@ -43,10 +43,7 @@ struct SubToolIndependenceTests {
             subTool: broken, items: brokenItems.filter { $0.url == vanishing }, pathGuard: pathGuard)
         let healthyPlan = try Plan(subTool: healthy, items: healthyItems, pathGuard: pathGuard)
         try FileManager.default.removeItem(at: vanishing)
-        let logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
-        let executor = TrashExecutor(
-            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder),
-            trash: FakeTrash(folder: root.url.appending(path: ".Trash")))
+        let executor = try TrashExecutor(root: root, pathGuard: pathGuard)
         async let healthyRun = executor.run(healthyPlan)
         async let brokenRun = executor.run(brokenPlan)
         let (healthyReport, brokenReport) = await (healthyRun, brokenRun)
@@ -55,16 +52,8 @@ struct SubToolIndependenceTests {
         #expect(healthyReport.outcomes.allSatisfy { if case .trashed = $0.result { true } else { false } })
         #expect(wanted.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
         #expect(FileManager.default.fileExists(atPath: key.path))
-        let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
+        let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }
         #expect(results.filter { $0.tool == healthy.id }.allSatisfy { $0.status == .ok })
         #expect(results.filter { $0.tool == healthy.id }.count == wanted.count)
-    }
-
-    private func items(from subTool: FixtureSubTool, context: ScanContext) async -> [ScanItem] {
-        var items: [ScanItem] = []
-        for await event in subTool.scan(context) {
-            if case .item(let item) = event { items.append(item) }
-        }
-        return items
     }
 }

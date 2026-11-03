@@ -3,6 +3,9 @@
 
 import PackageDescription
 
+// A warning fails the build, as in the app (D-86).
+let settings: [SwiftSetting] = [.treatAllWarnings(as: .error)]
+
 let package = Package(
     name: "ShuckKit",
     defaultLocalization: "en",
@@ -15,13 +18,15 @@ let package = Package(
     targets: [
         // Tools, Scanning, Rules, Planning, Safety and History (PRD section 11.1). Resources holds the String Catalog
         // for the names and summaries of tools and sub-tools (NFR-L10N-001).
-        .target(name: "ShuckKit", resources: [.process("Resources")]),
+        .target(name: "ShuckKit", resources: [.process("Resources")], swiftSettings: settings),
         // The only module that may mutate user files or launchd state (SAF-017, D-28).
-        .target(name: "ShuckExecution", dependencies: ["ShuckKit"]),
+        .target(name: "ShuckExecution", dependencies: ["ShuckKit"], swiftSettings: settings),
         // Fixture-root harness and file factory, shared by engine and UI tests (SAF-016).
-        .target(name: "ShuckKitTestSupport", dependencies: ["ShuckKit"]),
-        .testTarget(name: "ShuckKitTests", dependencies: ["ShuckKit", "ShuckKitTestSupport"]),
+        .target(name: "ShuckKitTestSupport", dependencies: ["ShuckKit"], swiftSettings: settings),
         .testTarget(
-            name: "ShuckExecutionTests", dependencies: ["ShuckExecution", "ShuckKit", "ShuckKitTestSupport"]),
+            name: "ShuckKitTests", dependencies: ["ShuckKit", "ShuckKitTestSupport"], swiftSettings: settings),
+        .testTarget(
+            name: "ShuckExecutionTests", dependencies: ["ShuckExecution", "ShuckKit", "ShuckKitTestSupport"],
+            swiftSettings: settings),
     ]
 )

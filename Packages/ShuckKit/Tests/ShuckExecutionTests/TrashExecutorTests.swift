@@ -14,8 +14,8 @@ struct TrashExecutorTests {
     init() throws {
         root = try FixtureRoot()
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
-        logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
-        trashFolder = root.url.appending(path: ".Trash")
+        logFolder = root.historyFolder
+        trashFolder = root.trashFolder
     }
 
     private func planned(_ url: URL, tier: Tier = .yourData, method: ActionMethod = .trash) throws -> PlannedItem {
@@ -29,10 +29,9 @@ struct TrashExecutorTests {
     private func run(_ plan: Plan, beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }) async throws
         -> RunReport
     {
-        let executor = TrashExecutor(
-            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder),
-            trash: FakeTrash(folder: trashFolder, beforeMove: beforeMove))
-        return await executor.run(plan)
+        let executor = try TrashExecutor(root: root, pathGuard: pathGuard, beforeMove: beforeMove)
+        // The run gets a task of its own, so a test that cancels it from `beforeMove` doesn't cancel itself (TD-17).
+        return await Task { await executor.run(plan) }.value
     }
 
     private func exists(_ url: URL) -> Bool {

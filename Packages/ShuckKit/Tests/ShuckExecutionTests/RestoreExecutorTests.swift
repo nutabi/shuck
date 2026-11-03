@@ -15,8 +15,8 @@ struct RestoreExecutorTests {
     init() throws {
         root = try FixtureRoot()
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
-        logFolder = HistoryLog.folder(home: root.url, bundleID: ShuckKit.bundleID)
-        trash = FakeTrash(folder: root.url.appending(path: ".Trash"))
+        logFolder = root.historyFolder
+        trash = FakeTrash(folder: root.trashFolder)
     }
 
     /// Trashes `urls` with the Trash executor and returns them as the history log now lists them.
@@ -25,7 +25,7 @@ struct RestoreExecutorTests {
             PlannedItem(url: url, tier: .yourData, method: .trash, snapshot: try #require(ItemSnapshot.read(url)))
         }
         let plan = try Plan(tool: .largeFiles, allowedRoots: [root.url], items: items, pathGuard: pathGuard)
-        _ = await TrashExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash).run(plan)
+        _ = try await TrashExecutor(root: root, pathGuard: pathGuard).run(plan)
         return try restorable()
     }
 
