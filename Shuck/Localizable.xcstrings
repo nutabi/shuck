@@ -115,7 +115,16 @@
     "Something other than a folder is where Shuck keeps its data." : {
 
     },
+    "Stop Scanning" : {
+
+    },
     "Stop before the next item. Items already restored stay where they are." : {
+
+    },
+    "Stop scanning %@" : {
+
+    },
+    "Stop scanning (⌘.). Scanning never removes anything." : {
 
     },
     "The history log is a link to another place, so Shuck doesn't open it." : {

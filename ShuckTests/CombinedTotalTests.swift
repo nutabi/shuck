@@ -68,7 +68,7 @@ struct CombinedTotalTests {
         await model.scan(largeFiles)?.value
 
         // Both paths are listed, but trashing them frees the space of one file.
-        #expect(model.results[largeFiles.id]?.rows.count == 2)
+        #expect(model.personalFilesResults[largeFiles.id]?.rows.count == 2)
         guard case .scanned(let summary) = model.state(of: largeFiles.id) else {
             Issue.record("Not scanned")
             return

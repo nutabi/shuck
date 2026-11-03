@@ -2,13 +2,15 @@ import ShuckKitTestSupport
 import XCTest
 
 /// A first look around a Mac with nothing to clean: the sidebar, History, the File Cleanup landing page, the pages of
-/// tools later milestones build, sub-tool pages with nothing to list, and Settings.
+/// tools later milestones build, a scan stopped and started again, sub-tool pages with nothing to list, and Settings.
+///
+/// Each scan waits 2 seconds before it starts, so there is time to stop one.
 final class FirstLookUITests: ShuckUITestCase {
     @MainActor
     func testFirstLookWithNothingToClean() throws {
         // Too small for Large Files and Old Files, so neither has anything to list.
         try root.file("Documents/notes.txt", size: 10)
-        let app = launch()
+        let app = launch(scanDelay: 2)
         let sidebar = app.outlines.firstMatch
 
         step("The sidebar lists every tool and sub-tool, and Settings is not one of them (FCL-001, D-27)") {
@@ -66,8 +68,18 @@ final class FirstLookUITests: ShuckUITestCase {
             }
         }
 
-        step("Large Files and Old Files with nothing to list show only a message, without an empty table (D-61)") {
+        step("Stop, next to the scanning indicator, stops the scan that opening Large Files started (SAF-014, D-91)") {
             sidebar.staticTexts["Large Files"].click()
+            let stop = app.toolbars.buttons["Stop Scanning"]
+            XCTAssertTrue(stop.appears(within: 5), "No Stop button while scanning")
+            stop.click()
+            XCTAssertTrue(app.staticTexts["Not scanned yet"].appears(within: 5), "The scan did not stop")
+            XCTAssertTrue(stop.disappears(within: 5))
+            XCTAssertTrue(app.toolbars.buttons["Scan"].isEnabled)
+        }
+
+        step("Large Files and Old Files with nothing to list show only a message, without an empty table (D-61)") {
+            app.toolbars.buttons["Scan"].click()
             XCTAssertTrue(app.staticTexts["No files of at least 1 MB"].appears(within: 10))
             XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
             XCTAssertFalse(app.staticTexts["No items selected"].exists, "An empty table's footer is shown")
@@ -79,7 +91,9 @@ final class FirstLookUITests: ShuckUITestCase {
             attachScreenshot(of: app, named: "Old Files with nothing to list")
         }
 
-        step("⌘, opens Settings in a window of its own (D-27)") {
+        step("⌘N opens no second main window, and ⌘, opens Settings in a window of its own (D-27, D-91)") {
+            // If ⌘N opened a window, there would be three once Settings is open.
+            app.typeKey("n", modifierFlags: .command)
             app.typeKey(",", modifierFlags: .command)
             let summary = "Exclusions, thresholds and project folders."
             XCTAssertTrue(app.staticTexts[summary].appears(within: 5), "⌘, did not open Settings")

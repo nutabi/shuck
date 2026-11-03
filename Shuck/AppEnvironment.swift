@@ -14,6 +14,9 @@ nonisolated struct AppEnvironment {
     /// This build's data folder inside the home folder, which holds its history log: the release build's or the debug
     /// build's, named after its bundle ID (D-70).
     let historyFolder: URL
+    /// How long a personal-files scan waits before it starts, so a UI test can stop it (SAF-014). Only a debug build on
+    /// a fixture root reads it; otherwise it is `nil`.
+    let scanDelay: Duration?
 
     /// The launch argument UI tests pass, followed by the fixture root's path. Release builds ignore it.
     static let fixtureRootArgument = "-ShuckFixtureRoot"
@@ -23,6 +26,8 @@ nonisolated struct AppEnvironment {
     static let largeFilesMinimumSizeKey = "LargeFilesMinimumSize"
     static let oldFilesPeriodKey = "OldFilesPeriodMonths"
     static let oldFilesMinimumSizeKey = "OldFilesMinimumSize"
+    /// ``scanDelay`` in seconds, as a UI test passes it: `-ShuckScanDelaySeconds 2`.
+    static let scanDelayKey = "ShuckScanDelaySeconds"
 
     /// Reads the stored value for a key, if any.
     typealias Settings = (String) -> Any?
@@ -68,7 +73,8 @@ nonisolated struct AppEnvironment {
         guard let bundleID, bundleID == (debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID) else {
             throw .unexpectedBundleID(bundleID)
         }
-        if let root = try Self.fixtureRoot(in: arguments, debugBuild: debugBuild) {
+        let fixtureRoot = try Self.fixtureRoot(in: arguments, debugBuild: debugBuild)
+        if let root = fixtureRoot {
             // The engine tests' configuration (D-41): only the temporary folder's /private prefix is left out.
             let protection = PathGuardConfiguration(
                 home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
@@ -90,6 +96,7 @@ nonisolated struct AppEnvironment {
             periodMonths: months ?? OldFiles.defaultPeriodMonths,
             minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize)
         historyFolder = HistoryLog.folder(home: context.home, bundleID: bundleID)
+        scanDelay = fixtureRoot == nil ? nil : Self.number(settings(Self.scanDelayKey)).map { .seconds($0) }
     }
 
     /// The preferences domain to clear at launch, before anything reads it: the debug build's own when a UI test
@@ -101,6 +108,26 @@ nonisolated struct AppEnvironment {
             (try? fixtureRoot(in: arguments, debugBuild: debugBuild)) != nil
         else { return nil }
         return ShuckKit.debugBundleID
+    }
+
+    /// Starts a personal-files scan, after ``scanDelay`` if a UI test set one. Cancelling the consuming task stops it,
+    /// during the delay too.
+    func personalFilesScan(
+        context: ScanContext, lastOpened: LastOpenedReader?
+    ) -> AsyncStream<PersonalFilesEvent> {
+        let scanner = PersonalFilesScanner(context: context, lastOpened: lastOpened)
+        guard let scanDelay else { return scanner.scan() }
+        return AsyncStream { continuation in
+            let task = Task {
+                if (try? await Task.sleep(for: scanDelay)) != nil {
+                    for await event in scanner.scan() {
+                        continuation.yield(event)
+                    }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     /// Moves a plan's items to the Trash, off the main actor, and logs every step in the history log in

@@ -69,6 +69,24 @@ final class AppEnvironmentTests {
         let _: HistoryRestore.RunRestore = debug.restore
     }
 
+    /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.
+    @Test func onlyAUITestsDebugBuildDelaysItsScansSAF014() throws {
+        let settings: AppEnvironment.Settings = { $0 == AppEnvironment.scanDelayKey ? "2" : nil }
+        let uiTest = try AppEnvironment(
+            arguments: ["Shuck", AppEnvironment.fixtureRootArgument, fixture], settings: settings, debugBuild: true,
+            appBundle: appBundle, bundleID: ShuckKit.debugBundleID, home: home)
+        #expect(uiTest.scanDelay == .seconds(2))
+
+        for debugBuild in [true, false] {
+            let app = try AppEnvironment(
+                arguments: ["Shuck"], settings: settings, debugBuild: debugBuild, appBundle: appBundle,
+                bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
+            #expect(app.scanDelay == nil)
+        }
+        #expect(
+            try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true).scanDelay == nil)
+    }
+
     @Test func aTestProcessesAndTheUITestRunnersTemporaryFoldersHaveTheShapeOfAFixtureRoot() {
         let uuid = UUID().uuidString
         let accepted = [
