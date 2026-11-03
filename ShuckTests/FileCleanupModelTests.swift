@@ -49,10 +49,10 @@ struct FileCleanupModelTests {
         #expect(succeeded.reclaimableBytes == 2_000)
         #expect(succeeded.notAccessibleCount == 0)
 
-        // Stopping the stalled scan puts back its previous state and leaves the others as they were.
+        // Stopping the stalled scan leaves it stopped and the others as they were.
         stalledScan?.cancel()
         await stalledScan?.value
-        #expect(model.state(of: stalled.id) == .notScanned)
+        #expect(model.state(of: stalled.id) == .stopped)
         #expect(model.state(of: healthy.id) == .scanned(succeeded))
     }
 
@@ -158,9 +158,16 @@ struct FileCleanupModelTests {
         await scan?.value
 
         #expect(scan?.isCancelled == true)
-        #expect(model.state(of: stalled.id) == .notScanned)
+        #expect(model.state(of: stalled.id) == .stopped)
         #expect(model.results(of: stalled.id)?.isEmpty == true)
         #expect(model.canScan(stalled))
+        // Opening its page again doesn't restart a stopped scan; Scan does.
+        #expect(model.scanIfNotScanned(stalled) == nil)
+        #expect(model.state(of: stalled.id) == .stopped)
+        let again = model.scan(stalled)
+        #expect(model.state(of: stalled.id) == .scanning)
+        again?.cancel()
+        await again?.value
         guard case .scanned = model.state(of: other.id) else {
             Issue.record("Stopping one scan changed another sub-tool: \(model.state(of: other.id))")
             return

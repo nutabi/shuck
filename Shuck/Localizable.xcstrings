@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Click Scan to scan again." : {
+
+    },
     "Items whose original place is free are restored either way." : {
 
     },
@@ -26,6 +29,9 @@
 
     },
     "Restoring ^[%lld item](inflect: true)…" : {
+
+    },
+    "Scan stopped" : {
 
     },
     "Skip" : {

@@ -68,14 +68,23 @@ final class FirstLookUITests: ShuckUITestCase {
             }
         }
 
-        step("Stop, next to the scanning indicator, stops the scan that opening Large Files started (SAF-014, D-91)") {
+        step(
+            "Stop stops the scan opening Large Files started, and opening a page doesn't restart it (SAF-014, D-91)"
+        ) {
             sidebar.staticTexts["Large Files"].click()
             let stop = app.toolbars.buttons["Stop Scanning"]
             XCTAssertTrue(stop.appears(within: 5), "No Stop button while scanning")
             stop.click()
-            XCTAssertTrue(app.staticTexts["Not scanned yet"].appears(within: 5), "The scan did not stop")
+            XCTAssertTrue(app.staticTexts["Scan stopped"].appears(within: 5), "The scan did not stop")
             XCTAssertTrue(stop.disappears(within: 5))
             XCTAssertTrue(app.toolbars.buttons["Scan"].isEnabled)
+
+            // Old Files shares the stopped scan, and opening its page doesn't start it again.
+            sidebar.staticTexts["Old Files"].click()
+            XCTAssertTrue(app.staticTexts["Scan stopped"].appears(within: 5), "Opening Old Files restarted the scan")
+            XCTAssertFalse(stop.exists, "Opening Old Files restarted the scan")
+            sidebar.staticTexts["Large Files"].click()
+            XCTAssertTrue(app.staticTexts["Scan stopped"].appears(within: 5))
         }
 
         step("Large Files and Old Files with nothing to list show only a message, without an empty table (D-61)") {

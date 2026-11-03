@@ -13,6 +13,8 @@ final class FileCleanupModel {
     nonisolated enum ScanState: Equatable {
         case notScanned
         case scanning
+        /// The user stopped the scan. Opening the page again doesn't restart it; Scan does (SAF-014).
+        case stopped
         case scanned(ScanSummary)
     }
 
@@ -118,7 +120,7 @@ final class FileCleanupModel {
 
     /// Starts `subTool`'s scan, or returns `nil` if it cannot scan now. Items stream into the sub-tool's list as the
     /// scan finds them (FCL-012). Cancelling the returned task, or ``cancelScan(_:)``, stops the scan and leaves the
-    /// sub-tool not scanned, with an empty list.
+    /// sub-tool stopped, with an empty list.
     @discardableResult
     func scan(_ subTool: any SubTool) -> Task<Void, Never>? {
         guard canScan(subTool) else { return nil }
@@ -136,7 +138,7 @@ final class FileCleanupModel {
             scans[id] = nil
             if Task.isCancelled {
                 list.removeAll()
-                states[id] = .notScanned
+                states[id] = .stopped
             } else {
                 states[id] = .scanned(list.summary(finished: .now))
             }
@@ -152,7 +154,8 @@ final class FileCleanupModel {
     }
 
     /// Starts `subTool`'s scan if it has not scanned yet, as when the user opens its page. A finished scan is kept, so
-    /// going back to a page shows the same results and selection; the page's Scan button starts a new one.
+    /// going back to a page shows the same results and selection, and a stopped one stays stopped, so a long scan the
+    /// user stopped doesn't start again behind their back; the page's Scan button starts a new one.
     @discardableResult
     func scanIfNotScanned(_ subTool: any SubTool) -> Task<Void, Never>? {
         guard state(of: subTool.id) == .notScanned else { return nil }
@@ -188,7 +191,7 @@ final class FileCleanupModel {
                 scans[id] = nil
                 if Task.isCancelled {
                     personalFilesResults[id]?.removeAll()
-                    states[id] = .notScanned
+                    states[id] = .stopped
                 } else {
                     states[id] = .scanned(summary(of: id, finished: finished))
                 }

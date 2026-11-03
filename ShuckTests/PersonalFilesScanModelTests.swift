@@ -93,7 +93,7 @@ struct PersonalFilesScanModelTests {
 
         scan?.cancel()
         await scan?.value
-        #expect(model.state(of: largeFiles.id) == .notScanned)
+        #expect(model.state(of: largeFiles.id) == .stopped)
         #expect(model.personalFilesResults[largeFiles.id]?.rows.isEmpty == true)
     }
 
@@ -114,10 +114,12 @@ struct PersonalFilesScanModelTests {
         await scan?.value
 
         for id in [largeFiles.id, oldFiles.id] {
-            #expect(model.state(of: id) == .notScanned)
+            #expect(model.state(of: id) == .stopped)
             #expect(model.results(of: id)?.isEmpty == true)
         }
         #expect(model.canScan(largeFiles) && model.canScan(oldFiles))
+        // Opening the other page doesn't start the shared scan again (D-91).
+        #expect(model.scanIfNotScanned(oldFiles) == nil)
     }
 
     @Test func largeFilesListsTheLargestFirstLRG002() {

@@ -116,6 +116,8 @@ private struct SubToolRow: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("Scanning…")
+            case .stopped:
+                Text("Scan stopped")
             case .scanned(let summary):
                 Text("\(summary.reclaimableBytes, format: .byteCount(style: .file)) reclaimable")
                 Text("Scanned \(summary.finished, format: .relative(presentation: .named))")

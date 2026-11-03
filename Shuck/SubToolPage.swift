@@ -94,6 +94,12 @@ struct SubToolPage<Results: View, Controls: View>: View {
             }
         case .scanning:
             ProgressView("Scanning…")
+        case .stopped:
+            ContentUnavailableView {
+                Label("Scan stopped", systemImage: "stop.circle")
+            } description: {
+                Text("Click Scan to scan again.")
+            }
         case .scanned:
             ContentUnavailableView {
                 Label {
