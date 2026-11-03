@@ -198,6 +198,20 @@ struct PlanExecutorTests {
         let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
         #expect(results.map(\.status) == [.failed])
         #expect(results.map(\.detail) == ["NSCocoaErrorDomain 513: \(error.message)"])
+        // The History page reads the error back from the record, and shows its description (D-90).
+        #expect(results.map { $0.detail.flatMap(ActionError.init(logged:)) } == [error])
+        #expect(error.localizedDescription == error.message)
+    }
+
+    /// Text that is not a logged error, such as what Shuck 0.1.0 logged, reads as no error (D-90).
+    @Test func onlyALoggedErrorReadsBackAsOne() {
+        #expect(
+            ActionError(logged: "NSPOSIXErrorDomain 13: Permission denied: really")
+                == ActionError(
+                    domain: NSPOSIXErrorDomain, code: 13, message: "Permission denied: really"))
+        #expect(ActionError(logged: #"CocoaError(_nsError: Error Domain=NSCocoaErrorDomain Code=513 "No.")"#) == nil)
+        #expect(ActionError(logged: "denied") == nil)
+        #expect(ActionError(logged: "NSCocoaErrorDomain x: message") == nil)
     }
 
     /// The executor writes each skip reason's code, and the History page reads the code back from the same records.

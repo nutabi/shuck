@@ -175,8 +175,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     categories per tool and sub-tool (NFR-OBS-001). `PlanExecutor` hands each item to the action for its method, and a
     plan may mix methods; an item whose method has no action yet is skipped and logged. Restore runs through the same
     loop. The path guard's `realpath`, "item exists" and case-folding helpers are the only copies (D-89).
-  - [ ] History wording in one place (TD-06, TD-08, TD-16): one table from reason codes to words for both sheets and
-    the History page, each history item with its own operation, and errors in words.
+  - [x] History wording in one place (TD-06, TD-08, TD-16): one table from reason codes to words for both sheets and
+    the History page, each history item with its own operation, and errors in words. A run whose items mix methods is
+    labelled by all of them, and a logged failure shows its error's description (D-90).
   - [ ] One page layout for every sub-tool (TD-07, TD-10, TD-13, SAF-014): pages found by tool ID, a Stop button for
     scans, and one main window.
   - [ ] A results list that merges new rows instead of sorting every row again (TD-09, NFR-PERF-001).

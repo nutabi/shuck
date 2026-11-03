@@ -51,7 +51,7 @@ struct HistoryRunTests {
         #expect(runs.map(\.id) == [run])
         let history = try #require(runs.first)
         #expect(history.tool == .largeFiles)
-        #expect(history.operation == .trash)
+        #expect(history.operations == [.trash])
         #expect(history.started == timestamp)
         #expect(history.items.map(\.path) == [clip, gone, report])
         #expect(history.items.map(\.outcome) == [.succeeded, .skipped("missing"), .succeeded])
@@ -99,7 +99,7 @@ struct HistoryRunTests {
 
         #expect(runs.map(\.id) == [trashRun, restoreRun])
         #expect(runs.map(\.tool) == [.largeFiles, .history])
-        #expect(runs.map(\.operation) == [.trash, .restore])
+        #expect(runs.map(\.operations) == [[.trash], [.restore]])
         #expect(runs[0].items.map(\.restorability) == [.restored])
         // A restore names where the item went and where it came from (D-52); it is not itself restorable.
         #expect(runs[1].items.map(\.path) == [clip])
@@ -118,6 +118,21 @@ struct HistoryRunTests {
         #expect(runs.first?.items.map(\.outcome) == [.succeeded])
         #expect(runs.first?.items.map(\.restorability) == [.permanent])
         #expect(runs.first?.succeededBytes == 50)
+    }
+
+    /// HIS-002, SAF-006: a plan may mix methods (D-89), so each item keeps its own operation, and the run lists each
+    /// operation once, in the order its items first used it.
+    @Test func eachItemOfAMixedRunKeepsItsOperationHIS002() async throws {
+        let run = UUID()
+        let records = [(HistoryRecord.Operation.delete, "/a"), (.tool, "npm"), (.delete, "/b")].map { operation, path in
+            HistoryRecord.result(
+                run: run, tool: .developerJunk, operation: operation, path: path, tier: .rebuildable, status: .ok,
+                bytes: 10, timestamp: timestamp)
+        }
+
+        let runs = try await runs(records)
+        #expect(runs.first?.items.map(\.operation) == [.delete, .tool, .delete])
+        #expect(runs.first?.operations == [.delete, .tool])
     }
 
     @Test func anEmptyLogHasNoRuns() throws {
