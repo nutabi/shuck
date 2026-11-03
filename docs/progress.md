@@ -180,7 +180,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     labelled by all of them, and a logged failure shows its error's description (D-90).
   - [x] One page layout for every sub-tool (TD-07, TD-10, TD-13, SAF-014): pages found by tool ID, a Stop button for
     scans, and one main window. A stopped scan stays stopped until the user clicks Scan (D-91).
-  - [ ] A results list that merges new rows instead of sorting every row again (TD-09, NFR-PERF-001): rows built off
+  - [x] A results list that merges new rows instead of sorting every row again (TD-09, NFR-PERF-001): rows built off
     the main actor, each batch merged into the sorted rows in the order a full sort gives, and Group by Folder's groups
     built once per change of the rows (D-92). Left over, as before: at 200,000 rows, a click on a column header sorts
     every row on the main actor (2 s by size, 6 s by name), and the selection footer reads every row on each selection
