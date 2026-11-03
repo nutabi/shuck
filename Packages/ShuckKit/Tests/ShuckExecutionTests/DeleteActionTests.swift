@@ -156,6 +156,20 @@ struct DeleteActionTests {
         #expect(try results().map(\.status) == [.skipped, .skipped])
     }
 
+    @Test func aRebuildableFolderRecreatedSinceTheScanIsStillDeletedSAF008() async throws {
+        // Its scan reads no file identity, as Xcode may rebuild a DerivedData folder between scan and run (D-103).
+        let derived = try root.folder("Library/Developer/Xcode/DerivedData/App-abc")
+        try root.file("Library/Developer/Xcode/DerivedData/App-abc/Build/App", size: 10_000)
+        let item = try planned(derived)
+        try FileManager.default.removeItem(at: derived)
+        try root.file("Library/Developer/Xcode/DerivedData/App-abc/Build/App", size: 10_000)
+
+        let report = try await run([item])
+
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(!exists(derived))
+    }
+
     @Test func aDeleteItemTheGuardRejectsAtRunTimeIsNotDeletedSAF008() async throws {
         // Between plan and run, Caches is swapped for a symlink to a look-alike outside the root.
         let outside = try FixtureRoot()

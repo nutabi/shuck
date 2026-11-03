@@ -102,6 +102,16 @@ struct PlanTests {
         #expect(plan.items.map(\.scope) == [.contents, .item])
     }
 
+    @Test func aPersonalFileKeepsItsIdentityIntoThePlanSAF008() throws {
+        let file = try root.file("Downloads/Installer.dmg", size: 10)
+        let identity = try #require(FileIdentity.read(file))
+        let personal = PersonalFile(
+            url: file, identity: identity, snapshot: try #require(ItemSnapshot.read(file)), modified: nil)
+        let item = try #require(personal.scanItem(source: .largeFiles, reason: "Large file"))
+        let plan = try Plan(subTool: LargeFiles(), items: [item], pathGuard: pathGuard)
+        #expect(plan.items.map(\.identity) == [identity])
+    }
+
     @Test func anItemIsWholeUnlessItSaysOtherwise() throws {
         let file = try root.file("Downloads/item.bin", size: 10)
         let snapshot = try #require(ItemSnapshot.read(file))

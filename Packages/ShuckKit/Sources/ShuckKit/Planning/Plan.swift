@@ -9,13 +9,19 @@ public struct PlannedItem: Equatable, Sendable {
     public let snapshot: ItemSnapshot
     /// Whether the action removes the item or only what is inside it (CAC-004).
     public let scope: ItemScope
+    /// Which file the scan found, if the executor must skip another file put at its path since (SAF-008, D-103).
+    public let identity: FileIdentity?
 
-    public init(url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, scope: ItemScope = .item) {
+    public init(
+        url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, scope: ItemScope = .item,
+        identity: FileIdentity? = nil
+    ) {
         self.url = url
         self.tier = tier
         self.method = method
         self.snapshot = snapshot
         self.scope = scope
+        self.identity = identity
     }
 }
 
@@ -68,7 +74,9 @@ extension Plan {
         try self.init(
             tool: subTool.id, allowedRoots: subTool.allowedRoots(home: pathGuard.configuration.home),
             items: items.map {
-                PlannedItem(url: $0.url, tier: $0.tier, method: $0.method, snapshot: $0.snapshot, scope: $0.scope)
+                PlannedItem(
+                    url: $0.url, tier: $0.tier, method: $0.method, snapshot: $0.snapshot, scope: $0.scope,
+                    identity: $0.identity)
             },
             pathGuard: pathGuard, run: run)
     }
