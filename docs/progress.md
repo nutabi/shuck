@@ -153,12 +153,13 @@ Process changes during M1:
 Goal: Developer Junk with its Must rules, and Caches & Logs, with permanent Delete and tool commands (PRD section 13).
 M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-82).
 
-- [ ] M2-T01 M1 cleanup: the findings of `docs/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
+- [x] M2-T01 M1 cleanup: the findings of `docs/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
   to Safety and Execution go in pull requests of their own. The nine form one GitHub stack, in the order below, with
-  auto-merge off; the owner merges the whole stack in one go (D-83).
+  auto-merge off; the owner merges the whole stack in one go (D-83). A tenth pull request on top follows up the
+  independent review of the stack (D-93).
   - [x] Restore moves only the file it trashed (TD-01, HIS-003, HIS-004). An item whose name in the Trash a later run
     reused reads "Not restorable (Trash emptied)", and the trash record keeps the file's identity, which Restore checks
-    (D-84). Left for the owner: the `identity` field in PRD section 8.5's table.
+    (D-84). PRD section 8.5 has the `identity` field (D-93).
   - [x] Static checks for M2, and tests kept out of the home folder (TD-02, TD-12, TD-19, SAF-016, SAF-017). The checks
     also catch the `*at` and `_np` calls, `copyfile`, `clonefile`, `ftruncate`, `.write(toFile:)` and `openat`; only
     `ShuckExecution` may start a subprocess; test code never names the real home folder (D-85).
@@ -185,6 +186,11 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     built once per change of the rows (D-92). Left over, as before: at 200,000 rows, a click on a column header sorts
     every row on the main actor (2 s by size, 6 s by name), and the selection footer reads every row on each selection
     change (166 ms with 1,000 selected) (NFR-PERF-001).
+  - [x] Follow-up to the independent review of the stack (D-93): the history log's `identity` and `detail` in PRD
+    section 8.5. Left over, for a later task: one classifier for the `lstat` errors that `Restorability` and
+    `ItemSnapshot` read in opposite directions; tests for a FIFO planted as the history log, for stopping a scan while
+    a batch is applied off the main actor, and for an executor's records read back through History's wording; and the
+    near-copy Large Files and Old Files pipeline tests (TD-18).
 - [ ] M2-T02 Delete in the run loop: re-validation, nothing followed out of the target, only a folder's contents when
   the item says so, and records marked non-restorable (SAF-004, SAF-006 to SAF-008, SAF-011, SAF-014, CAC-004)
 - [ ] M2-T03 Rebuildable items and rules as data: each item has a category, a default selection and the reason it
@@ -205,7 +211,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
 - [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
-  fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004)
+  fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool
+  command can be stopped while it runs (SAF-014, D-93)
 - [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
   run (DEV-R03, DEV-R07 to DEV-R09)
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default

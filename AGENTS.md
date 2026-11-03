@@ -165,7 +165,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - Take the first unchecked task in `docs/progress.md`, in roadmap order (PRD section 13), unless the owner assigns one.
 - Milestones run in order. Do not start a milestone until the previous one meets its exit criteria.
 - Milestones M2 to M6 are broken into tasks when each one starts. If the next milestone has no breakdown, propose one to the owner instead of starting work.
-- Record progress in the same pull request: tick the task in `docs/progress.md`, and add a line for anything left over.
+- Record progress in the same pull request: tick the task in `docs/progress.md`, and add a line for anything left over. In a stack, each pull request ticks its own sub-item, even when the owner merges the stack in one go (D-93).
 - Record any decision made during a task in `docs/decisions.md` (ENG-011) with ID, date, decision, rationale and rejected alternatives.
 
 ## Adding a sub-tool or a cleanup rule
