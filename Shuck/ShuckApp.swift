@@ -21,7 +21,8 @@ struct ShuckApp: App {
         let environment: AppEnvironment
         do {
             environment = try AppEnvironment(
-                arguments: arguments, settings: UserDefaults.standard.object(forKey:), bundleID: bundleID)
+                arguments: arguments, settings: UserDefaults.standard.object(forKey:), bundleID: bundleID,
+                home: .homeDirectory)
         } catch {
             // A UI test passed a bad fixture root, or the build has the wrong bundle ID. Stop rather than scan the real
             // home folder or share another build's data.
