@@ -8,6 +8,13 @@ the owner publishes.
 1. In a pull request, set **MARKETING_VERSION** in `Shuck.xcodeproj/project.xcproj` to the new version (Semantic
    Versioning, ENG-009). It is set once, in the project's own build settings, and every target inherits it (D-86). The
    release fails if the tag and the app's version differ. The build number is set automatically from the commit count.
+   A milestone release takes the milestone's version (D-30). A fix for a High-severity bug in a published release may
+   go out as a patch release, such as 0.1.1, before the milestone ends (D-94).
+
+   In the same pull request, turn `## [Unreleased]` in `CHANGELOG.md` into the version's section, for example
+   `## [0.1.1] - 2026-11-03`, with the day you expect to tag, and add an empty `## [Unreleased]` above it. Update the
+   links at the end: `[Unreleased]` compares the new tag with `HEAD`, and the new version compares the previous tag
+   with the new one. `scripts/release-notes.sh 0.1.1` prints the notes the release will get.
 2. Merge the pull request.
 3. Tag the merge commit on `main` and push the tag:
 
@@ -17,12 +24,14 @@ the owner publishes.
    git push origin v0.0.1
    ```
 
-4. The **Release** workflow (`.github/workflows/release.yml`) checks the tag is on `main`, runs the static checks, then
-   runs `scripts/build-dmg.sh`: archive, sign with Developer ID, notarize and staple the app, build the DMG, sign,
-   notarize and staple it, and write a SHA-256 checksum. It creates a **draft** release with both files. Versions below
-   1.0.0 are marked as pre-releases.
+4. The **Release** workflow (`.github/workflows/release.yml`) checks the tag is on `main`, runs the static checks,
+   writes the version's notes from `CHANGELOG.md` and fails if it has none (D-95), then runs `scripts/build-dmg.sh`:
+   archive, sign with Developer ID, notarize and staple the app, build the DMG, sign, notarize and staple it, and write
+   a SHA-256 checksum. It creates a **draft** release with both files and the notes. Versions below 1.0.0 are marked as
+   pre-releases.
 5. Download the DMG from the draft, open it on your Mac, and check that Shuck launches without a Gatekeeper warning.
-   Edit the generated notes if needed, then **publish**.
+   Check the notes, then **publish**. If a note needs fixing, fix `CHANGELOG.md` in a pull request too, so the two
+   stay the same.
 
 ## One-time setup
 
@@ -70,10 +79,14 @@ The same scripts run locally, with the Developer ID certificate in your login ke
    SHUCK_EXPECT_VERSION=0.0.1 scripts/build-dmg.sh
    ```
 
-3. Create the draft release yourself:
+3. Create the draft release yourself, with the notes from `CHANGELOG.md`:
 
    ```bash
-   gh release create v0.0.1 --draft --verify-tag --prerelease --title "Shuck 0.0.1" --generate-notes build/release/Shuck-0.0.1.dmg build/release/Shuck-0.0.1.dmg.sha256
+   scripts/release-notes.sh 0.0.1 > build/release/notes.md
+   ```
+
+   ```bash
+   gh release create v0.0.1 --draft --verify-tag --prerelease --title "Shuck 0.0.1" --notes-file build/release/notes.md build/release/Shuck-0.0.1.dmg build/release/Shuck-0.0.1.dmg.sha256
    ```
 
 For a dry run without a certificate, `SHUCK_SIGN_IDENTITY=- scripts/build-dmg.sh --skip-notarization` signs ad hoc and
