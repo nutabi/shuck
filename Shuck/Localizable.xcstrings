@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Skipped: another file took its place since the scan" : {
+
+    },
     "Click Scan to scan again." : {
 
     },

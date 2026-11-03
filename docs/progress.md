@@ -199,7 +199,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] The Delete action: nothing followed out of the target, logged as `delete` (SAF-006, SAF-007, SAF-011, D-101).
     Left over: no test mounts a volume inside a target, since tests may not start `hdiutil` (D-82).
   - [x] Stop interrupts re-measuring a large folder during a run or a restore (#70, SAF-014, D-102).
-  - [ ] Re-validation compares the file identity the scan read, so a replaced file is skipped (#71, SAF-008).
+  - [x] Re-validation compares the file identity the scan read, so a replaced file is skipped (#71, SAF-008, D-103).
   - [ ] History records are flushed with a barrier, and the log fully at the end of each run (#72, HIS-001).
 - [ ] M2-T03 Rebuildable items and rules as data: each item has a category, a default selection and the reason it
   cannot be selected, if any; Tool items carry a command instead of a path (DEV-001 to DEV-003, DEV-005, SAF-001,

@@ -17,10 +17,14 @@ public struct ScanItem: Equatable, Sendable {
     public let confidence: Confidence?
     /// Whether the action removes the item or only what is inside it (CAC-004).
     public let scope: ItemScope
+    /// Which file the scan found, if re-validation must tell it from another file later put at its path, such as a
+    /// re-downloaded installer (SAF-008). `nil` for an item that may be recreated between scan and run and still be
+    /// what the user chose, such as a DerivedData folder (D-103).
+    public let identity: FileIdentity?
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
-        source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item
+        source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil
     ) {
         self.url = url
         self.snapshot = snapshot
@@ -30,6 +34,7 @@ public struct ScanItem: Equatable, Sendable {
         self.source = source
         self.confidence = confidence
         self.scope = scope
+        self.identity = identity
     }
 
     /// Allocated size in bytes (SAF-013).

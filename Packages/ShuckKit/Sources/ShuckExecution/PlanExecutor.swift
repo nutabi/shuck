@@ -6,8 +6,9 @@ import os
 ///
 /// Every item goes through ``RunLoop``: an intent record, re-validation, the action and a result record. Re-validation
 /// is the same for every method: the path guard again, then that the item still exists, Shuck may read it (SAF-012),
-/// and it has the same type and about the same size as at scan time (SAF-008). An action may check more, as the Trash
-/// reads the file identity it logs (D-84).
+/// and it has the same type and about the same size as at scan time (SAF-008). An item whose scan read its file
+/// identity must also still be that file, so a file put in its place since is skipped (D-103). An action may check
+/// more, as the Trash reads the file identity it logs (D-84).
 ///
 /// A plan may mix methods, as a Developer Junk run mixes Delete and Tool items behind one confirmation (section 8.2).
 /// An item whose method has no action yet is skipped as `unsupportedMethod` and logged like any other skip (D-89).
@@ -57,7 +58,11 @@ public struct PlanExecutor: Sendable {
         }
         // Stop takes effect while a large folder is measured, not only before the next item (SAF-014).
         switch ItemSnapshot.check(target, while: { !Task.isCancelled }) {
-        case .found(let current) where item.snapshot.matches(current): return action.act(on: item, at: target)
+        case .found(let current) where item.snapshot.matches(current):
+            if let identity = item.identity, FileIdentity.read(target) != identity {
+                return Acted(.skipped(.replaced))
+            }
+            return action.act(on: item, at: target)
         case .found(let current): return Acted(.skipped(.changed(current)))
         case .missing: return Acted(.skipped(.missing))
         case .notAccessible: return Acted(.skipped(.notAccessible))
@@ -85,6 +90,9 @@ public struct ItemOutcome: Equatable, Sendable {
         case notAccessible
         /// The item's type or size changed since the scan; the snapshot is what it looks like now (SAF-008).
         case changed(ItemSnapshot)
+        /// Another file of the same type and about the same size is at the item's path now, such as an installer
+        /// downloaded again (SAF-008, D-103).
+        case replaced
         /// The path guard rejects the item now (SAF-007, SAF-008).
         case rejected(PathGuardError)
         /// The run was cancelled before this item, or while it was re-validated (SAF-014).
@@ -103,6 +111,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .missing: .missing
             case .notAccessible: .notAccessible
             case .changed: .changed
+            case .replaced: .replaced
             case .rejected: .rejected
             case .cancelled: .cancelled
             case .historyUnavailable: .historyUnavailable

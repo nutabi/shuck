@@ -29,9 +29,12 @@ public struct PersonalFile: Equatable, Sendable {
     }
 
     /// The item as `source` lists it: "Your data", moved to the Trash (LRG-004, OLD-004). `nil` if it is read-only.
+    /// It keeps its identity, so a file put in its place after the scan is not trashed instead (SAF-008).
     public func scanItem(source: ToolID, reason: LocalizedStringResource) -> ScanItem? {
         guard readOnly == nil else { return nil }
-        return ScanItem(url: url, snapshot: snapshot, tier: .yourData, method: .trash, reason: reason, source: source)
+        return ScanItem(
+            url: url, snapshot: snapshot, tier: .yourData, method: .trash, reason: reason, source: source,
+            identity: identity)
     }
 }
 
