@@ -37,6 +37,7 @@ Run commands from the repository root. When a task adds or changes a command, it
 | Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
 | Whether a change touches code; CI skips lint, build and test if not (D-66) | `scripts/code-changed.sh BASE [HEAD]` | available |
 | Build, sign and notarize the release DMG (docs/releasing.md) | `scripts/build-dmg.sh` | available |
+| Print a version's release notes from `CHANGELOG.md` (D-95) | `scripts/release-notes.sh VERSION` | available |
 | Notarize one file (called by `build-dmg.sh`) | `scripts/notarize.sh FILE` | available |
 
 ## Repository layout
@@ -46,6 +47,7 @@ shuck/
 ├── AGENTS.md                  this file
 ├── README.md
 ├── LICENSE                    full GPL-3.0 text
+├── CHANGELOG.md               changes users see, per release; each release's notes (D-95)
 ├── docs/
 │   ├── PRD.md                 product requirements; the source of truth
 │   ├── decisions.md           decisions after the planning phase (D-30 onwards)
@@ -63,7 +65,7 @@ shuck/
 │   ├── Sources/ShuckExecution/        the only code that mutates user files or launchd state
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
-├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize
+├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize, release notes
 └── .github/                   CI and release workflows, pull request template
 ```
 
@@ -141,6 +143,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 - **Commit bodies:** a blank line after the title, then text wrapped at 72 characters explaining what changed and why. End with the requirement IDs, for example `Requirements: SAF-007, SAF-016`.
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
 - **Auto-merge:** open every pull request ready for review and turn on auto-merge (squash) right away. `main` requires the `Lint, build and test` check, so a pull request merges once CI passes. If CI fails, fix it on the branch (D-51). A pull request that changes only documentation (Markdown files and `LICENSE`) skips that check, and a skipped check counts as passed (D-66). The exception is a task whose entry in `docs/progress.md` says the owner merges its stack in one go, such as M2-T01 (D-83): leave auto-merge off for its pull requests.
+- **Changelog** (D-95): a pull request that changes what users see or can do adds a line under `## [Unreleased]` in `CHANGELOG.md`, in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) section that fits: Added, Changed, Deprecated, Removed, Fixed or Security. Write it for someone who uses Shuck: what changed for them, in plain words, not the task title, requirement IDs or type names. A change users can't notice, such as a refactor, a test or CI, gets no line. Each release's notes on GitHub are its section, so never write release notes by hand.
 - **Branches:** every change goes through a pull request; `main` accepts only squash merges of pull requests that pass CI and are up to date (ENG-001). Name the branch after the task in lowercase plus a short slug, for example `m1-t02-path-guard`.
 - **Stacked pull requests** (D-76): when a pull request needs another one that is still open, make them a GitHub stack with the `gh stack` extension (`gh extension install github/gh-stack`). `gh stack init` adopts or creates the branches, bottom to top; `gh stack add <branch>` adds a layer on top; `gh stack submit --open` pushes the branches and creates the pull requests, ready for review, and the stack. Keep the stack linear with `gh stack rebase`, then `gh stack push`, never by merging. A stack merges from the bottom up, one squashed commit per pull request: merging a pull request also merges every one below it, and GitHub then rebases the next one onto `main` itself. After a merge, `gh stack sync --prune` updates the local branches. Turn on auto-merge for each pull request in the stack (D-51), unless the owner merges the stack in one go (D-83); if GitHub refuses it for a stack, say so in the pull request, and merge with `gh stack merge` when the owner asks.
 - **Pull request description** (ENG-003, without its Screenshots section: D-65). Fill in every section of `.github/pull_request_template.md`:
@@ -158,6 +161,7 @@ If you are unsure whether a change could remove, move or hide user data, stop an
   - `swift-format` reports nothing.
   - Static checks pass.
   - `docs/progress.md` is updated.
+  - `CHANGELOG.md` has a line for each change users can notice.
   - The pull request description is complete.
 
 ## Picking the next task

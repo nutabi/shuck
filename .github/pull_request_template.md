@@ -37,4 +37,5 @@ Write "None" if the change has no UI code.
 - [ ] No new dependencies (Apple frameworks only)
 - [ ] No network APIs
 - [ ] `docs/progress.md` updated, and docs updated where behavior or rules changed
+- [ ] `CHANGELOG.md` has a line under Unreleased for each change users can notice, or none is needed
 - [ ] Decisions made during the task recorded in `docs/decisions.md`

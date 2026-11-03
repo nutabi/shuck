@@ -1,5 +1,6 @@
 # Builds, signs and notarizes a release when a version tag is pushed, then creates a DRAFT GitHub release with the DMG
-# and its checksum (ENG-007). The owner reviews and publishes the draft (D-17). Setup: docs/releasing.md.
+# and its checksum (ENG-007), and the version's notes from CHANGELOG.md (D-95). The owner reviews and publishes the
+# draft (D-17). Setup: docs/releasing.md.
 name: Release
 
 on:
@@ -36,6 +37,10 @@ jobs:
 
       - name: Static checks
         run: scripts/static-checks.sh
+
+      # Before signing, so a version without notes in CHANGELOG.md fails fast (D-95).
+      - name: Release notes
+        run: scripts/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/release-notes.md"
 
       - name: Import the Developer ID certificate
         env:
@@ -76,7 +81,7 @@ jobs:
           prerelease=""
           if [[ "$version" == 0.* ]]; then prerelease="--prerelease"; fi
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag $prerelease \
-            --title "Shuck $version" --generate-notes \
+            --title "Shuck $version" --notes-file "$RUNNER_TEMP/release-notes.md" \
             "build/release/Shuck-$version.dmg" "build/release/Shuck-$version.dmg.sha256"
 
       - name: Remove signing material

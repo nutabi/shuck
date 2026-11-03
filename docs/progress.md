@@ -223,7 +223,13 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 Patch releases during M2 (D-94):
 
 - [x] `MARKETING_VERSION` is 0.1.1, set in a pull request, for M2-T01's fixes to TD-01 and TD-03 (`docs/releasing.md`).
+  `CHANGELOG.md` has its notes.
 - [ ] A `v0.1.1` tag produces a notarized draft pre-release, which the owner checks on their Mac and publishes.
+
+Process changes during M2:
+
+- [x] Release notes come from `CHANGELOG.md`, in the Keep a Changelog format, instead of GitHub's list of pull
+  requests. Each pull request adds its user-facing changes under Unreleased (D-95).
 
 Exit criteria (PRD section 13):
 
