@@ -304,10 +304,11 @@ Shuck MUST NOT act on these, even if the user selects them. Scans skip or show t
 | `op` | string | `trash`, `delete`, `tool`, `launchctl`, `restore` |
 | `path` | string | Original path (or tool name for `tool`) |
 | `trashedPath` | string, optional | From `resultingItemURL` [S42] |
+| `identity` | object, optional | Result records of `trash`: the trashed item's file identity, `{"volume": st_dev, "file": st_ino}`, read just before the move. Restore moves only an item whose file number still matches. Logs written by 0.1.0 do not have it (D-84). |
 | `bytes` | integer, optional | Allocated size estimate |
 | `tier` | string | `rebuildable` or `yourData` |
 | `status` | string, result only | `ok`, `skipped`, `failed` |
-| `detail` | string, optional | Reason, tool exit code, error |
+| `detail` | string, optional | A skip's reason code, alone or followed by a colon and what was found, such as `changed: file, 4096 bytes`; a failure as `<domain> <code>: <message>`; a tool's exit code (D-88) |
 
 ## 9. Feature requirements
 
