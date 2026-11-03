@@ -55,11 +55,13 @@ public struct PlanExecutor: Sendable {
         } catch {
             return Acted(.skipped(.rejected(error)))
         }
-        switch ItemSnapshot.check(target) {
+        // Stop takes effect while a large folder is measured, not only before the next item (SAF-014).
+        switch ItemSnapshot.check(target, while: { !Task.isCancelled }) {
         case .found(let current) where item.snapshot.matches(current): return action.act(on: item, at: target)
         case .found(let current): return Acted(.skipped(.changed(current)))
         case .missing: return Acted(.skipped(.missing))
         case .notAccessible: return Acted(.skipped(.notAccessible))
+        case .stopped: return Acted(.skipped(.cancelled))
         }
     }
 }
@@ -85,7 +87,7 @@ public struct ItemOutcome: Equatable, Sendable {
         case changed(ItemSnapshot)
         /// The path guard rejects the item now (SAF-007, SAF-008).
         case rejected(PathGuardError)
-        /// The run was cancelled before this item (SAF-014).
+        /// The run was cancelled before this item, or while it was re-validated (SAF-014).
         case cancelled
         /// The history log could not be written, so the run stopped (SAF-005).
         case historyUnavailable

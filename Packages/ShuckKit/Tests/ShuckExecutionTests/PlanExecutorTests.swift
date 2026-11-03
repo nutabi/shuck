@@ -345,6 +345,23 @@ struct PlanExecutorTests {
         #expect(records.compactMap(\.status) == [.ok, .ok])
     }
 
+    @Test func stoppingWhileAFolderIsMeasuredSkipsItAsCancelledSAF014() async throws {
+        let backup = try root.folder("Library/Application Support/MobileSync/Backup/0000")
+        try root.file("Library/Application Support/MobileSync/Backup/0000/Manifest.db", size: 10)
+        let item = try planned(backup)
+        let executor = try PlanExecutor(root: root, pathGuard: pathGuard)
+        let allowedRoots = [root.url]
+
+        // The task is cancelled when re-validation starts, as when the user clicks Stop while it measures the folder.
+        let result = await Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return executor.act(on: item, allowedRoots: allowedRoots).result
+        }.value
+
+        #expect(result == .skipped(.cancelled))
+        #expect(exists(backup))
+    }
+
     // MARK: - History log failures
 
     @Test func aFailedIntentRecordStopsTheRunBeforeTheItemSAF005() async throws {

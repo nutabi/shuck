@@ -52,7 +52,7 @@ public struct RestoreExecutor: Sendable {
     }
 
     /// Re-validates `item` and moves it to `destination` (SAF-008).
-    private func act(on item: TrashedItem, to destination: URL?) -> RestoreOutcome.Result {
+    package func act(on item: TrashedItem, to destination: URL?) -> RestoreOutcome.Result {
         guard let destination else { return .skipped(.originalTaken) }
         let trashFolder: URL
         do {
@@ -76,10 +76,12 @@ public struct RestoreExecutor: Sendable {
             return .skipped(.notInTrash)
         }
         let current: ItemSnapshot
-        switch ItemSnapshot.check(source) {
+        // Stop takes effect while a large folder is measured, not only before the next item (SAF-014).
+        switch ItemSnapshot.check(source, while: { !Task.isCancelled }) {
         case .found(let snapshot): current = snapshot
         case .missing: return .skipped(.missing)
         case .notAccessible: return .skipped(.notAccessible)
+        case .stopped: return .skipped(.cancelled)
         }
         // Another item can take a trashed item's name once it has left the Trash; only its identity tells them apart.
         if let identity = item.identity, FileIdentity.read(source).map({ identity.isSameTrashedFile(as: $0) }) != true {
@@ -134,7 +136,7 @@ public struct RestoreOutcome: Equatable, Sendable {
         /// Another item has the trashed item's name in the Trash: its file identity is not the logged one, so the trashed
         /// item has left the Trash (HIS-004).
         case otherItem
-        /// The run was cancelled before this item (SAF-014).
+        /// The run was cancelled before this item, or while it was re-validated (SAF-014).
         case cancelled
         /// The history log could not be written, so the run stopped (SAF-005).
         case historyUnavailable
