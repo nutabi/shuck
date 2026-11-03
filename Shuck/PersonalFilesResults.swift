@@ -10,7 +10,9 @@ import UniformTypeIdentifiers
 @Observable
 final class PersonalFilesResults {
     /// The rows in display order.
-    private(set) var rows: [ResultRow] = []
+    private(set) var rows: [ResultRow] = [] {
+        didSet { groupsCache = nil }
+    }
 
     var sortOrder: [KeyPathComparator<ResultRow>] {
         didSet { rows.sort(using: sortOrder) }
@@ -25,6 +27,10 @@ final class PersonalFilesResults {
     /// The scanned home folder, shown as `~`.
     let home: URL
     private let includes: (PersonalFile) -> Bool
+    /// The ID of every row, so a batch finds a file listed again without reading every row.
+    @ObservationIgnored private var ids: Set<URL> = []
+    /// ``groups``, until the rows change. Views don't observe it: they observe `rows`.
+    @ObservationIgnored private var groupsCache: [ResultGroup]?
 
     /// - Parameters:
     ///   - home: The scanned home folder, shown as `~` in the Folder column.
@@ -42,34 +48,104 @@ final class PersonalFilesResults {
     }
 
     /// Adds the files of a scan event that this list includes. A file listed again replaces its old row.
-    func apply(_ event: PersonalFilesEvent) {
+    ///
+    /// The rows are built off the main actor, since each looks up its kind; the main actor only merges them in
+    /// (NFR-PERF-001).
+    func apply(_ event: PersonalFilesEvent) async {
         guard case .files(let files) = event else { return }
-        let incoming = files.filter(includes).map { ResultRow($0, home: home, dateColumn: dateColumn) }
+        let included = files.filter(includes)
+        guard !included.isEmpty else { return }
+        insert(await Self.rows(of: included, home: home, dateColumn: dateColumn))
+    }
+
+    /// Merges `incoming` into the sorted rows. A file listed again replaces its old row. The rows end up in the order a
+    /// full sort would give them, ties included, but the cost grows with the number of rows, not with sorting them.
+    func insert(_ incoming: [ResultRow]) {
         guard !incoming.isEmpty else { return }
         let incomingIDs = Set(incoming.map(\.id))
-        rows.removeAll { incomingIDs.contains($0.id) }
-        rows.append(contentsOf: incoming)
-        rows.sort(using: sortOrder)
+        if !ids.isDisjoint(with: incomingIDs) {
+            rows.removeAll { incomingIDs.contains($0.id) }
+        }
+        ids.formUnion(incomingIDs)
+        rows = Self.merge(incoming.sorted(using: sortOrder), into: rows, by: sortOrder)
+    }
+
+    /// Builds the rows for `files` off the main actor (NFR-PERF-001).
+    @concurrent
+    private nonisolated static func rows(
+        of files: [PersonalFile], home: URL, dateColumn: DateColumn
+    ) async -> [ResultRow] {
+        files.map { ResultRow($0, home: home, dateColumn: dateColumn) }
+    }
+
+    /// `sorted`, merged into `rows`; both are in `order`. On a tie the row already listed comes first, as a stable sort
+    /// of `rows + sorted` puts it. A binary search finds each new row's place, so the rows between two places are
+    /// copied without comparing them.
+    private static func merge(
+        _ sorted: [ResultRow], into rows: [ResultRow], by order: [KeyPathComparator<ResultRow>]
+    ) -> [ResultRow] {
+        var merged: [ResultRow] = []
+        merged.reserveCapacity(rows.count + sorted.count)
+        var start = rows.startIndex
+        for row in sorted {
+            // Finds the first row from `start` on that sorts after `row`.
+            var low = start
+            var high = rows.endIndex
+            while low < high {
+                let middle = (low + high) / 2
+                if compare(row, rows[middle], by: order) == .orderedAscending {
+                    high = middle
+                } else {
+                    low = middle + 1
+                }
+            }
+            merged.append(contentsOf: rows[start..<low])
+            merged.append(row)
+            start = low
+        }
+        merged.append(contentsOf: rows[start...])
+        return merged
+    }
+
+    /// Compares by the first comparator and on a tie by the next, as `sort(using:)` does.
+    private static func compare(
+        _ lhs: ResultRow, _ rhs: ResultRow, by order: [KeyPathComparator<ResultRow>]
+    ) -> ComparisonResult {
+        for comparator in order {
+            let result = comparator.compare(lhs, rhs)
+            if result != .orderedSame { return result }
+        }
+        return .orderedSame
     }
 
     /// Removes rows, for example after a run trashed them, and drops them from the selection.
     func remove(_ urls: some Sequence<URL>) {
         let removed = Set(urls)
         rows.removeAll { removed.contains($0.id) }
+        ids.subtract(removed)
         selection.subtract(removed)
     }
 
     /// Empties the list before a new scan.
     func removeAll() {
         rows = []
+        ids = []
         selection = []
     }
 
     /// The rows grouped by top-level folder, largest group first. Each group keeps the table's sort (LRG-003).
+    ///
+    /// The groups are built once per change of the rows, which includes a change of sort order, and not again on every
+    /// read, such as when the selection changes. Turning grouping on or off changes nothing they hold.
     var groups: [ResultGroup] {
-        Dictionary(grouping: rows, by: \.topFolder)
+        // Reading `rows` makes a view that shows the groups update when the rows change, even when the cache answers.
+        let rows = rows
+        if let groupsCache { return groupsCache }
+        let groups = Dictionary(grouping: rows, by: \.topFolder)
             .map { ResultGroup(topFolder: $0.key, rows: $0.value) }
             .sorted { ($0.size, $1.topFolder) > ($1.size, $0.topFolder) }
+        groupsCache = groups
+        return groups
     }
 
     /// The selected rows a cleanup can act on. Read-only rows are left out (FCL-011).
