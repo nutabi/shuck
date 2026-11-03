@@ -145,8 +145,7 @@ Process changes during M1:
 - [x] Pull requests open ready for review with auto-merge, gated by CI (D-51).
 - [x] The pull request template has no Screenshots section (D-65).
 - [x] CI runs lint, build and test only when a change touches code (D-66).
-- [ ] Revisit CodeQL code scanning once it can build the app on macOS 27, or in M5's security pass at the latest
-  (D-50).
+- [x] Revisit CodeQL code scanning (D-50). Done during M2: CodeQL scans the engine and the workflows on `main` (D-96).
 
 ## M2 File Cleanup: rebuildable sub-tools (`v0.2.0`)
 
@@ -230,6 +229,9 @@ Process changes during M2:
 
 - [x] Release notes come from `CHANGELOG.md`, in the Keep a Changelog format, instead of GitHub's list of pull
   requests. Each pull request adds its user-facing changes under Unreleased (D-95).
+- [x] CodeQL scans the engine package and the workflows on every push to `main` that changes code, and weekly (D-96).
+- [ ] CodeQL also scans the app target, once it can build the Xcode 27 project, or in M5's security pass at the latest
+  (D-96).
 
 Exit criteria (PRD section 13):
 
