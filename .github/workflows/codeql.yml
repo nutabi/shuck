@@ -1,0 +1,53 @@
+# CodeQL code scanning of main: every push to main that changes code (D-96, supersedes D-50).
+# It analyzes the engine package (ShuckKit, ShuckExecution, ShuckKitTestSupport) and the workflows themselves. The app
+# target is not analyzed: CodeQL cannot build the Xcode 27 project yet (D-50). Pull requests are not scanned, and the
+# check is not required.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+    # A docs-only change has no code to scan (D-66).
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Swift runs on macOS 26, where autobuild runs `swift build` in Packages/ShuckKit. The engine uses only macOS 26
+    # APIs (D-06). The workflows need no build and run on Ubuntu.
+    runs-on: ${{ matrix.language == 'swift' && 'macos-26' || 'ubuntu-latest' }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: swift
+            build-mode: autobuild
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}
