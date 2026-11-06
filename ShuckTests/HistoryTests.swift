@@ -64,9 +64,9 @@ struct HistoryTests {
 
     /// HIS-002: a run's area comes from the registry, and a restore's is Restore.
     @Test func aRunsAreaIsItsSubToolsNameHIS002() {
-        #expect(String(localized: HistoryView.area(of: run([]), in: .standard)) == "Large Files")
-        #expect(String(localized: HistoryView.area(of: run([], tool: .history), in: .standard)) == "Restore")
-        #expect(String(localized: HistoryView.area(of: run([], tool: ToolID(rawValue: "XYZ")), in: .standard)) == "XYZ")
+        #expect(HistoryView.area(of: run([]), in: .standard) == "Large Files")
+        #expect(HistoryView.area(of: run([], tool: .history), in: .standard) == "Restore")
+        #expect(HistoryView.area(of: run([], tool: ToolID(rawValue: "XYZ")), in: .standard) == "XYZ")
     }
 
     /// HIS-002, SAF-011: a run's status says whether every item succeeded, and an interrupted run says so.

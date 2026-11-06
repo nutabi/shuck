@@ -176,6 +176,35 @@ struct HistoryLogTests {
 
     // MARK: - Permissions and symlinks
 
+    /// SAF-011, SAF-012: an unreadable parent is an access error, never "No history yet". The writer also refuses
+    /// to proceed, so it cannot perform an operation without its history log (SAF-005).
+    @Test func anUnreadableParentIsReportedSAF011() throws {
+        let parent = try root.folder("Locked", permissions: 0o000)
+        let folder = parent.appending(path: "History")
+
+        let readError = #expect(throws: HistoryError.self) { try HistoryLog.read(folder: folder) }
+        #expect(readError == .cannotOpen(folder.path, errno: EACCES))
+        let writeError = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }
+        #expect(writeError == .cannotOpen(folder.path, errno: EACCES))
+    }
+
+    /// HIS-001: ENOTDIR, like ENOENT, means the requested log does not exist.
+    @Test func aFileInTheParentPathReadsAsEmptyHIS001() throws {
+        let file = try root.file("NotAFolder")
+        let contents = try HistoryLog.read(folder: file.appending(path: "History"))
+        #expect(contents.records.isEmpty)
+        #expect(contents.unreadableLines.isEmpty)
+    }
+
+    /// SAF-011: a lookup failure other than a missing path is reported even without permission restrictions.
+    @Test func aLoopInTheParentPathIsReportedSAF011() throws {
+        let loop = root.url.appending(path: "Loop")
+        try root.symlink("Loop", to: loop)
+        let folder = loop.appending(path: "History")
+        let error = #expect(throws: HistoryError.self) { try HistoryLog.read(folder: folder) }
+        #expect(error == .cannotOpen(folder.path, errno: ELOOP))
+    }
+
     @Test func createsTheFolderAs0700AndTheFileAs0600NFRSEC005() async throws {
         let log = try HistoryLog(folder: folder)
         try await log.append(intent)

@@ -12,6 +12,11 @@ All notable changes to Shuck are listed here. The format follows
 - Move to Trash skips a file that another file replaced since the scan, such as an installer you downloaded again, and
   says so: "another file took its place since the scan".
 
+### Fixed
+
+- Restoring several versions of the same file together now asks whether to keep both or skip the extra versions.
+- History shows an error when its data folder cannot be examined, instead of saying there is no history yet.
+
 ## [0.1.1] - 2026-11-03
 
 ### Added

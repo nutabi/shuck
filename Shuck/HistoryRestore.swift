@@ -27,7 +27,7 @@ final class HistoryRestore: Identifiable {
     let id = UUID()
     /// The items to restore, in the order the page listed them.
     let items: [TrashedItem]
-    /// The items whose original path was taken when the restore was asked for.
+    /// The items whose original path is taken on disk or needed by an earlier item in this restore.
     let takenItems: [TrashedItem]
     private(set) var phase: Phase
     private let runRestore: RunRestore
@@ -46,7 +46,10 @@ final class HistoryRestore: Identifiable {
     init(items: [TrashedItem], runRestore: @escaping RunRestore, onFinish: @escaping () async -> Void) {
         self.items = items
         // One lstat per item, which is fast enough on the main actor for a run's items (NFR-PERF-001).
-        takenItems = items.filter(\.originalIsTaken)
+        var destinations: Set<URL> = []
+        takenItems = items.filter { item in
+            !destinations.insert(item.originalURL).inserted || item.originalIsTaken
+        }
         phase = takenItems.isEmpty ? .running : .askingAboutTakenPaths
         self.runRestore = runRestore
         self.onFinish = onFinish
