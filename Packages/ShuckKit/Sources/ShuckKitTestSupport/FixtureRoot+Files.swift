@@ -15,7 +15,8 @@ extension FixtureRoot {
         size: Int = 0,
         modified: Date? = nil,
         created: Date? = nil,
-        extendedAttributes: [String: Data] = [:]
+        extendedAttributes: [String: Data] = [:],
+        permissions: Int? = nil
     ) throws(FixtureError) -> URL {
         let target = try newItem(relativePath)
         guard FileManager.default.createFile(atPath: target.path, contents: nil) else {
@@ -39,6 +40,11 @@ extension FixtureRoot {
             guard result == 0 else { throw .fileSystem("Cannot set \(name) on \(target.path): errno \(errno)") }
         }
         try setDates(of: target, modified: modified, created: created)
+        if let permissions {
+            try Self.fileSystem {
+                try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: target.path)
+            }
+        }
         return target
     }
 
