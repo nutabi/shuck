@@ -9,6 +9,8 @@ import os
 /// and it has the same type and about the same size as at scan time (SAF-008). An item whose scan read its file
 /// identity must also still be that file, so a file put in its place since is skipped (D-103). An action may check
 /// more, as the Trash reads the file identity it logs (D-84).
+/// Rule-backed items must still match the reviewed rule and its detection; Delete also compares the target's own
+/// modification date with the scan's, so newly active caches are skipped even when size and kind match (D-105).
 ///
 /// A plan may mix methods, as a Developer Junk run mixes Delete and Tool items behind one confirmation (section 8.2).
 /// An item whose method has no action yet is skipped as `unsupportedMethod` and logged like any other skip (D-89).
@@ -66,6 +68,17 @@ public struct PlanExecutor: Sendable {
             if let identity = item.identity, FileIdentity.read(target) != identity {
                 return Acted(.skipped(.replaced))
             }
+            if let match = item.ruleMatch {
+                guard match.rule.detection.isAvailable,
+                    match.rule.accepts(.path(target), tier: item.tier, method: item.method, scope: item.scope)
+                else { return Acted(.skipped(.ruleChanged)) }
+                if item.method == .delete {
+                    guard let modified = match.modified else { return Acted(.skipped(.ruleChanged)) }
+                    guard RuleMatch.modificationDate(at: target) == modified else {
+                        return Acted(.skipped(.modifiedSinceScan))
+                    }
+                }
+            }
             return action.act(on: item, at: target)
         case .found(let current): return Acted(.skipped(.changed(current)))
         case .missing: return Acted(.skipped(.missing))
@@ -97,6 +110,10 @@ public struct ItemOutcome: Equatable, Sendable {
         /// Another file of the same type and about the same size is at the item's path now, such as an installer
         /// downloaded again (SAF-008, D-103).
         case replaced
+        /// The target or detection no longer matches the cleanup rule reviewed (D-100).
+        case ruleChanged
+        /// A rule-backed Delete target was modified after the scan (D-105).
+        case modifiedSinceScan
         /// The path guard rejects the item now (SAF-007, SAF-008).
         case rejected(PathGuardError)
         /// The run was cancelled before this item, or while it was re-validated (SAF-014).
@@ -116,6 +133,8 @@ public struct ItemOutcome: Equatable, Sendable {
             case .notAccessible: .notAccessible
             case .changed: .changed
             case .replaced: .replaced
+            case .ruleChanged: .ruleChanged
+            case .modifiedSinceScan: .modifiedSinceScan
             case .rejected: .rejected
             case .cancelled: .cancelled
             case .historyUnavailable: .historyUnavailable

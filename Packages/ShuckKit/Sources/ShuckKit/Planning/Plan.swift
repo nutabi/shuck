@@ -7,6 +7,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
     public var url: URL? { target.url }
     public let category: ItemCategory
     public let selection: ItemSelection
+    public let ruleMatch: RuleMatch?
     public let allocatedSize: Int64
     public let tier: Tier
     public let method: ActionMethod
@@ -19,11 +20,13 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
 
     public init(
         url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, scope: ItemScope = .item,
-        identity: FileIdentity? = nil, category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected
+        identity: FileIdentity? = nil, category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected,
+        ruleMatch: RuleMatch? = nil
     ) {
         self.target = .path(url)
         self.category = category
         self.selection = selection
+        self.ruleMatch = ruleMatch
         self.allocatedSize = snapshot.allocatedSize
         self.tier = tier
         self.method = method
@@ -34,7 +37,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
 
     public init(
         command: ToolCommand, allocatedSize: Int64, tier: Tier, category: ItemCategory,
-        selection: ItemSelection = .unselected
+        selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil
     ) {
         target = .command(command)
         self.allocatedSize = allocatedSize
@@ -42,6 +45,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         method = .tool
         self.category = category
         self.selection = selection
+        self.ruleMatch = ruleMatch
         snapshot = nil
         scope = .item
         identity = nil
@@ -57,6 +61,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         allocatedSize = item.allocatedSize
         category = item.category
         selection = item.selection
+        ruleMatch = item.ruleMatch
     }
 }
 
@@ -81,6 +86,12 @@ public struct Plan: Sendable {
                 throw .methodNotAllowed(subject, tier: item.tier, method: item.method)
             }
             guard item.selection.isSelectable else { throw .notSelectable(subject) }
+            if let match = item.ruleMatch,
+                !match.rule.accepts(item.target, tier: item.tier, method: item.method, scope: item.scope)
+                    || (item.method == .delete && match.modified == nil)
+            {
+                throw .ruleMismatch(subject)
+            }
             if item.scope == .contents {
                 guard item.method == .delete else { throw .contentsNotAllowed(subject, method: item.method) }
                 guard item.snapshot?.kind == .folder else { throw .contentsOfNonFolder(subject) }
@@ -135,6 +146,8 @@ public enum PlanError: Error, Equatable {
     case notSelectable(String)
     /// Tool cleanup must carry the reviewed command, never a file standing in for it (SAF-010).
     case commandRequired(String)
+    /// The item's target, tier, method or scope differs from the rule its scan matched (D-100).
+    case ruleMismatch(String)
     /// The path guard rejected the item (SAF-007).
     case rejected(String, PathGuardError)
 }
@@ -145,7 +158,7 @@ extension PlanError {
         switch self {
         case .otherSubTool(let path, _), .tierNotAllowed(let path, _), .methodNotAllowed(let path, _, _),
             .contentsNotAllowed(let path, _), .contentsOfNonFolder(let path), .rejected(let path, _),
-            .notSelectable(let path), .commandRequired(let path):
+            .notSelectable(let path), .commandRequired(let path), .ruleMismatch(let path):
             path
         }
     }
