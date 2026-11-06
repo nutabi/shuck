@@ -88,6 +88,12 @@
     "Skipped: its original place is taken" : {
 
     },
+    "Skipped: modified since the scan" : {
+
+    },
+    "Skipped: no longer matches the cleanup rule" : {
+
+    },
     "Skipped: no longer in the Trash" : {
 
     },

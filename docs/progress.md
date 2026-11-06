@@ -201,12 +201,15 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Stop interrupts re-measuring a large folder during a run or a restore (#70, SAF-014, D-102).
   - [x] Re-validation compares the file identity the scan read, so a replaced file is skipped (#71, SAF-008, D-103).
   - [x] History records are flushed with a barrier, and the log fully at the end of each run (#72, HIS-001, D-104).
-- [ ] M2-T03 Rebuildable items and rules as data: each item has a category, a default selection and the reason it
+- [x] M2-T03 Rebuildable items and rules as data: each item has a category, a default selection and the reason it
   cannot be selected, if any; Tool items carry a command instead of a path (DEV-001 to DEV-003, DEV-005, SAF-001,
   SAF-004). Three pull requests (D-105):
   - [x] Validated rule definitions, path patterns, structured commands and staleness defaults.
   - [x] File and command item targets, categories, default selection and disabled reasons through planning and results.
-  - [ ] Rule re-validation before Delete, including modification-date changes after the scan.
+  - [x] Rule re-validation before Delete, including modification-date changes after the scan.
+    `CleanupRule.scanItem` keeps the matched rule and date in the plan; tests cover an unchanged target, a recent
+    item chosen explicitly, a recreated folder, contents-only Delete, changed dates, vanished detection and guard
+    rejections. Rule scanners and pages still arrive in M2-T05 onwards, and command execution in M2-T10.
 - [ ] M2-T04 Running apps: their items cannot be selected, and are skipped if the app starts before the run; the
   fixture-root mode stubs the list, since Xcode runs during UI tests (SAF-009, CAC-003). Decides whether a running
   Xcode blocks Developer Junk's rules.

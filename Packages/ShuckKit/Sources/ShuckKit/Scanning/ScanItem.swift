@@ -14,6 +14,8 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     public let allocatedSize: Int64
     public let category: ItemCategory
     public let selection: ItemSelection
+    /// A rule-backed item retains the exact rule and modification date the scan matched (D-100, D-105).
+    public let ruleMatch: RuleMatch?
     public let tier: Tier
     public let method: ActionMethod
     /// Why the item is listed, shown next to it.
@@ -31,13 +33,14 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
         source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
-        category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected
+        category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil
     ) {
         self.target = .path(url)
         self.snapshot = snapshot
         self.allocatedSize = snapshot.allocatedSize
         self.category = category
         self.selection = selection
+        self.ruleMatch = ruleMatch
         self.tier = tier
         self.method = method
         self.reason = reason
@@ -50,7 +53,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     /// A command carries its estimate without a fictional file kind or snapshot. No command runs in T03 (M2-T10).
     public init(
         command: ToolCommand, allocatedSize: Int64, tier: Tier, reason: LocalizedStringResource, source: ToolID,
-        category: ItemCategory, selection: ItemSelection = .unselected
+        category: ItemCategory, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil
     ) {
         target = .command(command)
         snapshot = nil
@@ -61,6 +64,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         self.source = source
         self.category = category
         self.selection = selection
+        self.ruleMatch = ruleMatch
         confidence = nil
         scope = .item
         identity = nil
