@@ -261,6 +261,9 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
   selected items share an original path (#59); a folder-access error is reported instead of reading as empty history
   (#69); unknown tool IDs are shown verbatim, without an empty localization key (#68, D-108). Other review issues
   remain open; M2-T04 is still the next roadmap task.
+- [x] M2-F02 File Cleanup fixes, in one owner-requested pull request: review, Quick Look and Finder follow grouped
+  results' display order (#60); the landing page's scan age updates while idle (#61); exclusions hide tool-owned
+  stores as well as personal files (#64, D-109). M2-T04 remains the next roadmap task.
 
 Exit criteria (PRD section 13):
 

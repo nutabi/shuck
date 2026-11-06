@@ -277,6 +277,35 @@ struct PersonalFilesResultsTests {
         results.removeAll()
         #expect(results.groups.isEmpty)
     }
+
+    /// FCL-012, LRG-003: preview, Finder and review follow visible folder sections, rather than interleaving files
+    /// from different groups. A partial selection keeps that order and ignores URLs no longer listed.
+    @Test(arguments: [true, false])
+    func selectedURLsFollowTheDisplayedOrderLRG003(grouped: Bool) {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size, order: .reverse)])
+        let holiday = row("Movies/Holiday.mov", size: 6_000)
+        let installer = row("Downloads/Installer.dmg", size: 2_000)
+        let clip = row("Movies/Clip.mov", size: 1_000)
+        results.insert([holiday, installer, clip])
+        let all = Set([holiday.id, installer.id, clip.id])
+
+        #expect(
+            results.ordered(all, grouped: grouped)
+                == (grouped ? [holiday.id, clip.id, installer.id] : [holiday.id, installer.id, clip.id]))
+        #expect(
+            results.ordered([clip.id, installer.id, home.appending(path: "missing")], grouped: grouped)
+                == (grouped ? [clip.id, installer.id] : [installer.id, clip.id]))
+        #expect(results.ordered([], grouped: grouped).isEmpty)
+
+        results.sortOrder = [KeyPathComparator(\.size)]
+        #expect(
+            results.ordered(all, grouped: grouped)
+                == (grouped ? [clip.id, holiday.id, installer.id] : [clip.id, installer.id, holiday.id]))
+        results.remove([clip.id])
+        #expect(
+            results.ordered(all, grouped: grouped)
+                == (grouped ? [holiday.id, installer.id] : [installer.id, holiday.id]))
+    }
 }
 
 /// A random number generator with a seed, so a failing random test can be run again.

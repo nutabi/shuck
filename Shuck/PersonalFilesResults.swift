@@ -148,6 +148,13 @@ final class PersonalFilesResults {
         return groups
     }
 
+    /// Selected URLs in the order the table displays them, including folder sections when grouping is on.
+    /// Review, Quick Look and Finder all use this order (FCL-012, LRG-003).
+    func ordered(_ urls: Set<URL>, grouped: Bool) -> [URL] {
+        let displayed = grouped ? groups.flatMap(\.rows) : rows
+        return displayed.filter { urls.contains($0.id) }.map(\.id)
+    }
+
     /// The selected rows a cleanup can act on. Read-only rows are left out (FCL-011).
     var actionableSelection: [ResultRow] {
         rows.filter { selection.contains($0.id) && $0.readOnly == nil }

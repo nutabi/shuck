@@ -202,6 +202,10 @@ public struct PersonalFilesScanner: Sendable {
     /// Decides what to do with one entry. `parentInScope` is whether its folder is a personal-files location.
     func classify(_ url: URL, parentInScope: Bool) -> Decision {
         guard let values = readValues(url), !values.isSymbolicLink else { return .skip }
+        let key = self.key(url)
+        let protection = protectionOf(url, key: key)
+        // Exclusions apply to tool-owned locations too: do not even measure a hidden store (SET-001).
+        if case .hidden = protection { return .skip }
         let owners = context.ownership.owners(of: url)
         guard owners.isSuperset(of: OwnershipMap.personalFiles) else {
             // Another sub-tool's location inside the personal files is shown read-only, pointing at it (FCL-011).
@@ -214,12 +218,7 @@ public struct PersonalFilesScanner: Sendable {
                 && context.ownership.hasLocations(below: url, ownedBy: .largeFiles)
             return lookInside ? .descend(inScope: false) : .skip
         }
-        let key = self.key(url)
-        switch protectionOf(url, key: key) {
-        case .shown: return measured(url, values, readOnly: .protected)
-        case .hidden: return .skip
-        case nil: break
-        }
+        if case .shown = protection { return measured(url, values, readOnly: .protected) }
         if values.isPackage {
             // App bundles belong to Applications (FCL-008).
             if url.pathExtension.caseInsensitiveCompare("app") == .orderedSame { return .skip }

@@ -32,6 +32,14 @@ final class FindWhatTakesSpaceUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["10.5 MB reclaimable"].exists)
             XCTAssertTrue(app.staticTexts["8.4 MB reclaimable"].exists)
             XCTAssertTrue(app.staticTexts["Each file counts once, even if several sub-tools list it."].exists)
+            // FCL-004: the age advances while the landing page stays idle, without another scan or navigation.
+            let ages = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Scanned "))
+            XCTAssertTrue(ages.firstMatch.appears(within: 5))
+            let initialAge = ages.firstMatch.label
+            XCTAssertTrue(
+                app.staticTexts.matching(identifier: initialAge).firstMatch.disappears(within: 5),
+                "The scan age did not update while the page was idle")
+            XCTAssertTrue(ages.firstMatch.exists, "The scan age disappeared instead of updating")
             attachScreenshot(of: app, named: "File Cleanup total")
         }
 

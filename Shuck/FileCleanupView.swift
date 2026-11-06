@@ -120,7 +120,14 @@ private struct SubToolRow: View {
                 Text("Scan stopped")
             case .scanned(let summary):
                 Text("\(summary.reclaimableBytes, format: .byteCount(style: .file)) reclaimable")
-                Text("Scanned \(summary.finished, format: .relative(presentation: .named))")
+                // A live time source lets SwiftUI refresh the age without a new scan or a page redraw (FCL-004).
+                let age = Text(
+                    .currentDate,
+                    format: .reference(
+                        to: summary.finished, allowedFields: [.year, .month, .day, .hour, .minute, .second],
+                        maxFieldCount: 1)
+                )
+                Text("Scanned \(age)")
                 if summary.notAccessibleCount > 0 {
                     Label("Some folders were not accessible", systemImage: "exclamationmark.triangle")
                 }

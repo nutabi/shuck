@@ -138,7 +138,7 @@ struct PersonalFilesTable: View {
 
     /// `urls` in display order, so Quick Look and Finder follow the table's sort.
     private func ordered(_ urls: Set<URL>) -> [URL] {
-        results.rows.map(\.id).filter(urls.contains)
+        results.ordered(urls, grouped: grouped)
     }
 
     private func preview(_ urls: Set<URL>) {
