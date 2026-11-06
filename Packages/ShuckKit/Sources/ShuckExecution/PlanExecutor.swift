@@ -38,8 +38,9 @@ public struct PlanExecutor: Sendable {
         let loop = RunLoop(log: log, logger: Logger(tool: plan.tool))
         let results = await loop.run(plan.items) { item in
             let logged = LoggedItem(
-                run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method), path: item.url.path,
-                tier: item.tier, bytes: item.snapshot.allocatedSize)
+                run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
+                path: item.target.description,
+                tier: item.tier, bytes: item.allocatedSize)
             return RunLoop.Step(logged: logged) { act(on: item, allowedRoots: plan.allowedRoots) }
         }
         return RunReport(run: plan.run, outcomes: zip(plan.items, results).map { ItemOutcome(item: $0, result: $1) })
@@ -50,15 +51,18 @@ public struct PlanExecutor: Sendable {
         // `Plan` refuses such an item too; checking again keeps SAF-004 in the executor, next to the actions.
         guard item.tier.allows(item.method) else { return Acted(.skipped(.notAllowed(item.method))) }
         guard let action = actions[item.method] else { return Acted(.skipped(.unsupportedMethod(item.method))) }
+        guard let url = item.url, let snapshot = item.snapshot else {
+            return Acted(.skipped(.unsupportedMethod(item.method)))
+        }
         let target: URL
         do {
-            target = try pathGuard.validate(item.url, allowedRoots: allowedRoots)
+            target = try pathGuard.validate(url, allowedRoots: allowedRoots)
         } catch {
             return Acted(.skipped(.rejected(error)))
         }
         // Stop takes effect while a large folder is measured, not only before the next item (SAF-014).
         switch ItemSnapshot.check(target, while: { !Task.isCancelled }) {
-        case .found(let current) where item.snapshot.matches(current):
+        case .found(let current) where snapshot.matches(current):
             if let identity = item.identity, FileIdentity.read(target) != identity {
                 return Acted(.skipped(.replaced))
             }

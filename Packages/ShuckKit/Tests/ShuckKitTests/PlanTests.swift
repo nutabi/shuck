@@ -23,7 +23,13 @@ struct PlanTests {
     @Test(arguments: Tier.allCases, ActionMethod.allCases)
     func planAcceptsOnlyTheMethodsATierAllowsSAF004(tier: Tier, method: ActionMethod) throws {
         let file = try root.file("Downloads/item.bin", size: 10)
-        let item = PlannedItem(url: file, tier: tier, method: method, snapshot: try #require(ItemSnapshot.read(file)))
+        let command = try ToolCommand(executable: file.path, arguments: ["clean"], environment: ["PATH": "/bin"])
+        let item =
+            method == .tool
+            ? PlannedItem(
+                command: command, allocatedSize: 4096, tier: tier,
+                category: ItemCategory(id: "fixture", name: "Fixture"))
+            : PlannedItem(url: file, tier: tier, method: method, snapshot: try #require(ItemSnapshot.read(file)))
         let isAllowed = Self.allowed.contains("\(tier.rawValue)-\(method.rawValue)")
 
         #expect(tier.allows(method) == isAllowed)

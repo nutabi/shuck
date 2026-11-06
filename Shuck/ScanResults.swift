@@ -19,8 +19,16 @@ protocol SubToolResults: AnyObject {
 @Observable
 final class ScanResults: SubToolResults {
     private(set) var items: [ScanItem] = []
-    /// Nothing is selected until the user chooses (D-10).
-    var selection: Set<URL> = []
+    /// Rules select safe rebuildable items by default; personal files stay unselected (SAF-004).
+    private var selected: Set<ItemTarget> = []
+    var selection: Set<ItemTarget> {
+        get { selected }
+        set { selected = newValue.intersection(items.filter { $0.selection.isSelectable }.map(\.target)) }
+    }
+
+    var selectedItems: [ScanItem] {
+        items.filter { selected.contains($0.target) && $0.selection.isSelectable }
+    }
     /// Folders macOS did not let the scan read (SAF-012).
     private(set) var notAccessibleCount = 0
     /// Folders the scan could not read for another reason, such as a disk error (SAF-011).
@@ -30,7 +38,15 @@ final class ScanResults: SubToolResults {
 
     func apply(_ event: ScanEvent) {
         switch event {
-        case .item(let item): items.append(item)
+        case .item(let item):
+            if let index = items.firstIndex(where: { $0.target == item.target }) {
+                // A repeated event refreshes metadata, not the user's choice; a newly disabled item is deselected.
+                items[index] = item
+                if !item.selection.isSelectable { selected.remove(item.target) }
+            } else {
+                items.append(item)
+                if item.selection == .selected { selected.insert(item.target) }
+            }
         case .notAccessible: notAccessibleCount += 1
         case .unreadable: unreadableCount += 1
         }
@@ -38,19 +54,20 @@ final class ScanResults: SubToolResults {
 
     /// The items at `urls`, in that order. URLs the list no longer has are left out.
     func items(at urls: [URL]) -> [ScanItem] {
-        let byURL = Dictionary(items.map { ($0.url, $0) }) { _, last in last }
-        return urls.compactMap { byURL[$0] }
+        let byTarget = Dictionary(
+            uniqueKeysWithValues: items.filter { $0.selection.isSelectable }.map { ($0.target, $0) })
+        return urls.compactMap { byTarget[.path($0)] }
     }
 
     func remove(_ urls: some Sequence<URL>) {
         let removed = Set(urls)
-        items.removeAll { removed.contains($0.url) }
-        selection.subtract(removed)
+        items.removeAll { $0.url.map(removed.contains) == true }
+        selected.subtract(removed.map(ItemTarget.path))
     }
 
     func removeAll() {
         items = []
-        selection = []
+        selected = []
         notAccessibleCount = 0
         unreadableCount = 0
     }
@@ -58,7 +75,8 @@ final class ScanResults: SubToolResults {
     /// What the landing page shows about the list (FCL-004).
     func summary(finished: Date) -> FileCleanupModel.ScanSummary {
         FileCleanupModel.ScanSummary(
-            finished: finished, itemCount: items.count, reclaimableBytes: items.reduce(0) { $0 + $1.allocatedSize },
+            finished: finished, itemCount: items.count,
+            reclaimableBytes: items.filter { $0.selection.isSelectable }.reduce(0) { $0 + $1.allocatedSize },
             notAccessibleCount: notAccessibleCount, unreadableCount: unreadableCount)
     }
 }

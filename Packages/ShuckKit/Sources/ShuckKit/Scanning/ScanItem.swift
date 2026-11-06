@@ -4,10 +4,16 @@ import Foundation
 ///
 /// Every field SAF-001 lists is a required initializer argument, so an item cannot exist without them. Only the
 /// confidence level is optional, because only some tools use it (APP-003).
-public struct ScanItem: Equatable, Sendable {
-    public let url: URL
+public struct ScanItem: Equatable, Sendable, Identifiable {
+    public let target: ItemTarget
+    public var id: ItemTarget { target }
+    public var url: URL? { target.url }
     /// The item's kind and allocated size when it was scanned (SAF-013). The plan keeps it for re-validation (SAF-008).
-    public let snapshot: ItemSnapshot
+    public let snapshot: ItemSnapshot?
+    /// Allocated size for a path, or the tool's estimate for a command (DEV-003, SAF-013).
+    public let allocatedSize: Int64
+    public let category: ItemCategory
+    public let selection: ItemSelection
     public let tier: Tier
     public let method: ActionMethod
     /// Why the item is listed, shown next to it.
@@ -24,10 +30,14 @@ public struct ScanItem: Equatable, Sendable {
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
-        source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil
+        source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
+        category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected
     ) {
-        self.url = url
+        self.target = .path(url)
         self.snapshot = snapshot
+        self.allocatedSize = snapshot.allocatedSize
+        self.category = category
+        self.selection = selection
         self.tier = tier
         self.method = method
         self.reason = reason
@@ -37,8 +47,24 @@ public struct ScanItem: Equatable, Sendable {
         self.identity = identity
     }
 
-    /// Allocated size in bytes (SAF-013).
-    public var allocatedSize: Int64 { snapshot.allocatedSize }
+    /// A command carries its estimate without a fictional file kind or snapshot. No command runs in T03 (M2-T10).
+    public init(
+        command: ToolCommand, allocatedSize: Int64, tier: Tier, reason: LocalizedStringResource, source: ToolID,
+        category: ItemCategory, selection: ItemSelection = .unselected
+    ) {
+        target = .command(command)
+        snapshot = nil
+        self.allocatedSize = allocatedSize
+        self.tier = tier
+        method = .tool
+        self.reason = reason
+        self.source = source
+        self.category = category
+        self.selection = selection
+        confidence = nil
+        scope = .item
+        identity = nil
+    }
 }
 
 /// What an action removes: the item itself, or only what is inside a folder (CAC-004).

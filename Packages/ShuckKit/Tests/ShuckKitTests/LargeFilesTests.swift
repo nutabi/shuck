@@ -20,8 +20,8 @@ struct LargeFilesTests {
         for await event in subTool.scan(context) {
             switch event {
             case .item(let item):
-                try root.requireInside(item.url)
-                items[String(item.url.path.dropFirst(root.url.path.count + 1))] = item
+                let url = try root.requireInside(#require(item.url))
+                items[String(url.path.dropFirst(root.url.path.count + 1))] = item
             case .notAccessible(let url):
                 notAccessible.append(url)
             case .unreadable(let url):

@@ -32,8 +32,8 @@ struct SubToolIndependenceTests {
         async let healthyScan = items(from: healthy, context: context)
         async let brokenScan = items(from: broken, context: context)
         let (healthyItems, brokenItems) = await (healthyScan, brokenScan)
-        #expect(Set(healthyItems.map(\.url.path)) == Set(wanted.map(\.path)))
-        #expect(Set(brokenItems.map(\.url.path)) == [vanishing.path, key.path])
+        #expect(Set(healthyItems.compactMap { $0.url?.path }) == Set(wanted.map(\.path)))
+        #expect(Set(brokenItems.compactMap { $0.url?.path }) == [vanishing.path, key.path])
 
         // Failure 1: the broken sub-tool found a protected file, so the path guard rejects its whole plan (SAF-007).
         #expect(throws: PlanError.self) { try Plan(subTool: broken, items: brokenItems, pathGuard: pathGuard) }

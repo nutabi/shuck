@@ -24,7 +24,7 @@ struct SubToolPipelineTests {
         let subTool = try #require(registry.subTool(FixtureSubTool.id))
 
         let items = await items(from: subTool, context: context)
-        #expect(Set(items.map(\.url.path)) == Set(wanted.map(\.path)))
+        #expect(Set(items.compactMap { $0.url?.path }) == Set(wanted.map(\.path)))
 
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
         let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)
@@ -42,7 +42,7 @@ struct SubToolPipelineTests {
         let ownership = OwnershipMap(home: root.url, entries: [.init(".ssh", owners: [FixtureSubTool.id])])
 
         let items = await items(from: FixtureSubTool(), context: ScanContext(home: root.url, ownership: ownership))
-        #expect(items.map(\.url.path) == [key.path])
+        #expect(items.compactMap { $0.url?.path } == [key.path])
         #expect(throws: PlanError.self) {
             try Plan(subTool: FixtureSubTool(), items: items, pathGuard: pathGuard)
         }

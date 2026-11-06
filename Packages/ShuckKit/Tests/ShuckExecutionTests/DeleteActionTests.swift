@@ -61,7 +61,7 @@ struct DeleteActionTests {
         #expect(records.allSatisfy { $0.operation == .delete && $0.tier == .rebuildable && $0.tool == .cachesAndLogs })
         #expect(records.allSatisfy { $0.trashedPath == nil && $0.identity == nil })
         #expect(try results().map(\.status) == [.ok, .ok])
-        #expect(try results().map(\.bytes) == items.map(\.snapshot.allocatedSize))
+        #expect(try results().map(\.bytes) == items.map(\.allocatedSize))
         // History lists them as done and not restorable (HIS-004).
         let entries = try HistoryLog.read(folder: root.historyFolder).entries()
         #expect(entries.map(\.restorability) == [.permanent, .permanent])

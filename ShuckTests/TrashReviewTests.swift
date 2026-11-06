@@ -48,10 +48,14 @@ struct TrashReviewTests {
         { (plan: Plan) async throws(HistoryError) -> RunReport in
             onCall()
             let outcomes = plan.items.map { item in
-                trashed.contains(item.url.lastPathComponent)
+                guard let url = item.url, let snapshot = item.snapshot else {
+                    Issue.record("A Trash review must have file targets")
+                    return ItemOutcome(item: item, result: .skipped(.unsupportedMethod(item.method)))
+                }
+                return trashed.contains(url.lastPathComponent)
                     ? ItemOutcome(
-                        item: item, result: .done(URL(filePath: "/StubHome/.Trash/\(item.url.lastPathComponent)")))
-                    : ItemOutcome(item: item, result: .skipped(.changed(item.snapshot)))
+                        item: item, result: .done(URL(filePath: "/StubHome/.Trash/\(url.lastPathComponent)")))
+                    : ItemOutcome(item: item, result: .skipped(.changed(snapshot)))
             }
             return RunReport(run: plan.run, outcomes: outcomes)
         }

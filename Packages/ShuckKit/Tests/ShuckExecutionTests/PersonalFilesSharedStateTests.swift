@@ -40,7 +40,8 @@ struct PersonalFilesSharedStateTests {
         let item = try #require(state.items[bigAndOld].flatMap(old.scanItem(for:)))
         let plan = try Plan(subTool: old, items: [item], pathGuard: pathGuard)
         let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)
-        state.remove(report.outcomes.filter { if case .done = $0.result { true } else { false } }.map(\.item.url))
+        state.remove(
+            report.outcomes.filter { if case .done = $0.result { true } else { false } }.compactMap(\.item.url))
 
         #expect(!FileManager.default.fileExists(atPath: bigAndOld.path))
         #expect(largeFiles() == [bigOnly])

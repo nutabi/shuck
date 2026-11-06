@@ -43,9 +43,9 @@ struct TrashReviewSheet: View {
         .font(.title2.bold())
         Text("Shuck records where each item goes, so it can put it back.")
             .foregroundStyle(.secondary)
-        List(review.plan.items, id: \.url) { item in
-            ItemRow(url: item.url, home: home) {
-                Text(item.snapshot.allocatedSize, format: .byteCount(style: .file))
+        List(review.plan.items) { item in
+            ItemRow(target: item.target, home: home) {
+                Text(item.allocatedSize, format: .byteCount(style: .file))
                     .monospacedDigit()
             }
         }
@@ -77,7 +77,7 @@ struct TrashReviewSheet: View {
     @ViewBuilder private func summary(_ report: RunReport) -> some View {
         let moved = report.outcomes.filter { if case .done = $0.result { true } else { false } }
         let notMoved = report.outcomes.filter { if case .done = $0.result { false } else { true } }
-        let bytes = moved.reduce(0) { $0 + $1.item.snapshot.allocatedSize }
+        let bytes = moved.reduce(0) { $0 + $1.item.allocatedSize }
         if notMoved.isEmpty {
             Text("Moved ^[\(moved.count) item](inflect: true) to the Trash")
                 .font(.title2.bold())
@@ -91,8 +91,8 @@ struct TrashReviewSheet: View {
         if !notMoved.isEmpty {
             Text("Not moved")
                 .font(.headline)
-            List(notMoved, id: \.item.url) { outcome in
-                ItemRow(url: outcome.item.url, home: home) {
+            List(notMoved, id: \.item.id) { outcome in
+                ItemRow(target: outcome.item.target, home: home) {
                     Text(Self.reason(outcome))
                         .foregroundStyle(.secondary)
                 }
