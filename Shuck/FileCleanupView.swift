@@ -128,6 +128,7 @@ private struct SubToolRow: View {
                         maxFieldCount: 1)
                 )
                 Text("Scanned \(age)")
+                    .accessibilityIdentifier("scan-age-\(subTool.id.rawValue)")
                 if summary.notAccessibleCount > 0 {
                     Label("Some folders were not accessible", systemImage: "exclamationmark.triangle")
                 }
