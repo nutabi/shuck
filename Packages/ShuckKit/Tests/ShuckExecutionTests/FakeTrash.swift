@@ -50,7 +50,7 @@ final class FakeAction: PlanAction {
     }
 
     func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason> {
-        handed.withLock { $0.append(item.url) }
+        handed.withLock { $0.append(target) }
         onAct()
         return Acted(.done(nil))
     }

@@ -130,7 +130,7 @@ struct ToolRegistryTests {
         let error = #expect(throws: PlanError.self) {
             try Plan(subTool: FixtureSubTool(), items: [item], pathGuard: pathGuard)
         }
-        #expect(error == .otherSubTool(item.url.path, .largeFiles))
+        #expect(error == .otherSubTool(item.target.description, .largeFiles))
     }
 
     @Test func aPlanRejectsATierTheSubToolDoesNotUse() throws {
@@ -138,7 +138,7 @@ struct ToolRegistryTests {
         let error = #expect(throws: PlanError.self) {
             try Plan(subTool: FixtureSubTool(tiers: [.yourData]), items: [item], pathGuard: pathGuard)
         }
-        #expect(error == .tierNotAllowed(item.url.path, .rebuildable))
+        #expect(error == .tierNotAllowed(item.target.description, .rebuildable))
     }
 
     private func scanItem(

@@ -122,19 +122,19 @@ struct FileCleanupModelTests {
         await model.scan(second)?.value
         let firstList = try #require(model.scanResults[first.id])
         let secondList = try #require(model.scanResults[second.id])
-        #expect(firstList.items.map(\.url.lastPathComponent) == ["a", "b"])
-        #expect(secondList.items.map(\.url.lastPathComponent) == ["c"])
-        firstList.selection = [URL(filePath: "/StubHome/b")]
-        secondList.selection = [URL(filePath: "/StubHome/c")]
+        #expect(firstList.items.compactMap { $0.url?.lastPathComponent } == ["a", "b"])
+        #expect(secondList.items.compactMap { $0.url?.lastPathComponent } == ["c"])
+        firstList.selection = [.path(URL(filePath: "/StubHome/b"))]
+        secondList.selection = [.path(URL(filePath: "/StubHome/c"))]
 
         // A review acts on the selected rows in the order given, and only on rows the list still has.
         let urls = ["b", "gone", "a"].map { URL(filePath: "/StubHome/\($0)") }
-        #expect(model.scanItems(first, urls: urls).map(\.url.lastPathComponent) == ["b", "a"])
+        #expect(model.scanItems(first, urls: urls).compactMap { $0.url?.lastPathComponent } == ["b", "a"])
 
         model.remove([URL(filePath: "/StubHome/b")])
-        #expect(firstList.items.map(\.url.lastPathComponent) == ["a"])
+        #expect(firstList.items.compactMap { $0.url?.lastPathComponent } == ["a"])
         #expect(firstList.selection.isEmpty)
-        #expect(secondList.selection == [URL(filePath: "/StubHome/c")])
+        #expect(secondList.selection == [.path(URL(filePath: "/StubHome/c"))])
         guard case .scanned(let summary) = model.state(of: first.id) else {
             Issue.record("Not scanned: \(model.state(of: first.id))")
             return

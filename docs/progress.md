@@ -205,7 +205,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   cannot be selected, if any; Tool items carry a command instead of a path (DEV-001 to DEV-003, DEV-005, SAF-001,
   SAF-004). Three pull requests (D-105):
   - [x] Validated rule definitions, path patterns, structured commands and staleness defaults.
-  - [ ] File and command item targets, categories, default selection and disabled reasons through planning and results.
+  - [x] File and command item targets, categories, default selection and disabled reasons through planning and results.
   - [ ] Rule re-validation before Delete, including modification-date changes after the scan.
 - [ ] M2-T04 Running apps: their items cannot be selected, and are skipped if the app starts before the run; the
   fixture-root mode stubs the list, since Xcode runs during UI tests (SAF-009, CAC-003). Decides whether a running

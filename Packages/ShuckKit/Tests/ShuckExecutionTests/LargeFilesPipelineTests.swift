@@ -21,7 +21,7 @@ struct LargeFilesPipelineTests {
 
         let items = await items(
             from: subTool, context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()))
-        #expect(items.map(\.url.lastPathComponent) == [large.lastPathComponent])
+        #expect(items.compactMap { $0.url?.lastPathComponent } == [large.lastPathComponent])
 
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
         let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)

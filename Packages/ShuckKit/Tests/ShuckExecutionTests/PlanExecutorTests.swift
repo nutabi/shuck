@@ -73,12 +73,12 @@ struct PlanExecutorTests {
                 Issue.record("Not trashed: \(outcome)")
                 continue
             }
-            #expect(!exists(outcome.item.url))
+            #expect(!exists(try #require(outcome.item.url)))
             #expect(exists(trashed))
             #expect(result.status == .ok)
-            #expect(result.path == outcome.item.url.path)
+            #expect(result.path == outcome.item.target.description)
             #expect(result.trashedPath == trashed.path)
-            #expect(result.bytes == outcome.item.snapshot.allocatedSize)
+            #expect(result.bytes == outcome.item.allocatedSize)
             #expect(result.run == plan.run && result.tool == .largeFiles && result.tier == .yourData)
             #expect(result.identity != nil && result.identity == FileIdentity.read(trashed))
         }
@@ -242,12 +242,12 @@ struct PlanExecutorTests {
 
     @Test func aPlanThatMixesMethodsHandsEachItemToItsOwnActionSAF005() async throws {
         let movie = try root.file("Movies/clip.mov", size: 10)
-        let simulators = try root.folder("Library/Developer/CoreSimulator")
+        let cache = try root.folder("Library/Caches/Fixture")
         let image = try root.file("Downloads/installer.dmg", size: 10)
-        let plan = try plan([planned(movie), planned(simulators, method: .tool), planned(image)])
+        let plan = try plan([planned(movie), planned(cache, tier: .rebuildable, method: .delete), planned(image)])
 
-        let tool = FakeAction()
-        let report = try await run(plan, actions: [.tool: tool])
+        let delete = FakeAction()
+        let report = try await run(plan, actions: [.delete: delete])
 
         let results = report.outcomes.map(\.result)
         guard case .done(let trashedMovie?) = results[0], case .done(let trashedImage?) = results[2] else {
@@ -255,20 +255,24 @@ struct PlanExecutorTests {
             return
         }
         #expect(results[1] == .done(nil))
-        #expect(tool.items == [simulators])
-        #expect(!exists(movie) && exists(simulators) && !exists(image))
+        #expect(delete.items == [cache])
+        #expect(!exists(movie) && exists(cache) && !exists(image))
         let records = try HistoryLog.read(folder: logFolder).records
-        #expect(records.map(\.operation) == [.trash, .trash, .tool, .tool, .trash, .trash])
+        #expect(records.map(\.operation) == [.trash, .trash, .delete, .delete, .trash, .trash])
         #expect(records.compactMap(\.status) == [.ok, .ok, .ok])
         #expect(records.compactMap(\.trashedPath) == [trashedMovie.path, trashedImage.path])
-        #expect(records.filter { $0.operation == .tool }.allSatisfy { $0.identity == nil })
+        #expect(records.filter { $0.operation == .delete }.allSatisfy { $0.identity == nil })
     }
 
     @Test func anItemWhoseMethodHasNoActionIsSkippedAndLoggedSAF011() async throws {
-        let item = try planned(try root.file("Downloads/image.raw", size: 10), method: .tool)
+        let executable = try root.file("tools/cleaner", permissions: 0o700)
+        let command = try ToolCommand(executable: executable.path, arguments: ["clean"], environment: ["PATH": "/bin"])
+        let item = PlannedItem(
+            command: command, allocatedSize: 4096, tier: .rebuildable,
+            category: ItemCategory(id: "fixture", name: "Fixture"))
         let report = try await run(try plan([item]))
         #expect(report.outcomes.map(\.result) == [.skipped(.unsupportedMethod(.tool))])
-        #expect(exists(item.url))
+        #expect(item.url == nil && exists(executable))
         let records = try HistoryLog.read(folder: logFolder).records
         #expect(records.map(\.phase) == [.intent, .result])
         #expect(records.allSatisfy { $0.operation == .tool })
@@ -287,7 +291,8 @@ struct PlanExecutorTests {
 
         #expect(acted.result == .skipped(.notAllowed(.delete)))
         #expect(ItemOutcome.SkipReason.notAllowed(.delete).logged == "notAllowed: delete")
-        #expect(delete.items.isEmpty && exists(item.url))
+        let url = try #require(item.url)
+        #expect(delete.items.isEmpty && exists(url))
     }
 
     // MARK: - Crash and cancellation
@@ -329,19 +334,19 @@ struct PlanExecutorTests {
 
     @Test func cancellingAMixedRunMidwayLogsWhatWasDoneSAF014() async throws {
         let first = try root.file("Downloads/first.bin", size: 10)
-        let simulators = try root.folder("Library/Developer/CoreSimulator")
+        let cache = try root.folder("Library/Caches/Fixture")
         let last = try root.file("Downloads/last.bin", size: 10)
-        let plan = try plan([planned(first), planned(simulators, method: .tool), planned(last)])
+        let plan = try plan([planned(first), planned(cache, tier: .rebuildable, method: .delete), planned(last)])
 
-        let tool = FakeAction { withUnsafeCurrentTask { $0?.cancel() } }
-        let report = try await run(plan, actions: [.tool: tool])
+        let delete = FakeAction { withUnsafeCurrentTask { $0?.cancel() } }
+        let report = try await run(plan, actions: [.delete: delete])
 
         #expect(report.outcomes[1...].map(\.result) == [.done(nil), .skipped(.cancelled)])
         #expect(!exists(first) && exists(last))
-        // The tool item was acted on before the run saw the cancellation, so its result is logged; the last item never
+        // The Delete item was acted on before the run saw the cancellation, so its result is logged; the last item never
         // started, so it has no records.
         let records = try HistoryLog.read(folder: logFolder).records
-        #expect(records.map(\.operation) == [.trash, .trash, .tool, .tool])
+        #expect(records.map(\.operation) == [.trash, .trash, .delete, .delete])
         #expect(records.compactMap(\.status) == [.ok, .ok])
     }
 

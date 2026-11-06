@@ -32,7 +32,7 @@ final class TrashReview: Identifiable {
 
     /// The allocated size of the plan's items, as the review states it (SAF-002, SAF-013).
     var totalBytes: Int64 {
-        plan.items.reduce(0) { $0 + $1.snapshot.allocatedSize }
+        plan.items.reduce(0) { $0 + $1.allocatedSize }
     }
 
     /// - Parameter onFinish: Called with the report when the run ends, so the caller can drop the moved items.

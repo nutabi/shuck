@@ -100,8 +100,8 @@ struct OldFilesTests {
         let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
         for await event in oldFiles.scan(context) {
             guard case .item(let item) = event else { continue }
-            try root.requireInside(item.url)
-            items[item.url.lastPathComponent] = item
+            let url = try root.requireInside(#require(item.url))
+            items[url.lastPathComponent] = item
         }
 
         #expect(Set(items.keys) == ["opened-long-ago.mov", "never-opened.dmg"])
