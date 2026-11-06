@@ -83,6 +83,28 @@ struct HistoryRestoreTests {
         #expect(restore.start(ifTaken: .skip) == nil, "A restore ran twice")
     }
 
+    /// HIS-003: two runs can trash different versions of the same path. Ask before restoring them together, even
+    /// when nothing currently occupies that path, and pass either answer to the executor without reordering items.
+    @Test(arguments: [RestoreRequest.IfTaken.keepBoth, .skip])
+    func repeatedOriginalPathsWaitForAnAnswerHIS003(ifTaken: RestoreRequest.IfTaken) async throws {
+        let calls = Calls()
+        let model = model(calls)
+        let first = trashed(home.appending(path: "Movies/clip.mov"))
+        let second = TrashedItem(
+            run: UUID(), tool: .largeFiles, tier: .yourData, originalURL: first.originalURL,
+            trashedURL: home.appending(path: ".Trash/clip 2.mov"), bytes: 100)
+
+        let restore = try #require(model.restore([first, second]))
+        #expect(restore.phase == .askingAboutTakenPaths)
+        #expect(restore.takenItems == [second])
+        #expect(restore.task == nil)
+        #expect(calls.requests.withLock { $0 }.isEmpty)
+
+        await restore.start(ifTaken: ifTaken)?.value
+        #expect(calls.requests.withLock { $0 } == [first, second].map { RestoreRequest(item: $0, ifTaken: ifTaken) })
+        #expect(calls.loads.withLock { $0 } == 1)
+    }
+
     @Test func cancellingTheQuestionMovesNothingHIS003() {
         let calls = Calls()
         let model = model(calls)

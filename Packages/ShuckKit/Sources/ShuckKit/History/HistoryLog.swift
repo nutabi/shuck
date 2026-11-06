@@ -145,20 +145,25 @@ public actor HistoryLog {
         return (handle, info)
     }
 
-    /// The data folder's attributes, or `nil` if nothing is there. Anything but a folder is refused: attributesOfItem
-    /// does not follow a symlink, so a symlink fails the type check (D-46).
-    private static func existingFolder(_ folder: URL) throws(HistoryError) -> [FileAttributeKey: Any]? {
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: folder.path) else { return nil }
-        guard attributes[.type] as? FileAttributeType == .typeDirectory else { throw .notAFolder(folder.path) }
-        return attributes
+    /// The data folder's attributes, or `nil` only if the path is missing. `lstat` does not follow a symlink, so a
+    /// symlink still fails the type check (D-46). Other errors must reach History instead of looking like an empty log.
+    private static func existingFolder(_ folder: URL) throws(HistoryError) -> stat? {
+        var info = stat()
+        guard lstat(folder.path, &info) == 0 else {
+            let code = errno
+            if code == ENOENT || code == ENOTDIR { return nil }
+            throw .cannotOpen(folder.path, errno: code)
+        }
+        guard info.st_mode & S_IFMT == S_IFDIR else { throw .notAFolder(folder.path) }
+        return info
     }
 
     /// Creates the data folder with mode 0700, or checks an existing one and fixes its mode (NFR-SEC-005, D-45).
     private static func prepare(folder: URL) throws(HistoryError) {
         let manager = FileManager.default
         do {
-            if let attributes = try existingFolder(folder) {
-                if attributes[.posixPermissions] as? Int != 0o700 {
+            if let info = try existingFolder(folder) {
+                if info.st_mode & 0o7777 != 0o700 {
                     logger.notice("Fixing the data folder's permissions")
                     try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
                 }

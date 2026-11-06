@@ -138,9 +138,10 @@ struct HistoryView: View {
     }
 
     /// The sub-tool or tool that ran, by name. A restore's area is Restore (D-68).
-    static func area(of run: HistoryRun, in registry: ToolRegistry) -> LocalizedStringResource {
-        if run.tool == .history { return "Restore" }
-        return registry.info(run.tool)?.name ?? "\(run.tool.rawValue)"
+    static func area(of run: HistoryRun, in registry: ToolRegistry) -> String {
+        if run.tool == .history { return String(localized: "Restore") }
+        if let info = registry.info(run.tool) { return String(localized: info.name) }
+        return run.tool.rawValue
     }
 
     /// How a run ended, in words and with a symbol, never by color alone (NFR-A11Y-001).
@@ -182,13 +183,13 @@ struct HistoryView: View {
 /// A run's area and method, item count and size, date and status.
 private struct HistoryRunRow: View {
     let run: HistoryRun
-    let area: LocalizedStringResource
+    let area: String
 
     var body: some View {
         let status = HistoryView.status(of: run)
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(Text(area)) · \(OutcomeWording.method(of: run))")
+                Text("\(Text(verbatim: area)) · \(OutcomeWording.method(of: run))")
                     .font(.headline)
                 // The size of what changed: a skipped item changed nothing (SAF-013).
                 Text(

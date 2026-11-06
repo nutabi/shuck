@@ -249,7 +249,7 @@ Process changes during M2:
 - [ ] CodeQL also scans the app target, once it can build the Xcode 27 project, or in M5's security pass at the latest
   (D-96).
 
-Fixes from the review of `main` at 380a07d (#55 to #73), before M2-T02:
+Fixes from the review of `main` at 380a07d (#55 to #73):
 
 - [x] The static checks catch the URL folder properties, `.allDomainsMask`, the date and attribute-list calls,
   `SMAppService`, FIFOs and folders created on request; `AppEnvironment`'s home has no default (#56, D-97).
@@ -257,6 +257,10 @@ Fixes from the review of `main` at 380a07d (#55 to #73), before M2-T02:
   (#57, D-98).
 - [x] Closing the main window quits Shuck, and the code comment and the 0.1.1 notes say so (#55, D-99). The 0.1.1 notes
   also say that only Large Files remembers Group by Folder (#58).
+- [x] M2-F01 History fixes, grouped in one pull request at the owner's request: Restore asks Keep Both or Skip when
+  selected items share an original path (#59); a folder-access error is reported instead of reading as empty history
+  (#69); unknown tool IDs are shown verbatim, without an empty localization key (#68, D-108). Other review issues
+  remain open; M2-T04 is still the next roadmap task.
 
 Exit criteria (PRD section 13):
 
