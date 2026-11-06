@@ -14,6 +14,9 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Move to Trash's review, Quick Look and Show in Finder now follow the folder order shown in grouped results.
+- The time since a scan on the File Cleanup page now updates while the page stays open.
+- Excluded folders no longer appear in personal-file results when another cleanup tool manages them.
 - Restoring several versions of the same file together now asks whether to keep both or skip the extra versions.
 - History shows an error when its data folder cannot be examined, instead of saying there is no history yet.
 

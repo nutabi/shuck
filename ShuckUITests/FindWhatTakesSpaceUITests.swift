@@ -32,6 +32,19 @@ final class FindWhatTakesSpaceUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["10.5 MB reclaimable"].exists)
             XCTAssertTrue(app.staticTexts["8.4 MB reclaimable"].exists)
             XCTAssertTrue(app.staticTexts["Each file counts once, even if several sub-tools list it."].exists)
+            // FCL-004: the age advances while the landing page stays idle, without another scan or navigation.
+            let ages = app.descendants(matching: .any).matching(identifier: "scan-age-LRG")
+            let age = ages.element
+            XCTAssertTrue(age.appears(within: 5), app.debugDescription)
+            // macOS text can expose its content as an accessibility value rather than a label.
+            let value = age.value as? String
+            let initialAge = value ?? age.label
+            XCTAssertFalse(initialAge.isEmpty, "The scan age has no accessible text")
+            let unchanged = ages.matching(NSPredicate(format: "%K == %@", value == nil ? "label" : "value", initialAge))
+            XCTAssertTrue(
+                unchanged.element.disappears(within: 5),
+                "The scan age did not update while the page was idle")
+            XCTAssertTrue(age.exists, "The scan age disappeared instead of updating")
             attachScreenshot(of: app, named: "File Cleanup total")
         }
 

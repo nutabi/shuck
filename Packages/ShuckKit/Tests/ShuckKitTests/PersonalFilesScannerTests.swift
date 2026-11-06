@@ -156,6 +156,20 @@ struct PersonalFilesScannerTests {
         #expect(Set(result.items.keys) == ["go/pkg/mod", "go/bin/tool"])
     }
 
+    /// SET-001, FCL-008: exclusions hide even stores normally shown read-only for another sub-tool (FCL-011).
+    @Test(arguments: ["go/pkg/mod", "go/pkg", "GO/PKG/MOD"])
+    func anExcludedToolOwnedStoreIsNotListedSET001(exclusion: String) async throws {
+        try root.file("go/pkg/mod/github.com/example/lib@v1.0.0/lib.go", size: 4_000)
+        try root.file("go/bin/tool", size: 1_000)
+        try root.file("Documents/notes.txt", size: 10)
+
+        let result = try await scan(scanner(userExclusions: [try root.url(exclusion)]))
+
+        #expect(Set(result.items.keys) == ["go/bin/tool", "Documents/notes.txt"])
+        #expect(result.notAccessible.isEmpty)
+        #expect(result.unreadable.isEmpty)
+    }
+
     @Test func protectedLibrariesAreListedReadOnly() async throws {
         try root.file("Pictures/Photos Library.photoslibrary/database/Photos.sqlite", size: 8_000)
         try root.file("Music/Music/Media/song.m4a", size: 8_000)
