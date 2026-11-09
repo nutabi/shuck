@@ -50,8 +50,14 @@ struct SummaryConfirmationSheet: View {
         let count = confirmation.plan.items.count
         let size = confirmation.totalBytes
         if runsTools {
-            Text("Clean up ^[\(count) item](inflect: true), up to \(size, format: .byteCount(style: .file))?")
-                .font(.title2.bold())
+            // Without an estimate for any item, there is no size to state.
+            if size > 0 {
+                Text("Clean up ^[\(count) item](inflect: true), up to \(size, format: .byteCount(style: .file))?")
+                    .font(.title2.bold())
+            } else {
+                Text("Clean up ^[\(count) item](inflect: true)?")
+                    .font(.title2.bold())
+            }
             Text(
                 "Tools can rebuild these. Items that are deleted don't go to the Trash, and a tool removes its own data with its own command, so Shuck can't put either back. A tool's size is an estimate."
             )
@@ -106,8 +112,13 @@ struct SummaryConfirmationSheet: View {
                 Text("Cleaned up \(deleted.count) of ^[\(report.outcomes.count) item](inflect: true)")
                     .font(.title2.bold())
             }
-            Text("Up to \(bytes, format: .byteCount(style: .file)) was removed. It is not in the Trash.")
-                .foregroundStyle(.secondary)
+            if bytes > 0 {
+                Text("Up to \(bytes, format: .byteCount(style: .file)) was removed. It is not in the Trash.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("What the tool removed is not in the Trash.")
+                    .foregroundStyle(.secondary)
+            }
         } else {
             if notDeleted.isEmpty {
                 Text("Deleted ^[\(deleted.count) item](inflect: true)")

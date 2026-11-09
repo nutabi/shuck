@@ -29,7 +29,7 @@ struct DeveloperJunkView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 RebuildableFooter(
                     results: results, action: actions.confirmRebuildable,
-                    help: Text("Review the totals before deleting the selected build folders."))
+                    help: Text("Review the totals before cleaning up the selected items."))
             }
         }
     }
