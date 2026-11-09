@@ -37,9 +37,15 @@ extension CleanupRule {
     /// Builds a measured path item. The scanner supplies the snapshot and date it read, avoiding a second walk of
     /// a large folder. A missing rule's data stays hidden (DEV-002); the planner still guards each target (SAF-007).
     /// The item cannot be selected while one of the rule's apps is in `runningApps` (SAF-009).
+    ///
+    /// `modified` is the target's own date, kept for re-validation. A scan may judge staleness by `lastActivity`
+    /// instead, such as the newest date inside a folder whose own date rarely changes, and may select an item whatever
+    /// its age with `selectedRegardless`, unless the rule never selects (DEV-005, D-112). `reason` replaces the rule's
+    /// explanation next to the item.
     public func scanItem(
         at url: URL, snapshot: ItemSnapshot, modified: Date, source: ToolID, runningApps: any RunningApps,
-        now: Date = .now, disabledReason: LocalizedStringResource? = nil
+        now: Date = .now, disabledReason: LocalizedStringResource? = nil, reason: LocalizedStringResource? = nil,
+        lastActivity: Date? = nil, selectedRegardless: Bool = false
     ) throws(RuleItemError) -> ScanItem {
         guard detection.isAvailable else { throw .unavailable }
         guard case .paths(_, let method, let scope) = action,
@@ -47,11 +53,12 @@ extension CleanupRule {
             scope != .contents || snapshot.kind == .folder
         else { throw .targetMismatch }
         return ScanItem(
-            url: url, snapshot: snapshot, tier: tier, method: method, reason: explanation, source: source,
+            url: url, snapshot: snapshot, tier: tier, method: method, reason: reason ?? explanation, source: source,
             scope: scope, identity: method == .trash ? FileIdentity.read(url) : nil,
             category: category,
             selection: itemSelection(
-                modified: modified, now: now, disabledReason: disabledReason, running: runningApps),
+                modified: lastActivity ?? modified, now: now, disabledReason: disabledReason, running: runningApps,
+                selectedRegardless: selectedRegardless),
             ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps)
     }
 
@@ -72,10 +79,12 @@ extension CleanupRule {
     }
 
     private func itemSelection(
-        modified: Date?, now: Date, disabledReason: LocalizedStringResource?, running: any RunningApps
+        modified: Date?, now: Date, disabledReason: LocalizedStringResource?, running: any RunningApps,
+        selectedRegardless: Bool = false
     ) -> ItemSelection {
         if let disabledReason { return .disabled(disabledReason) }
-        let selection: ItemSelection = selection.selects(modified: modified, now: now) ? .selected : .unselected
+        let isSelected = selection != .never && (selectedRegardless || selection.selects(modified: modified, now: now))
+        let selection: ItemSelection = isSelected ? .selected : .unselected
         return selection.unlessRunning(apps, in: running)
     }
 }

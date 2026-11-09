@@ -216,7 +216,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   their apps as they arrive (M2-T05, M2-T08, M2-T09, M2-T12), and a UI test launch argument for running apps comes
   with the first page that shows a disabled item.
 - [ ] M2-T05 Developer Junk with DerivedData: one item per project, selected when stale for 30 days or when its
-  project is gone; the sub-tool's page (DEV-R01, DEV-008)
+  project is gone; the sub-tool's page (DEV-R01, DEV-008). Two pull requests (D-62):
+  - [x] Engine: the DerivedData rule and Developer Junk's scan, ownership, and fixture and pipeline tests (D-112).
+  - [ ] App: register the sub-tool, its page, the running-apps launch argument and the UI workflow step.
 - [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
   shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
   Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
