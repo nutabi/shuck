@@ -11,11 +11,19 @@ struct SubToolPages {
     private let pages: [ToolID: Page]
 
     /// Takes the sub-tools the registry lists, with the user's settings (SET-002).
-    init(largeFiles: LargeFiles, oldFiles: OldFiles, developerJunk: DeveloperJunk = DeveloperJunk()) {
+    init(
+        largeFiles: LargeFiles, oldFiles: OldFiles, developerJunk: DeveloperJunk = DeveloperJunk(),
+        cachesAndLogs: CachesAndLogs = CachesAndLogs()
+    ) {
         pages = [
             developerJunk.id: { model, _ in
                 model.scanResults[developerJunk.id].map { results in
                     AnyView(DeveloperJunkView(subTool: developerJunk, model: model, results: results))
+                }
+            },
+            cachesAndLogs.id: { model, _ in
+                model.scanResults[cachesAndLogs.id].map { results in
+                    AnyView(CachesAndLogsView(subTool: cachesAndLogs, model: model, results: results))
                 }
             },
             largeFiles.id: { model, registry in

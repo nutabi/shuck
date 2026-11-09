@@ -3,7 +3,7 @@ import os
 
 /// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has three,
 /// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02) and the simulators' caches (DEV-R04); the other
-/// rules arrive one at a time (M2-T09 onwards).
+/// rules arrive one at a time (M2-T11 onwards).
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"

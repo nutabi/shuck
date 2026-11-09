@@ -76,9 +76,27 @@ struct ToolRegistryTests {
 
     // MARK: - Planned sub-tools
 
+    /// No sub-tool is planned any more, so the tests make one.
+    let planned = PlannedSubTool(
+        info: ToolInfo(
+            id: .cachesAndLogs, name: "Planned", summary: "Comes later.", symbolName: "clock",
+            availability: .planned(milestone: "M9")),
+        tiers: [.rebuildable])
+
+    @Test func everySubToolOfFileCleanupIsAvailableNow() {
+        #expect(ToolRegistry.standard.subTools.allSatisfy { $0.info.availability == .available })
+    }
+
+    @Test func cachesAndLogsIsAvailableAndRebuildableFCL003() throws {
+        let standard = try #require(ToolRegistry.standard.subTool(.cachesAndLogs) as? CachesAndLogs)
+        #expect(standard.info.availability == .available)
+        #expect(standard.tiers == [.rebuildable])
+        #expect(String(localized: standard.info.name) == "Caches & Logs")
+    }
+
     @Test func aPlannedSubToolFindsNothing() async throws {
-        let cachesAndLogs = try #require(ToolRegistry.standard.subTool(.cachesAndLogs))
-        #expect(cachesAndLogs.info.availability == .planned(milestone: "M2"))
+        let cachesAndLogs = planned
+        #expect(cachesAndLogs.info.availability == .planned(milestone: "M9"))
         try root.file("Library/Caches/com.example.App/cache.db", size: 10)
 
         var events: [ScanEvent] = []
@@ -89,7 +107,7 @@ struct ToolRegistryTests {
     }
 
     @Test func aPlannedSubToolCannotPlanAnythingSAF007() throws {
-        let cachesAndLogs = try #require(ToolRegistry.standard.subTool(.cachesAndLogs))
+        let cachesAndLogs = planned
         let item = try scanItem("Library/Caches/com.example.App", source: .cachesAndLogs, tier: .rebuildable)
         let error = #expect(throws: PlanError.self) {
             try Plan(subTool: cachesAndLogs, items: [item], pathGuard: pathGuard)
