@@ -88,12 +88,17 @@ struct SubToolPage<Results: View, Controls: View>: View {
             Button("OK") {}
         } message: { refusal in
             Text(
-                "“\(URL(filePath: refusal.path).lastPathComponent)” didn't pass Shuck's safety checks, so Shuck deleted nothing."
+                "“\(Self.name(of: refusal.path))” didn't pass Shuck's safety checks, so Shuck deleted nothing."
             )
         }
     }
 
     private var isScanning: Bool { model.state(of: subTool.id) == .scanning }
+
+    /// What the refusal names: a file's name, or a tool command as the tool and its arguments.
+    private static func name(of subject: String) -> String {
+        LoggedCommand(logged: subject)?.commandLine ?? URL(filePath: subject).lastPathComponent
+    }
 
     /// What the list can open: each action is `nil` when the model cannot run anything, as in previews.
     private var actions: PageActions {

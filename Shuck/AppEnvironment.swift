@@ -91,7 +91,7 @@ nonisolated struct AppEnvironment {
                 appBundle: appBundle, userExclusions: [])
             toolRunner = ToolRunner(executableRoots: [root])
             runningApps = StubRunningApps(Self.bundleIDs(settings(Self.runningAppsKey)))
-            context = ScanContext(home: root, protection: protection, runningApps: runningApps)
+            context = ScanContext(home: root, protection: protection, runningApps: runningApps, toolRoot: root)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
@@ -100,7 +100,7 @@ nonisolated struct AppEnvironment {
             toolRunner = ToolRunner(executableRoots: nil)
             context = ScanContext(
                 home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []),
-                runningApps: runningApps)
+                runningApps: runningApps, toolRoot: URL(filePath: "/", directoryHint: .isDirectory))
             trash = SystemTrash()
         }
         largeFiles = LargeFiles(

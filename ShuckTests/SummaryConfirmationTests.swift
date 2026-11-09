@@ -103,6 +103,57 @@ struct SummaryConfirmationTests {
         #expect(summary.reclaimableBytes == 3_000)
     }
 
+    /// A Tool item for `command`, with a size estimate.
+    func toolItem(_ arguments: [String], estimate: Int64) throws -> ScanItem {
+        let command = try ToolCommand(
+            executable: "/StubTools/cleaner", arguments: arguments, environment: ["PATH": "/usr/bin"])
+        return ScanItem(
+            command: command, allocatedSize: estimate, tier: .rebuildable, reason: "Stub", source: StubRebuildable.id,
+            category: xcode, selection: .selected)
+    }
+
+    /// SAF-003, SAF-004, SAF-010, D-125: a plan with a tool's command is worded as cleaning up, and a plan of deleted
+    /// items as deleting.
+    @Test func aPlanWithAToolCommandIsWordedAsCleaningUpSAF010() async throws {
+        let (model, subTool) = await scannedModel(
+            items: [item("a", size: 1_000, category: xcode), try toolItem(["clean"], estimate: 5_000)],
+            runPlan: run(deleting: []))
+        let mixed = try #require(try model.confirmRebuildable(subTool))
+        #expect(mixed.runsTools)
+        #expect(mixed.totalBytes == 6_000)
+        #expect(mixed.categoryTotals.map(\.count) == [2])
+
+        let (other, otherTool) = await scannedModel(
+            items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: []))
+        #expect(try #require(try other.confirmRebuildable(otherTool)).runsTools == false)
+    }
+
+    /// SAF-011: a command that ran leaves the list like a deleted item; one that did not run stays.
+    @Test func aCommandThatRanLeavesTheListAndTheEstimateSAF011() async throws {
+        let (model, subTool) = await scannedModel(
+            items: [try toolItem(["one"], estimate: 5_000), try toolItem(["two"], estimate: 2_000)],
+            runPlan: { (plan: Plan) async throws(HistoryError) -> RunReport in
+                RunReport(
+                    run: plan.run,
+                    outcomes: plan.items.enumerated().map { index, item in
+                        ItemOutcome(
+                            item: item, result: index == 0 ? .done(nil) : .skipped(.toolUnavailable(.notAnExecutable)))
+                    })
+            })
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+
+        await confirmation.start()?.value
+
+        let remaining = try #require(model.scanResults[subTool.id])
+        #expect(remaining.items.map(\.allocatedSize) == [2_000])
+        #expect(remaining.selection.count == 1)
+        guard case .scanned(let summary) = model.state(of: subTool.id) else {
+            Issue.record("The sub-tool lost its scan")
+            return
+        }
+        #expect(summary.reclaimableBytes == 2_000)
+    }
+
     @Test func aConfirmationRunsOnce() async throws {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: ["a"]))

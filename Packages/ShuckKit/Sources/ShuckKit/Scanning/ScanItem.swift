@@ -122,16 +122,21 @@ public struct ScanContext: Sendable {
     public let protection: PathGuardConfiguration
     /// The apps running now; a scan disables the items of a running app (SAF-009, CAC-003).
     public let runningApps: any RunningApps
+    /// The folder tools are looked for under: `/` in the app, so a tool is found where it is installed, and the fixture
+    /// root in a UI test, so a test never reaches a real tool (SAF-016, D-114). `nil` finds none, so a scan that does
+    /// not ask for tools never lists a tool's rule (DEV-002, D-124).
+    public let toolRoot: URL?
 
     /// Without `protection`, a scan uses the production list for `home` with Shuck's own bundle. Tests pass the
     /// fixture root's configuration (D-41). Without `runningApps`, a scan asks this Mac which apps run; the app's
     /// fixture-root mode passes a stub (D-110).
     public init(
         home: URL, ownership: OwnershipMap? = nil, protection: PathGuardConfiguration? = nil,
-        runningApps: any RunningApps = SystemRunningApps()
+        runningApps: any RunningApps = SystemRunningApps(), toolRoot: URL? = nil
     ) {
         self.home = home
         self.runningApps = runningApps
+        self.toolRoot = toolRoot
         self.ownership = ownership ?? OwnershipMap(home: home)
         self.protection =
             protection ?? .production(home: home, appBundle: Bundle.main.bundleURL, userExclusions: [])

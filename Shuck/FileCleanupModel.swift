@@ -228,6 +228,7 @@ final class FileCleanupModel {
             pathGuard: PathGuard(configuration: context.protection))
         return SummaryConfirmation(plan: plan, runPlan: runPlan) { [weak self] report in
             self?.remove(report.deletedURLs)
+            self?.remove(commands: report.cleanedCommands)
         }
     }
 
@@ -250,9 +251,23 @@ final class FileCleanupModel {
     func remove(_ urls: [URL]) {
         personalFiles.remove(urls)
         for id in subTools.map(\.id) {
-            guard let list = results(of: id) else { continue }
-            list.remove(urls)
-            if case .scanned(let summary) = states[id] {
+            results(of: id)?.remove(urls)
+        }
+        refreshSummaries()
+    }
+
+    /// Removes the items for tool commands that a run has run, from every list that has them (DEV-R03 onwards).
+    func remove(commands: [ToolCommand]) {
+        for list in scanResults.values {
+            list.remove(commands: commands)
+        }
+        refreshSummaries()
+    }
+
+    /// Updates each landing-page estimate to match its list.
+    private func refreshSummaries() {
+        for id in subTools.map(\.id) {
+            if results(of: id) != nil, case .scanned(let summary) = states[id] {
                 states[id] = .scanned(self.summary(of: id, finished: summary.finished))
             }
         }
