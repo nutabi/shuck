@@ -1,7 +1,22 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "A file an app keeps directly in Library's Caches." : {
+
+    },
+    "A file an app keeps directly in Library's Logs." : {
+
+    },
+    "App Caches" : {
+
+    },
+    "App Container Caches" : {
+
+    },
     "App is running" : {
+
+    },
+    "App Logs" : {
 
     },
     "At least %@" : {
@@ -11,6 +26,12 @@
 
     },
     "Build products and indexes Xcode keeps for each project." : {
+
+    },
+    "Cache Files" : {
+
+    },
+    "Caches" : {
 
     },
     "Caches & Logs" : {
@@ -31,7 +52,16 @@
     "Large Files" : {
 
     },
+    "Log Files" : {
+
+    },
+    "Logs" : {
+
+    },
     "Not built for %lld days or more." : {
+
+    },
+    "Not changed for %lld days or more." : {
 
     },
     "Not modified in %@" : {
@@ -41,6 +71,9 @@
 
     },
     "Old Files" : {
+
+    },
+    "Part of macOS or an Apple app, so it starts unselected." : {
 
     },
     "Personal files" : {
@@ -64,6 +97,12 @@
     "Symbols Xcode copies from a device so it can debug that version of its system." : {
 
     },
+    "The app builds this cache again when it needs it." : {
+
+    },
+    "The app writes a new log when it needs one." : {
+
+    },
     "The newest version Xcode has for this platform." : {
 
     },
@@ -71,6 +110,15 @@
 
     },
     "Uninstall apps together with the files they leave behind." : {
+
+    },
+    "What a sandboxed app keeps in its own Caches folder." : {
+
+    },
+    "What an app keeps in its folder in Library's Caches." : {
+
+    },
+    "What an app keeps in its folder in Library's Logs." : {
 
     },
     "What can developer tools rebuild?" : {

@@ -31,12 +31,15 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     public let identity: FileIdentity?
     /// The bundle IDs of the apps that use the item. While one of them runs, the item is not acted on (SAF-009).
     public let apps: Set<String>
+    /// The name of the app the item belongs to, which a page groups items by (CAC-002). `nil` when the sub-tool does not
+    /// group by app.
+    public let appName: String?
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
         source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
         category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil,
-        apps: Set<String> = []
+        apps: Set<String> = [], appName: String? = nil
     ) {
         self.target = .path(url)
         self.snapshot = snapshot
@@ -52,6 +55,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         self.scope = scope
         self.identity = identity
         self.apps = apps
+        self.appName = appName
     }
 
     /// A command carries its estimate without a fictional file kind or snapshot. No command runs in T03 (M2-T10).
@@ -74,6 +78,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         scope = .item
         identity = nil
         self.apps = apps
+        appName = nil
     }
 }
 

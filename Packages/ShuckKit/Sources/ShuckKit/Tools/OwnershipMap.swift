@@ -46,25 +46,49 @@ public struct OwnershipMap: Sendable {
     public static let personalFiles: Set<ToolID> = [.largeFiles, .oldFiles]
 
     /// The map the app uses. Developer Junk and Caches & Logs add their locations with their rules in M2.
-    public static let standardEntries: [Entry] = [
-        // Personal files: the home folder (FCL-008)...
-        Entry("", owners: personalFiles),
-        // ...except Library, which apps manage, and hidden top-level folders, which hold tool data...
-        Entry("Library", owners: []),
-        Entry(".*", owners: []),
-        // ...but including the user data allowlisted inside Library: iPhone and iPad backups.
-        Entry("Library/Application Support/MobileSync/Backup", owners: personalFiles),
-        // Tool-owned stores inside the personal files, shown there read-only (FCL-011, D-55): the Go module cache,
-        // which `go clean -modcache` cleans (DEV-R14).
-        Entry("go/pkg/mod", owners: [.developerJunk]),
-        // Developer Junk's rules claim their locations as they arrive: Xcode's DerivedData (DEV-R01).
-        Entry("Library/Developer/Xcode/DerivedData", owners: [.developerJunk]),
-        // ...and Xcode's device support files, one folder per platform (DEV-R02).
-        Entry("Library/Developer/Xcode/*DeviceSupport", owners: [.developerJunk]),
-        // ...and the simulators' caches (DEV-R04). Their devices next to them are no sub-tool's: `simctl` manages them
-        // (DEV-007), so `Library` leaves them unowned.
-        Entry("Library/Developer/CoreSimulator/Caches", owners: [.developerJunk]),
-    ]
+    public static let standardEntries: [Entry] =
+        [
+            // Personal files: the home folder (FCL-008)...
+            Entry("", owners: personalFiles),
+            // ...except Library, which apps manage, and hidden top-level folders, which hold tool data...
+            Entry("Library", owners: []),
+            Entry(".*", owners: []),
+            // ...but including the user data allowlisted inside Library: iPhone and iPad backups.
+            Entry("Library/Application Support/MobileSync/Backup", owners: personalFiles),
+            // Tool-owned stores inside the personal files, shown there read-only (FCL-011, D-55): the Go module cache,
+            // which `go clean -modcache` cleans (DEV-R14).
+            Entry("go/pkg/mod", owners: [.developerJunk]),
+            // Developer Junk's rules claim their locations as they arrive: Xcode's DerivedData (DEV-R01).
+            Entry("Library/Developer/Xcode/DerivedData", owners: [.developerJunk]),
+            // ...and Xcode's device support files, one folder per platform (DEV-R02).
+            Entry("Library/Developer/Xcode/*DeviceSupport", owners: [.developerJunk]),
+            // ...and the simulators' caches (DEV-R04). Their devices next to them are no sub-tool's: `simctl` manages them
+            // (DEV-007), so `Library` leaves them unowned.
+            Entry("Library/Developer/CoreSimulator/Caches", owners: [.developerJunk]),
+            // Caches & Logs: each entry of Library/Caches and of Library/Logs, and each sandboxed app's caches (CAC-001)...
+            Entry("Library/Caches/*", owners: [.cachesAndLogs]),
+            Entry("Library/Logs/*", owners: [.cachesAndLogs]),
+            Entry("Library/Containers/*/Data/Library/Caches", owners: [.cachesAndLogs]),
+        ] + developerToolCaches + noOwner
+
+    /// ...except what a developer tool owns, which Developer Junk cleans with the tool's own command (FCL-005, SAF-010).
+    /// Some have no rule yet (DEV-R11 to R14), and Developer Junk finds nothing there until they do. They are
+    /// Homebrew, pip, SwiftPM, CocoaPods, Yarn, pnpm, the Go build cache and node-gyp, and Xcode's own cache.
+    static let developerToolCaches: [Entry] =
+        [
+            "Homebrew", "pip", "org.swift.swiftpm", "CocoaPods", "Yarn", "pnpm", "go-build", "node-gyp",
+            "com.apple.dt.Xcode",
+        ].map { Entry("Library/Caches/\($0)", owners: [.developerJunk]) } + [
+            Entry("Library/Logs/Homebrew", owners: [.developerJunk]),
+            Entry("Library/Logs/CoreSimulator", owners: [.developerJunk]),
+        ]
+
+    /// ...and what no sub-tool may list: Shuck's own caches and logs, and Docker's container caches, which only Docker's
+    /// own command may change (CAC-001, DEV-007, D-119).
+    static let noOwner: [Entry] =
+        [ShuckKit.bundleID, ShuckKit.debugBundleID].flatMap { id in
+            [Entry("Library/Caches/\(id)", owners: []), Entry("Library/Logs/\(id)", owners: [])]
+        } + [Entry("Library/Containers/com.docker.docker/Data/Library/Caches", owners: [])]
 
     /// The home folder the patterns are relative to.
     public let home: URL
