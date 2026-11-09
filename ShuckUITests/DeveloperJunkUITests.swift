@@ -9,7 +9,9 @@ final class DeveloperJunkUITests: ShuckUITestCase {
     /// The page's footer says how many rows are selected; the size is left out because folders add allocated bytes.
     @MainActor
     private func footer(_ app: XCUIApplication, startingWith text: String) -> XCUIElement {
-        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", text)).firstMatch
+        // macOS text can expose its content as an accessibility value rather than a label.
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", text, text))
+            .firstMatch
     }
 
     /// The checkbox of the project named `name`, found by the identifier the page gives it.
