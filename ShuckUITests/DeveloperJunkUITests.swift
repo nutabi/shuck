@@ -31,7 +31,8 @@ final class DeveloperJunkUITests: ShuckUITestCase {
     @MainActor
     private func outline(of app: XCUIApplication) -> String {
         app.windows.firstMatch.descendants(matching: .any).allElementsBoundByIndex
-            .map { "\($0.elementType.rawValue):\($0.identifier):\($0.label):\($0.value ?? "")" }.joined(separator: " | ")
+            .map { "\($0.elementType.rawValue):\($0.identifier):\($0.label):\($0.value ?? "")" }.joined(
+                separator: " | ")
     }
 
     /// A checkbox's state, which XCUITest reports as 1 or 0.
