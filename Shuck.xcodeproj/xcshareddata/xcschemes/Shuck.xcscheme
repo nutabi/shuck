@@ -29,30 +29,12 @@
       language = "en"
       region = "US"
       shouldUseLaunchSchemeArgsEnv = "YES">
-      <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C3A63EB230979384004C0504"
-               BuildableName = "ShuckTests.xctest"
-               BlueprintName = "ShuckTests"
-               ReferencedContainer = "container:Shuck.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C3A63EBC30979384004C0504"
-               BuildableName = "ShuckUITests.xctest"
-               BlueprintName = "ShuckUITests"
-               ReferencedContainer = "container:Shuck.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
+      <TestPlans>
+         <TestPlanReference
+            reference = "container:Shuck.xctestplan"
+            default = "YES">
+         </TestPlanReference>
+      </TestPlans>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

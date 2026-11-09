@@ -1,5 +1,6 @@
-# Lint, build and test every pull request and every push to main that changes code (ENG-005, D-66). The static checks
-# and the changelog check run for every change (D-98).
+# Lint, build and test every pull request that changes code (ENG-005, D-66). The static checks and the changelog check
+# run for every change, on Linux (D-98). A push to main that changes code only builds, to keep the compilation cache
+# warm for pull requests: main is not tested again, because every pull request is tested up to date with main (D-111).
 # Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
 name: CI
 
@@ -60,31 +61,51 @@ jobs:
     name: Lint, build and test
     needs: changes
     # Skipped only when the changes job says "false", so the check still runs if that job fails (D-66).
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ github.event_name == 'pull_request' && !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
+      # The static checks and the changelog check ran in the changes job, so they are not run again here. If that job
+      # failed, this required check fails too, before spending any time on a build (D-98, D-111).
+      - name: Static and changelog checks passed
+        if: ${{ needs.changes.result != 'success' }}
+        run: |
+          echo "::error::The Code changes job failed: see its static checks and changelog check."
+          exit 1
+
       # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Toolchain
+        id: toolchain
         run: |
           xcodebuild -version
           swift --version
+          echo "xcode=$(xcodebuild -version | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      # Xcode's compilation cache, from this pull request's last run or from main (D-111). Its entries are keyed by
+      # content, so a fresh checkout reuses them. A new Xcode starts a new cache.
+      - name: Restore the compilation cache
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
+          restore-keys: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-
 
       - name: Lint
         run: scripts/lint.sh
 
-      - name: Static checks
-        run: |
-          scripts/static-checks-test.sh
-          scripts/static-checks.sh
-
-      - name: Changelog
-        run: scripts/release-notes.sh --check
-
       - name: Test
         run: scripts/test.sh
+
+      # Also after a test failure: the build is what the cache saves, and the fix's run reuses it.
+      - name: Save the compilation cache
+        if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
 
       - name: Upload test results
         if: failure()
@@ -93,3 +114,51 @@ jobs:
           name: test-results
           path: build/DerivedData/Logs/Test/*.xcresult
           retention-days: 14
+
+  warm-cache:
+    # A pull request can restore caches saved by its own runs and by main's, but not by other pull requests'. This job
+    # saves main's, so a new pull request's first run starts warm (D-111). It builds what the check builds, with the
+    # same settings, and runs nothing.
+    name: Warm the compilation cache
+    needs: changes
+    if: ${{ github.event_name == 'push' && needs.changes.outputs.code == 'true' }}
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Toolchain
+        id: toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          echo "xcode=$(xcodebuild -version | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the compilation cache
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
+          restore-keys: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-
+
+      # Each save keeps what it restored, and Xcode has no size limit for this cache, so it only grows. Past 2 GB, this
+      # build starts over and saves a cache of one build (about 300 MB).
+      - name: Start over when the cache is large
+        run: |
+          cache=build/DerivedData/CompilationCache.noindex
+          if [[ -d "$cache" ]] && (( $(du -sk "$cache" | cut -f1) > 2 * 1024 * 1024 )); then
+            du -sh "$cache"
+            rm -rf "$cache"
+          fi
+
+      - name: Build for testing
+        run: scripts/test.sh --build-only
+
+      - name: Save the compilation cache
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}

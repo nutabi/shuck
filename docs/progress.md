@@ -273,7 +273,11 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 - [ ] M2-F03 Measure Move to Trash's plan building on the main actor with a few thousand selected files, using
   Instruments' Hangs instrument. If it hangs: fold the protected locations once instead of in every guard check, work
   out Old Files' period once, and build the plan off the main actor (#62, NFR-PERF-001).
-- [ ] M2-F04 CI cancels only pull request runs, so a push to `main` never cancels the check of an earlier merge (#65).
+- [x] M2-F04 CI cancels only pull request runs, so a push to `main` never cancels the check of an earlier merge (#65).
+  Moot after M2-F05: a push to `main` no longer runs the check, only a build that warms the cache (D-111).
+- [x] M2-F05 Faster CI, at the owner's request: the engine builds once, in Xcode, from a workspace and test plan; the
+  macOS job no longer repeats the Linux job's checks; `main` is not tested again after a merge; and builds reuse
+  Xcode's compilation cache (D-111).
 - The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
   0.2.0 release items below.
 
