@@ -17,22 +17,24 @@ struct TrashReviewSheet: View {
     @Environment(AppNavigation.self) private var navigation: AppNavigation?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            switch review.phase {
-            case .reviewing:
-                reviewing
-            case .running:
-                running
-            case .finished(let report):
-                summary(report)
-            case .failed(let error):
-                failure(error)
-            }
-        }
-        .padding(20)
-        .frame(minWidth: 520, idealWidth: 600, minHeight: 360, idealHeight: 440)
-        // A run ends with a report; the sheet stays until the user has seen it (SAF-011).
-        .interactiveDismissDisabled(review.phase == .running)
+        RunSheet(
+            run: review.run,
+            runningTitle: Text("Moving ^[\(review.plan.items.count) item](inflect: true) to the Trash…"),
+            stopHelp: Text("Stop before the next item. Items already moved stay in the Trash."),
+            failureTitle: Text("Nothing was moved"),
+            failureMessage: Text(
+                "Shuck never moves anything without recording it first, and it couldn't record this run."),
+            waiting: { reviewing },
+            summary: { summary($0) },
+            summaryActions: { report in
+                if let navigation {
+                    // Where every item's outcome stays, and where Restore puts things back (HIS-002).
+                    Button("Show in History") {
+                        navigation.showHistory(revealing: report.run)
+                        dismiss()
+                    }
+                }
+            })
     }
 
     @ViewBuilder private var reviewing: some View {
@@ -56,21 +58,6 @@ struct TrashReviewSheet: View {
                 .keyboardShortcut(.cancelAction)
             Button("Move to Trash", role: .destructive) { review.start() }
                 .disabled(review.plan.items.isEmpty)
-        }
-    }
-
-    @ViewBuilder private var running: some View {
-        Text("Moving ^[\(review.plan.items.count) item](inflect: true) to the Trash…")
-            .font(.title2.bold())
-        Spacer()
-        ProgressView()
-            .frame(maxWidth: .infinity)
-        Spacer()
-        HStack {
-            Spacer()
-            Button("Stop") { review.stop() }
-                .keyboardShortcut(.cancelAction)
-                .help("Stop before the next item. Items already moved stay in the Trash.")
         }
     }
 
@@ -100,32 +87,6 @@ struct TrashReviewSheet: View {
             .listStyle(.bordered)
         } else {
             Spacer()
-        }
-        HStack {
-            if let navigation {
-                // Where every item's outcome stays, and where Restore puts things back (HIS-002).
-                Button("Show in History") {
-                    navigation.showHistory(revealing: report.run)
-                    dismiss()
-                }
-            }
-            Spacer()
-            Button("Done") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-        }
-    }
-
-    @ViewBuilder private func failure(_ error: HistoryError) -> some View {
-        Text("Nothing was moved")
-            .font(.title2.bold())
-        // Every action is logged before it runs, so without the log nothing runs (SAF-005).
-        Text("Shuck never moves anything without recording it first, and it couldn't record this run.")
-        HistoryErrorText(error: error)
-        Spacer()
-        HStack {
-            Spacer()
-            Button("Done") { dismiss() }
-                .keyboardShortcut(.defaultAction)
         }
     }
 

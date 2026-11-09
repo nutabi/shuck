@@ -10,17 +10,6 @@ import ShuckKit
 /// of them. A restore runs at most once. The History page shows it in a ``HistoryRestoreSheet``.
 @Observable
 final class HistoryRestore: Identifiable {
-    /// Where the restore stands.
-    nonisolated enum Phase: Equatable {
-        /// Some original paths are taken, and nothing has moved: the user chooses Keep Both or Skip (HIS-003).
-        case askingAboutTakenPaths
-        case running
-        /// Every item has an outcome: restored, skipped or failed, with a reason (SAF-011).
-        case finished(RestoreReport)
-        /// The history log could not be opened, so nothing moved (SAF-005).
-        case failed(HistoryError)
-    }
-
     /// Moves items back from the Trash. The app passes ``AppEnvironment/restore(_:)``; tests pass a stub.
     typealias RunRestore = @Sendable ([RestoreRequest]) async throws(HistoryError) -> RestoreReport
 
@@ -29,11 +18,10 @@ final class HistoryRestore: Identifiable {
     let items: [TrashedItem]
     /// The items whose original path is taken on disk or needed by an earlier item in this restore.
     let takenItems: [TrashedItem]
-    private(set) var phase: Phase
+    /// The run's phase, start and Stop (``RunModel``). Until it starts, the question is on screen, if there is one.
+    let run = RunModel<RestoreReport>()
     private let runRestore: RunRestore
     private let onFinish: () async -> Void
-    /// The run, once it has started.
-    private(set) var task: Task<Void, Never>?
 
     /// The allocated size of the items, as logged when they were trashed.
     var totalBytes: Int64 {
@@ -50,38 +38,31 @@ final class HistoryRestore: Identifiable {
         takenItems = items.filter { item in
             !destinations.insert(item.originalURL).inserted || item.originalIsTaken
         }
-        phase = takenItems.isEmpty ? .running : .askingAboutTakenPaths
         self.runRestore = runRestore
         self.onFinish = onFinish
-        if takenItems.isEmpty { run(ifTaken: .skip) }
+        if takenItems.isEmpty { begin(ifTaken: .skip) }
     }
 
     /// Starts the restore with the user's answer for the taken paths, or returns `nil` if it has started before.
     @discardableResult
     func start(ifTaken: RestoreRequest.IfTaken) -> Task<Void, Never>? {
-        guard phase == .askingAboutTakenPaths else { return nil }
-        phase = .running
-        return run(ifTaken: ifTaken)
+        begin(ifTaken: ifTaken)
     }
+
+    var phase: RunPhase<RestoreReport> { run.phase }
 
     /// Stops the run before its next item (SAF-014). Items already restored stay restored, and the report says which.
     func stop() {
-        task?.cancel()
+        run.stop()
     }
 
     @discardableResult
-    private func run(ifTaken: RestoreRequest.IfTaken) -> Task<Void, Never> {
+    private func begin(ifTaken: RestoreRequest.IfTaken) -> Task<Void, Never>? {
         let requests = items.map { RestoreRequest(item: $0, ifTaken: ifTaken) }
-        let task = Task {
-            do throws(HistoryError) {
-                phase = .finished(try await runRestore(requests))
-            } catch {
-                phase = .failed(error)
-            }
-            await onFinish()
-        }
-        self.task = task
-        return task
+        let runRestore = runRestore
+        return run.start(
+            onFinish: { [onFinish] _ in await onFinish() },
+            work: { () async throws(HistoryError) -> RestoreReport in try await runRestore(requests) })
     }
 }
 

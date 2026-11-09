@@ -224,7 +224,11 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
   shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
   Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
-  a third copy of the run scaffolding (#73).
+  a third copy of the run scaffolding (#73). Two pull requests (D-62):
+  - [x] One run model and one sheet layout; Move to Trash and Restore fill them in, with no change in behavior (D-116,
+    #73).
+  - [ ] The summary confirmation for Delete, Developer Junk's Delete button, History's non-restorable display and the
+    UI workflow step.
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
   (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
 - [x] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
