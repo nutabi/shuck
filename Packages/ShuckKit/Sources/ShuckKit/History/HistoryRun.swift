@@ -21,7 +21,8 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
         /// What was done to the item, or was to be done. A plan may mix methods, so the items of one run may differ
         /// (D-89).
         public let operation: HistoryRecord.Operation
-        /// The original path; for a restore, where the item went (D-52).
+        /// The original path; for a restore, where the item went (D-52). For a `tool` item, the quoted command
+        /// (``LoggedCommand``); for `launchctl`, the job label. History shows each as its own kind of item (#63).
         public let path: String
         /// Where the item went in the Trash; for a restore, where it came from.
         public let trashedPath: String?
@@ -31,10 +32,13 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
         public let outcome: Outcome
         /// Whether Restore can undo the item now, for an item that succeeded and is not itself a restore (HIS-004).
         public let restorability: Restorability?
+        /// The end of what a tool printed, for a `tool` item that logged some. It is not part of the outcome's text,
+        /// which History words (#63, D-115).
+        public let toolOutput: String?
 
         public init(
             operation: HistoryRecord.Operation, path: String, trashedPath: String?, bytes: Int64?, tier: Tier,
-            outcome: Outcome, restorability: Restorability?
+            outcome: Outcome, restorability: Restorability?, toolOutput: String? = nil
         ) {
             self.operation = operation
             self.path = path
@@ -43,6 +47,7 @@ public struct HistoryRun: Equatable, Sendable, Identifiable {
             self.tier = tier
             self.outcome = outcome
             self.restorability = restorability
+            self.toolOutput = toolOutput
         }
     }
 
@@ -130,15 +135,17 @@ extension HistoryLog.Contents {
     {
         HistoryRun.Item(
             operation: record.operation, path: record.path, trashedPath: record.trashedPath, bytes: record.bytes,
-            tier: record.tier,
-            outcome: outcome, restorability: restorability)
+            tier: record.tier, outcome: outcome, restorability: restorability,
+            toolOutput: record.operation == .tool ? record.detail.flatMap { ToolRunDetail($0).output } : nil)
     }
 
+    /// A tool's output is kept apart from the outcome's text (D-115).
     private static func outcome(of result: HistoryRecord) -> HistoryRun.Item.Outcome {
-        switch result.status {
+        let detail = result.operation == .tool ? result.detail.map { ToolRunDetail($0).summary } : result.detail
+        return switch result.status {
         case .ok: .succeeded
-        case .skipped: .skipped(result.detail)
-        case .failed, nil: .failed(result.detail)
+        case .skipped: .skipped(detail)
+        case .failed, nil: .failed(detail)
         }
     }
 }

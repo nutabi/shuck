@@ -261,7 +261,15 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
   run (DEV-R03, DEV-R07 to DEV-R09). Its first pull request decides what a History item shows for each operation,
   since `path` holds a tool name for `tool` and a job label for `launchctl`: for example the tool and its command, and
-  the job label, with a unit test for each operation (#63).
+  the job label, with a unit test for each operation (#63). Six pull requests, a stack (D-62, D-76):
+  - [x] History shows each operation as what it is: a file, a tool's command with its output, or a job label; a tool's
+    end is worded from its code (#63, HIS-002, SAF-006, D-123).
+  - [ ] Tool items in Developer Junk: tool lookup under the scan's root, a row for a command, the confirmation's wording
+    for tool commands, and tool items leaving the list after a run (DEV-002, DEV-004, SAF-003, SAF-010).
+  - [ ] Unavailable simulators (DEV-R03).
+  - [ ] npm cache (DEV-R07).
+  - [ ] pip cache (DEV-R08).
+  - [ ] Homebrew (DEV-R09).
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
   (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
