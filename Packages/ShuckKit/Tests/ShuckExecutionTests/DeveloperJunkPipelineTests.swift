@@ -78,4 +78,47 @@ struct DeveloperJunkPipelineTests {
         let items = await scanned(running: ["com.apple.dt.Xcode"])
         #expect(throws: PlanError.self) { try self.plan(items) }
     }
+
+    @Test func oldDeviceSupportVersionsAreDeletedAndTheNewestStaysDEVR02() async throws {
+        let old = try root.deviceSupport("iOS", "16.4 (20E247)")
+        let newest = try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
+
+        let selected = await scanned().filter { $0.selection == .selected }
+        let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan(selected))
+
+        #expect(selected.count == 1)
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+        #expect(FileManager.default.fileExists(atPath: newest.path))
+        // The platform's folder stays, as Xcode expects it.
+        #expect(FileManager.default.fileExists(atPath: newest.deletingLastPathComponent().path))
+        let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }
+        #expect(results.map(\.tool) == [.developerJunk])
+        #expect(results.allSatisfy { $0.operation == .delete && $0.tier == .rebuildable && $0.status == .ok })
+    }
+
+    @Test func xcodeStartingAfterTheScanSkipsADeviceSupportVersionSAF009() async throws {
+        let old = try root.deviceSupport("iOS", "16.4 (20E247)")
+        try root.deviceSupport("iOS", "17.2 (21C62)")
+        let plan = try await plan(scanned().filter { $0.selection == .selected })
+
+        let report = await
+            (try PlanExecutor(root: root, pathGuard: pathGuard, runningApps: StubRunningApps(["com.apple.dt.Xcode"])))
+            .run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.appRunning)])
+        #expect(FileManager.default.fileExists(atPath: old.path))
+    }
+
+    @Test func archivesAreOutsideTheSubToolsRootsEvenNextToDeviceSupportSAF007() throws {
+        let archive = try root.file("Library/Developer/Xcode/Archives/App.xcarchive/Info.plist", size: 10)
+        try root.deviceSupport("iOS", "16.4 (20E247)")
+        let folder = archive.deletingLastPathComponent()
+        let item = ScanItem(
+            url: folder, snapshot: try #require(ItemSnapshot.read(folder)), tier: .rebuildable, method: .delete,
+            reason: "Not a rule's target", source: .developerJunk, selection: .selected)
+
+        #expect(throws: PlanError.self) { try self.plan([item]) }
+        #expect(FileManager.default.fileExists(atPath: archive.path))
+    }
 }

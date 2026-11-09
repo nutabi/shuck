@@ -1,8 +1,9 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has one,
-/// Xcode's DerivedData (DEV-R01); the other rules arrive one at a time (M2-T08 onwards).
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has two,
+/// Xcode's DerivedData (DEV-R01) and its device support files (DEV-R02); the other rules arrive one at a time
+/// (M2-T08 onwards).
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
@@ -22,10 +23,32 @@ public struct DeveloperJunk: SubTool {
     /// Two rules, Xcode Archives and Docker, are "Your data" (section 8.2); the first rule is rebuildable only.
     public var tiers: Set<Tier> { [.rebuildable, .yourData] }
 
-    public func allowedRoots(home: URL) -> [URL] { [Self.derivedData(home: home)] }
+    /// DerivedData and each platform's device support folder that exists, such as `iOS DeviceSupport`. Those are found
+    /// by name, so the roots stay as narrow as the rules' targets and leave out Archives and the rest of Xcode.
+    public func allowedRoots(home: URL) -> [URL] {
+        [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home)
+    }
 
     static func derivedData(home: URL) -> URL {
         home.appending(path: "Library/Developer/Xcode/DerivedData", directoryHint: .isDirectory)
+    }
+
+    static func xcode(home: URL) -> URL {
+        home.appending(path: "Library/Developer/Xcode", directoryHint: .isDirectory)
+    }
+
+    /// The platforms' device support folders that exist (`iOS DeviceSupport`, `watchOS DeviceSupport`, ...), by name.
+    /// Links and files are not folders of Xcode's.
+    static func deviceSupportFolders(home: URL) -> [URL] {
+        let children =
+            (try? FileManager.default.contentsOfDirectory(
+                at: xcode(home: home), includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])) ?? []
+        return children.filter { folder in
+            let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            return folder.lastPathComponent.hasSuffix(DeviceSupportVersion.suffix)
+                && folder.lastPathComponent.count > DeviceSupportVersion.suffix.count
+                && values?.isDirectory == true && values?.isSymbolicLink != true
+        }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     /// DEV-R01: one item per project folder in DerivedData, which Xcode rebuilds when the project is built again.
@@ -47,10 +70,31 @@ public struct DeveloperJunk: SubTool {
             documentation: documentation, apps: [xcodeBundleID])
     }
 
+    /// DEV-R02: one item per version folder in each `*DeviceSupport` folder, which Xcode copies from a device again.
+    /// Every version is selected except the newest of its platform (D-118).
+    static func deviceSupportRule(home: URL) throws(RuleError) -> CleanupRule {
+        let root = xcode(home: home)
+        guard let documentation = URL(string: "https://github.com/vashpan/xcode-dev-cleaner") else {
+            throw .invalidDocumentation
+        }
+        return try CleanupRule(
+            id: "DEV-R02", name: LocalizedStringResource("Xcode Device Support Files", bundle: #bundle),
+            description: LocalizedStringResource(
+                "Symbols Xcode copies from a device so it can debug that version of its system.", bundle: #bundle),
+            category: ItemCategory(id: "xcode", name: LocalizedStringResource("Xcode", bundle: #bundle)),
+            detection: .folder(root),
+            action: .paths([RulePath(root: root, pattern: "*\(DeviceSupportVersion.suffix)/*")], method: .delete),
+            tier: .rebuildable, selection: .always,
+            explanation: LocalizedStringResource(
+                "Xcode copies this again the next time you connect a device that runs this version.", bundle: #bundle),
+            documentation: documentation, apps: [xcodeBundleID])
+    }
+
     public func scan(_ context: ScanContext) -> AsyncStream<ScanEvent> {
         AsyncStream { continuation in
             let task = Task {
                 scanDerivedData(context) { continuation.yield($0) }
+                scanDeviceSupport(context) { continuation.yield($0) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
@@ -96,6 +140,59 @@ public struct DeveloperJunk: SubTool {
                 Self.logger.error("Skipped a DerivedData folder: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    private func scanDeviceSupport(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
+        guard let rule = try? Self.deviceSupportRule(home: context.home), rule.detection.isAvailable else { return }
+        let now = Date.now
+        for platform in Self.deviceSupportFolders(home: context.home) {
+            guard !Task.isCancelled else { return }
+            let versions: [URL]
+            do {
+                versions = try FileManager.default.contentsOfDirectory(
+                    at: platform, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            } catch {
+                let error = error as NSError
+                Self.logger.error(
+                    "Cannot list device support: \(error.domain, privacy: .public) \(error.code, privacy: .public)")
+                emit(error.code == NSFileReadNoPermissionError ? .notAccessible(platform) : .unreadable(platform))
+                continue
+            }
+            // Only real folders count as versions, also when deciding which one is the newest.
+            let folders = versions.filter { version in
+                let values = try? version.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                return values?.isDirectory == true && values?.isSymbolicLink != true
+            }
+            let newest = DeviceSupportVersion.newest(among: folders.map(\.lastPathComponent))
+            for folder in folders.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+                guard !Task.isCancelled else { return }
+                guard context.ownership.owners(of: folder).contains(id),
+                    let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
+                    let modified = RuleMatch.modificationDate(at: folder)
+                else { continue }
+                let name = folder.lastPathComponent
+                let versioned = DeviceSupportVersion.components(ofFolder: name) != nil
+                let kept = newest.contains(name) || !versioned
+                do {
+                    emit(
+                        .item(
+                            try rule.scanItem(
+                                at: folder, snapshot: snapshot, modified: modified, source: id,
+                                runningApps: context.runningApps, now: now,
+                                reason: Self.reason(newest: newest.contains(name), versioned: versioned),
+                                unselected: kept)))
+                } catch {
+                    Self.logger.error("Skipped a device support folder: \(String(describing: error), privacy: .public)")
+                }
+            }
+        }
+    }
+
+    /// Why a version is kept unselected; `nil` for the rule's own explanation (DEV-R02).
+    private static func reason(newest: Bool, versioned: Bool) -> LocalizedStringResource? {
+        if newest { return LocalizedStringResource("The newest version Xcode has for this platform.", bundle: #bundle) }
+        if !versioned { return LocalizedStringResource("Shuck could not tell which version this is.", bundle: #bundle) }
+        return nil
     }
 
     /// Why a project is listed and, if it is selected, why (DEV-008).

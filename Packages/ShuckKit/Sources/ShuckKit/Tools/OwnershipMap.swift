@@ -59,6 +59,8 @@ public struct OwnershipMap: Sendable {
         Entry("go/pkg/mod", owners: [.developerJunk]),
         // Developer Junk's rules claim their locations as they arrive: Xcode's DerivedData (DEV-R01).
         Entry("Library/Developer/Xcode/DerivedData", owners: [.developerJunk]),
+        // ...and Xcode's device support files, one folder per platform (DEV-R02).
+        Entry("Library/Developer/Xcode/*DeviceSupport", owners: [.developerJunk]),
     ]
 
     /// The home folder the patterns are relative to.

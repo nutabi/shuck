@@ -41,11 +41,12 @@ extension CleanupRule {
     /// `modified` is the target's own date, kept for re-validation. A scan may judge staleness by `lastActivity`
     /// instead, such as the newest date inside a folder whose own date rarely changes, and may select an item whatever
     /// its age with `selectedRegardless`, unless the rule never selects (DEV-005, D-112). `reason` replaces the rule's
-    /// explanation next to the item.
+    /// explanation next to the item. `unselected` leaves the item unselected whatever the rule says, for an item the
+    /// scan found a reason to keep, such as the newest device support version (DEV-R02, D-118).
     public func scanItem(
         at url: URL, snapshot: ItemSnapshot, modified: Date, source: ToolID, runningApps: any RunningApps,
         now: Date = .now, disabledReason: LocalizedStringResource? = nil, reason: LocalizedStringResource? = nil,
-        lastActivity: Date? = nil, selectedRegardless: Bool = false
+        lastActivity: Date? = nil, selectedRegardless: Bool = false, unselected: Bool = false
     ) throws(RuleItemError) -> ScanItem {
         guard detection.isAvailable else { throw .unavailable }
         guard case .paths(_, let method, let scope) = action,
@@ -58,7 +59,7 @@ extension CleanupRule {
             category: category,
             selection: itemSelection(
                 modified: lastActivity ?? modified, now: now, disabledReason: disabledReason, running: runningApps,
-                selectedRegardless: selectedRegardless),
+                selectedRegardless: selectedRegardless, unselected: unselected),
             ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps)
     }
 
@@ -80,10 +81,12 @@ extension CleanupRule {
 
     private func itemSelection(
         modified: Date?, now: Date, disabledReason: LocalizedStringResource?, running: any RunningApps,
-        selectedRegardless: Bool = false
+        selectedRegardless: Bool = false, unselected: Bool = false
     ) -> ItemSelection {
         if let disabledReason { return .disabled(disabledReason) }
-        let isSelected = selection != .never && (selectedRegardless || selection.selects(modified: modified, now: now))
+        let isSelected =
+            !unselected && selection != .never
+            && (selectedRegardless || selection.selects(modified: modified, now: now))
         let selection: ItemSelection = isSelected ? .selected : .unselected
         return selection.unlessRunning(apps, in: running)
     }
