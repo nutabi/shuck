@@ -1,10 +1,10 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has six,
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has seven,
 /// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and, as commands
-/// of the tools that own the data, unavailable simulators (DEV-R03) and the npm and pip caches (DEV-R07, DEV-R08); the
-/// other rules arrive one at a time (M2-T11 onwards).
+/// of the tools that own the data, unavailable simulators (DEV-R03) the npm and pip caches and Homebrew's cleanup (DEV-R07 to
+/// DEV-R09); the other rules arrive one at a time (M2-T11 onwards).
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
@@ -152,6 +152,7 @@ public struct DeveloperJunk: SubTool {
                 scanUnavailableSimulators(context) { continuation.yield($0) }
                 scanNpmCache(context) { continuation.yield($0) }
                 scanPipCache(context) { continuation.yield($0) }
+                scanHomebrew(context) { continuation.yield($0) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }

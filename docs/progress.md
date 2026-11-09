@@ -270,7 +270,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     UI test (DEV-R03, DEV-002, DEV-004, SAF-010, D-125).
   - [x] npm cache: `npm cache clean --force`, sized from `~/.npm/_cacache` as an upper estimate (DEV-R07, DEV-003, D-126).
   - [x] pip cache: `pip cache purge` with Homebrew's `pip` or `pip3`, sized from `~/Library/Caches/pip` (DEV-R08, D-127).
-  - [ ] Homebrew (DEV-R09).
+  - [x] Homebrew: `brew cleanup` with analytics and automatic update off, sized from the download cache (DEV-R09,
+    DEV-007, D-128).
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
   (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
