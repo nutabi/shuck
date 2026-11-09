@@ -16,6 +16,10 @@ public struct PathGuardConfiguration: Sendable, Equatable {
         "Library/Mail", "Library/Messages", "Library/Keychains",
         // Developer credentials.
         ".ssh", ".gnupg", ".aws", ".kube", ".azure", ".docker", ".netrc", ".password-store", ".config/gcloud",
+        // Stores a tool manages, which only the tool's own command may change (DEV-007): the simulators' devices and
+        // runtimes, which `simctl` manages, and Docker's disk image. Homebrew's Cellar lies in /opt, a system location.
+        "Library/Developer/CoreSimulator/Devices", "Library/Developer/CoreSimulator/Volumes",
+        "Library/Containers/com.docker.docker", "Library/Group Containers/group.com.docker",
         // Music and TV libraries in their default places. Photos libraries are matched by extension.
         "Music/Music", "Movies/TV",
         // Shuck's own data folders: the release build's and the debug build's (D-21, D-70).

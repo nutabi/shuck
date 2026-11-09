@@ -16,6 +16,9 @@
     "Caches & Logs" : {
 
     },
+    "Caches the iOS Simulator keeps, such as its system libraries cache." : {
+
+    },
     "Developer Junk" : {
 
     },
@@ -52,6 +55,9 @@
     "Shuck could not tell which version this is." : {
 
     },
+    "Simulator Caches" : {
+
+    },
     "Startup Items" : {
 
     },
@@ -59,6 +65,9 @@
 
     },
     "The newest version Xcode has for this platform." : {
+
+    },
+    "The simulators build this again the next time one starts." : {
 
     },
     "Uninstall apps together with the files they leave behind." : {

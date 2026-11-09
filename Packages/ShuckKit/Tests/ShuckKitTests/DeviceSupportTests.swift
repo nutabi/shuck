@@ -123,13 +123,13 @@ struct DeviceSupportTests {
         #expect(await items(ownership: OwnershipMap(home: root.url, entries: [])).isEmpty)
     }
 
-    @Test func allowedRootsAreTheExistingDeviceSupportFoldersAndDerivedDataOnlyD118() throws {
+    @Test func allowedRootsAreTheExistingDeviceSupportFoldersAndTheOtherRulesRootsOnlyD118() throws {
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.deviceSupport("visionOS", "1.0 (21N1)")
         try root.file("Library/Developer/Xcode/Archives/App.xcarchive/Info.plist", size: 10)
 
         let roots = DeveloperJunk().allowedRoots(home: root.url).map(\.lastPathComponent)
 
-        #expect(roots == ["DerivedData", "iOS DeviceSupport", "visionOS DeviceSupport"])
+        #expect(roots == ["DerivedData", "iOS DeviceSupport", "visionOS DeviceSupport", "Caches"])
     }
 }

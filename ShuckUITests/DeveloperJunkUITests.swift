@@ -2,7 +2,7 @@ import ShuckKitTestSupport
 import XCTest
 
 /// Developer Junk's Xcode files: one row per project, stale ones and those whose project is gone selected, device
-/// support versions selected unless they are the newest, and the rows of a running Xcode disabled.
+/// support versions selected unless they are the newest, simulator caches selected, and the rows of a running Xcode disabled.
 final class DeveloperJunkUITests: ShuckUITestCase {
     private let projectHash = "abcdefghijklmnopqrstuvwxyzab"
 
@@ -43,6 +43,8 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         try root.derivedDataProject("Gone-\(projectHash)", workspace: root.url("Projects/Gone"), modified: .now)
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
+        try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 4096)
+        try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
         let app = launch()
         let sidebar = app.outlines.firstMatch
 
@@ -68,15 +70,20 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         step("A device support version starts selected unless it is its platform's newest (DEV-R02)") {
             XCTAssertTrue(isChecked(app, "iOS 16.4 (20E247)"))
             XCTAssertFalse(isChecked(app, "iOS 17.2 (21C62) arm64e"))
-            XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5), outline(of: app))
+        }
+
+        step("A simulator cache starts selected, and the simulators' devices are not listed (DEV-R04, DEV-007)") {
+            XCTAssertTrue(isChecked(app, "dyld"))
+            XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
+            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5), outline(of: app))
         }
 
         step("Choosing a recent project selects it, and clearing a box deselects it (DEV-005)") {
             checkbox(app, "Fresh").click()
-            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5))
             checkbox(app, "Stale").click()
             checkbox(app, "Gone").click()
-            XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5))
         }
     }
 

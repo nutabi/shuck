@@ -227,11 +227,11 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   a third copy of the run scaffolding (#73).
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
   (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
-- [ ] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
+- [x] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
   refused (DEV-R02, DEV-R04, DEV-007). Two pull requests, a stack (D-62, D-76):
   - [x] Device support files: every version but the newest of each platform is selected (DEV-R02, D-118).
-  - [ ] CoreSimulator caches, and the guard refusing simulator device data and the other tool-managed stores
-    (DEV-R04, DEV-007).
+  - [x] CoreSimulator caches, and the guard refusing simulator device data and the other tool-managed stores
+    (DEV-R04, DEV-007, D-119).
 - [ ] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
 - [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit

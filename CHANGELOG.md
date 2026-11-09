@@ -14,6 +14,8 @@ All notable changes to Shuck are listed here. The format follows
   look and choose, but nothing is deleted from this page yet.
 - Developer Junk also lists Xcode's device support files, one row for each version of each platform. Every version
   except the newest of its platform starts selected, because Xcode copies the files again when you connect a device.
+- Developer Junk also lists the iOS Simulator's caches, which start selected and are disabled while Xcode or Simulator
+  is running.
 
 ### Changed
 
@@ -27,6 +29,11 @@ All notable changes to Shuck are listed here. The format follows
 - Excluded folders no longer appear in personal-file results when another cleanup tool manages them.
 - Restoring several versions of the same file together now asks whether to keep both or skip the extra versions.
 - History shows an error when its data folder cannot be examined, instead of saying there is no history yet.
+
+### Security
+
+- Shuck now refuses to touch the simulators' devices and runtimes and Docker's disk image, which only `simctl` and
+  Docker may change.
 
 ## [0.1.1] - 2026-11-03
 
