@@ -29,6 +29,8 @@ All notable changes to Shuck are listed here. The format follows
   simulator data itself. The confirmation says "Clean up" for tool commands, and its size is shown as unknown. History
   shows the command that ran, the tool's path and what it printed. Shuck finds tools only where they are usually
   installed (`/usr/bin`, `/opt/homebrew/bin`, `/usr/local/bin`).
+- Developer Junk lists npm's cache when npm is installed and has a cache in `~/.npm`. Cleaning it up runs
+  `npm cache clean --force`, npm's own command, and the size shown is an upper estimate from the cache folder.
 
 ### Changed
 

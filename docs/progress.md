@@ -268,7 +268,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     for tool commands, and tool items leaving the list after a run (DEV-002, DEV-004, SAF-003, SAF-010, D-124, D-125).
   - [x] Unavailable simulators: `xcrun simctl delete unavailable`, listed with no size, run through the fake `xcrun` of the
     UI test (DEV-R03, DEV-002, DEV-004, SAF-010, D-125).
-  - [ ] npm cache (DEV-R07).
+  - [x] npm cache: `npm cache clean --force`, sized from `~/.npm/_cacache` as an upper estimate (DEV-R07, DEV-003, D-126).
   - [ ] pip cache (DEV-R08).
   - [ ] Homebrew (DEV-R09).
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default

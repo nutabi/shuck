@@ -157,23 +157,32 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         }
     }
 
-    /// A tool rule runs the tool's own command, and History shows the command and its output, not a file (DEV-R03, #63).
-    /// The fixture root holds a fake `xcrun`; the app finds tools only inside the root (D-114, D-124).
+    /// Tool rules run the tool's own command, and History shows the command and its output, not a file (DEV-R03,
+    /// DEV-R07, #63). The fixture root holds a fake `xcrun` and a fake `npm`; the app finds tools only inside the root
+    /// (D-114, D-124).
     @MainActor
-    func testCleanUpUnavailableSimulatorsWithXcodesOwnTool() throws {
+    func testCleanUpWithTheToolsOwnCommands() throws {
         try root.tool("usr/bin/xcrun", .reportsInvocation)
+        try root.tool("opt/homebrew/bin/npm", .reportsInvocation)
+        let npmCache = try root.file(".npm/_cacache/content-v2/ab", size: 50_000)
         let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
         let app = launch()
         let sidebar = app.outlines.firstMatch
         let sheet = app.sheets.firstMatch
 
-        step("A tool rule is one selected row with its exact command and no size (DEV-R03, DEV-003, SAF-002)") {
+        step("A tool rule is one selected row with its exact command and a size or none (DEV-R03, DEV-R07, DEV-003)") {
             XCTAssertTrue(sidebar.staticTexts["Developer Junk"].appears(within: 5))
             sidebar.staticTexts["Developer Junk"].click()
             XCTAssertTrue(
                 app.staticTexts["Unavailable Simulators"].appears(within: 10), "The scan did not list the rule")
             XCTAssertTrue(isChecked(app, "Unavailable Simulators"))
             XCTAssertTrue(app.staticTexts["Size not known"].exists)
+            XCTAssertTrue(isChecked(app, "npm Cache"))
+            XCTAssertTrue(
+                app.staticTexts.matching(
+                    NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", "Up to ", "Up to ")
+                ).firstMatch.exists,
+                "The npm cache has no size estimate: \(outline(of: app))")
             let command = app.staticTexts.matching(
                 NSPredicate(
                     format: "label CONTAINS %@ OR value CONTAINS %@", "'simctl' 'delete' 'unavailable'",
@@ -181,14 +190,16 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             ).firstMatch
             XCTAssertTrue(command.exists, "The command is not shown: \(outline(of: app))")
             XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
-            XCTAssertTrue(footer(app, startingWith: "1 item selected").appears(within: 5), outline(of: app))
-            attachScreenshot(of: app, named: "Developer Junk with a tool rule")
+            XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5), outline(of: app))
+            attachScreenshot(of: app, named: "Developer Junk with tool rules")
         }
 
         step("The confirmation says Clean Up, since a tool removes its own data (SAF-003, D-125)") {
             app.buttons["Delete…"].click()
             XCTAssertTrue(
-                text(sheet, startingWith: "Clean up 1 item").appears(within: 5), "No confirmation: \(outline(of: app))")
+                text(sheet, startingWith: "Clean up 2 items, up to ").appears(within: 5),
+                "No confirmation: \(outline(of: app))")
+            XCTAssertTrue(sheet.staticTexts["Xcode"].exists && sheet.staticTexts["Package managers"].exists)
             XCTAssertFalse(sheet.buttons["Delete"].exists, "A tool run is worded as a deletion")
             sheet.buttons["Show All Items"].click()
             XCTAssertTrue(
@@ -208,6 +219,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(text(sheet, startingWith: "Cleaned up").appears(within: 10), outline(of: app))
             XCTAssertTrue(sheet.buttons["Show in History"].exists, outline(of: app))
             XCTAssertTrue(FileManager.default.fileExists(atPath: device.path), "Shuck deleted simulator data itself")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: npmCache.path), "Shuck deleted npm's cache itself")
         }
 
         step("History shows the tool run as its command and its tool, not as a file (HIS-002, HIS-004, #63)") {
@@ -217,6 +229,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(
                 app.staticTexts["xcrun simctl delete unavailable"].appears(within: 5),
                 "The command is not the item's name: \(outline(of: app))")
+            XCTAssertTrue(app.staticTexts["npm cache clean --force"].exists)
             XCTAssertTrue(
                 app.staticTexts.matching(
                     NSPredicate(
