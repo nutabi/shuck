@@ -11,6 +11,7 @@ import os
 /// more, as the Trash reads the file identity it logs (D-84).
 /// Rule-backed items must still match the reviewed rule and its detection; Delete also compares the target's own
 /// modification date with the scan's, so newly active caches are skipped even when size and kind match (D-105).
+/// Last, an item is skipped while one of its apps runs, as the app may have started after the scan (SAF-009, D-110).
 ///
 /// A plan may mix methods, as a Developer Junk run mixes Delete and Tool items behind one confirmation (section 8.2).
 /// An item whose method has no action yet is skipped as `unsupportedMethod` and logged like any other skip (D-89).
@@ -20,19 +21,26 @@ public struct PlanExecutor: Sendable {
     let pathGuard: PathGuard
     let log: any RecordLog
     let actions: [ActionMethod: any PlanAction]
+    let runningApps: any RunningApps
 
     /// An executor that moves Trash items to `trash`: ``SystemTrash`` in the app, a fake in tests, which must never reach
     /// the user's own Trash. It deletes Delete items permanently (SAF-006). M2-T10 adds Tool, and M3 Launchctl.
-    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash) {
+    /// `runningApps` has no default, so the app cannot leave out the check just before acting (SAF-009).
+    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash, runningApps: any RunningApps) {
         self.init(
-            pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash), .delete: DeleteAction()])
+            pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash), .delete: DeleteAction()],
+            runningApps: runningApps)
     }
 
     /// An executor with `actions`, one per method it can act on. Tests pass actions of their own.
-    package init(pathGuard: PathGuard, log: any RecordLog, actions: [ActionMethod: any PlanAction]) {
+    package init(
+        pathGuard: PathGuard, log: any RecordLog, actions: [ActionMethod: any PlanAction],
+        runningApps: any RunningApps = StubRunningApps()
+    ) {
         self.pathGuard = pathGuard
         self.log = log
         self.actions = actions
+        self.runningApps = runningApps
     }
 
     /// Runs `plan` and returns one outcome per item, in plan order.
@@ -79,6 +87,8 @@ public struct PlanExecutor: Sendable {
                     }
                 }
             }
+            // Asked last, just before acting, since measuring a large folder can take a while (SAF-009).
+            if runningApps.firstRunning(of: item.apps) != nil { return Acted(.skipped(.appRunning)) }
             return action.act(on: item, at: target)
         case .found(let current): return Acted(.skipped(.changed(current)))
         case .missing: return Acted(.skipped(.missing))
@@ -114,6 +124,8 @@ public struct ItemOutcome: Equatable, Sendable {
         case ruleChanged
         /// A rule-backed Delete target was modified after the scan (D-105).
         case modifiedSinceScan
+        /// One of the item's apps was running just before acting (SAF-009, D-110).
+        case appRunning
         /// The path guard rejects the item now (SAF-007, SAF-008).
         case rejected(PathGuardError)
         /// The run was cancelled before this item, or while it was re-validated (SAF-014).
@@ -135,6 +147,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .replaced: .replaced
             case .ruleChanged: .ruleChanged
             case .modifiedSinceScan: .modifiedSinceScan
+            case .appRunning: .appRunning
             case .rejected: .rejected
             case .cancelled: .cancelled
             case .historyUnavailable: .historyUnavailable

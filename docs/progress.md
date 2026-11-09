@@ -210,9 +210,11 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     `CleanupRule.scanItem` keeps the matched rule and date in the plan; tests cover an unchanged target, a recent
     item chosen explicitly, a recreated folder, contents-only Delete, changed dates, vanished detection and guard
     rejections. Rule scanners and pages still arrive in M2-T05 onwards, and command execution in M2-T10.
-- [ ] M2-T04 Running apps: their items cannot be selected, and are skipped if the app starts before the run; the
+- [x] M2-T04 Running apps: their items cannot be selected, and are skipped if the app starts before the run; the
   fixture-root mode stubs the list, since Xcode runs during UI tests (SAF-009, CAC-003). Decides whether a running
-  Xcode blocks Developer Junk's rules.
+  Xcode blocks Developer Junk's rules: per rule, as data (D-110). Left over: each rule and Caches & Logs' scan name
+  their apps as they arrive (M2-T05, M2-T08, M2-T09, M2-T12), and a UI test launch argument for running apps comes
+  with the first page that shows a disabled item.
 - [ ] M2-T05 Developer Junk with DerivedData: one item per project, selected when stale for 30 days or when its
   project is gone; the sub-tool's page (DEV-R01, DEV-008)
 - [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History

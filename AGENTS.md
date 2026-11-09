@@ -191,7 +191,7 @@ A sub-tool must not require changes to other sub-tools or to the safety layer. I
 
 **A new Developer Junk or Caches & Logs rule** (DEV-001):
 
-1. Add the rule as data in the engine: ID, name, description, detection, targets or tool command, tier, staleness rule, explanation, documentation link.
+1. Add the rule as data in the engine: ID, name, description, detection, targets or tool command, tier, staleness rule, explanation, documentation link, and the bundle IDs of the apps that use its data (`apps`, D-110). Its scanner builds items with `CleanupRule.scanItem(…runningApps: context.runningApps…)`, which disables them while one of those apps runs (SAF-009).
 2. Targets must lie inside the allowed roots. Data owned by a tool is cleaned with that tool's documented command, never deleted directly (SAF-010). Tool commands follow DEV-004.
 3. Add the rule's locations to `OwnershipMap.standardEntries` (FCL-005).
 4. Add a fixture test for a path rule, or a recorded-output test with a fake tool executable for a tool rule. Never parse tool output to choose deletion targets (R-07).

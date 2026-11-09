@@ -69,6 +69,16 @@ final class AppEnvironmentTests {
         let _: HistoryRestore.RunRestore = debug.restore
     }
 
+    /// Xcode runs the UI tests, so a fixture root never reads this Mac's running apps; the real home folder does
+    /// (SAF-009, D-110).
+    @Test func aFixtureRootStubsTheRunningAppsSAF009() throws {
+        let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
+        #expect(debug.runningApps.bundleIDs().isEmpty)
+        #expect(debug.runningApps is StubRunningApps && debug.context.runningApps is StubRunningApps)
+        let release = try environment(["Shuck"], debugBuild: false)
+        #expect(release.runningApps is SystemRunningApps && release.context.runningApps is SystemRunningApps)
+    }
+
     /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.
     @Test func onlyAUITestsDebugBuildDelaysItsScansSAF014() throws {
         let settings: AppEnvironment.Settings = { $0 == AppEnvironment.scanDelayKey ? "2" : nil }

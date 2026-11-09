@@ -20,28 +20,30 @@ struct RulePipelineTests {
         cache = try root.folder("Library/Caches/Fixture")
     }
 
-    func rule(scope: ItemScope = .item, detection: CleanupRule.Detection? = nil) throws -> CleanupRule {
+    func rule(
+        scope: ItemScope = .item, detection: CleanupRule.Detection? = nil, apps: Set<String> = []
+    ) throws -> CleanupRule {
         try CleanupRule(
             id: "fixture", name: "Fixture", description: "Fixture cache", category: category,
             detection: detection ?? .folder(cache),
             action: .paths([RulePath(root: cache, pattern: "*.cache")], method: .delete, scope: scope),
             tier: .rebuildable, selection: .modifiedAtLeast(days: 30), explanation: "Can be rebuilt",
-            documentation: #require(URL(string: "https://example.test/cache")))
+            documentation: #require(URL(string: "https://example.test/cache")), apps: apps)
     }
 
-    func scanned(_ url: URL, rule: CleanupRule) throws -> ScanItem {
+    func scanned(_ url: URL, rule: CleanupRule, running: Set<String> = []) throws -> ScanItem {
         try rule.scanItem(
             at: url, snapshot: #require(ItemSnapshot.read(url)),
             modified: #require(RuleMatch.modificationDate(at: url)),
-            source: FixtureSubTool.id, now: now)
+            source: FixtureSubTool.id, runningApps: StubRunningApps(running), now: now)
     }
 
     func plan(_ items: [ScanItem]) throws -> Plan {
         try Plan(subTool: FixtureSubTool(tier: .rebuildable, method: .delete), items: items, pathGuard: pathGuard)
     }
 
-    func run(_ plan: Plan) async throws -> RunReport {
-        await (try PlanExecutor(root: root, pathGuard: pathGuard)).run(plan)
+    func run(_ plan: Plan, running: Set<String> = []) async throws -> RunReport {
+        await (try PlanExecutor(root: root, pathGuard: pathGuard, runningApps: StubRunningApps(running))).run(plan)
     }
 
     @Test func unchangedStaleAndExplicitlyChosenRecentItemsAreDeletedAndLoggedSAF006DEV005() async throws {
@@ -82,6 +84,34 @@ struct RulePipelineTests {
         let records = try HistoryLog.read(folder: root.historyFolder).records
         #expect(records.map(\.phase) == [.intent, .result])
         #expect(records.last?.detail == "modifiedSinceScan" && records.last?.status == .skipped)
+    }
+
+    @Test func aRunningAppDisablesItsRuleItemsAtScanTimeSAF009CAC003() throws {
+        let folder = try root.folder("Library/Caches/Fixture/build.cache", modified: stale)
+        let rule = try rule(apps: ["com.example.Fixture"])
+        // Bundle IDs compare without case, as a folder named after one may differ in case from the app.
+        let busy = try scanned(folder, rule: rule, running: ["COM.EXAMPLE.fixture", "com.example.Other"])
+        #expect(busy.selection == .appIsRunning && busy.apps == ["com.example.Fixture"])
+        #expect(busy.selection.disabledReason.map { String(localized: $0) } == "App is running")
+        #expect(throws: PlanError.notSelectable(folder.path)) { try self.plan([busy]) }
+        let other = try scanned(folder, rule: rule, running: ["com.example.Other"])
+        #expect(other.selection == .selected)
+        #expect(try plan([other]).items.map(\.apps) == [["com.example.Fixture"]])
+        // A rule that names no app is never disabled for a running one, as personal files and tool rules are not.
+        #expect(try scanned(folder, rule: self.rule(), running: ["com.example.Fixture"]).selection == .selected)
+    }
+
+    @Test func anAppThatStartsAfterTheScanSkipsItsItemsAndIsLoggedSAF009SAF011() async throws {
+        let folder = try root.folder("Library/Caches/Fixture/build.cache", modified: stale)
+        let free = try root.folder("Library/Caches/Fixture/free.cache", modified: stale)
+        let plan = try plan([scanned(folder, rule: rule(apps: ["com.example.Fixture"])), scanned(free, rule: rule())])
+        let report = try await run(plan, running: ["com.example.fixture"])
+        #expect(report.outcomes.map(\.result) == [.skipped(.appRunning), .done(nil)])
+        #expect(FileManager.default.fileExists(atPath: folder.path))
+        #expect(!FileManager.default.fileExists(atPath: free.path))
+        let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }
+        #expect(results.map(\.detail) == ["appRunning", nil])
+        #expect(results.map(\.status) == [.skipped, .ok])
     }
 
     @Test func aRecreatedFolderMustStillMatchTheRuleAndUnchangedModificationDateSAF008() async throws {
@@ -183,18 +213,20 @@ struct RulePipelineTests {
             detection: .executable(executable.path),
             action: .command(command), tier: .rebuildable, selection: .always, explanation: "Fixture command",
             documentation: #require(URL(string: "https://example.test/cache")))
-        let item = try rule.scanItem(estimatedBytes: 12_345, source: FixtureSubTool.id, now: now)
+        let item = try rule.scanItem(
+            estimatedBytes: 12_345, source: FixtureSubTool.id, runningApps: StubRunningApps(), now: now)
         #expect(item.url == nil && item.snapshot == nil && item.selection == .selected)
         #expect(rule.accepts(item.target, tier: item.tier, method: item.method, scope: item.scope))
         #expect(!rule.accepts(.path(executable), tier: .rebuildable, method: .tool, scope: .item))
         #expect(throws: RuleItemError.invalidEstimate) {
-            try rule.scanItem(estimatedBytes: -1, source: FixtureSubTool.id)
+            try rule.scanItem(estimatedBytes: -1, source: FixtureSubTool.id, runningApps: StubRunningApps())
         }
         #expect(throws: RuleItemError.targetMismatch) {
-            try self.rule().scanItem(estimatedBytes: 1, source: FixtureSubTool.id)
+            try self.rule().scanItem(estimatedBytes: 1, source: FixtureSubTool.id, runningApps: StubRunningApps())
         }
         let disabled = try rule.scanItem(
-            estimatedBytes: 1, source: FixtureSubTool.id, disabledReason: "Fixture tool is busy")
+            estimatedBytes: 1, source: FixtureSubTool.id, runningApps: StubRunningApps(),
+            disabledReason: "Fixture tool is busy")
         #expect(!disabled.selection.isSelectable)
         let report = try await run(plan([item]))
         #expect(report.outcomes.map(\.result) == [.skipped(.unsupportedMethod(.tool))])

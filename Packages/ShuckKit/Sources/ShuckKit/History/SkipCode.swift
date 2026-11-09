@@ -13,6 +13,7 @@ public enum SkipCode: String, CaseIterable, Sendable {
     case replaced
     case ruleChanged
     case modifiedSinceScan
+    case appRunning
     case rejected
     case cancelled
     case historyUnavailable

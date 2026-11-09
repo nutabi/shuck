@@ -9,6 +9,9 @@ nonisolated struct AppEnvironment {
     /// Where "Move to Trash" puts items: the user's Trash, or `.Trash` inside a UI test's fixture root, so tests never
     /// touch the real one (D-47, D-63).
     let trash: any Trash
+    /// Which apps run now: this Mac's, or none in a UI test's fixture root, where Xcode itself runs the tests (D-110).
+    /// Scans disable a running app's items, and runs skip them (SAF-009).
+    let runningApps: any RunningApps
     let largeFiles: LargeFiles
     let oldFiles: OldFiles
     /// This build's data folder inside the home folder, which holds its history log: the release build's or the debug
@@ -79,13 +82,16 @@ nonisolated struct AppEnvironment {
             let protection = PathGuardConfiguration(
                 home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
                 appBundle: appBundle, userExclusions: [])
-            context = ScanContext(home: root, protection: protection)
+            runningApps = StubRunningApps()
+            context = ScanContext(home: root, protection: protection, runningApps: runningApps)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
             let home = home.resolvingSymlinksInPath()
+            runningApps = SystemRunningApps()
             context = ScanContext(
-                home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []))
+                home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []),
+                runningApps: runningApps)
             trash = SystemTrash()
         }
         largeFiles = LargeFiles(
@@ -136,7 +142,8 @@ nonisolated struct AppEnvironment {
     @concurrent
     func run(_ plan: Plan) async throws(HistoryError) -> RunReport {
         let log = try HistoryLog(folder: historyFolder)
-        let executor = PlanExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
+        let executor = PlanExecutor(
+            pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash, runningApps: runningApps)
         return await executor.run(plan)
     }
 

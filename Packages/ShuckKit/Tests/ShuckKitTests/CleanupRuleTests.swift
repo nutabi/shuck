@@ -41,6 +41,14 @@ struct CleanupRuleTests {
             try self.rule(action: .paths([path], method: .trash), tier: .yourData, selection: .always)
         }
         #expect(throws: RuleError.invalidDocumentation) { try self.rule(documentation: cache) }
+        #expect(throws: RuleError.invalidApp) {
+            try CleanupRule(
+                id: "fixture", name: "Fixture", description: "Fixture", category: ItemCategory(id: "f", name: "F"),
+                detection: .folder(cache), action: .paths([path], method: .delete), tier: .rebuildable,
+                selection: .always, explanation: "Fixture",
+                documentation: #require(URL(string: "https://example.test")),
+                apps: ["com.example.Fixture", ""])
+        }
         #expect(throws: RuleError.invalidDetection) { try self.rule(detection: .executable("relative")) }
         #expect(throws: RuleError.invalidDetection) { try self.rule(detection: .executable("/tools/../tool")) }
     }
