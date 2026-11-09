@@ -216,7 +216,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T05 Developer Junk with DerivedData: one item per project, selected when stale for 30 days or when its
   project is gone; the sub-tool's page (DEV-R01, DEV-008)
 - [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
-  shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004)
+  shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
+  Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
+  a third copy of the run scaffolding (#73).
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
   (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
 - [ ] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
@@ -228,7 +230,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool
   command can be stopped while it runs (SAF-014, D-93)
 - [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
-  run (DEV-R03, DEV-R07 to DEV-R09)
+  run (DEV-R03, DEV-R07 to DEV-R09). Its first pull request decides what a History item shows for each operation,
+  since `path` holds a tool name for `tool` and a job label for `launchctl`: for example the tool and its command, and
+  the job label, with a unit test for each operation (#63).
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
   (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
@@ -264,6 +268,12 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 - [x] M2-F02 File Cleanup fixes, in one owner-requested pull request: review, Quick Look and Finder follow grouped
   results' display order (#60); the landing page's scan age updates while idle (#61); exclusions hide tool-owned
   stores as well as personal files (#64, D-109). M2-T04 remains the next roadmap task.
+- [ ] M2-F03 Measure Move to Trash's plan building on the main actor with a few thousand selected files, using
+  Instruments' Hangs instrument. If it hangs: fold the protected locations once instead of in every guard check, work
+  out Old Files' period once, and build the plan off the main actor (#62, NFR-PERF-001).
+- [ ] M2-F04 CI cancels only pull request runs, so a push to `main` never cancels the check of an earlier merge (#65).
+- The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
+  0.2.0 release items below.
 
 Exit criteria (PRD section 13):
 
@@ -271,8 +281,10 @@ Exit criteria (PRD section 13):
   finds every tool run in History.
 - [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
-- [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30).
-- [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37).
+- [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
+  README's status without a version number, so it no longer goes stale at each release (#67).
+- [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37). Before the tag, `build-dmg.sh` captures
+  `xcodebuild`'s build settings before parsing them, and stops with a message if the version comes out empty (#66).
 
 ## M3 to M6
 
