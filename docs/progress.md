@@ -239,6 +239,12 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     (DEV-R04, DEV-007, D-119).
 - [ ] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
+  Two pull requests, a stack (D-62, D-76):
+  - [x] Engine: the scan of caches, logs and container caches, each item naming its app, and the ownership map leaving
+    out what developer tools and Shuck own; Caches & Logs' scan names its apps for the running-apps check (CAC-001 to
+    CAC-005, CAC-008, FCL-005, D-120, D-121).
+  - [ ] App: register the sub-tool, its page grouped by app, the summary confirmation and the UI workflow steps
+    (CAC-006, CAC-007).
 - [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool

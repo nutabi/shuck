@@ -68,7 +68,10 @@ struct OwnershipMapTests {
         #expect(owners(path) == OwnershipMap.personalFiles)
     }
 
-    @Test(arguments: ["Library/Preferences/com.apple.finder.plist", "Library/Caches/com.example", ".npm/_cacache"])
+    @Test(arguments: [
+        "Library/Preferences/com.apple.finder.plist", "Library/Caches",
+        "Library/Containers/com.example.App/Data/Documents", ".npm/_cacache",
+    ])
     func libraryAndHiddenTopLevelFoldersHaveNoOwner(path: String) {
         #expect(owners(path).isEmpty)
     }
@@ -83,7 +86,7 @@ struct OwnershipMapTests {
     }
 
     @Test func matchingIgnoresCaseLikeTheStartupVolume() {
-        #expect(owners("library/caches/com.example").isEmpty)
+        #expect(owners("library/caches/com.example") == [.cachesAndLogs])
         #expect(owners("LIBRARY/Application Support/mobilesync/backup/x") == OwnershipMap.personalFiles)
     }
 
@@ -91,6 +94,43 @@ struct OwnershipMapTests {
         #expect(map.owners(of: root.url.deletingLastPathComponent().appending(path: "Other/file")).isEmpty)
         #expect(map.owners(of: URL(filePath: "/Applications/Safari.app")).isEmpty)
         #expect(map.owners(of: root.url.appending(path: "Downloads/../Library/Caches")).isEmpty)
+    }
+
+    // MARK: - Caches & Logs (CAC-001, FCL-005)
+
+    @Test(arguments: [
+        "Library/Caches/com.example.Notes", "Library/Caches/com.example.Notes/data/x.db", "Library/Caches/Firefox",
+        "Library/Logs/Adobe", "Library/Logs/DiagnosticReports/crash.ips", "Library/Logs/app.log",
+        "Library/Containers/com.example.Notes/Data/Library/Caches",
+        "Library/Containers/com.example.Notes/Data/Library/Caches/x",
+    ])
+    func cachesAndLogsOwnEachEntryOfCachesLogsAndContainerCachesCAC001(path: String) {
+        #expect(owners(path) == [.cachesAndLogs])
+    }
+
+    @Test(arguments: [
+        "Library/Caches/Homebrew/downloads/x", "Library/Caches/pip/http", "Library/Caches/org.swift.swiftpm",
+        "Library/Caches/CocoaPods", "Library/Caches/Yarn/v6", "Library/Caches/pnpm", "Library/Caches/go-build",
+        "Library/Caches/node-gyp", "Library/Caches/com.apple.dt.Xcode", "Library/Logs/Homebrew",
+        "Library/Logs/CoreSimulator/x.log",
+    ])
+    func cachesAThatDeveloperToolOwnsBelongToDeveloperJunkFCL005(path: String) {
+        #expect(owners(path) == [.developerJunk])
+    }
+
+    @Test(arguments: [
+        "Library/Caches/me.nutabi.shuck", "Library/Caches/me.nutabi.shuck.debug/x", "Library/Logs/me.nutabi.shuck",
+        "Library/Containers/com.docker.docker/Data/Library/Caches",
+        "Library/Containers/com.docker.docker/Data/Library/Caches/x",
+        "Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw",
+    ])
+    func shucksOwnCachesAndDockersHaveNoOwnerCAC001DEV007(path: String) {
+        #expect(owners(path).isEmpty)
+    }
+
+    @Test func containerFilesOtherThanCachesStayOutOfCachesAndLogs() {
+        #expect(owners("Library/Containers/com.example.Notes/Data/Library/Application Support/x").isEmpty)
+        #expect(owners("Library/Containers/com.example.Notes/Data/Documents/x").isEmpty)
     }
 
     // MARK: - Most specific wins

@@ -154,7 +154,7 @@ public struct DeveloperJunk: SubTool {
                 let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
                 let modified = RuleMatch.modificationDate(at: folder)
             else { continue }
-            let activity = DerivedDataProject.lastActivity(in: folder, modified: modified)
+            let activity = FolderActivity.newest(in: folder, modified: modified)
             let missing = DerivedDataProject.workspace(in: folder).map(DerivedDataProject.isMissing) ?? false
             let stale = rule.selection.selects(modified: activity, now: now)
             do {
