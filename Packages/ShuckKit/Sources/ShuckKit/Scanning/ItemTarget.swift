@@ -19,7 +19,7 @@ public enum ItemTarget: Equatable, Hashable, Sendable {
 }
 
 /// Whether an item starts selected, or why it cannot be selected. A recent item is unselected but selectable
-/// (DEV-005); an item belonging to a running app will be disabled (M2-T04, SAF-009).
+/// (DEV-005); an item belonging to a running app is disabled (``appIsRunning``, SAF-009).
 public enum ItemSelection: Equatable, Sendable {
     case unselected
     case selected

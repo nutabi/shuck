@@ -24,13 +24,14 @@ struct FakeTrash: Trash {
 
 extension PlanExecutor {
     /// An executor for tests in `root`: it writes the root's history log and moves items into its fake Trash, running
-    /// `beforeMove` just before each move.
+    /// `beforeMove` just before each move. No app runs unless `runningApps` says so, and no test reads the real list.
     init(
-        root: FixtureRoot, pathGuard: PathGuard, beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }
+        root: FixtureRoot, pathGuard: PathGuard, runningApps: any RunningApps = StubRunningApps(),
+        beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }
     ) throws {
         self.init(
             pathGuard: pathGuard, log: try HistoryLog(folder: root.historyFolder),
-            trash: FakeTrash(folder: root.trashFolder, beforeMove: beforeMove))
+            trash: FakeTrash(folder: root.trashFolder, beforeMove: beforeMove), runningApps: runningApps)
     }
 }
 

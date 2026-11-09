@@ -36,9 +36,10 @@ extension CleanupRule {
 
     /// Builds a measured path item. The scanner supplies the snapshot and date it read, avoiding a second walk of
     /// a large folder. A missing rule's data stays hidden (DEV-002); the planner still guards each target (SAF-007).
+    /// The item cannot be selected while one of the rule's apps is in `runningApps` (SAF-009).
     public func scanItem(
-        at url: URL, snapshot: ItemSnapshot, modified: Date, source: ToolID, now: Date = .now,
-        disabledReason: LocalizedStringResource? = nil
+        at url: URL, snapshot: ItemSnapshot, modified: Date, source: ToolID, runningApps: any RunningApps,
+        now: Date = .now, disabledReason: LocalizedStringResource? = nil
     ) throws(RuleItemError) -> ScanItem {
         guard detection.isAvailable else { throw .unavailable }
         guard case .paths(_, let method, let scope) = action,
@@ -48,13 +49,15 @@ extension CleanupRule {
         return ScanItem(
             url: url, snapshot: snapshot, tier: tier, method: method, reason: explanation, source: source,
             scope: scope, identity: method == .trash ? FileIdentity.read(url) : nil,
-            category: category, selection: itemSelection(modified: modified, now: now, disabledReason: disabledReason),
-            ruleMatch: RuleMatch(rule: self, modified: modified))
+            category: category,
+            selection: itemSelection(
+                modified: modified, now: now, disabledReason: disabledReason, running: runningApps),
+            ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps)
     }
 
     /// A tool estimate is informational; it is never parsed into deletion paths (DEV-003, R-07).
     public func scanItem(
-        estimatedBytes: Int64, source: ToolID, modified: Date? = nil, now: Date = .now,
+        estimatedBytes: Int64, source: ToolID, runningApps: any RunningApps, modified: Date? = nil, now: Date = .now,
         disabledReason: LocalizedStringResource? = nil
     ) throws(RuleItemError) -> ScanItem {
         guard detection.isAvailable else { throw .unavailable }
@@ -62,15 +65,18 @@ extension CleanupRule {
         guard estimatedBytes >= 0 else { throw .invalidEstimate }
         return ScanItem(
             command: command, allocatedSize: estimatedBytes, tier: tier, reason: explanation, source: source,
-            category: category, selection: itemSelection(modified: modified, now: now, disabledReason: disabledReason),
-            ruleMatch: RuleMatch(rule: self, modified: nil))
+            category: category,
+            selection: itemSelection(
+                modified: modified, now: now, disabledReason: disabledReason, running: runningApps),
+            ruleMatch: RuleMatch(rule: self, modified: nil), apps: apps)
     }
 
     private func itemSelection(
-        modified: Date?, now: Date, disabledReason: LocalizedStringResource?
+        modified: Date?, now: Date, disabledReason: LocalizedStringResource?, running: any RunningApps
     ) -> ItemSelection {
         if let disabledReason { return .disabled(disabledReason) }
-        return selection.selects(modified: modified, now: now) ? .selected : .unselected
+        let selection: ItemSelection = selection.selects(modified: modified, now: now) ? .selected : .unselected
+        return selection.unlessRunning(apps, in: running)
     }
 }
 

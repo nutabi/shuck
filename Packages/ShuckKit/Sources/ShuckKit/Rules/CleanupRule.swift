@@ -74,13 +74,17 @@ public struct CleanupRule: Equatable, Sendable {
     public let selection: RuleSelection
     public let explanation: LocalizedStringResource
     public let documentation: URL
+    /// The bundle IDs of the apps that use the rule's data, such as Xcode for DerivedData. While one of them runs, the
+    /// rule's items cannot be selected and a run skips them (SAF-009, D-110). Tool rules name none.
+    public let apps: Set<String>
 
     public init(
         id: String, name: LocalizedStringResource, description: LocalizedStringResource, category: ItemCategory,
         detection: Detection, action: Action, tier: Tier, selection: RuleSelection,
-        explanation: LocalizedStringResource, documentation: URL
+        explanation: LocalizedStringResource, documentation: URL, apps: Set<String> = []
     ) throws(RuleError) {
         guard !id.isEmpty else { throw .emptyID }
+        guard !apps.contains(where: \.isEmpty) else { throw .invalidApp }
         guard tier.allows(action.method) else { throw .methodNotAllowed }
         switch detection {
         case .folder(let url):
@@ -115,6 +119,7 @@ public struct CleanupRule: Equatable, Sendable {
         self.selection = selection
         self.explanation = explanation
         self.documentation = documentation
+        self.apps = apps
     }
 }
 
@@ -128,4 +133,5 @@ public enum RuleError: Error, Equatable {
     case invalidStaleness
     case yourDataSelected
     case invalidDocumentation
+    case invalidApp
 }

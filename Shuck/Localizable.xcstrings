@@ -85,6 +85,9 @@
     "Skipped: changed since the scan" : {
 
     },
+    "Skipped: its app was running" : {
+
+    },
     "Skipped: its original place is taken" : {
 
     },

@@ -29,11 +29,14 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     /// re-downloaded installer (SAF-008). `nil` for an item that may be recreated between scan and run and still be
     /// what the user chose, such as a DerivedData folder (D-103).
     public let identity: FileIdentity?
+    /// The bundle IDs of the apps that use the item. While one of them runs, the item is not acted on (SAF-009).
+    public let apps: Set<String>
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
         source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
-        category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil
+        category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil,
+        apps: Set<String> = []
     ) {
         self.target = .path(url)
         self.snapshot = snapshot
@@ -48,12 +51,14 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         self.confidence = confidence
         self.scope = scope
         self.identity = identity
+        self.apps = apps
     }
 
     /// A command carries its estimate without a fictional file kind or snapshot. No command runs in T03 (M2-T10).
     public init(
         command: ToolCommand, allocatedSize: Int64, tier: Tier, reason: LocalizedStringResource, source: ToolID,
-        category: ItemCategory, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil
+        category: ItemCategory, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil,
+        apps: Set<String> = []
     ) {
         target = .command(command)
         snapshot = nil
@@ -68,6 +73,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         confidence = nil
         scope = .item
         identity = nil
+        self.apps = apps
     }
 }
 
@@ -109,11 +115,18 @@ public struct ScanContext: Sendable {
     /// The path guard's configuration: a scan leaves out protected locations and the user's exclusions (section 8.4,
     /// SET-001).
     public let protection: PathGuardConfiguration
+    /// The apps running now; a scan disables the items of a running app (SAF-009, CAC-003).
+    public let runningApps: any RunningApps
 
     /// Without `protection`, a scan uses the production list for `home` with Shuck's own bundle. Tests pass the
-    /// fixture root's configuration (D-41).
-    public init(home: URL, ownership: OwnershipMap? = nil, protection: PathGuardConfiguration? = nil) {
+    /// fixture root's configuration (D-41). Without `runningApps`, a scan asks this Mac which apps run; the app's
+    /// fixture-root mode passes a stub (D-110).
+    public init(
+        home: URL, ownership: OwnershipMap? = nil, protection: PathGuardConfiguration? = nil,
+        runningApps: any RunningApps = SystemRunningApps()
+    ) {
         self.home = home
+        self.runningApps = runningApps
         self.ownership = ownership ?? OwnershipMap(home: home)
         self.protection =
             protection ?? .production(home: home, appBundle: Bundle.main.bundleURL, userExclusions: [])

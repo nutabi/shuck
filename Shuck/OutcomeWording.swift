@@ -50,6 +50,7 @@ nonisolated enum OutcomeWording {
         case .replaced: return "Skipped: another file took its place since the scan"
         case .ruleChanged: return "Skipped: no longer matches the cleanup rule"
         case .modifiedSinceScan: return "Skipped: modified since the scan"
+        case .appRunning: return "Skipped: its app was running"
         case .rejected: return "Skipped: failed a safety check"
         case .cancelled:
             return isRestore ? "Skipped: stopped before it was restored" : "Skipped: stopped before it was acted on"

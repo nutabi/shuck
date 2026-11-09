@@ -17,11 +17,13 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
     public let scope: ItemScope
     /// Which file the scan found, if the executor must skip another file put at its path since (SAF-008, D-103).
     public let identity: FileIdentity?
+    /// The bundle IDs of the apps that use the item; the executor skips it while one of them runs (SAF-009).
+    public let apps: Set<String>
 
     public init(
         url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, scope: ItemScope = .item,
         identity: FileIdentity? = nil, category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected,
-        ruleMatch: RuleMatch? = nil
+        ruleMatch: RuleMatch? = nil, apps: Set<String> = []
     ) {
         self.target = .path(url)
         self.category = category
@@ -33,11 +35,12 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         self.snapshot = snapshot
         self.scope = scope
         self.identity = identity
+        self.apps = apps
     }
 
     public init(
         command: ToolCommand, allocatedSize: Int64, tier: Tier, category: ItemCategory,
-        selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil
+        selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil, apps: Set<String> = []
     ) {
         target = .command(command)
         self.allocatedSize = allocatedSize
@@ -49,6 +52,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         snapshot = nil
         scope = .item
         identity = nil
+        self.apps = apps
     }
 
     init(_ item: ScanItem) {
@@ -62,6 +66,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         category = item.category
         selection = item.selection
         ruleMatch = item.ruleMatch
+        apps = item.apps
     }
 }
 
