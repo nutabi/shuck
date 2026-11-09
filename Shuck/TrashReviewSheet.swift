@@ -76,27 +76,9 @@ struct TrashReviewSheet: View {
         Text("\(bytes, format: .byteCount(style: .file)) is in the Trash. The space is freed when you empty the Trash.")
             .foregroundStyle(.secondary)
         if !notMoved.isEmpty {
-            Text("Not moved")
-                .font(.headline)
-            List(notMoved, id: \.item.id) { outcome in
-                ItemRow(target: outcome.item.target, home: home) {
-                    Text(Self.reason(outcome))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .listStyle(.bordered)
+            OutcomeList(title: Text("Not moved"), outcomes: notMoved, home: home)
         } else {
             Spacer()
-        }
-    }
-
-    /// Why an item was not moved, in words (SAF-011).
-    static func reason(_ outcome: ItemOutcome) -> LocalizedStringResource {
-        let operation = HistoryRecord.Operation(outcome.item.method)
-        return switch outcome.result {
-        case .done: OutcomeWording.method(operation)
-        case .skipped(let reason): OutcomeWording.skipped(reason.code, operation: operation)
-        case .failed(let error): OutcomeWording.failed(error)
         }
     }
 }

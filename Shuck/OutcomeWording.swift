@@ -64,6 +64,17 @@ nonisolated enum OutcomeWording {
         }
     }
 
+    /// What happened to an item in a run that has just ended, in words: its method if it was done, or why it was not
+    /// (SAF-011).
+    static func result(of outcome: ItemOutcome) -> LocalizedStringResource {
+        let operation = HistoryRecord.Operation(outcome.item.method)
+        return switch outcome.result {
+        case .done: method(operation)
+        case .skipped(let reason): skipped(reason.code, operation: operation)
+        case .failed(let error): failed(error)
+        }
+    }
+
     /// A logged skip. A code this version does not know is shown as logged.
     static func skipped(detail: String?, operation: HistoryRecord.Operation) -> LocalizedStringResource {
         if let code = detail.flatMap(SkipCode.init(detail:)) { return skipped(code, operation: operation) }

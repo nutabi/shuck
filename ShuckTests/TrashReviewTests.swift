@@ -148,7 +148,7 @@ struct TrashReviewTests {
     /// Tests and previews give the model no run, so nothing in them can move a file.
     @Test func aModelWithoutARunOffersNoReview() async throws {
         let model = FileCleanupModel(subTools: [largeFiles], context: context)
-        #expect(!model.canMoveToTrash)
+        #expect(!model.canRun)
         #expect(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
     }
 
@@ -158,7 +158,7 @@ struct TrashReviewTests {
             let item = PlannedItem(
                 url: url("Movies/clip.mov"), tier: .yourData, method: method,
                 snapshot: ItemSnapshot(kind: .file, allocatedSize: 10))
-            return String(localized: TrashReviewSheet.reason(ItemOutcome(item: item, result: result)))
+            return String(localized: OutcomeWording.result(of: ItemOutcome(item: item, result: result)))
         }
 
         #expect(text(.skipped(.missing)) == "Skipped: no longer there")

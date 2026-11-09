@@ -6,8 +6,9 @@ import SwiftUI
 /// for each (DEV-R04), the biggest first. Stale projects, those whose project is gone, every version but the newest and
 /// every cache start selected; a row whose app is running shows a note instead of a checkbox (SAF-009, CAC-003).
 ///
-/// Choosing rows only marks them. Deleting them comes with the summary confirmation (M2-T06), so this page has no
-/// action button yet (D-113). ``SubToolPage`` gives it the toolbar, the scan and the messages.
+/// Choosing rows only marks them. "Delete…" opens the summary confirmation for the selected rows, with the totals per
+/// category and the full list on demand, and nothing is deleted before the user confirms there (SAF-003). ``SubToolPage``
+/// gives the page the toolbar, the scan, the messages and the sheet.
 struct DeveloperJunkView: View {
     let subTool: DeveloperJunk
     let model: FileCleanupModel
@@ -19,14 +20,14 @@ struct DeveloperJunkView: View {
             notScanned: Text("Scan to list what Xcode can build again. Scanning never removes anything."),
             nothingFound: Text("Nothing Xcode or the simulators can build again"),
             scanHelp: Text("Look for what developer tools can rebuild. Scanning never removes anything.")
-        ) { _ in
+        ) { actions in
             List {
                 ForEach(rows) { item in
                     ProjectRow(item: item, home: model.home, isSelected: isSelected(item))
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                footer
+                footer(actions.confirmRebuildable)
             }
         }
     }
@@ -44,7 +45,7 @@ struct DeveloperJunkView: View {
         }
     }
 
-    private var footer: some View {
+    private func footer(_ action: ConfirmRebuildable?) -> some View {
         HStack {
             if results.selectedItems.isEmpty {
                 Text("No items selected")
@@ -54,6 +55,11 @@ struct DeveloperJunkView: View {
                 )
             }
             Spacer()
+            if let action {
+                Button("Delete…") { action.review() }
+                    .disabled(results.selectedItems.isEmpty)
+                    .help("Review the totals before deleting the selected build folders.")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

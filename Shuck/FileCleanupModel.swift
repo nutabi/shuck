@@ -213,10 +213,25 @@ final class FileCleanupModel {
         return urls.compactMap { personalFiles.items[$0] }.compactMap(subTool.scanItem(for:))
     }
 
-    /// Whether the model can move items to the Trash. Pages leave the action out when it cannot.
-    var canMoveToTrash: Bool { runPlan != nil }
+    /// Whether the model can run a plan. Pages leave their actions out when it cannot, as in previews.
+    var canRun: Bool { runPlan != nil }
 
-    /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot move anything. Every
+    /// The summary confirmation for deleting the selected "Rebuildable" items of `subTool` (SAF-003), or `nil` if the
+    /// model cannot run anything. Only that tier is in the plan: "Your data" items need the itemized Trash review
+    /// (SAF-002). Every item passes the path guard now, and again just before it is deleted (SAF-007, SAF-008). When
+    /// the run ends, the deleted items leave the list.
+    /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
+    func confirmRebuildable(_ subTool: any SubTool) throws(PlanError) -> SummaryConfirmation? {
+        guard let runPlan, let results = scanResults[subTool.id] else { return nil }
+        let plan = try Plan(
+            subTool: subTool, items: results.selectedItems.filter { $0.tier == .rebuildable },
+            pathGuard: PathGuard(configuration: context.protection))
+        return SummaryConfirmation(plan: plan, runPlan: runPlan) { [weak self] report in
+            self?.remove(report.deletedURLs)
+        }
+    }
+
+    /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot run anything. Every
     /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). When the run ends, the moved
     /// items leave every list.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.

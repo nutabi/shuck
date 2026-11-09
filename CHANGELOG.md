@@ -11,11 +11,14 @@ All notable changes to Shuck are listed here. The format follows
 
 - Developer Junk now lists Xcode's DerivedData, one row for each project. Projects that Xcode has not built for 30 days
   or whose project is no longer on your Mac start selected, and nothing can be selected while Xcode is running. You can
-  look and choose, but nothing is deleted from this page yet.
+  look and choose.
 - Developer Junk also lists Xcode's device support files, one row for each version of each platform. Every version
   except the newest of its platform starts selected, because Xcode copies the files again when you connect a device.
 - Developer Junk also lists the iOS Simulator's caches, which start selected and are disabled while Xcode or Simulator
   is running.
+- Developer Junk has a Delete button. It shows one confirmation with the totals for each category, and a button to list
+  every item, before anything is deleted. Deleted items don't go to the Trash, and History lists them as not
+  restorable.
 
 ### Changed
 
