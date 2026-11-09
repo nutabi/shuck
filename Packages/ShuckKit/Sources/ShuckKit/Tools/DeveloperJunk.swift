@@ -1,9 +1,10 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has four,
-/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and, as a command
-/// of Xcode's own tool, its unavailable simulators (DEV-R03); the other rules arrive one at a time (M2-T11 onwards).
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has five,
+/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and, as commands
+/// of the tools that own the data, unavailable simulators (DEV-R03) and npm's cache (DEV-R07); the other rules arrive one
+/// at a time (M2-T11 onwards).
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
@@ -11,7 +12,7 @@ public struct DeveloperJunk: SubTool {
     static let simulatorBundleID = "com.apple.iphonesimulator"
     /// DerivedData is stale after this many days without a change (DEV-005, SET-002).
     static let staleDays = 30
-    private static let logger = Logger(tool: .developerJunk)
+    static let logger = Logger(tool: .developerJunk)
 
     public init() {}
 
@@ -149,6 +150,7 @@ public struct DeveloperJunk: SubTool {
                 scanDeviceSupport(context) { continuation.yield($0) }
                 scanSimulatorCaches(context) { continuation.yield($0) }
                 scanUnavailableSimulators(context) { continuation.yield($0) }
+                scanNpmCache(context) { continuation.yield($0) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }

@@ -76,10 +76,10 @@
     "Look for what developer tools can rebuild. Scanning never removes anything." : {
 
     },
-    "Nothing Xcode or the simulators can build again" : {
+    "Nothing developer tools can build again" : {
 
     },
-    "Scan to list what Xcode can build again. Scanning never removes anything." : {
+    "Scan to list what developer tools can build again. Scanning never removes anything." : {
 
     },
     "Skipped: another file took its place since the scan" : {
@@ -235,7 +235,7 @@
     "The original place of ^[%lld item](inflect: true) is taken" : {
 
     },
-    "What Xcode and the simulators can build again" : {
+    "What Xcode, the simulators and package managers can build again" : {
 
     },
     "“%@” didn't pass Shuck's safety checks, so Shuck moved nothing." : {

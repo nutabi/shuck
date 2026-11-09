@@ -15,8 +15,9 @@ import XCTest
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
 /// - Developer Junk: Xcode's DerivedData with its default selection, the summary confirmation and Delete, and a running
 ///   Xcode's disabled rows, in `DeveloperJunkUITests`.
-/// - Developer Junk's tool rules: the exact command, no size, the Clean Up confirmation, the finished run and its History row (the
-///   fake tool cannot run in the sandboxed runner, so the run fails), in `DeveloperJunkUITests`.
+/// - Developer Junk's tool rules (unavailable simulators, npm): the exact command, a size or none, the Clean Up
+///   confirmation, the finished run and its History row (the fake tools cannot run in the sandboxed runner, so the run
+///   fails), in `DeveloperJunkUITests`.
 /// - History's non-restorable deletions: the run Delete made, in `DeveloperJunkUITests` and `CachesAndLogsUITests`.
 /// - History's tool runs: the command, the tool's path and its output instead of a file, in `DeveloperJunkUITests`.
 /// - Caches & Logs: caches, logs and container caches grouped by app, the default selection, the summary confirmation

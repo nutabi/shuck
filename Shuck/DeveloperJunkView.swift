@@ -3,7 +3,8 @@ import SwiftUI
 
 /// Developer Junk: "What can developer tools rebuild?" So far it lists Xcode's DerivedData, one row per project (DEV-R01,
 /// DEV-008), its device support files, one row per version of a platform (DEV-R02), and the simulators' caches, one row
-/// for each (DEV-R04), the biggest first. Stale projects, those whose project is gone, every version but the newest and
+/// for each (DEV-R04), the biggest first. A tool's rule, such as unavailable simulators (DEV-R03) or npm's cache
+/// (DEV-R07), is one row with its exact command and a size estimate. Stale projects, those whose project is gone, every version but the newest and
 /// every cache start selected; a row whose app is running shows a note instead of a checkbox (SAF-009, CAC-003).
 ///
 /// Choosing rows only marks them. "Delete…" opens the summary confirmation for the selected rows, with the totals per
@@ -16,9 +17,10 @@ struct DeveloperJunkView: View {
 
     var body: some View {
         SubToolPage(
-            subTool: subTool, model: model, subtitle: Text("What Xcode and the simulators can build again"),
-            notScanned: Text("Scan to list what Xcode can build again. Scanning never removes anything."),
-            nothingFound: Text("Nothing Xcode or the simulators can build again"),
+            subTool: subTool, model: model,
+            subtitle: Text("What Xcode, the simulators and package managers can build again"),
+            notScanned: Text("Scan to list what developer tools can build again. Scanning never removes anything."),
+            nothingFound: Text("Nothing developer tools can build again"),
             scanHelp: Text("Look for what developer tools can rebuild. Scanning never removes anything.")
         ) { actions in
             List {
