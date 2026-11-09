@@ -171,7 +171,7 @@ struct RulePipelineTests {
             try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
         }
         let executor = try PlanExecutor(root: root, pathGuard: pathGuard)
-        #expect(executor.act(on: item, allowedRoots: [root.url]).result == .skipped(.ruleChanged))
+        #expect(await executor.act(on: item, allowedRoots: [root.url]).result == .skipped(.ruleChanged))
         #expect(PlanError.ruleMismatch(innocent.path).path == innocent.path)
         #expect(FileManager.default.fileExists(atPath: innocent.path))
         #expect(!rule.accepts(.path(innocent), tier: .yourData, method: .trash, scope: .item))
@@ -185,7 +185,7 @@ struct RulePipelineTests {
         #expect(throws: PlanError.ruleMismatch(file.path)) {
             try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [undated], pathGuard: pathGuard)
         }
-        #expect(executor.act(on: undated, allowedRoots: [root.url]).result == .skipped(.ruleChanged))
+        #expect(await executor.act(on: undated, allowedRoots: [root.url]).result == .skipped(.ruleChanged))
     }
 
     @Test func ruleMatchingNeverBypassesThePathGuardSAF007() throws {

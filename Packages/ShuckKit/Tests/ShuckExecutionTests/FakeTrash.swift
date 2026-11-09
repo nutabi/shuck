@@ -50,10 +50,28 @@ final class FakeAction: PlanAction {
         handed.withLock { $0 }
     }
 
-    func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason> {
+    func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason> {
         handed.withLock { $0.append(target) }
         onAct()
         return Acted(.done(nil))
+    }
+}
+
+/// An action that is still running when the run is stopped: it waits until its task is cancelled, then fails the item,
+/// as a tool command does when Stop ends it (SAF-014). `started` says when it began, so a test can cancel then.
+final class WaitingAction: PlanAction {
+    let started: AsyncStream<Void>
+    private let startedContinuation: AsyncStream<Void>.Continuation
+
+    init() {
+        (started, startedContinuation) = AsyncStream.makeStream()
+    }
+
+    func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason> {
+        startedContinuation.yield()
+        // A sleep that long ends only by cancellation.
+        let finished = (try? await Task.sleep(for: .seconds(600))) != nil
+        return Acted(finished ? .done(nil) : .failed(ActionError(domain: "Test", code: 1, message: "stopped")))
     }
 }
 

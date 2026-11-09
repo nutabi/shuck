@@ -51,13 +51,13 @@ public struct PlanExecutor: Sendable {
                 run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
                 path: item.target.description,
                 tier: item.tier, bytes: item.allocatedSize)
-            return RunLoop.Step(logged: logged) { act(on: item, allowedRoots: plan.allowedRoots) }
+            return RunLoop.Step(logged: logged) { await act(on: item, allowedRoots: plan.allowedRoots) }
         }
         return RunReport(run: plan.run, outcomes: zip(plan.items, results).map { ItemOutcome(item: $0, result: $1) })
     }
 
     /// Re-validates `item` and hands it to the action for its method (SAF-004, SAF-008).
-    package func act(on item: PlannedItem, allowedRoots: [URL]) -> Acted<ItemOutcome.SkipReason> {
+    package func act(on item: PlannedItem, allowedRoots: [URL]) async -> Acted<ItemOutcome.SkipReason> {
         // `Plan` refuses such an item too; checking again keeps SAF-004 in the executor, next to the actions.
         guard item.tier.allows(item.method) else { return Acted(.skipped(.notAllowed(item.method))) }
         guard let action = actions[item.method] else { return Acted(.skipped(.unsupportedMethod(item.method))) }
@@ -89,7 +89,7 @@ public struct PlanExecutor: Sendable {
             }
             // Asked last, just before acting, since measuring a large folder can take a while (SAF-009).
             if runningApps.firstRunning(of: item.apps) != nil { return Acted(.skipped(.appRunning)) }
-            return action.act(on: item, at: target)
+            return await action.act(on: item, at: target)
         case .found(let current): return Acted(.skipped(.changed(current)))
         case .missing: return Acted(.skipped(.missing))
         case .notAccessible: return Acted(.skipped(.notAccessible))
@@ -102,7 +102,7 @@ public struct PlanExecutor: Sendable {
 /// ``DeleteAction`` now; M2-T10 adds Tool, and M3 Launchctl (TD-04).
 package protocol PlanAction: Sendable {
     /// Acts on `item`, at `target`, the path the guard returned for it, and says what it did.
-    func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason>
+    func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason>
 }
 
 /// The outcome of one planned item (SAF-011).

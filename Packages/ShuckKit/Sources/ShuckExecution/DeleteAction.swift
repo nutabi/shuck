@@ -16,7 +16,7 @@ import ShuckKit
 package struct DeleteAction: PlanAction {
     package init() {}
 
-    package func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason> {
+    package func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason> {
         // The guard returned the target with its parent folders resolved, so their path has no symlink to follow.
         let parent = open(target.deletingLastPathComponent().path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW_ANY | O_CLOEXEC)
         guard parent >= 0 else { return Acted(.failed(ActionError(errno: errno))) }

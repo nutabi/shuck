@@ -188,14 +188,14 @@ struct DeleteActionTests {
         #expect(exists(try root.url("Library/Moved/com.example.app/cache.db")))
     }
 
-    @Test func yourDataNeverReachesTheDeleteActionSAF004() throws {
+    @Test func yourDataNeverReachesTheDeleteActionSAF004() async throws {
         // `Plan` refuses this item, so the test asks the executor to act on it directly.
         let report = try root.file("Documents/report.pdf", size: 10)
         let item = PlannedItem(
             url: report, tier: .yourData, method: .delete, snapshot: try #require(ItemSnapshot.read(report)))
         let executor = try PlanExecutor(root: root, pathGuard: pathGuard)
 
-        #expect(executor.act(on: item, allowedRoots: [root.url]).result == .skipped(.notAllowed(.delete)))
+        #expect(await executor.act(on: item, allowedRoots: [root.url]).result == .skipped(.notAllowed(.delete)))
         #expect(exists(report))
     }
 }
