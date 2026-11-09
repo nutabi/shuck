@@ -30,7 +30,13 @@ struct ToolLocations {
     /// The path of the tool called `name` in the first of `folders` (relative to the tool root) where it can run. If it
     /// runs in none, the first one's path, so a rule built for it is hidden by its detection (DEV-002).
     func executable(_ name: String, in folders: [String]) -> String {
-        let paths = folders.map { root.appending(path: "\($0)/\(name)").path }
+        executable([name], in: folders)
+    }
+
+    /// The path of the first of `names`, in order, that can run in one of `folders`: a tool that goes by more than one
+    /// name, such as pip's `pip` and `pip3`. If none runs, the first name's first path (DEV-002).
+    func executable(_ names: [String], in folders: [String]) -> String {
+        let paths = names.flatMap { name in folders.map { root.appending(path: "\($0)/\(name)").path } }
         return paths.first { CleanupRule.Detection.executable($0).isAvailable } ?? paths.first ?? ""
     }
 
