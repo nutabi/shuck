@@ -110,6 +110,49 @@ struct DeveloperJunkPipelineTests {
         #expect(FileManager.default.fileExists(atPath: old.path))
     }
 
+    @Test func simulatorCachesAreDeletedAndTheDevicesBesideThemStayDEVR04DEV007() async throws {
+        let cache = try root.file("Library/Developer/CoreSimulator/Caches/dyld/21C62/cache", size: 4096)
+        let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
+
+        let selected = await scanned().filter { $0.selection == .selected }
+        let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan(selected))
+
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(!FileManager.default.fileExists(atPath: cache.path))
+        #expect(FileManager.default.fileExists(atPath: device.path))
+        // The Caches folder itself stays, as the simulators expect it.
+        #expect(
+            FileManager.default.fileExists(
+                atPath: root.url.appending(path: "Library/Developer/CoreSimulator/Caches").path))
+        let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }
+        #expect(results.map(\.tool) == [.developerJunk])
+        #expect(results.allSatisfy { $0.operation == .delete && $0.tier == .rebuildable && $0.status == .ok })
+    }
+
+    @Test func aSimulatorStartingAfterTheScanSkipsTheCacheSAF009() async throws {
+        let cache = try root.file("Library/Developer/CoreSimulator/Caches/dyld/21C62/cache", size: 4096)
+        let plan = try await plan(scanned())
+
+        let report = await
+            (try PlanExecutor(
+                root: root, pathGuard: pathGuard, runningApps: StubRunningApps(["com.apple.iphonesimulator"])))
+            .run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.appRunning)])
+        #expect(FileManager.default.fileExists(atPath: cache.path))
+    }
+
+    @Test func aSimulatorDeviceCannotBePlannedByAnySubToolItemDEV007() throws {
+        let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
+        let folder = device.deletingLastPathComponent()
+        let item = ScanItem(
+            url: folder, snapshot: try #require(ItemSnapshot.read(folder)), tier: .rebuildable, method: .delete,
+            reason: "Not a rule's target", source: .developerJunk, selection: .selected)
+
+        #expect(throws: PlanError.self) { try self.plan([item]) }
+        #expect(FileManager.default.fileExists(atPath: device.path))
+    }
+
     @Test func archivesAreOutsideTheSubToolsRootsEvenNextToDeviceSupportSAF007() throws {
         let archive = try root.file("Library/Developer/Xcode/Archives/App.xcarchive/Info.plist", size: 10)
         try root.deviceSupport("iOS", "16.4 (20E247)")

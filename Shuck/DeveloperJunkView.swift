@@ -2,9 +2,9 @@ import ShuckKit
 import SwiftUI
 
 /// Developer Junk: "What can developer tools rebuild?" So far it lists Xcode's DerivedData, one row per project (DEV-R01,
-/// DEV-008), and its device support files, one row per version of a platform (DEV-R02), the biggest first. Stale
-/// projects, those whose project is gone and every version but the newest start selected; a row whose app is running
-/// shows a note instead of a checkbox (SAF-009, CAC-003).
+/// DEV-008), its device support files, one row per version of a platform (DEV-R02), and the simulators' caches, one row
+/// for each (DEV-R04), the biggest first. Stale projects, those whose project is gone, every version but the newest and
+/// every cache start selected; a row whose app is running shows a note instead of a checkbox (SAF-009, CAC-003).
 ///
 /// Choosing rows only marks them. Deleting them comes with the summary confirmation (M2-T06), so this page has no
 /// action button yet (D-113). ``SubToolPage`` gives it the toolbar, the scan and the messages.
@@ -15,9 +15,9 @@ struct DeveloperJunkView: View {
 
     var body: some View {
         SubToolPage(
-            subTool: subTool, model: model, subtitle: Text("Xcode build folders and device support files"),
+            subTool: subTool, model: model, subtitle: Text("What Xcode and the simulators can build again"),
             notScanned: Text("Scan to list what Xcode can build again. Scanning never removes anything."),
-            nothingFound: Text("No Xcode build folders or device support files found"),
+            nothingFound: Text("Nothing Xcode or the simulators can build again"),
             scanHelp: Text("Look for what developer tools can rebuild. Scanning never removes anything.")
         ) { _ in
             List {

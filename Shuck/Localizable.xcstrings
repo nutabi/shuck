@@ -4,7 +4,7 @@
     "Look for what developer tools can rebuild. Scanning never removes anything." : {
 
     },
-    "No Xcode build folders or device support files found" : {
+    "Nothing Xcode or the simulators can build again" : {
 
     },
     "Scan to list what Xcode can build again. Scanning never removes anything." : {
@@ -163,7 +163,7 @@
     "The original place of ^[%lld item](inflect: true) is taken" : {
 
     },
-    "Xcode build folders and device support files" : {
+    "What Xcode and the simulators can build again" : {
 
     },
     "“%@” didn't pass Shuck's safety checks, so Shuck moved nothing." : {

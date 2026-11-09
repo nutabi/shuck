@@ -61,6 +61,9 @@ public struct OwnershipMap: Sendable {
         Entry("Library/Developer/Xcode/DerivedData", owners: [.developerJunk]),
         // ...and Xcode's device support files, one folder per platform (DEV-R02).
         Entry("Library/Developer/Xcode/*DeviceSupport", owners: [.developerJunk]),
+        // ...and the simulators' caches (DEV-R04). Their devices next to them are no sub-tool's: `simctl` manages them
+        // (DEV-007), so `Library` leaves them unowned.
+        Entry("Library/Developer/CoreSimulator/Caches", owners: [.developerJunk]),
     ]
 
     /// The home folder the patterns are relative to.

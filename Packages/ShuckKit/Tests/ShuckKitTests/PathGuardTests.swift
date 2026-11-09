@@ -152,6 +152,35 @@ struct PathGuardTests {
         #expect(rejection(path, allowedRoots: roots) == .protectedLocation(path, protected: location))
     }
 
+    /// DEV-007: the stores a tool manages are refused, even when a rule or a sub-tool's roots would reach them.
+    @Test(arguments: [
+        "Library/Developer/CoreSimulator/Devices/ABCD-1234/data/Containers/Data/Application/App/Documents/note.txt",
+        "Library/Developer/CoreSimulator/Devices/ABCD-1234",
+        "Library/Developer/CoreSimulator/Devices",
+        "Library/Developer/CoreSimulator/Volumes/iOS_21C62",
+        "Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw",
+        "Library/Group Containers/group.com.docker/settings.json",
+    ])
+    func rejectsStoresAToolManagesDEV007(path: String) {
+        let target = home.appending(path: path).path
+        #expect(isProtected(rejection(target)))
+        // Not even a rule whose roots lie outside the home folder's Library reaches them.
+        #expect(isProtected(rejection(target, allowedRoots: [home.appending(path: "Library/Developer")])))
+    }
+
+    @Test func rejectsHomebrewsCellarDEV007() {
+        let roots = [URL(filePath: "/")]
+        for path in ["/opt/homebrew/Cellar/wget/1.24/bin/wget", "/opt/homebrew/Cellar", "/usr/local/Cellar/wget"] {
+            #expect(isProtected(rejection(path, allowedRoots: roots)), "\(path)")
+        }
+    }
+
+    @Test func theSimulatorsCachesNextToTheDevicesAreNotProtectedDEV007() throws {
+        let cache = try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 10)
+        let allowed = [home.appending(path: "Library/Developer/CoreSimulator/Caches")]
+        #expect(try pathGuard.validate(cache, allowedRoots: allowed) == cache)
+    }
+
     @Test func rejectsFoldersThatContainAProtectedLocationSAF007() {
         #expect(isProtected(rejection(home.appending(path: "Library").path)))
         #expect(isProtected(rejection(home.appending(path: "Music").path)))

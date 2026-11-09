@@ -1,12 +1,14 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has two,
-/// Xcode's DerivedData (DEV-R01) and its device support files (DEV-R02); the other rules arrive one at a time
-/// (M2-T08 onwards).
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has three,
+/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02) and the simulators' caches (DEV-R04); the other
+/// rules arrive one at a time (M2-T09 onwards).
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
+    /// The Simulator app's bundle ID, which also uses the simulators' caches (SAF-009, D-110).
+    static let simulatorBundleID = "com.apple.iphonesimulator"
     /// DerivedData is stale after this many days without a change (DEV-005, SET-002).
     static let staleDays = 30
     private static let logger = Logger(tool: .developerJunk)
@@ -23,10 +25,15 @@ public struct DeveloperJunk: SubTool {
     /// Two rules, Xcode Archives and Docker, are "Your data" (section 8.2); the first rule is rebuildable only.
     public var tiers: Set<Tier> { [.rebuildable, .yourData] }
 
-    /// DerivedData and each platform's device support folder that exists, such as `iOS DeviceSupport`. Those are found
-    /// by name, so the roots stay as narrow as the rules' targets and leave out Archives and the rest of Xcode.
+    /// DerivedData, each platform's device support folder that exists, such as `iOS DeviceSupport`, and the
+    /// simulators' caches. The device support folders are found by name, so the roots stay as narrow as the rules'
+    /// targets and leave out Archives and the rest of Xcode. Never the simulators' devices (DEV-007, D-119).
     public func allowedRoots(home: URL) -> [URL] {
-        [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home)
+        [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home) + [Self.simulatorCaches(home: home)]
+    }
+
+    static func simulatorCaches(home: URL) -> URL {
+        home.appending(path: "Library/Developer/CoreSimulator/Caches", directoryHint: .isDirectory)
     }
 
     static func derivedData(home: URL) -> URL {
@@ -90,11 +97,33 @@ public struct DeveloperJunk: SubTool {
             documentation: documentation, apps: [xcodeBundleID])
     }
 
+    /// DEV-R04: one item per file or folder directly inside CoreSimulator's `Caches`, which the simulators rebuild the
+    /// next time they start. Selected, and disabled while Xcode or Simulator runs. The simulators' devices next to it
+    /// belong to `simctl` and are no rule's target (DEV-007, D-119).
+    static func simulatorCachesRule(home: URL) throws(RuleError) -> CleanupRule {
+        let root = simulatorCaches(home: home)
+        guard
+            let documentation = URL(
+                string: "https://developer.apple.com/documentation/xcode/running-your-app-in-simulator-or-on-a-device")
+        else { throw .invalidDocumentation }
+        return try CleanupRule(
+            id: "DEV-R04", name: LocalizedStringResource("Simulator Caches", bundle: #bundle),
+            description: LocalizedStringResource(
+                "Caches the iOS Simulator keeps, such as its system libraries cache.", bundle: #bundle),
+            category: ItemCategory(id: "xcode", name: LocalizedStringResource("Xcode", bundle: #bundle)),
+            detection: .folder(root), action: .paths([RulePath(root: root, pattern: "*")], method: .delete),
+            tier: .rebuildable, selection: .always,
+            explanation: LocalizedStringResource(
+                "The simulators build this again the next time one starts.", bundle: #bundle),
+            documentation: documentation, apps: [xcodeBundleID, simulatorBundleID])
+    }
+
     public func scan(_ context: ScanContext) -> AsyncStream<ScanEvent> {
         AsyncStream { continuation in
             let task = Task {
                 scanDerivedData(context) { continuation.yield($0) }
                 scanDeviceSupport(context) { continuation.yield($0) }
+                scanSimulatorCaches(context) { continuation.yield($0) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
@@ -184,6 +213,41 @@ public struct DeveloperJunk: SubTool {
                 } catch {
                     Self.logger.error("Skipped a device support folder: \(String(describing: error), privacy: .public)")
                 }
+            }
+        }
+    }
+
+    private func scanSimulatorCaches(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
+        let root = Self.simulatorCaches(home: context.home)
+        guard let rule = try? Self.simulatorCachesRule(home: context.home), rule.detection.isAvailable else { return }
+        let entries: [URL]
+        do {
+            entries = try FileManager.default.contentsOfDirectory(
+                at: root, includingPropertiesForKeys: [.isSymbolicLinkKey])
+        } catch {
+            let error = error as NSError
+            Self.logger.error(
+                "Cannot list simulator caches: \(error.domain, privacy: .public) \(error.code, privacy: .public)")
+            emit(error.code == NSFileReadNoPermissionError ? .notAccessible(root) : .unreadable(root))
+            return
+        }
+        let now = Date.now
+        for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard !Task.isCancelled else { return }
+            // A link is not the cache itself, and an entry another sub-tool owns is not ours (FCL-005).
+            guard context.ownership.owners(of: entry).contains(id),
+                (try? entry.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink != true,
+                let snapshot = ItemSnapshot.read(entry, while: { !Task.isCancelled }),
+                let modified = RuleMatch.modificationDate(at: entry)
+            else { continue }
+            do {
+                emit(
+                    .item(
+                        try rule.scanItem(
+                            at: entry, snapshot: snapshot, modified: modified, source: id,
+                            runningApps: context.runningApps, now: now)))
+            } catch {
+                Self.logger.error("Skipped a simulator cache: \(String(describing: error), privacy: .public)")
             }
         }
     }
