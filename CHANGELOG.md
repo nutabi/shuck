@@ -7,6 +7,12 @@ All notable changes to Shuck are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Developer Junk now lists Xcode's DerivedData, one row for each project. Projects that Xcode has not built for 30 days
+  or whose project is no longer on your Mac start selected, and nothing can be selected while Xcode is running. You can
+  look and choose, but nothing is deleted from this page yet.
+
 ### Changed
 
 - Move to Trash skips a file that another file replaced since the scan, such as an installer you downloaded again, and

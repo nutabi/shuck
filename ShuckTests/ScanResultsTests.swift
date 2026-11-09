@@ -28,6 +28,7 @@ struct ScanResultsTests {
         #expect(list.selectedItems == [recent] && list.selection == [recent.target])
         #expect(list.items(at: [URL(filePath: "/StubHome/Library/Caches/running")]).isEmpty)
         #expect(list.summary(finished: .now).reclaimableBytes == 8192)
+        #expect(list.selectedBytes == 4096)
     }
 
     @Test func refreshedEventsKeepTheUsersChoiceUntilAnItemIsDisabled() {

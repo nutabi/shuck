@@ -79,6 +79,22 @@ final class AppEnvironmentTests {
         #expect(release.runningApps is SystemRunningApps && release.context.runningApps is SystemRunningApps)
     }
 
+    /// A UI test can pretend an app runs (D-113), but only on a fixture root; the real home folder never reads it.
+    @Test func aFixtureRootRunsOnlyTheAppsTheTestNamesSAF009() throws {
+        let key = AppEnvironment.runningAppsKey
+        let settings: AppEnvironment.Settings = { $0 == key ? " com.apple.dt.Xcode, ,com.example.Other" : nil }
+        func environment(_ arguments: [String], debugBuild: Bool) throws -> AppEnvironment {
+            try AppEnvironment(
+                arguments: arguments, settings: settings, debugBuild: debugBuild, appBundle: appBundle,
+                bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
+        }
+        let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
+        #expect(debug.runningApps.bundleIDs() == ["com.apple.dt.xcode", "com.example.other"])
+        #expect(debug.context.runningApps.bundleIDs() == debug.runningApps.bundleIDs())
+        #expect(try environment(["Shuck"], debugBuild: false).runningApps is SystemRunningApps)
+        #expect(AppEnvironment.bundleIDs(nil).isEmpty && AppEnvironment.bundleIDs(3).isEmpty)
+    }
+
     /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.
     @Test func onlyAUITestsDebugBuildDelaysItsScansSAF014() throws {
         let settings: AppEnvironment.Settings = { $0 == AppEnvironment.scanDelayKey ? "2" : nil }
