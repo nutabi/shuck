@@ -12,6 +12,9 @@ nonisolated struct AppEnvironment {
     /// Which apps run now: this Mac's, or none in a UI test's fixture root, where Xcode itself runs the tests (D-110).
     /// Scans disable a running app's items, and runs skip them (SAF-009).
     let runningApps: any RunningApps
+    /// Where a tool command may be found: anywhere on this Mac, or only inside a UI test's fixture root, so a test never
+    /// runs a real tool (DEV-004, SAF-016, D-114).
+    let toolRunner: ToolRunner
     let largeFiles: LargeFiles
     let oldFiles: OldFiles
     /// This build's data folder inside the home folder, which holds its history log: the release build's or the debug
@@ -83,12 +86,14 @@ nonisolated struct AppEnvironment {
                 home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
                 appBundle: appBundle, userExclusions: [])
             runningApps = StubRunningApps()
+            toolRunner = ToolRunner(executableRoots: [root])
             context = ScanContext(home: root, protection: protection, runningApps: runningApps)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
             let home = home.resolvingSymlinksInPath()
             runningApps = SystemRunningApps()
+            toolRunner = ToolRunner(executableRoots: nil)
             context = ScanContext(
                 home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []),
                 runningApps: runningApps)
@@ -136,14 +141,15 @@ nonisolated struct AppEnvironment {
         }
     }
 
-    /// Moves a plan's items to the Trash, off the main actor, and logs every step in the history log in
+    /// Runs a plan's items, off the main actor, and logs every step in the history log in
     /// ``historyFolder`` (SAF-005, SAF-011).
     /// - Throws: ``HistoryError`` if the log cannot be opened. Then nothing moves.
     @concurrent
     func run(_ plan: Plan) async throws(HistoryError) -> RunReport {
         let log = try HistoryLog(folder: historyFolder)
         let executor = PlanExecutor(
-            pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash, runningApps: runningApps)
+            pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash, runningApps: runningApps,
+            toolRunner: toolRunner)
         return await executor.run(plan)
     }
 

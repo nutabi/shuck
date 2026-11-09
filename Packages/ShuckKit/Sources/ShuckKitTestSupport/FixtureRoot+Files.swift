@@ -97,7 +97,7 @@ extension FixtureRoot {
     /// Checks a path for a new item and creates its missing parent folders.
     ///
     /// `url(_:)` has already resolved every existing parent, so the folders created here are all inside the root.
-    private func newItem(_ relativePath: String) throws(FixtureError) -> URL {
+    func newItem(_ relativePath: String) throws(FixtureError) -> URL {
         let target = try url(relativePath)
         guard !Self.itemExists(at: target) else { throw .alreadyExists(relativePath) }
         let parent = target.deletingLastPathComponent()

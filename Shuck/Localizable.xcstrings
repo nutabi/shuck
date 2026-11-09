@@ -124,6 +124,9 @@
     "Skipped: the history log stopped working" : {
 
     },
+    "Skipped: its tool was not available" : {
+
+    },
     "Skipped: this version of Shuck can't do this" : {
 
     },

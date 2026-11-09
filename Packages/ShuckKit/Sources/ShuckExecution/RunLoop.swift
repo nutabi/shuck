@@ -24,16 +24,22 @@ public protocol RunSkipReason: Equatable, Sendable {
 }
 
 /// What an action did to an item, and what the result record adds to the intent record: where a trashed item went
-/// and its file identity (D-84).
+/// and its file identity (D-84). An action may also give the result record's `detail`, instead of the one the result
+/// would have: a tool's exit status and output (DEV-004).
 package struct Acted<SkipReason: RunSkipReason>: Sendable {
     package let result: ActionResult<SkipReason>
     let trashedPath: String?
     let identity: FileIdentity?
+    let detail: String?
 
-    package init(_ result: ActionResult<SkipReason>, trashedPath: String? = nil, identity: FileIdentity? = nil) {
+    package init(
+        _ result: ActionResult<SkipReason>, trashedPath: String? = nil, identity: FileIdentity? = nil,
+        detail: String? = nil
+    ) {
         self.result = result
         self.trashedPath = trashedPath
         self.identity = identity
+        self.detail = detail
     }
 }
 
@@ -67,9 +73,9 @@ struct LoggedItem {
     func result<SkipReason>(_ acted: Acted<SkipReason>) -> HistoryRecord {
         let (status, detail): (HistoryRecord.Status, String?) =
             switch acted.result {
-            case .done: (.ok, nil)
-            case .skipped(let reason): (.skipped, reason.logged)
-            case .failed(let error): (.failed, error.logged)
+            case .done: (.ok, acted.detail)
+            case .skipped(let reason): (.skipped, acted.detail ?? reason.logged)
+            case .failed(let error): (.failed, acted.detail ?? error.logged)
             }
         return .result(
             run: run, tool: tool, operation: operation, path: path, tier: tier, status: status,

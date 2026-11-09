@@ -22,25 +22,31 @@ public struct PlanExecutor: Sendable {
     let log: any RecordLog
     let actions: [ActionMethod: any PlanAction]
     let runningApps: any RunningApps
+    /// What runs Tool items; without it, they are skipped as `unsupportedMethod` (D-89).
+    let toolAction: ToolAction?
 
     /// An executor that moves Trash items to `trash`: ``SystemTrash`` in the app, a fake in tests, which must never reach
-    /// the user's own Trash. It deletes Delete items permanently (SAF-006). M2-T10 adds Tool, and M3 Launchctl.
-    /// `runningApps` has no default, so the app cannot leave out the check just before acting (SAF-009).
-    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash, runningApps: any RunningApps) {
+    /// the user's own Trash. It deletes Delete items permanently (SAF-006) and runs Tool items with `toolRunner`
+    /// (DEV-004); M3 adds Launchctl. `runningApps` and `toolRunner` have no default, so the app cannot leave out the
+    /// check just before acting (SAF-009) or let a test run a real tool (D-114).
+    public init(
+        pathGuard: PathGuard, log: HistoryLog, trash: any Trash, runningApps: any RunningApps, toolRunner: ToolRunner
+    ) {
         self.init(
             pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash), .delete: DeleteAction()],
-            runningApps: runningApps)
+            runningApps: runningApps, toolAction: ToolAction(runner: toolRunner))
     }
 
     /// An executor with `actions`, one per method it can act on. Tests pass actions of their own.
     package init(
         pathGuard: PathGuard, log: any RecordLog, actions: [ActionMethod: any PlanAction],
-        runningApps: any RunningApps = StubRunningApps()
+        runningApps: any RunningApps = StubRunningApps(), toolAction: ToolAction? = nil
     ) {
         self.pathGuard = pathGuard
         self.log = log
         self.actions = actions
         self.runningApps = runningApps
+        self.toolAction = toolAction
     }
 
     /// Runs `plan` and returns one outcome per item, in plan order.
@@ -56,10 +62,26 @@ public struct PlanExecutor: Sendable {
         return RunReport(run: plan.run, outcomes: zip(plan.items, results).map { ItemOutcome(item: $0, result: $1) })
     }
 
+    /// Re-validates the Tool `item`, which names no file, and runs its `command` (SAF-004, SAF-008, SAF-010).
+    ///
+    /// The item must still be the one its rule describes, and the tool must still be there (DEV-002); a command with
+    /// no rule behind it is never run, so only a rule's documented command can reach a tool (D-114).
+    private func actOnCommand(_ item: PlannedItem, _ command: ToolCommand) async -> Acted<ItemOutcome.SkipReason> {
+        guard item.method == .tool, let toolAction else { return Acted(.skipped(.unsupportedMethod(item.method))) }
+        guard let match = item.ruleMatch,
+            match.rule.detection.isAvailable,
+            match.rule.accepts(item.target, tier: item.tier, method: item.method, scope: item.scope)
+        else { return Acted(.skipped(.ruleChanged)) }
+        if Task.isCancelled { return Acted(.skipped(.cancelled)) }
+        if runningApps.firstRunning(of: item.apps) != nil { return Acted(.skipped(.appRunning)) }
+        return await toolAction.act(command: command)
+    }
+
     /// Re-validates `item` and hands it to the action for its method (SAF-004, SAF-008).
     package func act(on item: PlannedItem, allowedRoots: [URL]) async -> Acted<ItemOutcome.SkipReason> {
         // `Plan` refuses such an item too; checking again keeps SAF-004 in the executor, next to the actions.
         guard item.tier.allows(item.method) else { return Acted(.skipped(.notAllowed(item.method))) }
+        if case .command(let command) = item.target { return await actOnCommand(item, command) }
         guard let action = actions[item.method] else { return Acted(.skipped(.unsupportedMethod(item.method))) }
         guard let url = item.url, let snapshot = item.snapshot else {
             return Acted(.skipped(.unsupportedMethod(item.method)))
@@ -99,7 +121,7 @@ public struct PlanExecutor: Sendable {
 }
 
 /// What a run does to an item of one method, once the item has passed re-validation: ``TrashAction`` and
-/// ``DeleteAction`` now; M2-T10 adds Tool, and M3 Launchctl (TD-04).
+/// ``DeleteAction`` now, and M3 adds Launchctl (TD-04). Tool items name no file, so ``ToolAction`` is not one.
 package protocol PlanAction: Sendable {
     /// Acts on `item`, at `target`, the path the guard returned for it, and says what it did.
     func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason>
@@ -134,6 +156,8 @@ public struct ItemOutcome: Equatable, Sendable {
         case historyUnavailable
         /// The executor has no action for the item's method yet (D-89).
         case unsupportedMethod(ActionMethod)
+        /// The tool's executable is gone, or is not where tools may be found (DEV-002, D-114).
+        case toolUnavailable(ToolRunner.Unavailable)
         /// The item's tier does not allow its method, as "Your data" is never deleted permanently (SAF-004). `Plan`
         /// refuses such an item, so only a plan built some other way could have one.
         case notAllowed(ActionMethod)
@@ -153,6 +177,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .historyUnavailable: .historyUnavailable
             case .unsupportedMethod: .unsupportedMethod
             case .notAllowed: .notAllowed
+            case .toolUnavailable: .toolUnavailable
             }
         }
 
@@ -162,6 +187,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .changed(let current): code.logged(current.logged)
             case .rejected(let error): code.logged(error.logged)
             case .unsupportedMethod(let method), .notAllowed(let method): code.logged(method.rawValue)
+            case .toolUnavailable(let unavailable): code.logged(unavailable.rawValue)
             default: code.logged()
             }
         }
