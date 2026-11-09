@@ -15,9 +15,10 @@ import XCTest
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
 /// - Developer Junk: Xcode's DerivedData with its default selection, the summary confirmation and Delete, and a running
 ///   Xcode's disabled rows, in `DeveloperJunkUITests`.
-/// - History's non-restorable deletions: the run Delete made, in `DeveloperJunkUITests`.
-/// - Overview, Caches & Logs, Applications and Startup Items: a placeholder that names its milestone, in
-///   `FirstLookUITests`.
+/// - History's non-restorable deletions: the run Delete made, in `DeveloperJunkUITests` and `CachesAndLogsUITests`.
+/// - Caches & Logs: caches, logs and container caches grouped by app, the default selection, the summary confirmation
+///   and Delete, and a running app's disabled rows, in `CachesAndLogsUITests`; its empty page, in `FirstLookUITests`.
+/// - Overview, Applications and Startup Items: a placeholder that names its milestone, in `FirstLookUITests`.
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
 ///
 /// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).

@@ -78,7 +78,7 @@ struct FileCleanupModelTests {
     }
 
     @Test func aPlannedSubToolCannotScan() {
-        let planned = ToolRegistry.standard.subTools.filter { $0.info.availability != .available }
+        let planned = [PlannedSubTool.stub]
         let model = FileCleanupModel(subTools: planned, context: context)
 
         #expect(planned.allSatisfy { !model.canScan($0) && model.scan($0) == nil })
@@ -95,8 +95,7 @@ struct FileCleanupModelTests {
         await first?.value
         #expect(model.scanIfNotScanned(subTool) == nil)
 
-        let planned = ToolRegistry.standard.subTools.filter { $0.info.availability != .available }
-        #expect(planned.allSatisfy { model.scanIfNotScanned($0) == nil })
+        #expect(model.scanIfNotScanned(PlannedSubTool.stub) == nil)
     }
 
     @Test func aSubToolThatIsScanningCannotStartAgain() {
@@ -176,6 +175,17 @@ struct FileCleanupModelTests {
 }
 
 /// A sub-tool whose scan reports `events` and finishes.
+extension PlannedSubTool {
+    /// A sub-tool a later milestone builds. Every sub-tool of File Cleanup is available now, so tests make one.
+    fileprivate static var stub: PlannedSubTool {
+        PlannedSubTool(
+            info: ToolInfo(
+                id: ToolID(rawValue: "TPL"), name: "Planned", summary: "Comes later.", symbolName: "clock",
+                availability: .planned(milestone: "M9")),
+            tiers: [.rebuildable])
+    }
+}
+
 private struct StubSubTool: SubTool {
     let info: ToolInfo
     let tiers: Set<Tier> = [.yourData]

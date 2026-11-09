@@ -19,6 +19,11 @@ All notable changes to Shuck are listed here. The format follows
 - Developer Junk has a Delete button. It shows one confirmation with the totals for each category, and a button to list
   every item, before anything is deleted. Deleted items don't go to the Trash, and History lists them as not
   restorable.
+- Caches & Logs now lists the caches and logs your apps keep, in `~/Library/Caches`, `~/Library/Logs` and sandboxed
+  apps' own caches, with a section for each app and its total size. A cache that nothing has changed in for 30 days, and
+  a log for 7 days, starts selected. Caches that macOS itself writes are listed but never start selected, and nothing
+  can be selected while its app is running. Delete shows the same confirmation as Developer Junk and empties each
+  folder without removing the folder. Caches that developer tools own, such as Homebrew's, stay with Developer Junk.
 
 ### Changed
 

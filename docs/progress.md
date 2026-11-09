@@ -243,8 +243,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Engine: the scan of caches, logs and container caches, each item naming its app, and the ownership map leaving
     out what developer tools and Shuck own; Caches & Logs' scan names its apps for the running-apps check (CAC-001 to
     CAC-005, CAC-008, FCL-005, D-120, D-121).
-  - [ ] App: register the sub-tool, its page grouped by app, the summary confirmation and the UI workflow steps
-    (CAC-006, CAC-007).
+  - [x] App: register the sub-tool, its page grouped by app with Delete through the summary confirmation, the note
+    about macOS clearing caches, and the UI workflow steps (CAC-002, CAC-006, CAC-007, D-122). Left over: a folder named
+    after an app rather than a bundle ID, such as `Firefox`, is not tied to a running app (D-121).
 - [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool

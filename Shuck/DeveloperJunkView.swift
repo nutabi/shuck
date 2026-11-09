@@ -27,7 +27,9 @@ struct DeveloperJunkView: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                footer(actions.confirmRebuildable)
+                RebuildableFooter(
+                    results: results, action: actions.confirmRebuildable,
+                    help: Text("Review the totals before deleting the selected build folders."))
             }
         }
     }
@@ -44,27 +46,6 @@ struct DeveloperJunkView: View {
             if chosen { results.selection.insert(item.target) } else { results.selection.remove(item.target) }
         }
     }
-
-    private func footer(_ action: ConfirmRebuildable?) -> some View {
-        HStack {
-            if results.selectedItems.isEmpty {
-                Text("No items selected")
-            } else {
-                Text(
-                    "^[\(results.selectedItems.count) item](inflect: true) selected, \(results.selectedBytes, format: .byteCount(style: .file))"
-                )
-            }
-            Spacer()
-            if let action {
-                Button("Delete…") { action.review() }
-                    .disabled(results.selectedItems.isEmpty)
-                    .help("Review the totals before deleting the selected build folders.")
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.bar)
-    }
 }
 
 /// One project: a checkbox or the reason it has none, the project's name, why it is listed and its size.
@@ -75,22 +56,7 @@ private struct ProjectRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let reason = item.selection.disabledReason {
-                // A symbol and words, not color alone, say why the row cannot be chosen (NFR-A11Y-001).
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                    .help(Text(reason))
-                    .accessibilityHidden(true)
-            } else {
-                Toggle(isOn: isSelected) {
-                    Text(verbatim: name)
-                }
-                .toggleStyle(.checkbox)
-                .labelsHidden()
-                .accessibilityLabel(Text(verbatim: name))
-                .accessibilityIdentifier("project-\(name)")
-            }
+            SelectionMark(item: item, name: name, identifier: "project-\(name)", isSelected: isSelected)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name)
                 if let reason = item.selection.disabledReason {
