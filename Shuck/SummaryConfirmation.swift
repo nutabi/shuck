@@ -37,6 +37,12 @@ final class SummaryConfirmation: Identifiable {
 
     var phase: RunPhase<RunReport> { run.phase }
 
+    /// Whether the plan runs a tool's own cleanup command for some item. Its wording then says "Clean Up" where a plan of
+    /// only deleted items says "Delete", since a tool decides what it removes (SAF-010, D-125).
+    var runsTools: Bool {
+        plan.items.contains { $0.method == .tool }
+    }
+
     /// - Parameter onFinish: Called with the report when the run ends, so the caller can drop the deleted items.
     init(plan: Plan, runPlan: @escaping RunPlan, onFinish: @escaping (RunReport) -> Void) {
         self.plan = plan
@@ -75,6 +81,14 @@ final class SummaryConfirmation: Identifiable {
 }
 
 extension RunReport {
+    /// The tool commands the run ran to the end, which leave the list as the deleted items do: what the tool removed is
+    /// gone, and its old estimate no longer holds.
+    var cleanedCommands: [ToolCommand] {
+        outcomes.compactMap { outcome in
+            if case .done = outcome.result, case .command(let command) = outcome.item.target { command } else { nil }
+        }
+    }
+
     /// The items the run deleted, by the URL the scan found them at. An item that keeps its folder and loses only what
     /// is inside it (CAC-004) is listed too: its old size no longer holds.
     var deletedURLs: [URL] {

@@ -69,6 +69,13 @@ final class ScanResults: SubToolResults {
         selected.subtract(removed.map(ItemTarget.path))
     }
 
+    /// Removes the items for tool commands a run has run, and drops them from the selection.
+    func remove(commands: some Sequence<ToolCommand>) {
+        let removed = Set(commands.map(ItemTarget.command))
+        items.removeAll { removed.contains($0.target) }
+        selected.subtract(removed)
+    }
+
     func removeAll() {
         items = []
         selected = []

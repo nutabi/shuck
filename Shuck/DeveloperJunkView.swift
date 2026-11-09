@@ -48,7 +48,8 @@ struct DeveloperJunkView: View {
     }
 }
 
-/// One project: a checkbox or the reason it has none, the project's name, why it is listed and its size.
+/// One row: a checkbox or the reason it has none, the name of a project or tool rule, why it is listed and its size.
+/// A tool rule's row also shows the exact command that cleaning would run.
 private struct ProjectRow: View {
     let item: ScanItem
     let home: URL
@@ -67,16 +68,22 @@ private struct ProjectRow: View {
                 Text(item.reason)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if case .command(let command) = item.target {
+                    // The exact command, as the review shows it (SAF-002).
+                    Text(verbatim: command.display)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
             }
             Spacer()
-            Text(item.allocatedSize, format: .byteCount(style: .file))
-                .monospacedDigit()
+            SizeText(target: item.target, bytes: item.allocatedSize)
         }
     }
 
-    /// A project's name without Xcode's hash, or a device support version with its platform.
+    /// A project's name without Xcode's hash, a device support version with its platform, or a tool rule's name.
     private var name: String {
-        guard let url = item.url else { return "" }
+        guard let url = item.url else { return item.ruleMatch.map { String(localized: $0.rule.name) } ?? "" }
         let device = DeviceSupportVersion.name(ofFolder: url)
         return device == url.lastPathComponent ? DerivedDataProject.name(ofFolder: device) : device
     }

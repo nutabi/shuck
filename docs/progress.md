@@ -264,8 +264,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   the job label, with a unit test for each operation (#63). Six pull requests, a stack (D-62, D-76):
   - [x] History shows each operation as what it is: a file, a tool's command with its output, or a job label; a tool's
     end is worded from its code (#63, HIS-002, SAF-006, D-123).
-  - [ ] Tool items in Developer Junk: tool lookup under the scan's root, a row for a command, the confirmation's wording
-    for tool commands, and tool items leaving the list after a run (DEV-002, DEV-004, SAF-003, SAF-010).
+  - [x] Tool items in Developer Junk: tool lookup under the scan's root, a row for a command, the confirmation's wording
+    for tool commands, and tool items leaving the list after a run (DEV-002, DEV-004, SAF-003, SAF-010, D-124, D-125).
   - [ ] Unavailable simulators (DEV-R03).
   - [ ] npm cache (DEV-R07).
   - [ ] pip cache (DEV-R08).
