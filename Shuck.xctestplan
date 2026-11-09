@@ -1,0 +1,47 @@
+{
+  "configurations" : [
+    {
+      "id" : "7F3C2A10-5B4E-4D2A-9C61-0E8B2F4A6D31",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "language" : "en",
+    "region" : "US"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/ShuckKit",
+        "identifier" : "ShuckKitTests",
+        "name" : "ShuckKitTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/ShuckKit",
+        "identifier" : "ShuckExecutionTests",
+        "name" : "ShuckExecutionTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Shuck.xcodeproj",
+        "identifier" : "C3A63EB230979384004C0504",
+        "name" : "ShuckTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Shuck.xcodeproj",
+        "identifier" : "C3A63EBC30979384004C0504",
+        "name" : "ShuckUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

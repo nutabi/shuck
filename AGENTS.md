@@ -28,11 +28,11 @@ Run commands from the repository root. When a task adds or changes a command, it
 
 | Purpose | Command | Status |
 |---|---|---|
-| Build the app | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' build` | available |
-| App tests (unit and UI) | `xcodebuild -project Shuck.xcodeproj -scheme Shuck -destination 'platform=macOS' test` | available |
-| Engine tests | `swift test --package-path Packages/ShuckKit` | available |
+| Build the app | `xcodebuild -workspace Shuck.xcworkspace -scheme Shuck -destination 'platform=macOS' build` | available |
+| Engine, app and UI tests, from `Shuck.xctestplan` | `xcodebuild -workspace Shuck.xcworkspace -scheme Shuck -destination 'platform=macOS' test` | available |
+| Engine tests only, built separately by SwiftPM | `swift test --package-path Packages/ShuckKit` | available |
 | Lint (`--fix` to reformat) | `scripts/lint.sh` | available |
-| All tests, as CI runs them (`--no-ui` skips UI tests) | `scripts/test.sh` | available |
+| All tests and the coverage gate, as CI runs them (`--no-ui` skips UI tests; `--build-only` only builds) | `scripts/test.sh` | available |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | available |
 | Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
 | Whether a change touches code; CI skips lint, build and test if not (D-66) | `scripts/code-changed.sh BASE [HEAD]` | available |
@@ -57,7 +57,9 @@ shuck/
 │   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
 │   └── third-party.md         attribution for reused rule data or code; created on first reuse
+├── Shuck.xcworkspace         open this in Xcode: the project and the engine package, so every test runs (D-111)
 ├── Shuck.xcodeproj
+├── Shuck.xctestplan           the scheme's tests: engine, app unit and UI tests
 ├── Shuck/                     app target: views, navigation, view models
 ├── ShuckTests/                app unit tests
 ├── ShuckUITests/              UI tests (fixture root only, NFR-QA-002)

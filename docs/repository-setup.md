@@ -34,7 +34,7 @@ In **Settings → General → Pull Requests**:
 In **Settings → Actions → General**:
 
 - **Actions permissions:** allow actions created by GitHub only. The workflows use only `actions/*` and
-  `github/codeql-action`, pinned to commit SHAs (D-34, D-96).
+  `github/codeql-action`, pinned to commit SHAs (D-34, D-96, D-111).
 - **Workflow permissions:** read repository contents by default. The release workflow asks for write access itself.
 - **Fork pull request workflows:** require approval for all outside collaborators.
 
