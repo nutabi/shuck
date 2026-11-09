@@ -55,4 +55,35 @@ extension DeveloperJunk {
         guard let tools = ToolLocations(context), let rule = try? Self.npmCacheRule(tools) else { return }
         scanToolCache(rule, folder: Self.npmCache(home: context.home), context, emit)
     }
+
+    /// pip's cache on macOS, which `pip cache purge` empties. The folder is where pip puts it unless the user's pip
+    /// settings say otherwise, which Shuck does not read (D-126, D-127).
+    static func pipCache(home: URL) -> URL {
+        home.appending(path: "Library/Caches/pip", directoryHint: .isDirectory)
+    }
+
+    /// DEV-R08: `pip cache purge`, with the first of `pip` and `pip3` that Homebrew's folders hold. Homebrew's Python
+    /// installs `pip3`, and a `pip` link where the user made one. Apple's own `/usr/bin/pip3` is not used: without the
+    /// command line tools it is a stub that asks to install them, which a scan must never trigger (D-127).
+    static func pipCacheRule(_ tools: ToolLocations) throws(RuleError) -> CleanupRule {
+        let pip = tools.executable(["pip", "pip3"], in: ToolLocations.homebrewFolders)
+        guard let documentation = URL(string: "https://pip.pypa.io/en/stable/cli/pip_cache/") else {
+            throw .invalidDocumentation
+        }
+        return try CleanupRule(
+            id: "DEV-R08", name: LocalizedStringResource("pip Cache", bundle: #bundle),
+            description: LocalizedStringResource(
+                "Packages and wheels pip has downloaded or built and keeps for the next install.", bundle: #bundle),
+            category: packageManagers, detection: .executable(pip),
+            action: .command(try tools.command(pip, ["cache", "purge"])), tier: .rebuildable, selection: .always,
+            explanation: LocalizedStringResource(
+                "pip's own command empties its cache. It downloads or builds a package again the next time it needs it.",
+                bundle: #bundle),
+            documentation: documentation)
+    }
+
+    func scanPipCache(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
+        guard let tools = ToolLocations(context), let rule = try? Self.pipCacheRule(tools) else { return }
+        scanToolCache(rule, folder: Self.pipCache(home: context.home), context, emit)
+    }
 }

@@ -31,6 +31,8 @@ All notable changes to Shuck are listed here. The format follows
   installed (`/usr/bin`, `/opt/homebrew/bin`, `/usr/local/bin`).
 - Developer Junk lists npm's cache when npm is installed and has a cache in `~/.npm`. Cleaning it up runs
   `npm cache clean --force`, npm's own command, and the size shown is an upper estimate from the cache folder.
+- Developer Junk lists pip's cache when Homebrew's `pip` or `pip3` is installed and pip has a cache in
+  `~/Library/Caches/pip`. Cleaning it up runs `pip cache purge`, pip's own command. Apple's own `pip3` is not used.
 
 ### Changed
 
