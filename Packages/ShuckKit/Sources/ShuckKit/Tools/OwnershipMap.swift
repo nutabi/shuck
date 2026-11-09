@@ -57,6 +57,8 @@ public struct OwnershipMap: Sendable {
         // Tool-owned stores inside the personal files, shown there read-only (FCL-011, D-55): the Go module cache,
         // which `go clean -modcache` cleans (DEV-R14).
         Entry("go/pkg/mod", owners: [.developerJunk]),
+        // Developer Junk's rules claim their locations as they arrive: Xcode's DerivedData (DEV-R01).
+        Entry("Library/Developer/Xcode/DerivedData", owners: [.developerJunk]),
     ]
 
     /// The home folder the patterns are relative to.

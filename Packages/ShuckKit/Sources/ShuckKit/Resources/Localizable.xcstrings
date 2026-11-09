@@ -10,6 +10,9 @@
     "Applications" : {
 
     },
+    "Build products and indexes Xcode keeps for each project." : {
+
+    },
     "Caches & Logs" : {
 
     },
@@ -19,7 +22,13 @@
     "File Cleanup" : {
 
     },
+    "Its project is no longer on this Mac." : {
+
+    },
     "Large Files" : {
+
+    },
+    "Not built for %lld days or more." : {
 
     },
     "Not modified in %@" : {
@@ -56,6 +65,15 @@
 
     },
     "Which caches and logs can go?" : {
+
+    },
+    "Xcode" : {
+
+    },
+    "Xcode builds this project again when you next need it." : {
+
+    },
+    "Xcode DerivedData" : {
 
     }
   },
