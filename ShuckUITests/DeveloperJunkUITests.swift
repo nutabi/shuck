@@ -110,12 +110,13 @@ final class DeveloperJunkUITests: ShuckUITestCase {
                 text(sheet, startingWith: "Delete 2 items, ").appears(within: 5), "No confirmation: \(outline(of: app))"
             )
             XCTAssertTrue(sheet.staticTexts["Xcode"].exists, "The category's total is missing: \(outline(of: app))")
-            XCTAssertFalse(sheet.staticTexts["Stale"].exists, "The list is open before it was asked for")
+            XCTAssertFalse(sheet.staticTexts["Stale-\(projectHash)"].exists, "The list is open before it was asked for")
             attachScreenshot(of: app, named: "Summary confirmation")
 
             sheet.buttons["Show All Items"].click()
-            XCTAssertTrue(sheet.staticTexts["Stale"].appears(within: 5), "The item list is not reachable")
-            XCTAssertTrue(sheet.staticTexts["Fresh"].exists)
+            XCTAssertTrue(
+                sheet.staticTexts["Stale-\(projectHash)"].appears(within: 5), "The item list is not reachable")
+            XCTAssertTrue(sheet.staticTexts["Fresh-\(projectHash)"].exists)
             XCTAssertTrue(sheet.buttons["Hide All Items"].exists)
             XCTAssertTrue(
                 FileManager.default.fileExists(atPath: stale.path), "A folder was deleted before the confirmation")
