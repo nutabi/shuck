@@ -174,7 +174,9 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(isChecked(app, "Unavailable Simulators"))
             XCTAssertTrue(app.staticTexts["Size not known"].exists)
             let command = app.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS %@", "'simctl' 'delete' 'unavailable'")
+                NSPredicate(
+                    format: "label CONTAINS %@ OR value CONTAINS %@", "'simctl' 'delete' 'unavailable'",
+                    "'simctl' 'delete' 'unavailable'")
             ).firstMatch
             XCTAssertTrue(command.exists, "The command is not shown: \(outline(of: app))")
             XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
@@ -189,7 +191,9 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertFalse(sheet.buttons["Delete"].exists, "A tool run is worded as a deletion")
             sheet.buttons["Show All Items"].click()
             XCTAssertTrue(
-                sheet.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "'simctl'")).firstMatch
+                sheet.staticTexts.matching(
+                    NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "'simctl'", "'simctl'")
+                ).firstMatch
                     .appears(within: 5), "The command is not in the item list")
             XCTAssertFalse(root.aFakeToolRan, "The tool ran before the confirmation")
             attachScreenshot(of: app, named: "Summary confirmation for a tool")
@@ -213,10 +217,14 @@ final class DeveloperJunkUITests: ShuckUITestCase {
                 "The command is not the item's name: \(outline(of: app))")
             XCTAssertTrue(
                 app.staticTexts.matching(
-                    NSPredicate(format: "label ENDSWITH %@", "/usr/bin/xcrun · Cleaned by its tool")
+                    NSPredicate(
+                        format: "label ENDSWITH %@ OR value ENDSWITH %@", "/usr/bin/xcrun · Cleaned by its tool",
+                        "/usr/bin/xcrun · Cleaned by its tool")
                 ).firstMatch.exists, "The tool's own path is missing")
             XCTAssertTrue(
-                app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "arg=simctl")).firstMatch.exists,
+                app.staticTexts.matching(
+                    NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", "arg=simctl", "arg=simctl")
+                ).firstMatch.exists,
                 "The tool's output is missing")
             XCTAssertTrue(app.staticTexts["Not restorable"].exists)
             XCTAssertFalse(app.buttons["Restore All"].exists, "A tool run offers Restore")
