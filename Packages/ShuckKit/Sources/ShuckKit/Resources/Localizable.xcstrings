@@ -49,7 +49,16 @@
     "See what starts automatically and turn off what you don't want." : {
 
     },
+    "Shuck could not tell which version this is." : {
+
+    },
     "Startup Items" : {
+
+    },
+    "Symbols Xcode copies from a device so it can debug that version of its system." : {
+
+    },
+    "The newest version Xcode has for this platform." : {
 
     },
     "Uninstall apps together with the files they leave behind." : {
@@ -73,7 +82,13 @@
     "Xcode builds this project again when you next need it." : {
 
     },
+    "Xcode copies this again the next time you connect a device that runs this version." : {
+
+    },
     "Xcode DerivedData" : {
+
+    },
+    "Xcode Device Support Files" : {
 
     }
   },

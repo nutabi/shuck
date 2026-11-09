@@ -1,8 +1,8 @@
 import ShuckKitTestSupport
 import XCTest
 
-/// Developer Junk's Xcode build folders: one row per project, stale ones and those whose project is gone selected,
-/// and the rows of a running Xcode disabled.
+/// Developer Junk's Xcode files: one row per project, stale ones and those whose project is gone selected, device
+/// support versions selected unless they are the newest, and the rows of a running Xcode disabled.
 final class DeveloperJunkUITests: ShuckUITestCase {
     private let projectHash = "abcdefghijklmnopqrstuvwxyzab"
 
@@ -41,6 +41,8 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         try root.derivedDataProject("Stale-\(projectHash)", workspace: root.folder("Projects/Stale"), modified: longAgo)
         try root.derivedDataProject("Fresh-\(projectHash)", workspace: root.folder("Projects/Fresh"), modified: .now)
         try root.derivedDataProject("Gone-\(projectHash)", workspace: root.url("Projects/Gone"), modified: .now)
+        try root.deviceSupport("iOS", "16.4 (20E247)")
+        try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
         let app = launch()
         let sidebar = app.outlines.firstMatch
 
@@ -53,6 +55,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertFalse(app.staticTexts["Stale-\(projectHash)"].exists, "The folder's hash is shown")
             XCTAssertTrue(app.staticTexts["Its project is no longer on this Mac."].exists)
             XCTAssertTrue(app.staticTexts["Not built for 30 days or more."].exists)
+            XCTAssertTrue(app.staticTexts["iOS 16.4 (20E247)"].exists, "No row for the device support version")
             attachScreenshot(of: app, named: "Developer Junk, Xcode build folders")
         }
 
@@ -60,15 +63,20 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(isChecked(app, "Stale"))
             XCTAssertTrue(isChecked(app, "Gone"))
             XCTAssertFalse(isChecked(app, "Fresh"))
-            XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5), outline(of: app))
+        }
+
+        step("A device support version starts selected unless it is its platform's newest (DEV-R02)") {
+            XCTAssertTrue(isChecked(app, "iOS 16.4 (20E247)"))
+            XCTAssertFalse(isChecked(app, "iOS 17.2 (21C62) arm64e"))
+            XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5), outline(of: app))
         }
 
         step("Choosing a recent project selects it, and clearing a box deselects it (DEV-005)") {
             checkbox(app, "Fresh").click()
-            XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5))
             checkbox(app, "Stale").click()
             checkbox(app, "Gone").click()
-            XCTAssertTrue(footer(app, startingWith: "1 item selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5))
         }
     }
 

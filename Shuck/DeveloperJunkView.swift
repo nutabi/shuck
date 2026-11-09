@@ -1,9 +1,10 @@
 import ShuckKit
 import SwiftUI
 
-/// Developer Junk: "What can developer tools rebuild?" So far it lists Xcode's DerivedData, one row per project, the
-/// biggest first (DEV-R01, DEV-008). Stale projects and those whose project is gone start selected; a row whose app is
-/// running shows a note instead of a checkbox (SAF-009, CAC-003).
+/// Developer Junk: "What can developer tools rebuild?" So far it lists Xcode's DerivedData, one row per project (DEV-R01,
+/// DEV-008), and its device support files, one row per version of a platform (DEV-R02), the biggest first. Stale
+/// projects, those whose project is gone and every version but the newest start selected; a row whose app is running
+/// shows a note instead of a checkbox (SAF-009, CAC-003).
 ///
 /// Choosing rows only marks them. Deleting them comes with the summary confirmation (M2-T06), so this page has no
 /// action button yet (D-113). ``SubToolPage`` gives it the toolbar, the scan and the messages.
@@ -14,9 +15,9 @@ struct DeveloperJunkView: View {
 
     var body: some View {
         SubToolPage(
-            subTool: subTool, model: model, subtitle: Text("Xcode build folders, one for each project"),
+            subTool: subTool, model: model, subtitle: Text("Xcode build folders and device support files"),
             notScanned: Text("Scan to list what Xcode can build again. Scanning never removes anything."),
-            nothingFound: Text("No Xcode build folders found"),
+            nothingFound: Text("No Xcode build folders or device support files found"),
             scanHelp: Text("Look for what developer tools can rebuild. Scanning never removes anything.")
         ) { _ in
             List {
@@ -101,7 +102,10 @@ private struct ProjectRow: View {
         }
     }
 
+    /// A project's name without Xcode's hash, or a device support version with its platform.
     private var name: String {
-        DerivedDataProject.name(ofFolder: item.url?.lastPathComponent ?? "")
+        guard let url = item.url else { return "" }
+        let device = DeviceSupportVersion.name(ofFolder: url)
+        return device == url.lastPathComponent ? DerivedDataProject.name(ofFolder: device) : device
     }
 }
