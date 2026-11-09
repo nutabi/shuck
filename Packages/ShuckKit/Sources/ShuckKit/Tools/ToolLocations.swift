@@ -41,12 +41,17 @@ struct ToolLocations {
     }
 
     /// The command that runs `executable` with `arguments`: nothing of the app's environment, only `PATH` and `HOME`,
-    /// which the tool needs to find its cache (DEV-004).
-    func command(_ executable: String, _ arguments: [String]) throws(RuleError) -> ToolCommand {
+    /// which the tool needs to find its cache, and the `extra` variables the rule names (DEV-004).
+    func command(
+        _ executable: String, _ arguments: [String], extra: [String: String] = [:]
+    ) throws(RuleError) -> ToolCommand {
         do {
             return try ToolCommand(
                 executable: executable, arguments: arguments,
-                environment: [Self.pathVariable: Self.searchPath, Self.homeVariable: home.path])
+                environment: extra.merging([Self.pathVariable: Self.searchPath, Self.homeVariable: home.path]) {
+                    _, base in
+                    base
+                })
         } catch {
             throw .invalidDetection
         }

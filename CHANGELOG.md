@@ -33,6 +33,10 @@ All notable changes to Shuck are listed here. The format follows
   `npm cache clean --force`, npm's own command, and the size shown is an upper estimate from the cache folder.
 - Developer Junk lists pip's cache when Homebrew's `pip` or `pip3` is installed and pip has a cache in
   `~/Library/Caches/pip`. Cleaning it up runs `pip cache purge`, pip's own command. Apple's own `pip3` is not used.
+- Developer Junk lists Homebrew's cleanup when `brew` is installed and has downloads in
+  `~/Library/Caches/Homebrew`. Cleaning it up runs `brew cleanup`, Homebrew's own command, which removes old
+  versions of packages and old downloads and keeps the current ones. The size shown is the download cache only.
+  Shuck starts `brew` with Homebrew's analytics and automatic update turned off.
 
 ### Changed
 
