@@ -270,7 +270,8 @@ struct PlanExecutorTests {
         let item = PlannedItem(
             command: command, allocatedSize: 4096, tier: .rebuildable,
             category: ItemCategory(id: "fixture", name: "Fixture"))
-        let report = try await run(try plan([item]))
+        // The executor has no tool action, as one built before M2-T10 had none (D-89).
+        let report = try await run(try plan([item]), actions: [:])
         #expect(report.outcomes.map(\.result) == [.skipped(.unsupportedMethod(.tool))])
         #expect(item.url == nil && exists(executable))
         let records = try HistoryLog.read(folder: logFolder).records

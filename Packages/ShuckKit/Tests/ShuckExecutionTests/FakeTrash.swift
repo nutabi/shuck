@@ -25,13 +25,19 @@ struct FakeTrash: Trash {
 extension PlanExecutor {
     /// An executor for tests in `root`: it writes the root's history log and moves items into its fake Trash, running
     /// `beforeMove` just before each move. No app runs unless `runningApps` says so, and no test reads the real list.
+    /// Tools are found only inside the root, as in the app's fixture-root mode (D-114); `toolRunner` can change how
+    /// long a stopped tool gets to end.
     init(
         root: FixtureRoot, pathGuard: PathGuard, runningApps: any RunningApps = StubRunningApps(),
-        beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }
+        toolRunner: ToolRunner? = nil, beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }
     ) throws {
         self.init(
             pathGuard: pathGuard, log: try HistoryLog(folder: root.historyFolder),
-            trash: FakeTrash(folder: root.trashFolder, beforeMove: beforeMove), runningApps: runningApps)
+            actions: [
+                .trash: TrashAction(trash: FakeTrash(folder: root.trashFolder, beforeMove: beforeMove)),
+                .delete: DeleteAction(),
+            ], runningApps: runningApps,
+            toolAction: ToolAction(runner: toolRunner ?? ToolRunner(executableRoots: [root.url])))
     }
 }
 

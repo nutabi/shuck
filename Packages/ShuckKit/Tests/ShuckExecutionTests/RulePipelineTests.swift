@@ -205,8 +205,8 @@ struct RulePipelineTests {
         }
     }
 
-    @Test func aToolRuleBuildsOneCommandItemAndCannotExecuteYetSAF001SAF006SAF010() async throws {
-        let executable = try root.file("tools/cleaner", permissions: 0o700)
+    @Test func aToolRuleBuildsOneCommandItemAndItsRunIsLoggedSAF001SAF006SAF010() async throws {
+        let executable = try root.tool("tools/cleaner", .exits(0))
         let command = try ToolCommand(executable: executable.path, arguments: ["clean"], environment: ["PATH": "/bin"])
         let rule = try CleanupRule(
             id: "fixture", name: "Fixture", description: "Fixture", category: category,
@@ -229,7 +229,7 @@ struct RulePipelineTests {
             disabledReason: "Fixture tool is busy")
         #expect(!disabled.selection.isSelectable)
         let report = try await run(plan([item]))
-        #expect(report.outcomes.map(\.result) == [.skipped(.unsupportedMethod(.tool))])
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
         let records = try HistoryLog.read(folder: root.historyFolder).records
         #expect(records.allSatisfy { $0.path == command.display && $0.bytes == 12_345 && $0.operation == .tool })
         #expect(records.map(\.phase) == [.intent, .result])
