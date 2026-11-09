@@ -13,8 +13,10 @@ import XCTest
 /// - Old Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
 /// - History: a run's summary opens the run in History, in `CleanUpThenUndoUITests`.
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
-/// - Overview, Developer Junk, Caches & Logs, Applications and Startup Items: a placeholder that names its milestone,
-///   in `FirstLookUITests`.
+/// - Developer Junk: Xcode's DerivedData with its default selection, and a running Xcode's disabled rows, in
+///   `DeveloperJunkUITests`.
+/// - Overview, Caches & Logs, Applications and Startup Items: a placeholder that names its milestone, in
+///   `FirstLookUITests`.
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
 ///
 /// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).
@@ -35,7 +37,9 @@ class ShuckUITestCase: XCTestCase {
     /// text, such as "10.5 MB", doesn't depend on the Mac's own settings (TD-20).
     /// - Parameter scanDelay: Seconds each personal-files scan waits before it starts, so a test can stop one.
     @MainActor
-    func launch(scanDelay: Int? = nil) -> XCUIApplication {
+    /// - Parameter runningApps: Bundle IDs of apps the app treats as running, so a test can see a disabled item. Without
+    ///   them no app runs, even though Xcode itself runs these tests (D-110, D-113).
+    func launch(scanDelay: Int? = nil, runningApps: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)", "-OldFilesMinimumSize",
@@ -43,6 +47,9 @@ class ShuckUITestCase: XCTestCase {
         ]
         if let scanDelay {
             app.launchArguments += ["-ShuckScanDelaySeconds", "\(scanDelay)"]
+        }
+        if !runningApps.isEmpty {
+            app.launchArguments += ["-ShuckRunningApps", runningApps.joined(separator: ",")]
         }
         app.launch()
         return app

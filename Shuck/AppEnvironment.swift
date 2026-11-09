@@ -9,7 +9,8 @@ nonisolated struct AppEnvironment {
     /// Where "Move to Trash" puts items: the user's Trash, or `.Trash` inside a UI test's fixture root, so tests never
     /// touch the real one (D-47, D-63).
     let trash: any Trash
-    /// Which apps run now: this Mac's, or none in a UI test's fixture root, where Xcode itself runs the tests (D-110).
+    /// Which apps run now: this Mac's, or in a UI test's fixture root, where Xcode itself runs the tests, only those the
+    /// test names, if any (D-110, D-113).
     /// Scans disable a running app's items, and runs skip them (SAF-009).
     let runningApps: any RunningApps
     /// Where a tool command may be found: anywhere on this Mac, or only inside a UI test's fixture root, so a test never
@@ -34,6 +35,9 @@ nonisolated struct AppEnvironment {
     static let oldFilesMinimumSizeKey = "OldFilesMinimumSize"
     /// ``scanDelay`` in seconds, as a UI test passes it: `-ShuckScanDelaySeconds 2`.
     static let scanDelayKey = "ShuckScanDelaySeconds"
+    /// The apps a UI test pretends are running, as bundle IDs separated by commas: `-ShuckRunningApps
+    /// com.apple.dt.Xcode`. Only a fixture root reads it (D-113).
+    static let runningAppsKey = "ShuckRunningApps"
 
     /// Reads the stored value for a key, if any.
     typealias Settings = (String) -> Any?
@@ -85,8 +89,8 @@ nonisolated struct AppEnvironment {
             let protection = PathGuardConfiguration(
                 home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
                 appBundle: appBundle, userExclusions: [])
-            runningApps = StubRunningApps()
             toolRunner = ToolRunner(executableRoots: [root])
+            runningApps = StubRunningApps(Self.bundleIDs(settings(Self.runningAppsKey)))
             context = ScanContext(home: root, protection: protection, runningApps: runningApps)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
@@ -206,6 +210,12 @@ nonisolated struct AppEnvironment {
             tail.count == 5 && tail[0] == "Library" && tail[1] == "Containers" && tail[2].hasSuffix(".xctrunner")
             && tail[3] == "Data" && tail[4] == "tmp"
         return isProcessTemporary || isRunnerTemporary
+    }
+
+    /// The bundle IDs in a comma-separated launch argument, without blanks. Anything else gives none.
+    static func bundleIDs(_ setting: Any?) -> Set<String> {
+        guard let text = setting as? String else { return [] }
+        return Set(text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
     }
 
     /// A stored number that is not negative, or `nil` if there is none or it is not one. The caller then uses the

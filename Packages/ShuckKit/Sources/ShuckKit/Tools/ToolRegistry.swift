@@ -40,8 +40,10 @@ extension ToolRegistry {
 
     /// The standard registry with the user's settings, such as Large Files' minimum size and Old Files' period
     /// (SET-002).
-    public static func standard(largeFiles: LargeFiles = LargeFiles(), oldFiles: OldFiles = OldFiles()) -> ToolRegistry
-    {
+    public static func standard(
+        largeFiles: LargeFiles = LargeFiles(), oldFiles: OldFiles = OldFiles(),
+        developerJunk: DeveloperJunk = DeveloperJunk()
+    ) -> ToolRegistry {
         ToolRegistry(tools: [
             Tool(
                 info: ToolInfo(
@@ -52,13 +54,7 @@ extension ToolRegistry {
                 subTools: [
                     largeFiles,
                     oldFiles,
-                    // Two rules, Xcode Archives and Docker, are "Your data" (section 8.2).
-                    PlannedSubTool(
-                        info: ToolInfo(
-                            id: .developerJunk, name: LocalizedStringResource("Developer Junk", bundle: #bundle),
-                            summary: LocalizedStringResource("What can developer tools rebuild?", bundle: #bundle),
-                            symbolName: "hammer", availability: .planned(milestone: "M2")),
-                        tiers: [.rebuildable, .yourData]),
+                    developerJunk,
                     PlannedSubTool(
                         info: ToolInfo(
                             id: .cachesAndLogs, name: LocalizedStringResource("Caches & Logs", bundle: #bundle),

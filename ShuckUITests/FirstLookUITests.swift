@@ -31,11 +31,11 @@ final class FirstLookUITests: ShuckUITestCase {
 
         step("The File Cleanup landing page lists each sub-tool with its summary and Scan button (FCL-004)") {
             sidebar.staticTexts["File Cleanup"].click()
-            // Large Files and Old Files can scan; the others say which milestone builds them.
+            // Large Files, Old Files and Developer Junk can scan; Caches & Logs says which milestone builds it.
             let subTools = [
                 ("Large Files", "What is taking the most space?", true),
                 ("Old Files", "What haven't I opened in a long time?", true),
-                ("Developer Junk", "What can developer tools rebuild?", false),
+                ("Developer Junk", "What can developer tools rebuild?", true),
                 ("Caches & Logs", "Which caches and logs can go?", false),
             ]
             XCTAssertTrue(app.staticTexts[subTools[0].1].appears(within: 5))
@@ -53,11 +53,10 @@ final class FirstLookUITests: ShuckUITestCase {
         }
 
         step("Each tool a later milestone builds opens a page that names the milestone (NFR-QA-003)") {
-            // Overview comes first, so the landing page, which shows the same summaries for Developer Junk and Caches &
-            // Logs, is gone before they are checked.
+            // Overview comes first, so the landing page, which shows the same summary for Caches & Logs, is gone before
+            // it is checked.
             for (title, summary, milestone) in [
                 ("Overview", "Disk space at a glance, and what each sub-tool could reclaim.", "M5"),
-                ("Developer Junk", "What can developer tools rebuild?", "M2"),
                 ("Caches & Logs", "Which caches and logs can go?", "M2"),
                 ("Applications", "Uninstall apps together with the files they leave behind.", "M3"),
                 ("Startup Items", "See what starts automatically and turn off what you don't want.", "M4"),

@@ -29,6 +29,10 @@ final class ScanResults: SubToolResults {
     var selectedItems: [ScanItem] {
         items.filter { selected.contains($0.target) && $0.selection.isSelectable }
     }
+    /// The allocated size of the selected items, in bytes (SAF-013).
+    var selectedBytes: Int64 {
+        selectedItems.reduce(0) { $0 + $1.allocatedSize }
+    }
     /// Folders macOS did not let the scan read (SAF-012).
     private(set) var notAccessibleCount = 0
     /// Folders the scan could not read for another reason, such as a disk error (SAF-011).

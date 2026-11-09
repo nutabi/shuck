@@ -1,6 +1,15 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Look for what developer tools can rebuild. Scanning never removes anything." : {
+
+    },
+    "No Xcode build folders found" : {
+
+    },
+    "Scan to list what Xcode can build again. Scanning never removes anything." : {
+
+    },
     "Skipped: another file took its place since the scan" : {
 
     },
@@ -152,6 +161,9 @@
 
     },
     "The original place of ^[%lld item](inflect: true) is taken" : {
+
+    },
+    "Xcode build folders, one for each project" : {
 
     },
     "“%@” didn't pass Shuck's safety checks, so Shuck moved nothing." : {

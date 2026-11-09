@@ -89,10 +89,10 @@ struct ToolRegistryTests {
     }
 
     @Test func aPlannedSubToolCannotPlanAnythingSAF007() throws {
-        let developerJunk = try #require(ToolRegistry.standard.subTool(.developerJunk))
-        let item = try scanItem("Library/Developer/Xcode/DerivedData/App", source: .developerJunk, tier: .rebuildable)
+        let cachesAndLogs = try #require(ToolRegistry.standard.subTool(.cachesAndLogs))
+        let item = try scanItem("Library/Caches/com.example.App", source: .cachesAndLogs, tier: .rebuildable)
         let error = #expect(throws: PlanError.self) {
-            try Plan(subTool: developerJunk, items: [item], pathGuard: pathGuard)
+            try Plan(subTool: cachesAndLogs, items: [item], pathGuard: pathGuard)
         }
         guard case .rejected(_, .outsideAllowedRoots) = error else {
             Issue.record("Expected an allowed-roots rejection, got \(String(describing: error))")
