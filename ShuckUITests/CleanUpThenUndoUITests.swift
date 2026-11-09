@@ -138,12 +138,4 @@ final class CleanUpThenUndoUITests: ShuckUITestCase {
             XCTAssertEqual(restores.count, 2, "Each restore is listed as a run of its own")
         }
     }
-
-    /// A run's row on the History page, by the start of its label. The row reads as one element, as VoiceOver speaks
-    /// it: area and method, count and size, date, status. `firstMatch` never finds this combined element, so the query
-    /// must match exactly one; the rest of the label is checked in Swift, for a failure message that shows it.
-    @MainActor
-    private func runRow(in app: XCUIApplication, startingWith start: String) -> XCUIElement {
-        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", start)).element
-    }
 }

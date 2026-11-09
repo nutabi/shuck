@@ -13,8 +13,9 @@ import XCTest
 /// - Old Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
 /// - History: a run's summary opens the run in History, in `CleanUpThenUndoUITests`.
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
-/// - Developer Junk: Xcode's DerivedData with its default selection, and a running Xcode's disabled rows, in
-///   `DeveloperJunkUITests`.
+/// - Developer Junk: Xcode's DerivedData with its default selection, the summary confirmation and Delete, and a running
+///   Xcode's disabled rows, in `DeveloperJunkUITests`.
+/// - History's non-restorable deletions: the run Delete made, in `DeveloperJunkUITests`.
 /// - Overview, Caches & Logs, Applications and Startup Items: a placeholder that names its milestone, in
 ///   `FirstLookUITests`.
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
@@ -59,6 +60,14 @@ class ShuckUITestCase: XCTestCase {
     @MainActor
     func step(_ name: String, _ body: () throws -> Void) rethrows {
         try XCTContext.runActivity(named: name) { _ in try body() }
+    }
+
+    /// A run's row on the History page, by the start of its label. The row reads as one element, as VoiceOver speaks
+    /// it: area and method, count and size, date, status. `firstMatch` never finds this combined element, so the query
+    /// must match exactly one; the rest of the label is checked in Swift, for a failure message that shows it.
+    @MainActor
+    func runRow(in app: XCUIApplication, startingWith start: String) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", start)).element
     }
 
     /// Kept in the test results, so reviewers can see the page (ENG-003).

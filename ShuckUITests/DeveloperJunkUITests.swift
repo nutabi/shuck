@@ -14,6 +14,13 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             .firstMatch
     }
 
+    /// A static text in `container` that starts with `text`, such as a sheet's title with a size in it.
+    @MainActor
+    private func text(_ container: XCUIElement, startingWith text: String) -> XCUIElement {
+        container.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", text, text))
+            .firstMatch
+    }
+
     /// The checkbox of the project named `name`, found by the identifier the page gives it.
     @MainActor
     private func checkbox(_ app: XCUIApplication, _ name: String) -> XCUIElement {
@@ -38,15 +45,19 @@ final class DeveloperJunkUITests: ShuckUITestCase {
     @MainActor
     func testReviewXcodeBuildFolders() throws {
         let longAgo = Date.now.addingTimeInterval(-40 * 86_400)
-        try root.derivedDataProject("Stale-\(projectHash)", workspace: root.folder("Projects/Stale"), modified: longAgo)
-        try root.derivedDataProject("Fresh-\(projectHash)", workspace: root.folder("Projects/Fresh"), modified: .now)
-        try root.derivedDataProject("Gone-\(projectHash)", workspace: root.url("Projects/Gone"), modified: .now)
+        let stale = try root.derivedDataProject(
+            "Stale-\(projectHash)", workspace: root.folder("Projects/Stale"), modified: longAgo)
+        let fresh = try root.derivedDataProject(
+            "Fresh-\(projectHash)", workspace: root.folder("Projects/Fresh"), modified: .now)
+        let gone = try root.derivedDataProject(
+            "Gone-\(projectHash)", workspace: root.url("Projects/Gone"), modified: .now)
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
         try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 4096)
         try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
         let app = launch()
         let sidebar = app.outlines.firstMatch
+        let sheet = app.sheets.firstMatch
 
         step("Developer Junk lists one row per project, by name, with why it is listed (DEV-R01, DEV-008)") {
             XCTAssertTrue(sidebar.staticTexts["Developer Junk"].appears(within: 5))
@@ -84,6 +95,64 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             checkbox(app, "Stale").click()
             checkbox(app, "Gone").click()
             XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5))
+        }
+
+        step("Delete… opens the summary confirmation: totals per category, the list on demand, Cancel deletes nothing")
+        {
+            // The recent project is still selected; leave out the device support and the simulator cache and choose
+            // the stale project, so the run is two build folders.
+            checkbox(app, "iOS 16.4 (20E247)").click()
+            checkbox(app, "dyld").click()
+            checkbox(app, "Stale").click()
+            XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5))
+            app.buttons["Delete…"].click()
+            XCTAssertTrue(
+                text(sheet, startingWith: "Delete 2 items, ").appears(within: 5), "No confirmation: \(outline(of: app))"
+            )
+            XCTAssertTrue(sheet.staticTexts["Xcode"].exists, "The category's total is missing: \(outline(of: app))")
+            XCTAssertFalse(sheet.staticTexts["Stale-\(projectHash)"].exists, "The list is open before it was asked for")
+            attachScreenshot(of: app, named: "Summary confirmation")
+
+            sheet.buttons["Show All Items"].click()
+            XCTAssertTrue(
+                sheet.staticTexts["Stale-\(projectHash)"].appears(within: 5), "The item list is not reachable")
+            XCTAssertTrue(sheet.staticTexts["Fresh-\(projectHash)"].exists)
+            XCTAssertTrue(sheet.buttons["Hide All Items"].exists)
+            XCTAssertTrue(
+                FileManager.default.fileExists(atPath: stale.path), "A folder was deleted before the confirmation")
+
+            sheet.buttons["Cancel"].click()
+            XCTAssertTrue(sheet.disappears(within: 5))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: stale.path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: fresh.path))
+            XCTAssertTrue(
+                footer(app, startingWith: "2 items selected").appears(within: 5), "Cancel cleared the selection")
+        }
+
+        step("Delete removes the selection permanently, and the summary says what happened (SAF-003, SAF-011)") {
+            app.buttons["Delete…"].click()
+            XCTAssertTrue(text(sheet, startingWith: "Delete 2 items, ").appears(within: 5))
+            sheet.buttons["Delete"].click()
+            XCTAssertTrue(sheet.staticTexts["Deleted 2 items"].appears(within: 10), outline(of: app))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path), "Stale was not deleted")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: fresh.path), "Fresh was not deleted")
+            XCTAssertTrue(
+                FileManager.default.fileExists(atPath: gone.path), "A folder that was not selected was deleted")
+            XCTAssertFalse(
+                FileManager.default.fileExists(atPath: root.url.appending(path: ".Trash/Stale-\(projectHash)").path),
+                "A rebuildable item went to the Trash")
+            attachScreenshot(of: app, named: "Delete summary")
+        }
+
+        step("History shows the deletion as a run whose items are not restorable (HIS-004, SAF-006)") {
+            sheet.buttons["Show in History"].click()
+            let run = runRow(in: app, startingWith: "Developer Junk · Deleted permanently")
+            XCTAssertTrue(run.appears(within: 5), "The run is missing: \(outline(of: app))")
+            XCTAssertTrue(run.label.contains(", 2 items, "), "Wrong count: \(run.label)")
+            XCTAssertTrue(run.label.hasSuffix(", Completed"), "Wrong status: \(run.label)")
+            XCTAssertTrue(app.staticTexts["Not restorable"].appears(within: 5), "The items are not marked")
+            XCTAssertFalse(app.buttons["Restore All"].exists, "A deletion offers Restore")
+            attachScreenshot(of: app, named: "History with a deletion")
         }
     }
 

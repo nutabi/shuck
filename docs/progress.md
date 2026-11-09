@@ -219,16 +219,17 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   project is gone; the sub-tool's page (DEV-R01, DEV-008). Two pull requests (D-62):
   - [x] Engine: the DerivedData rule and Developer Junk's scan, ownership, and fixture and pipeline tests (D-112).
   - [x] App: register the sub-tool, its page, the running-apps launch argument and the UI workflow steps (D-113).
-    Left over: the page has no Delete button until M2-T06's summary confirmation; the other rules and Caches & Logs'
+    Left over: the page's Delete button came with M2-T06; the other rules and Caches & Logs'
     scan name their apps as they arrive (M2-T08, M2-T09, M2-T12).
-- [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
+- [x] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
   shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
   Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
   a third copy of the run scaffolding (#73). Two pull requests (D-62):
   - [x] One run model and one sheet layout; Move to Trash and Restore fill them in, with no change in behavior (D-116,
     #73).
-  - [ ] The summary confirmation for Delete, Developer Junk's Delete button, History's non-restorable display and the
-    UI workflow step.
+  - [x] The summary confirmation for Delete with Developer Junk's Delete button, History's non-restorable display and
+    the UI workflow steps (D-117). Left over: the run shows an indeterminate progress indicator, not a count, since
+    `PlanExecutor` reports only when it ends; the measured change in free space is M2-T07 (SAF-013).
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
   (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
 - [x] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are

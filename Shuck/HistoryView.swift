@@ -44,7 +44,9 @@ struct HistoryView: View {
         case .loaded(let history) where history.runs.isEmpty && history.unreadableLineCount == 0:
             ContentUnavailableView(
                 "No history yet", systemImage: "clock.arrow.circlepath",
-                description: Text("Everything Shuck moves to the Trash is listed here, with a way to put it back."))
+                description: Text(
+                    "Everything Shuck removes is listed here. Items moved to the Trash can be put back; deleted ones can't."
+                ))
         case .loaded(let history):
             List(selection: $selection) {
                 if history.unreadableLineCount > 0 {

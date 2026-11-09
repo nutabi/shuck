@@ -21,8 +21,9 @@ struct LargeFilesView: View {
             notScanned: Text("Scan to list files of at least \(minimumSize). Scanning never removes anything."),
             nothingFound: Text("No files of at least \(minimumSize)"),
             scanHelp: Text("Look for large files. Scanning never removes anything.")
-        ) { moveToTrash in
-            PersonalFilesTable(results: results, registry: registry, grouped: grouped, moveToTrash: moveToTrash)
+        ) { actions in
+            PersonalFilesTable(
+                results: results, registry: registry, grouped: grouped, moveToTrash: actions.moveToTrash)
         } controls: {
             Toggle("Group by Folder", systemImage: "folder", isOn: $grouped)
                 .help("Group files by their top-level folder, such as Downloads or Movies.")

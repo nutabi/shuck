@@ -96,6 +96,21 @@ struct HistoryTests {
                 == "Interrupted before its outcome was recorded")
     }
 
+    /// HIS-004, SAF-006: permanent deletions are shown as not restorable, and Restore offers nothing for them.
+    @Test func aDeletedItemIsNotRestorableHIS004SAF006() {
+        let deleted = run(
+            [
+                item(.succeeded, restorability: .permanent, operation: .delete),
+                item(.skipped("missing"), operation: .delete),
+            ],
+            tool: .developerJunk)
+
+        #expect(deleted.restorableItems.isEmpty)
+        #expect(OutcomeWording.method(of: deleted) == "Deleted permanently")
+        #expect(String(localized: HistoryView.status(of: deleted.items[0])) == "Not restorable")
+        #expect(HistoryView.area(of: deleted, in: .standard) == "Developer Junk")
+    }
+
     /// HIS-002: a run is labelled by its items' one operation, or by every operation they used (D-90).
     @Test func aRunsMethodComesFromItsItemsHIS002() {
         #expect(OutcomeWording.method(of: run([item(.succeeded), item(.succeeded)])) == "Moved to the Trash")
