@@ -82,6 +82,7 @@ private struct ProjectRow: View {
                 .toggleStyle(.checkbox)
                 .labelsHidden()
                 .accessibilityLabel(Text(verbatim: name))
+                .accessibilityIdentifier("project-\(name)")
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name)
