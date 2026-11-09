@@ -31,7 +31,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
     @MainActor
     private func outline(of app: XCUIApplication) -> String {
         app.windows.firstMatch.descendants(matching: .any).allElementsBoundByIndex
-            .map { "\($0.elementType.rawValue):\($0.identifier):\($0.label)" }.joined(separator: " | ")
+            .map { "\($0.elementType.rawValue):\($0.identifier):\($0.label):\($0.value ?? "")" }.joined(separator: " | ")
     }
 
     /// A checkbox's state, which XCUITest reports as 1 or 0.
@@ -201,7 +201,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
 
         step("Clean Up runs the tool and nothing else, and the summary says what happened (SAF-010, SAF-011)") {
             sheet.buttons["Clean Up"].click()
-            XCTAssertTrue(sheet.staticTexts["Cleaned up 1 item"].appears(within: 10), outline(of: app))
+            XCTAssertTrue(text(sheet, startingWith: "Cleaned up 1 item").appears(within: 10), outline(of: app))
             XCTAssertTrue(root.aFakeToolRan, "The tool did not run")
             XCTAssertTrue(FileManager.default.fileExists(atPath: device.path), "Shuck deleted simulator data itself")
         }
