@@ -97,7 +97,7 @@ struct RunLoop {
     /// One item's turn in the loop: what the log records about it, and its action.
     struct Step<SkipReason: RunSkipReason> {
         let logged: LoggedItem
-        let act: () -> Acted<SkipReason>
+        let act: () async -> Acted<SkipReason>
     }
 
     /// Runs `items` in order and returns one result per item. `prepare` is called for each item just before its intent
@@ -121,7 +121,7 @@ struct RunLoop {
                 continue
             }
 
-            let acted = step.act()
+            let acted = await step.act()
             if case .failed(let error) = acted.result {
                 logger.error(
                     """

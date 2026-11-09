@@ -287,7 +287,7 @@ struct PlanExecutorTests {
         let executor = PlanExecutor(
             pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), actions: [.delete: delete])
 
-        let acted = executor.act(on: item, allowedRoots: [root.url])
+        let acted = await executor.act(on: item, allowedRoots: [root.url])
 
         #expect(acted.result == .skipped(.notAllowed(.delete)))
         #expect(ItemOutcome.SkipReason.notAllowed(.delete).logged == "notAllowed: delete")
@@ -332,6 +332,31 @@ struct PlanExecutorTests {
         #expect(records.filter { $0.phase == .result }.map(\.status) == [.ok, .ok])
     }
 
+    @Test func stoppingReachesAnActionThatIsStillRunningSAF014() async throws {
+        let first = try root.file("Library/Caches/Fixture/first", size: 10)
+        let second = try root.file("Library/Caches/Fixture/second", size: 10)
+        let plan = try plan([
+            planned(first, tier: .rebuildable, method: .delete), planned(second, tier: .rebuildable, method: .delete),
+        ])
+        let waiting = WaitingAction()
+        let executor = PlanExecutor(
+            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), actions: [.delete: waiting])
+
+        let running = Task { await executor.run(plan) }
+        for await _ in waiting.started { break }
+        running.cancel()
+        let report = await running.value
+
+        #expect(
+            report.outcomes.map(\.result) == [
+                .failed(ActionError(domain: "Test", code: 1, message: "stopped")), .skipped(.cancelled),
+            ])
+        // The first item's result is logged as what happened; the second never started, so it has no records.
+        let records = try HistoryLog.read(folder: logFolder).records
+        #expect(records.map(\.phase) == [.intent, .result])
+        #expect(records.compactMap(\.status) == [.failed])
+    }
+
     @Test func cancellingAMixedRunMidwayLogsWhatWasDoneSAF014() async throws {
         let first = try root.file("Downloads/first.bin", size: 10)
         let cache = try root.folder("Library/Caches/Fixture")
@@ -360,7 +385,7 @@ struct PlanExecutorTests {
         // The task is cancelled when re-validation starts, as when the user clicks Stop while it measures the folder.
         let result = await Task {
             withUnsafeCurrentTask { $0?.cancel() }
-            return executor.act(on: item, allowedRoots: allowedRoots).result
+            return await executor.act(on: item, allowedRoots: allowedRoots).result
         }.value
 
         #expect(result == .skipped(.cancelled))

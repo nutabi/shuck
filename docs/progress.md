@@ -230,7 +230,10 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool
-  command can be stopped while it runs (SAF-014, D-93)
+  command can be stopped while it runs (SAF-014, D-93). Two pull requests, a stack (D-76):
+  - [x] `PlanAction.act` and the run loop's steps are `async`; Stop reaches an action that is still running (SAF-014,
+    D-93).
+  - [ ] The tool runner, the Tool action and its history output
 - [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
   run (DEV-R03, DEV-R07 to DEV-R09). Its first pull request decides what a History item shows for each operation,
   since `path` holds a tool name for `tool` and a job label for `launchctl`: for example the tool and its command, and

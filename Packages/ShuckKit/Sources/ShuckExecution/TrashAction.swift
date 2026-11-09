@@ -11,7 +11,7 @@ package struct TrashAction: PlanAction {
 
     /// Moves the item to the Trash. The result record gets where it went and the file identity of what was moved,
     /// which a move into the Trash on the same volume keeps, so Restore can tell it from a later item with its name.
-    package func act(on item: PlannedItem, at target: URL) -> Acted<ItemOutcome.SkipReason> {
+    package func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason> {
         // Read last, just before the move, so the log records the item that was re-validated and moved (D-84).
         guard let identity = FileIdentity.read(target) else { return Acted(.skipped(.missing)) }
         do {
