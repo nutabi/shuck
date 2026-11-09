@@ -22,7 +22,7 @@ struct TrashReviewTests {
 
     /// A model whose scan found two large old movies, a small old note and a read-only folder, and whose runs go to
     /// `runPlan`.
-    func scannedModel(runPlan: @escaping TrashReview.RunPlan) async -> FileCleanupModel {
+    func scannedModel(runPlan: @escaping RunPlan) async -> FileCleanupModel {
         let files = [
             ("Movies/big.mov", 5_000, nil), ("Movies/clip.mov", 3_000, nil), ("Documents/note.txt", 10, nil),
             ("go/pkg/mod", 9_000, ReadOnlyReason.managedBy(.developerJunk)),
@@ -44,7 +44,7 @@ struct TrashReviewTests {
     }
 
     /// A run that moves the items named in `trashed` and skips the others as changed.
-    func run(trashing trashed: Set<String>, onCall: @escaping @Sendable () -> Void = {}) -> TrashReview.RunPlan {
+    func run(trashing trashed: Set<String>, onCall: @escaping @Sendable () -> Void = {}) -> RunPlan {
         { (plan: Plan) async throws(HistoryError) -> RunReport in
             onCall()
             let outcomes = plan.items.map { item in
@@ -72,7 +72,7 @@ struct TrashReviewTests {
         #expect(review.plan.items.map(\.url) == [url("Movies/clip.mov"), url("Movies/big.mov")])
         #expect(review.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
         #expect(review.totalBytes == 8_000)
-        #expect(review.phase == .reviewing)
+        #expect(review.phase == .waiting)
     }
 
     @Test func movedItemsLeaveBothListsAndTheEstimatesFCL006SAF011() async throws {

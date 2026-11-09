@@ -49,7 +49,7 @@ final class FileCleanupModel {
     private let context: ScanContext
     private let personalFilesScan: PersonalFilesScan
     /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
-    private let runPlan: TrashReview.RunPlan?
+    private let runPlan: RunPlan?
     private var states: [ToolID: ScanState] = [:]
     /// The task of each running scan, so Stop can cancel it. The personal-files sub-tools share one.
     private var scans: [ToolID: Task<Void, Never>] = [:]
@@ -62,7 +62,7 @@ final class FileCleanupModel {
     init(
         subTools: [any SubTool], context: ScanContext,
         personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0, lastOpened: $1).scan() },
-        runPlan: TrashReview.RunPlan? = nil
+        runPlan: RunPlan? = nil
     ) {
         self.subTools = subTools
         self.context = context
