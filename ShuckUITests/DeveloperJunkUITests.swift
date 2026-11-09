@@ -156,6 +156,74 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         }
     }
 
+    /// A tool rule runs the tool's own command, and History shows the command and its output, not a file (DEV-R03, #63).
+    /// The fixture root holds a fake `xcrun`; the app finds tools only inside the root (D-114, D-124).
+    @MainActor
+    func testCleanUpUnavailableSimulatorsWithXcodesOwnTool() throws {
+        try root.tool("usr/bin/xcrun", .reportsInvocation)
+        let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
+        let app = launch()
+        let sidebar = app.outlines.firstMatch
+        let sheet = app.sheets.firstMatch
+
+        step("A tool rule is one selected row with its exact command and no size (DEV-R03, DEV-003, SAF-002)") {
+            XCTAssertTrue(sidebar.staticTexts["Developer Junk"].appears(within: 5))
+            sidebar.staticTexts["Developer Junk"].click()
+            XCTAssertTrue(
+                app.staticTexts["Unavailable Simulators"].appears(within: 10), "The scan did not list the rule")
+            XCTAssertTrue(isChecked(app, "Unavailable Simulators"))
+            XCTAssertTrue(app.staticTexts["Size not known"].exists)
+            let command = app.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS %@", "'simctl' 'delete' 'unavailable'")
+            ).firstMatch
+            XCTAssertTrue(command.exists, "The command is not shown: \(outline(of: app))")
+            XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
+            XCTAssertTrue(footer(app, startingWith: "1 item selected").appears(within: 5), outline(of: app))
+            attachScreenshot(of: app, named: "Developer Junk with a tool rule")
+        }
+
+        step("The confirmation says Clean Up, since a tool removes its own data (SAF-003, D-125)") {
+            app.buttons["Delete…"].click()
+            XCTAssertTrue(
+                text(sheet, startingWith: "Clean up 1 item").appears(within: 5), "No confirmation: \(outline(of: app))")
+            XCTAssertFalse(sheet.buttons["Delete"].exists, "A tool run is worded as a deletion")
+            sheet.buttons["Show All Items"].click()
+            XCTAssertTrue(
+                sheet.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "'simctl'")).firstMatch
+                    .appears(within: 5), "The command is not in the item list")
+            XCTAssertFalse(root.aFakeToolRan, "The tool ran before the confirmation")
+            attachScreenshot(of: app, named: "Summary confirmation for a tool")
+        }
+
+        step("Clean Up runs the tool and nothing else, and the summary says what happened (SAF-010, SAF-011)") {
+            sheet.buttons["Clean Up"].click()
+            XCTAssertTrue(sheet.staticTexts["Cleaned up 1 item"].appears(within: 10), outline(of: app))
+            XCTAssertTrue(root.aFakeToolRan, "The tool did not run")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: device.path), "Shuck deleted simulator data itself")
+        }
+
+        step("History shows the tool run as its command and output, not as a file (HIS-002, HIS-004, #63)") {
+            sheet.buttons["Show in History"].click()
+            let run = runRow(in: app, startingWith: "Developer Junk · Cleaned by its tool")
+            XCTAssertTrue(run.appears(within: 5), "The run is missing: \(outline(of: app))")
+            XCTAssertTrue(run.label.contains(", 1 item, "), "Wrong count: \(run.label)")
+            XCTAssertTrue(run.label.hasSuffix(", Completed"), "Wrong status: \(run.label)")
+            XCTAssertTrue(
+                app.staticTexts["xcrun simctl delete unavailable"].appears(within: 5),
+                "The command is not the item's name: \(outline(of: app))")
+            XCTAssertTrue(
+                app.staticTexts.matching(
+                    NSPredicate(format: "label ENDSWITH %@", "/usr/bin/xcrun · Cleaned by its tool")
+                ).firstMatch.exists, "The tool's own path is missing")
+            XCTAssertTrue(
+                app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "arg=simctl")).firstMatch.exists,
+                "The tool's output is missing")
+            XCTAssertTrue(app.staticTexts["Not restorable"].exists)
+            XCTAssertFalse(app.buttons["Restore All"].exists, "A tool run offers Restore")
+            attachScreenshot(of: app, named: "History with a tool run")
+        }
+    }
+
     @MainActor
     func testARunningXcodeDisablesItsProjects() throws {
         try root.derivedDataProject(

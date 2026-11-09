@@ -266,7 +266,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     end is worded from its code (#63, HIS-002, SAF-006, D-123).
   - [x] Tool items in Developer Junk: tool lookup under the scan's root, a row for a command, the confirmation's wording
     for tool commands, and tool items leaving the list after a run (DEV-002, DEV-004, SAF-003, SAF-010, D-124, D-125).
-  - [ ] Unavailable simulators (DEV-R03).
+  - [x] Unavailable simulators: `xcrun simctl delete unavailable`, listed with no size, run through the fake `xcrun` of the
+    UI test (DEV-R03, DEV-002, DEV-004, SAF-010, D-125).
   - [ ] npm cache (DEV-R07).
   - [ ] pip cache (DEV-R08).
   - [ ] Homebrew (DEV-R09).

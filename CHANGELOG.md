@@ -24,6 +24,11 @@ All notable changes to Shuck are listed here. The format follows
   a log for 7 days, starts selected. Caches that macOS itself writes are listed but never start selected, and nothing
   can be selected while its app is running. Delete shows the same confirmation as Developer Junk and empties each
   folder without removing the folder. Caches that developer tools own, such as Homebrew's, stay with Developer Junk.
+- Developer Junk lists the simulators that Xcode can no longer start (unavailable simulators), when your Mac has
+  simulators. Cleaning them up runs `xcrun simctl delete unavailable`, Xcode's own command; Shuck never deletes
+  simulator data itself. The confirmation says "Clean up" for tool commands, and its size is shown as unknown. History
+  shows the command that ran, the tool's path and what it printed. Shuck finds tools only where they are usually
+  installed (`/usr/bin`, `/opt/homebrew/bin`, `/usr/local/bin`).
 
 ### Changed
 
