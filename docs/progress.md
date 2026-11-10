@@ -221,20 +221,34 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] App: register the sub-tool, its page, the running-apps launch argument and the UI workflow steps (D-113).
     Left over: the page has no Delete button until M2-T06's summary confirmation; the other rules and Caches & Logs'
     scan name their apps as they arrive (M2-T08, M2-T09, M2-T12).
+  - Review of 2026-11-10 (DEV-R01): the rule's explanation says that deleting DerivedData also removes `SourcePackages`
+    (Swift package checkouts, which need the network to restore) and Xcode's compilation cache. Not done yet.
 - [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
   shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
   Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
   a third copy of the run scaffolding (#73).
+  - Review of 2026-11-10 (SAF-003, HIS-002): Developer Junk's rows show no path, and two DerivedData folders of one
+    project name look identical, so the item list on demand shows each item's full path. History shows a Tool item as
+    its command, not as a file path.
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
   (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
+  - Review of 2026-11-10 (SAF-013, R-06): local Time Machine snapshots and APFS clones keep blocks alive, so the
+    measured change can be far below the estimate, and the summary says so. Items in the Trash free nothing until it is
+    emptied.
 - [x] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
   refused (DEV-R02, DEV-R04, DEV-007). Two pull requests, a stack (D-62, D-76):
   - [x] Device support files: every version but the newest of each platform is selected (DEV-R02, D-118).
   - [x] CoreSimulator caches, and the guard refusing simulator device data and the other tool-managed stores
     (DEV-R04, DEV-007, D-119).
+  - [ ] Owner item (review of 2026-11-10): check on the owner's Mac whether `~/Library/Developer/CoreSimulator/Caches`
+    still exists under the current Xcode. DevCleaner's maintainer reports it gone on recent Xcode versions and advises
+    against cleaning these caches (PRD S77). If it is gone or risky, the owner decides whether DEV-R04 stays.
 - [ ] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
-- [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
+  - Review of 2026-11-10 (CAC-004, CAC-009): delete a cache or log folder's contents, never the folder itself (Mole
+    issue 1689); skip an app's caches while it runs (Mole issue 1854); never classify a folder as a cache by its name
+    alone (Mole issue 823); unknown apps are not preselected, since some apps keep state in Caches.
+- [x] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool
   command can be stopped while it runs (SAF-014, D-93). Two pull requests, a stack (D-76):
@@ -250,10 +264,25 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   run (DEV-R03, DEV-R07 to DEV-R09). Its first pull request decides what a History item shows for each operation,
   since `path` holds a tool name for `tool` and a job label for `launchctl`: for example the tool and its command, and
   the job label, with a unit test for each operation (#63).
+  - Review of 2026-11-10 (DEV-002, DEV-004, DEV-R03): tool commands must not reach the network (NFR-SEC-001). Every
+    `brew` command sets `HOMEBREW_NO_AUTO_UPDATE=1` and `HOMEBREW_NO_ANALYTICS=1`; `npm` sets
+    `NPM_CONFIG_UPDATE_NOTIFIER=false` and `NPM_CONFIG_OFFLINE=true`. To verify: whether `brew cleanup`,
+    `npm cache clean` and `pip cache purge` themselves use the network (undocumented).
+  - Tool detection: a minimal explicit `PATH` does not find npm or pip installed through nvm, asdf, mise, fnm, volta or
+    pyenv. `/usr/bin/xcrun` exists on a Mac without Xcode and can raise the "install command line developer tools"
+    prompt, so "the path exists" is not detection for simctl. Decide how each tool is found.
+  - `xcrun simctl delete unavailable` is the only supported way to remove simulator devices. Do not offer
+    `simctl runtime delete`: it is reported to be undone at restart.
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
   (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
   DEV-006, SET-003, FCL-005)
+  - Review of 2026-11-10 (DEV-006, DEV-R06): the rule's explanation says that restoring needs `npm install` and a
+    connection, since Shuck has no network. Require a lockfile next to `node_modules`; take only the top-most
+    `node_modules` of a project; warn when the project uses `patch-package` or `file:` links; define "stale" by the
+    newest file among the project's own files, not the folder's date.
+- [ ] M2-T14 User exclusions, moved from M5 so no release with permanent Delete ships without them: the engine applies
+  them to every tool and sub-tool, and Settings gets a minimal list with a folder picker and Remove (SET-001, D-127).
 
 Patch releases during M2 (D-94):
 
@@ -293,6 +322,41 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 - [x] M2-F05 Faster CI, at the owner's request: the engine builds once, in Xcode, from a workspace and test plan; the
   macOS job no longer repeats the Linux job's checks; `main` is not tested again after a merge; and builds reuse
   Xcode's compilation cache (D-111).
+- [x] M2-F06 Review of 2026-11-10: decisions D-120 to D-127 recorded, PRD and task list updated.
+
+Fixes from the review of 2026-11-10 (D-120 to D-127). Each is one reviewable pull request; the issues are opened
+separately. Changes to Safety and Execution go in pull requests of their own (D-62):
+
+- [ ] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
+  "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
+  devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-120).
+- [ ] M2-F08 Old Files uses the latest of the last-used, modification and added dates, names the date that decided in
+  the reason, and uses the newest direct child for a package or folder (OLD-002, D-121, R-18).
+- [ ] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,
+  D-122, D-127).
+- [ ] M2-F10 Path guard: refuse a folder that contains a protected bundle or name among its direct children, and a
+  Trash target that is itself a mount point; the same pull request words FCL-011's examples in code and text
+  (SAF-007, section 8.4, D-127). Safety change.
+- [ ] M2-F11 Re-validation compares the modification date of every item, Trash or Delete, using the deep date for
+  contents-only items, and a plan refuses a Delete item without a rule match (SAF-008, D-123). Safety and Execution
+  change.
+- [ ] M2-F12 One running instance: a second launch of the same build activates the first and quits, and the history log
+  is locked with `flock` while a run writes it (SAF-018, D-127).
+- [ ] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards
+  Cmd-Q during a run. Write what a Restore needs before the move, or recover it at the next launch, and ask before
+  quitting during a run (SAF-005, SAF-006, HIS-001, #115). Execution change.
+- [ ] M2-F14 `ToolRunner` can call `terminate()` on a process that has not launched yet (`ToolRunner.swift`, #114).
+  Execution change.
+- [ ] M2-F15 Execution fixes: Delete holds one file descriptor per folder level, and a failed Restore leaves the parent
+  folders it created behind (SAF-006, HIS-003, #119, #120). Execution change.
+- [ ] M2-F16 The two acceptance checks the PRD names (D-124): a test that stops a run between an intent and its result
+  record and checks History and Restore (HIS-001), and a static check that every Must SAF requirement built so far is
+  named in a test (NFR-QA-001).
+- [ ] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
+  ONB-002), and two History strings are missing from the String Catalog (NFR-L10N-001, #116, #118).
+- [ ] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before
+  printing Apple's log, and `static-checks.sh` scans untracked folders such as `.claude/worktrees` (NFR-SEC-003,
+  ENG-006, #121, #122).
 - The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
   0.2.0 release items below.
 
@@ -300,6 +364,7 @@ Exit criteria (PRD section 13):
 
 - [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
   finds every tool run in History.
+- [ ] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-127).
 - [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
 - [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
@@ -309,4 +374,33 @@ Exit criteria (PRD section 13):
 
 ## M3 to M6
 
-Not broken down yet (PRD section 13).
+Not broken down yet (PRD section 13). Notes from the review of 2026-11-10 for when each milestone is broken down:
+
+M3 Applications:
+
+- macOS's App Management permission (`kTCCServiceSystemPolicyAppBundles`, macOS 13+) gates changing other apps'
+  bundles, and other apps' containers prompt separately (PRD S78, R-16). App Store and package-installed apps are often
+  root-owned (APP-005).
+- [ ] Owner item: measure how many of the owner's own apps Shuck could remove, before M3 is broken down (OQ-08).
+- [ ] Owner decision: leftovers in Application Support and Group Containers can be the only copy of user data (notes,
+  vaults). APP-003 preselects High-confidence items; should these folders never be preselected? (OQ-07). APP-003 stays
+  as written until the owner decides.
+
+M4 Startup Items:
+
+- `SMAppService.openSystemSettingsLoginItems()` is allowed in the app target by the static check; every other use
+  stays an error outside `ShuckExecution`. D-97 said M3; Startup Items is M4. Change `scripts/static-checks.sh` and its
+  self-test in the pull request that adds the button (STA-004, D-126).
+
+M5 Overview, onboarding, settings, polish:
+
+- Clear History: "Clear History…" in Settings, which says that Restore is lost for the cleared runs (HIS-008, SET-007,
+  D-127).
+- The localization and compatibility pass builds two checks (D-124): hard-coded UI strings and stale String Catalog
+  keys (NFR-L10N-001), and the engine's macOS 26 build as a required check (NFR-COMP-001, D-06).
+- Info.plist usage strings are optional but recommended, and none are set today: `NSDesktopFolderUsageDescription`,
+  `NSDocumentsFolderUsageDescription`, `NSDownloadsFolderUsageDescription`, and later `NSAppBundlesUsageDescription`
+  and `NSAppDataUsageDescription` (ONB).
+- Docker (DEV-R10): never `--volumes` or `-a`; prefer `docker builder prune` (PRD S72); the host's `Docker.raw` does not
+  shrink, so the measured change can be zero.
+- Finder's "Put Back" for items Shuck trashes is unverified on macOS 27; the UI says "Restore in Shuck" (HIS-006).

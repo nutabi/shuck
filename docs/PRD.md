@@ -6,8 +6,8 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.4 — Engine package layout (see Revision history) |
-| Date | 2026-11-01 |
+| Version | 1.5 — Review of 2026-11-10 (see Revision history) |
+| Date | 2026-11-10 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
 | Repository | `github.com/nutabi/shuck` (to be initialised by the owner) |
@@ -23,6 +23,7 @@
 | 1.2 | 2026-11-01 | The tier decides review and default selection; each rule or action declares its method, and "Your data" never uses Delete. Adds the Launchctl method and the Docker review (DEV-010) (D-24). Overview reports reclaimable space for File Cleanup only; ownership is scoped to File Cleanup (D-25). Uninstall unloads matching LaunchAgents before trashing them (APP-011, D-26). |
 | 1.3 | 2026-11-02 | Settings moves from the sidebar to its own window, opened with ⌘, (D-27). |
 | 1.4 | 2026-11-02 | Execution is its own module, `ShuckExecution`, inside the ShuckKit package (D-28). The dependency ban covers third-party packages only (NFR-SEC-002, ENG-006, D-29). |
+| 1.5 | 2026-11-10 | Review of 2026-11-10 (D-120 to D-127): synced files are listed, marked and warned about (FCL-010, FCL-012, SAF-002, OQ-06); Old Files uses the latest date it knows (OLD-002); the scan skips `.git` and other volumes (FCL-008); re-validation checks every item's modification date, and Delete needs a rule (SAF-008); the guard also refuses folders that contain a protected bundle or name (SAF-007, section 8.4); one running instance and a locked history log (SAF-018); Clear History (HIS-008, SET-007); user exclusions move to M2 (SET-001); acceptance checks name their milestone (D-124); `SMAppService` may open System Settings (STA-004, ENG-006, D-126). Brings the text in line with decisions D-43, D-62, D-65, D-66, D-70, D-75, D-111, D-115, D-119: protected locations, pull request size and template, CI, debug bundle ID, UI test wording, the history log's `detail` field, the repository layout. Adds tool-rule and Caches & Logs requirements from research (DEV-002, DEV-004, DEV-006, CAC-009, rule notes), new risks R-16 to R-18, open questions OQ-07 and OQ-08, and sources S71 to S78. |
 
 ## How to read this document
 
@@ -32,7 +33,7 @@
 - **Requirement IDs.** Format `<AREA>-<NNN>`, for example `SAF-007` or `APP-003`. IDs are stable: never renumber or reuse an ID. To drop a requirement, mark it "Withdrawn".
 - **Prefixes.** `SAF` safety. `FCL` File Cleanup tool, with sub-tools `LRG` Large Files, `OLD` Old Files, `DEV` Developer Junk and `CAC` Caches & Logs. `APP` Applications. `STA` Startup Items. `HIS` History & Restore. `OVR` Overview. `ONB` Onboarding. `SET` Settings. `NFR-*` non-functional. `ENG` engineering workflow. The `LOF` prefix from v1.0 is retired and must not be reused.
 - **Tools and sub-tools.** A *tool* is a top-level entry in the sidebar. A *sub-tool* is an independent unit inside a tool, with its own scan, results, review and action (section 9.1).
-- **Decisions.** `D-NN` refers to the decision log in Appendix A. `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
+- **Decisions.** `D-NN` refers to the decision log: D-01 to D-29 in Appendix A, D-30 onwards in `docs/decisions.md`. `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
 - **Sources.** `[S12]` refers to entry S12 in Appendix C.
 - **For AI agents.** Read sections 2, 6, 8 and 12 before any task. Reference requirement IDs in every pull request. All file deletion goes through the safety layer described in section 8; no other code path may delete, move or modify user files.
 - **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The owner decides and records the outcome in `docs/decisions.md`.
@@ -167,7 +168,7 @@ There is no time-based deadline (D-15).
 | Network | None. The MVP makes no network connections. | D-18 |
 | Name | **Shuck**. Tagline: "Shuck — housekeeping for Mac". | D-21 |
 | Bundle ID | `me.nutabi.shuck` | D-21 |
-| Derived identifiers | Future admin helper: `me.nutabi.shuck.helper`. Logger subsystem: `me.nutabi.shuck`. Data folder: `~/Library/Application Support/me.nutabi.shuck/`. Settings domain: `me.nutabi.shuck`. | D-21 |
+| Derived identifiers | Future admin helper: `me.nutabi.shuck.helper`. Logger subsystem: `me.nutabi.shuck`. Data folder: `~/Library/Application Support/me.nutabi.shuck/`. Settings domain: `me.nutabi.shuck`. Debug builds use the bundle ID `me.nutabi.shuck.debug`, with a settings domain and a data folder of that name; the Logger subsystem stays `me.nutabi.shuck` in both builds. | D-21, D-70 |
 | License | GPL-3.0-or-later. The repository `LICENSE` file contains the full GPL-3.0 text [S37]. | D-20 |
 | Legal notices | Copyright holder: Nguyen Thai Binh. The About window shows copyright, the no-warranty statement, the license and a link to the source (GPL-3.0 section 5(d) [S37]). README and About include: "Mac and macOS are trademarks of Apple Inc., registered in the U.S. and other countries and regions." [S35] | D-20 |
 
@@ -186,7 +187,7 @@ There is no time-based deadline (D-15).
 
 | Area | ID prefix | Summary | Milestone |
 |---|---|---|---|
-| Safety core | SAF | Scan → plan → review → act → log, path guards, protected locations | M1 (Trash), M2 (permanent delete, tool commands) |
+| Safety core | SAF | Scan → plan → review → act → log, path guards, protected locations, one running instance | M1 (Trash), M2 (permanent delete, tool commands) |
 | **File Cleanup** (tool) | FCL | One tool holding independent file sub-tools; landing page; shared personal-files scan; ownership and de-duplication rules | M1 |
 | ↳ Large Files (sub-tool) | LRG | Personal files above a size threshold; move them to the Trash | M1 |
 | ↳ Old Files (sub-tool) | OLD | Personal files not opened for months; move them to the Trash | M1 |
@@ -197,7 +198,7 @@ There is no time-based deadline (D-15).
 | History & Restore | HIS | Log of every action; restore trashed items in the app | M1 |
 | Overview | OVR | Scan everything; show reclaimable space per File Cleanup sub-tool, and counts for Applications and Startup Items | M5 |
 | Onboarding & Permissions | ONB | First launch, Full Disk Access guidance, limited-access handling | M5 |
-| Settings | SET | Exclusions, thresholds, project folders, About and legal notices | M5 |
+| Settings | SET | Exclusions, thresholds, project folders, Clear History, About and legal notices | M2 (SET-001 exclusions: engine and a minimal list, D-127), M5 (the rest) |
 
 ### 7.2 Post-MVP backlog (proposed order; the owner may reorder)
 
@@ -214,7 +215,7 @@ There is no time-based deadline (D-15).
 | L-09 | Scheduled scans and menu bar item | Zero-click cleaning allowed for the rebuildable tier only. |
 | L-10 | Command-line tool | A thin layer over the engine package. |
 | L-11 | Homebrew cask distribution | Optional extra install channel. |
-| L-12 | Localization | Strings are already in String Catalogs (L10N-001). |
+| L-12 | Localization | Strings are already in String Catalogs (NFR-L10N-001). |
 | L-13 | External volumes | Scanning drives other than the startup volume. |
 
 ### 7.3 Out of scope
@@ -256,22 +257,23 @@ Rationale: Apple defines caches as data that "can be regenerated as needed. Apps
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
 | SAF-001 | Every scan item MUST carry: tier, method, allocated size, reason text, source tool or sub-tool, and (where relevant) confidence level. | Must | Unit test: the item model cannot be constructed without these fields. |
-| SAF-002 | "Your data" actions MUST show an itemized review and an explicit confirmation stating item count and total size. A Tool action counts as one item; its row shows the exact command, what it removes and the tool's size estimate. Tool output is shown for information only and never used to choose targets (R-07). | Must | UI test: confirm stays disabled until the review is shown; the dialog shows count and size; a Tool item shows its command. |
-| SAF-003 | "Rebuildable" actions MUST show one summary confirmation with per-category totals. The full item list MUST be reachable from that confirmation. | Must | UI test. |
+| SAF-002 | "Your data" actions MUST show an itemized review and an explicit confirmation stating item count and total size. A Tool action counts as one item; its row shows the exact command, what it removes and the tool's size estimate. Tool output is shown for information only and never used to choose targets (R-07). The review of a synced item (FCL-010) says that moving it to the Trash removes it from the user's other devices (D-120). | Must | UI test: confirm stays disabled until the review is shown; the dialog shows count and size; a Tool item shows its command; a synced item shows the warning. |
+| SAF-003 | "Rebuildable" actions MUST show one summary confirmation with per-category totals. The full item list MUST be reachable from that confirmation, and it shows each item's full path, because rows such as two DerivedData folders of one project name look alike without it. | Must | UI test. |
 | SAF-004 | The tier decides the review style (SAF-002, SAF-003) and the default selection. Each rule or action declares its method within its tier's limits: "Rebuildable" uses Delete or Tool; "Your data" uses Trash (via `FileManager.trashItem` or `NSWorkspace.recycle`) [S42], Tool for tool-owned data (SAF-010) or Launchctl for user agents (STA-005, APP-011), and MUST NOT use Delete. A "Your data" action that cannot be undone MUST say so in its confirmation and is logged as non-restorable (SAF-006). | Must | Unit test: the planner rejects Delete for a "Your data" item and accepts each allowed tier–method pair. UI test: a non-restorable "Your data" confirmation shows the warning. |
 | SAF-005 | Every Trash operation MUST be recorded in the history log with the original path and the trashed path returned by the system (`resultingItemURL`) [S42]. | Must | Fixture test: log entries match the actual trashed locations. |
 | SAF-006 | Permanent deletions, tool runs and launchctl changes MUST also be logged (path, job label or command, size estimate, outcome). Deletions and tool runs are marked non-restorable. A launchctl change is reversed by the opposite action (STA-005), not by Restore. | Must | Fixture test. |
-| SAF-007 | A **path guard** in the engine MUST reject any target that: (a) is empty, `/`, or the home folder itself; (b) is not absolute or contains `..` after normalization; (c) after resolving symlinks, is not strictly inside an allowed root for its tool or sub-tool; (d) lies inside a protected location (section 8.4); (e) is on a volume other than the startup volume (MVP). Deletion MUST NOT follow symlinks out of the target. | Must | Fixture tests for each case, including a symlink pointing outside the root and an empty-variable path (the Steam bug pattern [S23]). |
-| SAF-008 | Every run MUST re-validate each item just before acting: it still exists, its type is unchanged, and its size is within tolerance. Changed items are skipped and reported. Rule-backed Delete items must still match their cleanup rule, and any change to the target's modification date since the scan is skipped, even when type and size still match (D-105). | Must | Fixture test: modify an item between plan and run → skipped with reason; a rule-backed Delete target with only a changed modification date is skipped. |
+| SAF-007 | A **path guard** in the engine MUST reject any target that: (a) is empty, `/`, or the home folder itself; (b) is not absolute or contains `..` after normalization; (c) after resolving symlinks, is not strictly inside an allowed root for its tool or sub-tool; (d) lies inside a protected location (section 8.4), or contains one: a fixed protected location, or a protected bundle or name among its direct children (D-43, D-127); (e) is on a volume other than the startup volume (MVP), or is a Trash target that is itself a mount point (D-127). Deletion MUST NOT follow symlinks out of the target. | Must | Fixture tests for each case, including a symlink pointing outside the root and an empty-variable path (the Steam bug pattern [S23]). |
+| SAF-008 | Every run MUST re-validate each item just before acting: it still exists, its type is unchanged, and its size is within tolerance. Changed items are skipped and reported. Every item, Trash or Delete, whose modification date differs from the one read at the scan is skipped, even when type and size still match; for an item whose scope is its contents, the date compared is the same deep date the scan used for staleness (D-105, D-123). Rule-backed Delete items must still match their cleanup rule, and a plan refuses a Delete item that has no rule match (D-123). | Must | Fixture test: modify an item between plan and run → skipped with reason; a Trash item or a rule-backed Delete target with only a changed modification date is skipped; a plan with a Delete item that has no rule is refused. |
 | SAF-009 | Files belonging to a running app MUST NOT be acted on. Uninstall requires the app to quit first; caches of running apps are skipped. | Must | Fixture test with a stubbed running-app list. |
 | SAF-010 | Data owned by a tool MUST be cleaned only through that tool's documented command (section 9.1.3). If the tool is missing, its rule is hidden. | Must | Unit test: tool rules never produce Delete operations. |
 | SAF-011 | Every run MUST end with a per-item outcome (succeeded, skipped or failed, with reason). There are no silent failures. | Must | Fixture test with mixed outcomes. |
 | SAF-012 | Permission errors (macOS privacy protection, TCC) MUST be reported as "Not accessible" with guidance (ONB-002). They MUST NOT trigger any privilege escalation. | Must | Fixture test using an unreadable folder. |
-| SAF-013 | Sizes MUST be allocated sizes (`totalFileAllocatedSizeKey`) [S44]. After a run, the app SHOULD show the measured change in free space next to the estimate and explain gaps: Trash not yet emptied, APFS snapshots or clones, purgeable space. | Must (size) / Should (comparison) | Unit test for size calculation; manual check for the comparison. |
+| SAF-013 | Sizes MUST be allocated sizes (`totalFileAllocatedSizeKey`) [S44]. After a run, the app SHOULD show the measured change in free space next to the estimate and explain gaps: Trash not yet emptied (items in the Trash free nothing until it is emptied), local Time Machine snapshots and APFS clones (they keep blocks alive, so the measured change can be far below the estimate), purgeable space. | Must (size) / Should (comparison) | Unit test for size calculation; manual check for the comparison. |
 | SAF-014 | Scans and runs MUST be cancellable. Cancelling a run stops before the next item, and the log reflects the true state. | Must | Fixture test: cancel midway → the log matches the disk. |
 | SAF-015 | A single Rebuildable target larger than a sanity threshold (default: 25% of the home folder's size) SHOULD require a second confirmation. | Should | Fixture test. |
 | SAF-016 | Tests MUST NOT touch the real home folder. A test harness creates a temporary fixture root and asserts that every path used is inside it. | Must | The harness fails any test that resolves a path outside the fixture root. |
 | SAF-017 | No code outside the engine's execution layer (the `ShuckExecution` module, D-28) may delete, move, rename or modify user files or launchd state. | Must | CI static check (ENG-006) for file-mutation APIs outside the allowed module. |
+| SAF-018 | Only one instance of a build runs. A second launch of the same build activates the first and quits. While a run writes the history log, the log is also locked (`flock`), so two processes never interleave records (D-127). | Must | Unit test: a second lock on the log is refused while the first is held; manual check of a second launch. |
 
 ### 8.4 Protected locations (default list)
 
@@ -281,17 +283,20 @@ Shuck MUST NOT act on these, even if the user selects them. Scans skip or show t
 |---|---|
 | `/System`, `/usr`, `/bin`, `/sbin`, `/private`, `/Library` (MVP), `/opt` | System or admin-owned. `/opt/homebrew` is touched only through `brew`. |
 | `~/Library/Mobile Documents` (iCloud Drive) and `~/Library/CloudStorage` (other sync providers) | Synced storage |
-| Photos, Music and TV libraries (as whole bundles) | Managed by their apps |
+| Photos, Music and TV libraries (as whole bundles, matched by extension wherever they are: `photoslibrary`, `photolibrary`, `musiclibrary`, `tvlibrary`; Music and TV libraries also in their default folders) | Managed by their apps (D-43) |
 | `~/Library/Mail`, `~/Library/Messages`, `~/Library/Keychains` | Personal data and credentials |
-| `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, other credential folders | Developer credentials |
-| Time Machine backups and local snapshots | Backups |
-| Shuck's own app bundle and data folder | Self-protection |
+| `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, `~/.azure`, `~/.docker`, `~/.netrc`, `~/.password-store`, `~/.config/gcloud` | Developer credentials (D-43) |
+| Time Machine backups and local snapshots, including `Backups.backupdb` and `backupbundle` bundles | Backups (D-43) |
+| `~/Library/Developer/CoreSimulator/Devices` and `Volumes`, `~/Library/Containers/com.docker.docker`, `~/Library/Group Containers/group.com.docker` | Stores a tool manages (DEV-007, SAF-010, D-119) |
+| Shuck's own app bundle and the data folders of both builds (`me.nutabi.shuck` and `me.nutabi.shuck.debug`) | Self-protection (D-70) |
 | Any path the user adds in Settings (SET-001) | User choice |
+
+Protecting a folder also refuses its parents: a target that contains a protected location is rejected (D-43). The same holds for a folder that has a protected bundle or name among its direct children (D-127).
 
 ### 8.5 History log format
 
 - **File:** `~/Library/Application Support/me.nutabi.shuck/history.jsonl`, in JSON Lines format (one JSON object per line) [S59].
-- **Writing:** append-only; one "intent" record before each operation and one "result" record after it.
+- **Writing:** append-only; one "intent" record before each operation and one "result" record after it. The log is locked (`flock`) while a run writes it (SAF-018).
 - **Permissions:** readable only by the user. File mode 0600; folder mode 0700.
 
 | Field | Type | Notes |
@@ -302,13 +307,13 @@ Shuck MUST NOT act on these, even if the user selects them. Scans skip or show t
 | `tool` | string | Sub-tool or tool ID: `LRG`, `OLD`, `DEV`, `CAC`, `APP`, `STA`, `HIS` |
 | `phase` | string | `intent` or `result` |
 | `op` | string | `trash`, `delete`, `tool`, `launchctl`, `restore` |
-| `path` | string | Original path (or tool name for `tool`) |
+| `path` | string | Original path; for `tool`, the quoted command (D-106, D-115) |
 | `trashedPath` | string, optional | From `resultingItemURL` [S42] |
 | `identity` | object, optional | Result records of `trash`: the trashed item's file identity, `{"volume": st_dev, "file": st_ino}`, read just before the move. Restore moves only an item whose file number still matches. Logs written by 0.1.0 do not have it (D-84). |
 | `bytes` | integer, optional | Allocated size estimate |
 | `tier` | string | `rebuildable` or `yourData` |
 | `status` | string, result only | `ok`, `skipped`, `failed` |
-| `detail` | string, optional | A skip's reason code, alone or followed by a colon and what was found, such as `changed: file, 4096 bytes`; a failure as `<domain> <code>: <message>`; a tool's exit code (D-88) |
+| `detail` | string, optional | A skip's reason code, alone or followed by a colon and what was found, such as `changed: file, 4096 bytes`; a failure as `<domain> <code>: <message>` (D-88). A tool run: `exit 0` or `exit 0; output: <text>`; a failure is the error, then `; output: <text>`. The output is kept to its last 2048 bytes and marked `…` when cut (D-115). |
 
 ## 9. Feature requirements
 
@@ -329,11 +334,11 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | FCL-005 | **Ownership:** every location belongs to exactly one sub-tool. For example, Homebrew's cache belongs to Developer Junk, not Caches & Logs. The only exception is FCL-006. Ownership covers File Cleanup only. Other tools may act on the same locations; for example, an uninstall trashes an app's whole container, including caches that Caches & Logs lists. Such overlaps are never summed (OVR-001), and an item another tool has already removed is skipped at run time (SAF-008) (D-25). | Must | Unit test: the ownership map has no overlaps other than the personal-files pair. |
 | FCL-006 | Large Files and Old Files share one personal-files scan and its item state. A file can appear in both; once it is trashed in one, it disappears from the other. | Must | Integration test. |
 | FCL-007 | Totals that combine sub-tools (landing page, Overview) count each file once, de-duplicated by file identity. | Must | Unit test with a file that is both large and old. |
-| FCL-008 | **Personal-files scope** (used by Large Files and Old Files): the user's home folder on the startup volume. Excluded: `~/Library` (apps manage it; see Applications and Caches & Logs) except an allowlist of user-data locations (initially iPhone and iPad device backups); hidden top-level folders (tool data; see Developer Junk); app bundles (see Applications); protected locations; user exclusions. | Must | Fixture tree with files in each excluded area → none appear in results. |
+| FCL-008 | **Personal-files scope** (used by Large Files and Old Files): the user's home folder on the startup volume; the scan does not enter another volume (D-127). Git's own files are not personal files: the scan does not enter a folder named `.git`, at any depth, and does not list a `.git` file; other hidden folders below the top level stay in scope (D-122). Excluded: `~/Library` (apps manage it; see Applications and Caches & Logs) except an allowlist of user-data locations (initially iPhone and iPad device backups); hidden top-level folders (tool data; see Developer Junk); app bundles (see Applications); protected locations; user exclusions. | Must | Fixture tree with files in each excluded area, including a `.git` folder with a large packfile → none appear in results. |
 | FCL-009 | Packages (folders macOS presents as one file, detected with `isPackageKey`) are shown as single items with their total allocated size. | Must | Fixture package → one item with summed size. |
-| FCL-010 | iCloud placeholder files that are not downloaded locally are excluded (`ubiquitousItemDownloadingStatusKey`) [S45]. | Must | Unit test with stubbed resource values. |
-| FCL-011 | Data stores owned by a tool (for example Docker's disk image or Xcode simulator data) are shown read-only, with a pointer to the sub-tool that manages them. | Must | Fixture test. |
-| FCL-012 | Large Files and Old Files results stream in as the scan progresses, can be sorted by size, date, name and kind, and show the total of the selection. Each item shows name, path, kind, size and date. Space opens a Quick Look preview; "Show in Finder" reveals the file. | Must | UI test with a fixture root. |
+| FCL-010 | iCloud placeholders that are not downloaded locally are excluded, whether they are files, packages or folders (`ubiquitousItemDownloadingStatusKey`) [S45]. A downloaded file that a sync service keeps elsewhere in the home folder, such as `~/Desktop` and `~/Documents` under iCloud's Desktop & Documents, is still listed. The scan records that it is synced (`isUbiquitousItemKey`) and the results mark it "Synced" (FCL-012). iCloud Drive's own folders stay fully protected (section 8.4) (D-120). | Must | Unit test with stubbed resource values, including a placeholder folder and a downloaded synced file. |
+| FCL-011 | Data stores owned by a tool that can occur inside the personal files (for example the Go module cache, `~/go/pkg/mod`) are shown read-only, with a pointer to the sub-tool that manages them. Stores in `~/Library` or hidden folders, such as Docker's disk image and Xcode simulator data, lie outside the scope (FCL-008) and are refused by the guard (section 8.4) (D-127). | Must | Fixture test. |
+| FCL-012 | Large Files and Old Files results stream in as the scan progresses, can be sorted by size, date, name and kind, and show the total of the selection. Each item shows name, path, kind, size and date, and a "Synced" mark with text (not color alone) when a sync service keeps it (D-120). Space opens a Quick Look preview; "Show in Finder" reveals the file. | Must | UI test with a fixture root. |
 | FCL-013 | Known file types get a short explanation, for example disk images and installers in Downloads, or device backups. | Should | Unit test on the classifier. |
 
 #### 9.1.1 Large Files (LRG)
@@ -354,8 +359,8 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
 | OLD-001 | Lists personal files (FCL-008) not opened for at least the chosen period (default 12 months; presets 3, 6, 12 and 24 months; custom value) and at least a minimum size (default 50 MB; can be set to 0), so the list stays focused on space. | Must | Fixture test with stubbed dates. |
-| OLD-002 | "Last opened" uses Spotlight's `kMDItemLastUsedDate`, which Launch Services updates whenever a file is opened [S43]. If it is missing, fall back to the content-modified date. The UI labels which date is shown. | Must | Unit test with a stubbed metadata provider. |
-| OLD-003 | Sorted by last-opened date, oldest first, by default. | Must | UI test. |
+| OLD-002 | A file's "last opened" date is the latest of Spotlight's `kMDItemLastUsedDate`, which Launch Services updates whenever a file is opened [S43], its content-modification date, and the date it was added to its folder (`addedToDirectoryDateKey`). A missing date is ignored. The reason names the date that decided: "Not opened", "Not modified" or "Added". For a package or a folder listed as one item, the modification date is the newest among the item and its direct children. No single date proves a file is unused, so the newest one counts (D-121; supersedes the earlier order). | Must | Unit test with a stubbed metadata provider: each date can decide; the reason names it. |
+| OLD-003 | Sorted by the last-opened date of OLD-002, oldest first, by default. | Must | UI test. |
 | OLD-004 | Nothing is selected by default (D-10). The action is "Move to Trash" through the safety pipeline (Your data tier), logged for restore. | Must | Fixture test end to end. |
 
 #### 9.1.3 Developer Junk (DEV)
@@ -365,11 +370,11 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
 | DEV-001 | Cleanup rules are data, defined in the engine. Each rule has: ID, name, description, detection (tool path or folder exists), targets (paths inside allowed roots) or tool command, tier, staleness rule, explanation, documentation link. Adding a rule is one small pull request with fixture tests. | Must | Unit test: rules load and validate. |
-| DEV-002 | Only rules whose tool or data exists on this Mac are shown. | Must | Unit test with stubbed detection. |
+| DEV-002 | Only rules whose tool or data exists on this Mac are shown. For a tool, "the path exists" is not always enough: `/usr/bin/xcrun` exists on a Mac without Xcode and can raise the "install command line developer tools" prompt, so simctl needs another test; and npm or pip installed through nvm, asdf, mise, fnm, volta or pyenv is not on a minimal explicit `PATH`. How each tool is found is decided in M2-T11. | Must | Unit test with stubbed detection. |
 | DEV-003 | Each rule shows a size estimate before acting: the folder's allocated size, or the size the tool reports where available. | Must | Fixture test. |
-| DEV-004 | Tool commands run as the current user through `Process`, with an absolute executable path and an argument array (no shell), an explicit `PATH`, and a timeout (default 10 minutes). Output and exit code go to the history log. | Must | Unit test with a fake tool executable. |
+| DEV-004 | Tool commands run as the current user through `Process`, with an absolute executable path and an argument array (no shell), an explicit `PATH`, and a timeout (default 10 minutes). Output and exit code go to the history log. A tool command must not reach the network (NFR-SEC-001): every `brew` command sets `HOMEBREW_NO_AUTO_UPDATE=1` and `HOMEBREW_NO_ANALYTICS=1` [S54], and `npm` sets `NPM_CONFIG_UPDATE_NOTIFIER=false` and `NPM_CONFIG_OFFLINE=true` [S71]. Whether `brew cleanup`, `npm cache clean` and `pip cache purge` themselves use the network is undocumented: to verify in M2-T11. | Must | Unit test with a fake tool executable that prints its environment. |
 | DEV-005 | Staleness default: 30 days since last modification (configurable, SET-002). Stale items are selected; others are listed but not selected. | Must | Fixture test with dated folders. |
-| DEV-006 | `node_modules` scanning is limited to the project folders configured in Settings (SET-003), with a depth limit. It never descends into `node_modules` itself. | Must | Fixture test. |
+| DEV-006 | `node_modules` scanning is limited to the project folders configured in Settings (SET-003), with a depth limit. It never descends into `node_modules` itself, and takes only the top-most `node_modules` of a project. A `node_modules` is listed only with a lockfile next to it. A project is stale by the newest file among the project's own files (not `node_modules`, and not the folder's date). The item warns when the project uses `patch-package` or `file:` links, whose changes a reinstall does not restore. | Must | Fixture test: nested `node_modules`, a missing lockfile, a recently edited source file, a `file:` link. |
 | DEV-007 | Stores managed by a tool are never deleted directly: Docker's disk image, simulator device data, the Homebrew Cellar. | Must | Unit test: these paths are rejected by the guard. |
 | DEV-008 | DerivedData is broken down per project, and folders whose project no longer exists are flagged. | Should | Fixture test. |
 | DEV-009 | Implement the rules marked Must in the table below. | Must | One fixture or recorded-output test per rule. |
@@ -384,17 +389,25 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | DEV-R03 Unavailable simulators | `xcrun simctl delete unavailable` | Tool | Rebuildable | Yes | Must | `xcrun simctl help delete` |
 | DEV-R04 CoreSimulator caches | `~/Library/Developer/CoreSimulator/Caches/*` | Delete | Rebuildable | Yes | Must | — |
 | DEV-R05 Xcode Archives | `~/Library/Developer/Xcode/Archives/*` | Trash | Your data | Never. Apple: "You must retain the Xcode archive for each build of your app you distribute." | Must | [S50] |
-| DEV-R06 Stale `node_modules` | `<project folders>/**/node_modules` | Delete | Rebuildable | Project stale 30+ days | Must | — |
+| DEV-R06 Stale `node_modules` | `<project folders>/**/node_modules` | Delete | Rebuildable | Project stale 30+ days (DEV-006) | Must | — |
 | DEV-R07 npm cache | `npm cache clean --force` | Tool | Rebuildable | Yes | Must | [S53] |
 | DEV-R08 pip cache | `pip cache purge` | Tool | Rebuildable | Yes | Must | [S52] |
 | DEV-R09 Homebrew | `brew cleanup` | Tool | Rebuildable | Yes | Must | [S54] |
-| DEV-R10 Docker | `docker system prune --force` (`--force` skips Docker's own prompt; Shuck's review (DEV-010) replaces it. Never `--volumes`; volumes are not removed by default "to prevent important data from being deleted") | Tool | Your data | Never | Should | [S51] |
+| DEV-R10 Docker | `docker system prune --force` (`--force` skips Docker's own prompt; Shuck's review (DEV-010) replaces it. Never `--volumes` or `-a`; volumes are not removed by default "to prevent important data from being deleted") | Tool | Your data | Never | Should | [S51] |
 | DEV-R11 SwiftPM cache | `swift package purge-cache` | Tool | Rebuildable | Yes | Should | [S70] |
 | DEV-R12 CocoaPods cache | `pod cache clean --all` | Tool | Rebuildable | Yes | Should | [S55] |
 | DEV-R13 Yarn / pnpm | `yarn cache clean` / `pnpm store prune` | Tool | Rebuildable | Yes | Could | — |
 | DEV-R14 Go module cache | `go clean -modcache` | Tool | Rebuildable | No | Could | [S56] |
 | DEV-R15 Gradle caches | `~/.gradle/caches` | Delete | Rebuildable | No | Could | — |
 | DEV-R16 Cargo registry cache | `~/.cargo/registry/cache` | Delete | Rebuildable | No | Could | — |
+
+**Rule notes.** What a rule's explanation and checks must say, from the review of 2026-11-10:
+
+- **DEV-R01.** Deleting DerivedData also removes `SourcePackages` (Swift package checkouts), which need the network to restore, and Xcode's compilation cache. The explanation says so.
+- **DEV-R03.** `xcrun simctl delete unavailable` is the only supported way to remove simulator devices. `simctl runtime delete` is reported to be undone at restart [S73], so Shuck does not offer it.
+- **DEV-R04.** DevCleaner's maintainer reports that `~/Library/Developer/CoreSimulator/Caches` is gone on recent Xcode versions and advises against cleaning these caches [S77]. To verify on the owner's Mac (`docs/progress.md`, M2-T08).
+- **DEV-R06.** Shuck has no network (P-3), so the explanation says that restoring `node_modules` needs `npm install` and a connection.
+- **DEV-R10.** Never `--volumes` or `-a`. To decide in M5: prefer `docker builder prune` [S72] to `docker system prune`. Docker's disk image on the host does not shrink when space is freed inside it, so the measured change in free space can be zero (SAF-013).
 
 #### 9.1.4 Caches & Logs (CAC)
 
@@ -405,11 +418,12 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | CAC-001 | Scope: entries in `~/Library/Caches`, entries in `~/Library/Logs`, and sandboxed apps' caches at `~/Library/Containers/*/Data/Library/Caches` (needs Full Disk Access). Excluded: caches owned by Developer Junk rules (FCL-005), for example Homebrew and SwiftPM; Shuck's own caches; protected locations. | Must | Fixture tree → expected entries. |
 | CAC-002 | Group entries by owning app. Folders named after a bundle ID are resolved to the app name; unknown folders keep their folder name. | Must | Unit test. |
 | CAC-003 | Caches of running apps are unselected and disabled, with the note "app is running". | Must | Fixture test with stubbed running apps. |
-| CAC-004 | Delete the contents of each selected cache folder, but keep the folder itself. | Must | Fixture test. |
+| CAC-004 | Delete the contents of each selected cache or log folder, but keep the folder itself. Deleting `~/Library/Logs/DiagnosticReports` itself stopped crash reports from being written [S74]. | Must | Fixture test. |
 | CAC-005 | Logs: log files not modified for 7+ days (configurable) are selected; newer logs are listed but not selected. | Must | Fixture test with dated files. |
 | CAC-006 | Rebuildable tier: one summary confirmation (SAF-003). | Must | UI test. |
 | CAC-007 | The screen states that macOS also "clears caches and logs that are safe to delete" when space is needed, so gains may be temporary [S5]. | Must | Review. |
 | CAC-008 | `/Library/Caches`, `/Library/Logs` and `/private/var` need admin rights and are out of the MVP (L-01). | Must | Guard rejects these paths. |
+| CAC-009 | A folder is never classified as a cache by its name alone: another tool's cleanup deleted Claude Code's memory folders that way [S76]. An entry whose owning app Shuck cannot resolve (CAC-002) is listed but not selected, because some apps keep state in Caches (for example offline data; anecdotal). Caches of a running app are skipped (CAC-003) [S75]. | Must | Fixture test: an unknown folder is listed and unselected; a folder named `cache` outside the scope (CAC-001) is not listed. |
 
 ### 9.2 Applications — uninstaller (APP)
 
@@ -421,7 +435,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | APP-002 | For a selected app, find related user-level items by exact bundle ID in: `~/Library/Application Support`, `Caches`, `Containers`, `Group Containers` (matched through the app's declared app groups), `Preferences` (including `ByHost`), `Saved Application State`, `HTTPStorages`, `WebKit`, `Cookies`, `Logs`, `Application Scripts`, and `LaunchAgents` (plist label or program path inside the app bundle). | Must | Fixture Library tree → expected matches. |
 | APP-003 | Every related item gets a confidence level. **High:** exact bundle ID or declared app group. **Medium:** app or vendor name match in Application Support, Caches or Logs. **Low:** other heuristics. Only High items are selected by default. Medium and Low items show the reason for the match. | Must | Unit tests per level. |
 | APP-004 | Related items found in system-wide locations (`/Library/Application Support`, `LaunchAgents`, `LaunchDaemons`, `PrivilegedHelperTools`, `Preferences`) are listed as "Needs admin — not removable in this version", with "Show in Finder" (D-08). | Must | Fixture test. |
-| APP-005 | If the user cannot remove the app bundle itself (for example a root-owned app installed by a package), the uninstall is blocked with the reason shown. Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
+| APP-005 | If the user cannot remove the app bundle itself (for example a root-owned app installed by a package, or because macOS's App Management permission is missing, R-16), the uninstall is blocked with the reason shown. Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
 | APP-006 | If the app is running, offer "Quit <App>" using a normal quit request (`NSRunningApplication.terminate()`). Continue only after the app has exited. Never force-quit. | Must | Integration test with a stubbed running-app list. |
 | APP-007 | Uninstall moves the app bundle and the selected items to the Trash in one run, after an itemized review; matching LaunchAgents are unloaded first (APP-011). Restore puts everything back. | Must | Fixture test end to end, including restore. |
 | APP-008 | Apps installed by a package show their receipt (from `pkgutil`) and a note that system-wide files may exist. | Should | Unit test with recorded `pkgutil` output. |
@@ -438,7 +452,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | STA-001 | List launchd property lists in `~/Library/LaunchAgents` (this user), `/Library/LaunchAgents` (all users) and `/Library/LaunchDaemons` (system). For each: label, program and arguments, run conditions (`RunAtLoad`, `KeepAlive`, intervals), owning app (resolved from the program path or label), scope. | Must | Fixture plists → expected rows. |
 | STA-002 | Show status for each job. User agents: loaded and enabled state in the `gui/<uid>` domain (`launchctl print`, `launchctl print-disabled`). The system domain is queried read-only; anyone may read it, but changes need root [S47]. | Must | Unit test with recorded `launchctl` output. |
 | STA-003 | List helpers bundled inside installed apps (`Contents/Library/LaunchAgents`, `LaunchDaemons`, `LoginItems`) as "Managed by macOS Login Items & Extensions" (read-only). `SMAppService` manages only an app's own helpers [S16]. | Must | Fixture app bundle → listed read-only. |
-| STA-004 | "Open at Login" apps cannot be listed through a supported API. Show an explanation and an "Open Login Items settings" button that calls `SMAppService.openSystemSettingsLoginItems()` [S48][S17]. | Must | UI test: the button is present; manual check that it opens the right pane. |
+| STA-004 | "Open at Login" apps cannot be listed through a supported API. Show an explanation and an "Open Login Items settings" button that calls `SMAppService.openSystemSettingsLoginItems()` [S48][S17]. The static check allows this one call in the app target, because it only opens a pane; every other use of `SMAppService` stays an error outside `ShuckExecution` (D-126). | Must | UI test: the button is present; manual check that it opens the right pane. |
 | STA-005 | For user agents in `~/Library/LaunchAgents` only: **Disable** (`launchctl bootout` + `launchctl disable`; the disabled state persists across reboots [S47]), **Enable** (`enable` + `bootstrap`), **Remove** (`bootout`, then move the plist to the Trash; restorable). Itemized review (Your data tier). | Must | Integration test on a fixture agent in a test domain; manual check on the owner's Mac. |
 | STA-006 | Items in `/Library/*` and the system domain are read-only, marked "Needs admin", with "Show in Finder" (D-08). | Must | UI test. |
 | STA-007 | Flag jobs whose program path does not exist ("program missing"). These are likely leftovers from removed apps. | Must | Fixture test. |
@@ -451,13 +465,14 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
-| HIS-001 | The history log follows section 8.5. Each record is flushed with a barrier (`F_BARRIERFSYNC`) after it is written, so the drive writes it before what follows, and the whole log is flushed to permanent storage (`F_FULLFSYNC`) when a run ends (D-104). | Must | Kill-during-run test: log intent records match the disk state. |
-| HIS-002 | The History view lists runs (date, area, item count, size, method, status). Each run expands to its items. | Must | UI test. |
+| HIS-001 | The history log follows section 8.5. Each record is flushed with a barrier (`F_BARRIERFSYNC`) after it is written, so the drive writes it before what follows, and the whole log is flushed to permanent storage (`F_FULLFSYNC`) when a run ends (D-104). | Must | Kill-during-run test: log intent records match the disk state. Built in M2 (D-124): a test stops a run between an intent and its result record and checks History and Restore. |
+| HIS-002 | The History view lists runs (date, area, item count, size, method, status). Each run expands to its items. A Tool item shows its command and a Launchctl item its job label, never a file path (D-106). | Must | UI test. |
 | HIS-003 | **Restore** moves a trashed item from its trashed path back to its original path, recreating missing parent folders. If the original path is taken, ask: keep both (add " (restored)") or skip. Never overwrite. | Must | Fixture tests: normal restore, occupied path, missing parent. |
 | HIS-004 | If an item's trashed path no longer exists, mark it "Not restorable (Trash emptied)". Permanent deletions and tool runs are shown as non-restorable. | Must | Fixture test. |
 | HIS-005 | Restoring a startup item puts its plist back. It is re-enabled only if the user confirms. | Must | Fixture test. |
-| HIS-006 | Shuck MUST NOT rely on Finder's "Put Back", which is unreliable when an app trashes several items in a row [S21]. | Must | Design review. |
+| HIS-006 | Shuck MUST NOT rely on Finder's "Put Back", which is unreliable when an app trashes several items in a row [S21]. Items Shuck trashes probably get no "Put Back" entry in Finder at all, so the UI says "Restore in Shuck". Unverified on macOS 27: to verify. | Must | Design review; check on macOS 27 whether Finder offers "Put Back" for an item Shuck trashed. |
 | HIS-007 | Export a run report as Markdown or JSON. | Could | — |
+| HIS-008 | History is kept until the user clears it: there is no size cap and no expiry. Settings has "Clear History…" (SET-007), which says that Restore is lost for the cleared runs and asks for confirmation. A tool's output tail stays at 2 KiB (D-115). Built in M5, with Settings (D-127). | Should | Unit test: clearing empties the log and keeps its permissions; UI test of the confirmation text. |
 
 ### 9.5 Overview (OVR)
 
@@ -482,12 +497,13 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
-| SET-001 | Exclusions list: add with a folder picker or drag and drop, remove. Applies to every tool and sub-tool. | Must | Fixture test: excluded paths never appear. |
+| SET-001 | Exclusions list: add with a folder picker or drag and drop, remove. Applies to every tool and sub-tool. Built in M2, as the engine and a minimal list in Settings, so no release with permanent Delete ships without it (D-127). | Must | Fixture test: excluded paths never appear. |
 | SET-002 | Thresholds: Large Files minimum size (500 MB); Old Files period (12 months) and minimum size (50 MB); Developer Junk staleness (30 days); log age (7 days). | Must | Unit test: defaults and persistence. |
 | SET-003 | Developer project folders (for DEV-R06). The default suggestion is whichever of `~/Developer`, `~/Projects`, `~/Code`, `~/src` and `~/repos` exist. | Must | Unit test. |
-| SET-004 | Settings are stored in `UserDefaults` under the domain `me.nutabi.shuck`. | Must | Unit test. |
+| SET-004 | Settings are stored in `UserDefaults` under the domain `me.nutabi.shuck` (debug builds: `me.nutabi.shuck.debug`, D-70). | Must | Unit test. |
 | SET-005 | About window: version, build, copyright, GPL notices, source link, trademark attribution (section 6). | Must | UI test. |
 | SET-006 | "Reset to defaults". | Should | Unit test. |
+| SET-007 | "Clear History…" (HIS-008). | Should | UI test. |
 
 ## 10. Non-functional requirements (NFR)
 
@@ -504,12 +520,12 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | NFR-SEC-005 | Shuck's data folder is 0700 and its files are 0600. | Must | Unit test. |
 | NFR-SEC-006 | `Logger` messages mark paths and file names as private [S68]. | Must | Code review checklist. |
 | NFR-A11Y-001 | Every control has a VoiceOver label. Full keyboard navigation. Respects Increase Contrast, Reduce Motion and Reduce Transparency. No information conveyed by color alone [S58]. | Must | Accessibility Inspector audit in M5. |
-| NFR-L10N-001 | English UI. All user-facing strings live in String Catalogs so localization (L-12) needs no code changes. | Must | Static check: no hard-coded UI strings. |
-| NFR-COMP-001 | App: macOS 27 or later, arm64. Engine package deployment target: macOS 26 (D-06). | Must | Build settings check in CI. |
+| NFR-L10N-001 | English UI. All user-facing strings live in String Catalogs so localization (L-12) needs no code changes. | Must | Static check: no hard-coded UI strings and no stale String Catalog keys. Built in M5, with the localization and compatibility pass (D-124). |
+| NFR-COMP-001 | App: macOS 27 or later, arm64. Engine package deployment target: macOS 26 (D-06). | Must | Build settings check in CI. In M5 the engine's macOS 26 build becomes a required check (D-124). |
 | NFR-OBS-001 | Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool [S68]. | Must | Code review. |
-| NFR-QA-001 | Engine line coverage of at least 80%. Every SAF requirement has at least one test that references its ID. | Must | CI coverage report; grep for SAF IDs in tests. |
+| NFR-QA-001 | Engine line coverage of at least 80%. Every SAF requirement has at least one test that references its ID. | Must | CI coverage report; grep for SAF IDs in tests. Built in M2 (D-124): a static check that every Must SAF requirement built so far is named in a test. |
 | NFR-QA-002 | UI tests launch the app with a debug-only fixture-root argument, so they never see real user data. | Must | The release build ignores the argument (unit test). |
-| NFR-QA-003 | One UI smoke test per tool's and sub-tool's main path. | Must | CI. |
+| NFR-QA-003 | Each tool's and sub-tool's main path has a named step in a UI workflow test (a user's path through several tools), or a workflow of its own (D-75). | Must | CI. |
 
 ## 11. Architecture
 
@@ -561,20 +577,28 @@ shuck/
 ├── AGENTS.md                  instructions for AI coding agents (D-16)
 ├── README.md
 ├── LICENSE                    full GPL-3.0 text
+├── CHANGELOG.md               changes users see, per release; each release's notes (D-95)
 ├── docs/
 │   ├── PRD.md                 this document
-│   ├── decisions.md           decisions made after the planning phase
+│   ├── decisions.md           decisions made after the planning phase (D-30 onwards)
+│   ├── m1-review.md           tech-debt review at the end of M1
 │   ├── progress.md            milestone and task checklist
-│   └── third-party.md         attribution for any reused rule data or code
+│   ├── releasing.md           how to cut a release, secrets, local fallback
+│   ├── repository-setup.md    GitHub settings the owner applies by hand
+│   └── third-party.md         attribution for any reused rule data or code; created on first reuse
+├── Shuck.xcworkspace          the project and the engine package, so every test runs (D-111)
 ├── Shuck.xcodeproj
+├── Shuck.xctestplan           the scheme's tests: engine, app unit and UI tests
 ├── Shuck/                     app target
-├── ShuckUITests/
-├── Packages/ShuckKit/         engine package with its tests and test support
-├── scripts/                   lint, static checks, build-dmg, notarize
-└── .github/
-    ├── workflows/ci.yml
-    ├── workflows/release.yml
-    └── pull_request_template.md
+├── ShuckTests/                app unit tests
+├── ShuckUITests/              UI tests (fixture root only)
+├── Packages/ShuckKit/         engine package (D-28)
+│   ├── Sources/ShuckKit/              Tools, Scanning, Rules, Planning, Safety, History
+│   ├── Sources/ShuckExecution/        the only code that mutates user files or launchd state
+│   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
+│   └── Tests/
+├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize, release notes
+└── .github/                   CI, CodeQL and release workflows, pull request template
 ```
 
 ## 12. Engineering workflow
@@ -582,11 +606,11 @@ shuck/
 | ID | Requirement | Priority |
 |---|---|---|
 | ENG-001 | `main` is protected: pull request required, CI must pass, no force-push, squash merge [S65]. | Must |
-| ENG-002 | One pull request = one roadmap task, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code. More than 400 needs a split or a written reason. Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
-| ENG-003 | The pull request template has these sections: Summary · Requirement IDs · **How to review this** (risky areas, files to read first) · **SwiftUI concepts used** (learning notes with Apple documentation links) · Test evidence · Screenshots · Checklist (tests added, no new dependencies, no network APIs, docs updated). | Must |
-| ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; pull request template complete. | Must |
-| ENG-005 | **CI** (`ci.yml`) runs on every pull request and every push to `main`, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. Steps: `swift-format` lint, build, engine tests with coverage, UI smoke tests, static checks. | Must |
-| ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs. | Must |
+| ENG-002 | One pull request = one roadmap task, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code. A task that needs more is split into several pull requests, each small and reviewable on its own (for example engine first, then UI); the split is planned at the start, and each pull request says what the next adds (D-62). Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
+| ENG-003 | The pull request template has these sections: Summary · Requirement IDs · **How to review this** (risky areas, files to read first) · **SwiftUI concepts used** (learning notes with Apple documentation links) · Test evidence · Checklist (tests added, no new dependencies, no network APIs, docs updated). There is no Screenshots section (D-65). | Must |
+| ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95); pull request template complete. | Must |
+| ENG-005 | **CI** (`ci.yml`) runs on every pull request, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. A `Code changes` job on Linux runs the static checks, their self-test and the changelog check for every change, and decides whether a change touches code (D-66, D-98). `Lint, build and test` runs only for code changes: `swift-format` lint, one build from `Shuck.xcworkspace`, and `Shuck.xctestplan` (engine tests with the coverage gate, app unit tests, UI tests) (D-111). A push to `main` only builds, to warm the compilation cache (D-111). | Must |
+| ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs; no `SMAppService` outside the Execution module except `openSystemSettingsLoginItems()` (D-126). | Must |
 | ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create --draft` with the DMG and checksum [S61]. **The owner reviews and publishes the draft** (D-17). | Must |
 | ENG-008 | Signing and notarization secrets are GitHub encrypted secrets, used only by the tag-triggered release workflow. They are never available to pull request workflows. | Must |
 | ENG-009 | Versions follow Semantic Versioning [S60]. Each milestone ends with a pre-release tag (section 13). | Must |
@@ -619,10 +643,10 @@ Milestones run in order and have no dates (D-15). Each one ends with a tagged pr
 |---|---|---|---|
 | **M0 Foundations** | Repository, project skeleton, CI/CD proven end to end | CI green on a pull request; a tag produces a notarized draft release of the empty app shell | `v0.0.1` |
 | **M1 Safety core + File Cleanup (Large Files, Old Files) + Restore** | First complete vertical slice inside the File Cleanup tool: sub-tool registry, scan → review → Trash → restore | Owner finds, trashes and restores files with both sub-tools; all Trash-path SAF requirements tested | `v0.1.0` |
-| **M2 File Cleanup: rebuildable sub-tools** | Developer Junk (Must rules) and Caches & Logs sub-tools; permanent delete and tool commands | Owner reclaims space with a summary confirmation; every tool run logged | `v0.2.0` |
+| **M2 File Cleanup: rebuildable sub-tools** | Developer Junk (Must rules) and Caches & Logs sub-tools; permanent delete and tool commands; user exclusions (SET-001, D-127) | Owner reclaims space with a summary confirmation; every tool run logged | `v0.2.0` |
 | **M3 Applications** | Uninstaller with confidence levels, running-app handling, LaunchAgent unloading (APP-011; first use of the launchctl runner), restore | Owner uninstalls an app plus leftovers and restores it | `v0.3.0` |
 | **M4 Startup Items** | launchd inventory, status, manage user agents, Login Items link | Owner disables and removes a user agent and restores it | `v0.4.0` |
-| **M5 Overview, onboarding, settings, polish** | Overview, Full Disk Access onboarding, Settings, About and legal notices, accessibility pass, DEV Should rules, README screenshots | All Must requirements met; accessibility audit passed | `v0.5.0` |
+| **M5 Overview, onboarding, settings, polish** | Overview, Full Disk Access onboarding, Settings (exclusions came in M2), Clear History, About and legal notices, accessibility pass, localization and compatibility checks (D-124), DEV Should rules, README screenshots | All Must requirements met; accessibility audit passed | `v0.5.0` |
 | **M6 Release and real use** | Release candidate, then 4 weeks of real use (fixes only), trademark search for "Shuck" | MVP exit criteria (section 2.4) | `v1.0.0` |
 
 ### 13.1 M0 tasks (one pull request each)
@@ -671,16 +695,19 @@ M2 to M6 are broken into tasks when each milestone starts. The breakdown is reco
 | R-03 | No API reports Full Disk Access status [S49]. | Confusing onboarding | Error-driven detection and clear banners (ONB-002). |
 | R-04 | AI-written code that deletes files | Data loss | Engine-only mutation (SAF-017), path guard, fixture tests, review guidance in every pull request, two review tiers. |
 | R-05 | Leftover matching produces false positives | Wrong files trashed | Confidence levels; only exact matches selected; Trash and restore (APP-003). |
-| R-06 | Freed space differs from the estimate (Trash, APFS snapshots and clones, purgeable space) | Users don't trust the numbers | Show estimated vs. measured and explain (SAF-013). |
+| R-06 | Freed space differs from the estimate (Trash, local Time Machine snapshots, APFS clones, purgeable space) | Users don't trust the numbers | Show estimated vs. measured and explain (SAF-013). |
 | R-07 | Tool command behavior changes (npm, pip, brew, docker) | Rule failures | Recorded-output tests; never parse tool output to choose deletion targets; surface exit codes. |
 | R-08 | Cleaning caches of running apps causes misbehavior | App glitches | Skip running apps' caches (CAC-003). |
 | R-09 | Copyright on AI-generated code may be limited. US Copyright Office (Jan 2025): prompts alone don't make you the author of the output; human selection, arrangement and edits can be protected [S41]. | GPL is weaker over AI-written parts | Accepted (D-20). Document the owner's human contributions in pull requests. |
 | R-10 | "Shuck" has only been web-searched, not trademark-cleared | Rename after release | Trademark search in M6, before v1.0. |
 | R-11 | Scope creep with no deadline | MVP never ships | Exit criteria (section 2.4); backlog (7.2); changes through `docs/decisions.md`. |
-| R-12 | CI runner labels or images change (`xcode-27` uses a new label scheme) [S25] | Broken CI | Pin the label; local fallback scripts (ENG-012). |
+| R-12 | CI runner labels or images change (`xcode-27` uses a new label scheme) [S25] | Broken CI | Pin the label; local fallback scripts (ENG-012). Mitigated: `ci.yml` pins `xcode-27` and UI tests passed on it (D-31); the local scripts exist. |
 | R-13 | Leaked signing secrets | Malicious builds signed with the owner's identity | Tag-only release workflow (ENG-008); App Store Connect API key with the narrowest role that allows notarization; rotate on suspicion. |
 | R-14 | Testing on a single macOS version and a single Mac | Bugs on other setups | Fixture tests plus a clean CI runner; a virtual machine for macOS 26 later (L-02). |
 | R-15 | Sub-tools or tools overlap: the same file in Large Files and Old Files, a cache claimed by two sub-tools, or an app container's caches listed by both Caches & Logs and Applications | Double counting or double cleaning | Ownership map (FCL-005), shared personal-files state (FCL-006), de-duplicated totals (FCL-007), reclaimable totals for File Cleanup only (OVR-001), re-validation before acting (SAF-008). |
+| R-16 | macOS's App Management permission (`kTCCServiceSystemPolicyAppBundles`, macOS 13+) gates changing other apps' bundles, and other apps' containers prompt separately [S78]. App Store and package-installed apps are often root-owned. | An uninstall fails or is blocked for many apps | Check removability before offering an uninstall (APP-005); show the reason; the owner measures how many of their own apps are removable before M3 is broken down (OQ-08); a usage string for the permission (M5). |
+| R-17 | Reviewer fatigue: pull request stacks grow, and the owner reviews every change (G-5). | A defect in Safety or Execution is merged unseen | Small pull requests (D-62); changes to Safety and Execution in pull requests of their own; every pull request says where to look (ENG-003); periodic reviews of `main` like the one of 2026-11-10. |
+| R-18 | Old Files relies on Spotlight metadata (`kMDItemLastUsedDate`), which may be missing or stale. | A file in use looks old | Use the latest of the last-used, modification and added dates (OLD-002, D-121); nothing is selected by default (OLD-004). |
 
 ## 15. Open questions
 
@@ -691,9 +718,11 @@ Defaults are already in place; the owner can change them at any time.
 | OQ-01 | Large Files threshold; Old Files period and minimum size | 500 MB; 12 months (presets 3, 6, 12, 24) and 50 MB. Validate during M1 use. |
 | OQ-02 | Suggested developer project folders | Existing folders among `~/Developer`, `~/Projects`, `~/Code`, `~/src`, `~/repos` |
 | OQ-03 | Log age default | 7 days |
-| OQ-04 | Docker tier | Your data, never selected by default |
-| OQ-05 | Progress tracking | `docs/progress.md` (GitHub Issues possible later) |
-| OQ-06 | iCloud Drive | Fully protected (not scanned) |
+| OQ-04 | Docker tier | Resolved (D-24): Your data, never selected by default. |
+| OQ-05 | Progress tracking | Resolved: `docs/progress.md` is the task list; GitHub issues hold review findings (GitHub Issues for tasks possible later). |
+| OQ-06 | iCloud Drive and other synced files | iCloud Drive's own folders (`~/Library/Mobile Documents`, `~/Library/CloudStorage`): fully protected, not scanned. A downloaded file that a sync service keeps elsewhere in the home folder, such as Desktop and Documents under iCloud, is scanned, marked "Synced" and warned about at review (D-120). |
+| OQ-07 | Leftovers in Application Support and Group Containers can be the only copy of a user's data (notes, vaults). APP-003 preselects High-confidence items, which can include them. | Open for the owner: whether these folders should never be preselected. APP-003 is unchanged until the owner decides. |
+| OQ-08 | How many of the owner's own apps can Shuck remove (R-16)? | Open for the owner: measure before M3 is broken down. |
 
 ## Appendix A — Decision log (planning phase, 2026-11-01)
 
@@ -756,7 +785,7 @@ Defaults are already in place; the owner can change them at any time.
 
 ## Appendix C — References
 
-All sources were accessed on 2026-11-01.
+S1 to S70 were accessed on 2026-11-01. S71 to S78 come from the review of 2026-11-10; the review's wording is kept, and the pages have not been re-read for this document.
 
 | ID | Source | URL |
 |---|---|---|
@@ -830,3 +859,11 @@ All sources were accessed on 2026-11-01.
 | S68 | Apple: Logger | https://developer.apple.com/documentation/os/logger |
 | S69 | The Next Web: Apple officially pulls VLC from the App Store | https://thenextweb.com/news/apple-officially-pulls-vlc-from-the-app-store |
 | S70 | Fig manual: `swift package purge-cache` (third-party reference) | https://fig.io/manual/swift/package/purge-cache |
+| S71 | npm: config | https://docs.npmjs.com/cli/v10/using-npm/config |
+| S72 | Docker: docker builder prune | https://docs.docker.com/reference/cli/docker/builder/prune/ |
+| S73 | Apple Developer Forums: deleting simulator runtimes | https://developer.apple.com/forums/thread/842603 |
+| S74 | Mole issue 1689 (deleting `~/Library/Logs/DiagnosticReports` stopped crash reports) | https://github.com/tw93/Mole/issues/1689 |
+| S75 | Mole issue 1854 (cleaning caches of a running app) | https://github.com/tw93/Mole/issues/1854 |
+| S76 | Mole issue 823 (Claude Code memory folders deleted as caches) | https://github.com/tw93/Mole/issues/823 |
+| S77 | DevCleaner for Xcode issue 48 (CoreSimulator caches) | https://github.com/vashpan/xcode-dev-cleaner/issues/48 |
+| S78 | Apple Developer Forums: App Management permission and other apps' containers | https://developer.apple.com/forums/thread/678819 |
