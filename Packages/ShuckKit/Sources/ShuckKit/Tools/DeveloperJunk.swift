@@ -1,9 +1,10 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has three,
-/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02) and the simulators' caches (DEV-R04); the other
-/// rules arrive one at a time (M2-T09 onwards).
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has seven,
+/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and, as commands
+/// of the tools that own the data, unavailable simulators (DEV-R03) the npm and pip caches and Homebrew's cleanup (DEV-R07 to
+/// DEV-R09); the other rules arrive one at a time (M2-T11 onwards).
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
@@ -11,7 +12,7 @@ public struct DeveloperJunk: SubTool {
     static let simulatorBundleID = "com.apple.iphonesimulator"
     /// DerivedData is stale after this many days without a change (DEV-005, SET-002).
     static let staleDays = 30
-    private static let logger = Logger(tool: .developerJunk)
+    static let logger = Logger(tool: .developerJunk)
 
     public init() {}
 
@@ -118,12 +119,40 @@ public struct DeveloperJunk: SubTool {
             documentation: documentation, apps: [xcodeBundleID, simulatorBundleID])
     }
 
+    /// DEV-R03: `xcrun simctl delete unavailable`, which removes the simulators whose runtime is no longer installed.
+    /// The simulators' device data belongs to `simctl`, so only its command may change it (SAF-010, DEV-007). Selected,
+    /// with no size: Shuck would have to read `simctl`'s output to know which simulators it would remove, and output
+    /// never chooses a target (R-07, D-125).
+    static func unavailableSimulatorsRule(_ tools: ToolLocations) throws(RuleError) -> CleanupRule {
+        let xcrun = tools.executable("xcrun", in: ["usr/bin"])
+        guard
+            let documentation = URL(
+                string: "https://developer.apple.com/documentation/xcode/running-your-app-in-simulator-or-on-a-device")
+        else { throw .invalidDocumentation }
+        return try CleanupRule(
+            id: "DEV-R03", name: LocalizedStringResource("Unavailable Simulators", bundle: #bundle),
+            description: LocalizedStringResource(
+                "Simulators whose system version is no longer installed, so Xcode can't start them.", bundle: #bundle),
+            category: ItemCategory(id: "xcode", name: LocalizedStringResource("Xcode", bundle: #bundle)),
+            detection: .executable(xcrun),
+            action: .command(try tools.command(xcrun, ["simctl", "delete", "unavailable"])), tier: .rebuildable,
+            selection: .always,
+            explanation: LocalizedStringResource(
+                "Xcode's own tool removes the simulators that can no longer start. You can create new ones in Xcode.",
+                bundle: #bundle),
+            documentation: documentation)
+    }
+
     public func scan(_ context: ScanContext) -> AsyncStream<ScanEvent> {
         AsyncStream { continuation in
             let task = Task {
                 scanDerivedData(context) { continuation.yield($0) }
                 scanDeviceSupport(context) { continuation.yield($0) }
                 scanSimulatorCaches(context) { continuation.yield($0) }
+                scanUnavailableSimulators(context) { continuation.yield($0) }
+                scanNpmCache(context) { continuation.yield($0) }
+                scanPipCache(context) { continuation.yield($0) }
+                scanHomebrew(context) { continuation.yield($0) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
@@ -154,7 +183,7 @@ public struct DeveloperJunk: SubTool {
                 let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
                 let modified = RuleMatch.modificationDate(at: folder)
             else { continue }
-            let activity = DerivedDataProject.lastActivity(in: folder, modified: modified)
+            let activity = FolderActivity.newest(in: folder, modified: modified)
             let missing = DerivedDataProject.workspace(in: folder).map(DerivedDataProject.isMissing) ?? false
             let stale = rule.selection.selects(modified: activity, now: now)
             do {
@@ -250,6 +279,25 @@ public struct DeveloperJunk: SubTool {
                 Self.logger.error("Skipped a simulator cache: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    /// One item for DEV-R03, if this Mac has simulators and `xcrun` is where tools are found (DEV-002). Whether any
+    /// simulator is unavailable is only known to `simctl`, so the item is listed whenever Xcode has made simulators.
+    private func scanUnavailableSimulators(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
+        let devices = Self.simulatorDevices(home: context.home)
+        guard !Task.isCancelled, let tools = ToolLocations(context), CleanupRule.Detection.folder(devices).isAvailable,
+            let rule = try? Self.unavailableSimulatorsRule(tools), rule.detection.isAvailable
+        else { return }
+        do {
+            emit(.item(try rule.scanItem(estimatedBytes: 0, source: id, runningApps: context.runningApps)))
+        } catch {
+            Self.logger.error("Skipped the unavailable simulators: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// The simulators' device data. Only a check that it exists reads it; `simctl` is the only thing that changes it.
+    static func simulatorDevices(home: URL) -> URL {
+        home.appending(path: "Library/Developer/CoreSimulator/Devices", directoryHint: .isDirectory)
     }
 
     /// Why a version is kept unselected; `nil` for the rule's own explanation (DEV-R02).

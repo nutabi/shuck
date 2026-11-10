@@ -42,7 +42,7 @@ extension ToolRegistry {
     /// (SET-002).
     public static func standard(
         largeFiles: LargeFiles = LargeFiles(), oldFiles: OldFiles = OldFiles(),
-        developerJunk: DeveloperJunk = DeveloperJunk()
+        developerJunk: DeveloperJunk = DeveloperJunk(), cachesAndLogs: CachesAndLogs = CachesAndLogs()
     ) -> ToolRegistry {
         ToolRegistry(tools: [
             Tool(
@@ -55,12 +55,7 @@ extension ToolRegistry {
                     largeFiles,
                     oldFiles,
                     developerJunk,
-                    PlannedSubTool(
-                        info: ToolInfo(
-                            id: .cachesAndLogs, name: LocalizedStringResource("Caches & Logs", bundle: #bundle),
-                            summary: LocalizedStringResource("Which caches and logs can go?", bundle: #bundle),
-                            symbolName: "tray.full", availability: .planned(milestone: "M2")),
-                        tiers: [.rebuildable]),
+                    cachesAndLogs,
                 ]),
             Tool(
                 info: ToolInfo(

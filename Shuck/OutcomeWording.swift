@@ -64,6 +64,17 @@ nonisolated enum OutcomeWording {
         }
     }
 
+    /// What happened to an item in a run that has just ended, in words: its method if it was done, or why it was not
+    /// (SAF-011).
+    static func result(of outcome: ItemOutcome) -> LocalizedStringResource {
+        let operation = HistoryRecord.Operation(outcome.item.method)
+        return switch outcome.result {
+        case .done: method(operation)
+        case .skipped(let reason): skipped(reason.code, operation: operation)
+        case .failed(let error): failed(error)
+        }
+    }
+
     /// A logged skip. A code this version does not know is shown as logged.
     static func skipped(detail: String?, operation: HistoryRecord.Operation) -> LocalizedStringResource {
         if let code = detail.flatMap(SkipCode.init(detail:)) { return skipped(code, operation: operation) }
@@ -72,7 +83,14 @@ nonisolated enum OutcomeWording {
 
     /// Why an action failed, in the error's localized description (NFR-L10N-001).
     static func failed(_ error: ActionError) -> LocalizedStringResource {
-        "Failed: \(error.localizedDescription)"
+        // A tool run ends in one of four ways, which the log keeps as codes in four domains (D-115, #63).
+        switch error.domain {
+        case "ShuckToolExit": "Failed: the tool ended with status \(error.code)"
+        case "ShuckToolSignal": "Failed: the tool was ended by signal \(error.code)"
+        case "ShuckToolTimeout": "Failed: the tool did not finish in \(error.code) seconds, so Shuck stopped it"
+        case "ShuckToolStopped": "Stopped before the tool finished"
+        default: "Failed: \(error.localizedDescription)"
+        }
     }
 
     /// A logged failure: its error's description, without the domain and code the log keeps (D-88). Other text, as

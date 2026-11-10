@@ -58,7 +58,7 @@ final class HistoryModel {
     /// Whether a restore is waiting for an answer or running.
     var isRestoring: Bool {
         switch restore?.phase {
-        case .askingAboutTakenPaths?, .running?: true
+        case .waiting?, .running?: true
         default: false
         }
     }

@@ -219,17 +219,19 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   project is gone; the sub-tool's page (DEV-R01, DEV-008). Two pull requests (D-62):
   - [x] Engine: the DerivedData rule and Developer Junk's scan, ownership, and fixture and pipeline tests (D-112).
   - [x] App: register the sub-tool, its page, the running-apps launch argument and the UI workflow steps (D-113).
-    Left over: the page has no Delete button until M2-T06's summary confirmation; the other rules and Caches & Logs'
+    Left over: the page's Delete button came with M2-T06; the other rules and Caches & Logs'
     scan name their apps as they arrive (M2-T08, M2-T09, M2-T12).
   - Review of 2026-11-10 (DEV-R01): the rule's explanation says that deleting DerivedData also removes `SourcePackages`
     (Swift package checkouts, which need the network to restore) and Xcode's compilation cache. Not done yet.
-- [ ] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
+- [x] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
   shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
   Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
-  a third copy of the run scaffolding (#73).
-  - Review of 2026-11-10 (SAF-003, HIS-002): Developer Junk's rows show no path, and two DerivedData folders of one
-    project name look identical, so the item list on demand shows each item's full path. History shows a Tool item as
-    its command, not as a file path.
+  a third copy of the run scaffolding (#73). Two pull requests (D-62):
+  - [x] One run model and one sheet layout; Move to Trash and Restore fill them in, with no change in behavior (D-116,
+    #73).
+  - [x] The summary confirmation for Delete with Developer Junk's Delete button, History's non-restorable display and
+    the UI workflow steps (D-117). Left over: the run shows an indeterminate progress indicator, not a count, since
+    `PlanExecutor` reports only when it ends; the measured change in free space is M2-T07 (SAF-013).
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
   (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
   - Review of 2026-11-10 (SAF-013, R-06): local Time Machine snapshots and APFS clones keep blocks alive, so the
@@ -245,10 +247,14 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     against cleaning these caches (PRD S77). If it is gone or risky, the owner decides whether DEV-R04 stays.
 - [ ] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
-  - Review of 2026-11-10 (CAC-004, CAC-009): delete a cache or log folder's contents, never the folder itself (Mole
-    issue 1689); skip an app's caches while it runs (Mole issue 1854); never classify a folder as a cache by its name
-    alone (Mole issue 823); unknown apps are not preselected, since some apps keep state in Caches.
-- [x] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
+  Two pull requests, a stack (D-62, D-76):
+  - [x] Engine: the scan of caches, logs and container caches, each item naming its app, and the ownership map leaving
+    out what developer tools and Shuck own; Caches & Logs' scan names its apps for the running-apps check (CAC-001 to
+    CAC-005, CAC-008, FCL-005, D-120, D-121).
+  - [x] App: register the sub-tool, its page grouped by app with Delete through the summary confirmation, the note
+    about macOS clearing caches, and the UI workflow steps (CAC-002, CAC-006, CAC-007, D-122). Left over: a folder named
+    after an app rather than a bundle ID, such as `Firefox`, is not tied to a running app (D-121).
+- [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool
   command can be stopped while it runs (SAF-014, D-93). Two pull requests, a stack (D-76):
@@ -263,16 +269,17 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
 - [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
   run (DEV-R03, DEV-R07 to DEV-R09). Its first pull request decides what a History item shows for each operation,
   since `path` holds a tool name for `tool` and a job label for `launchctl`: for example the tool and its command, and
-  the job label, with a unit test for each operation (#63).
-  - Review of 2026-11-10 (DEV-002, DEV-004, DEV-R03): tool commands must not reach the network (NFR-SEC-001). Every
-    `brew` command sets `HOMEBREW_NO_AUTO_UPDATE=1` and `HOMEBREW_NO_ANALYTICS=1`; `npm` sets
-    `NPM_CONFIG_UPDATE_NOTIFIER=false` and `NPM_CONFIG_OFFLINE=true`. To verify: whether `brew cleanup`,
-    `npm cache clean` and `pip cache purge` themselves use the network (undocumented).
-  - Tool detection: a minimal explicit `PATH` does not find npm or pip installed through nvm, asdf, mise, fnm, volta or
-    pyenv. `/usr/bin/xcrun` exists on a Mac without Xcode and can raise the "install command line developer tools"
-    prompt, so "the path exists" is not detection for simctl. Decide how each tool is found.
-  - `xcrun simctl delete unavailable` is the only supported way to remove simulator devices. Do not offer
-    `simctl runtime delete`: it is reported to be undone at restart.
+  the job label, with a unit test for each operation (#63). Six pull requests, a stack (D-62, D-76):
+  - [x] History shows each operation as what it is: a file, a tool's command with its output, or a job label; a tool's
+    end is worded from its code (#63, HIS-002, SAF-006, D-123).
+  - [x] Tool items in Developer Junk: tool lookup under the scan's root, a row for a command, the confirmation's wording
+    for tool commands, and tool items leaving the list after a run (DEV-002, DEV-004, SAF-003, SAF-010, D-124, D-125).
+  - [x] Unavailable simulators: `xcrun simctl delete unavailable`, listed with no size, run through the fake `xcrun` of the
+    UI test (DEV-R03, DEV-002, DEV-004, SAF-010, D-125).
+  - [x] npm cache: `npm cache clean --force`, sized from `~/.npm/_cacache` as an upper estimate (DEV-R07, DEV-003, D-126).
+  - [x] pip cache: `pip cache purge` with Homebrew's `pip` or `pip3`, sized from `~/Library/Caches/pip` (DEV-R08, D-127).
+  - [x] Homebrew: `brew cleanup` with analytics and automatic update off, sized from the download cache (DEV-R09,
+    DEV-007, D-128).
 - [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
   (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
@@ -357,13 +364,20 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
 - [ ] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before
   printing Apple's log, and `static-checks.sh` scans untracked folders such as `.claude/worktrees` (NFR-SEC-003,
   ENG-006, #121, #122).
-- The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
-  0.2.0 release items below.
+- [ ] M2-F19 The review of 2026-11-10 read `main` before M2-T06, M2-T09 and M2-T11 merged, so four of the requirements
+  it added were written without their code. Check each against the code and fix the code or the PRD: `npm` and `pip`
+  run with no setting that stops update checks, where `brew` has them (DEV-004, D-126 to D-128); CAC-009 leaves an
+  unknown app's cache unselected, where D-120 selects any cache that is stale for 30 days; the confirmation's item list
+  shows each item's full path, so two DerivedData folders of one name differ (SAF-003, D-117); and `/usr/bin/xcrun`
+  exists without Xcode and can raise the install prompt, so finding it is not detection (DEV-002, D-124). Tools
+  installed through nvm, asdf, mise, fnm, volta or pyenv are not found (D-124): say so in the PRD or find them.
 
 Exit criteria (PRD section 13):
 
 - [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
   finds every tool run in History.
+- The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
+  0.2.0 release items below.
 - [ ] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
 - [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).

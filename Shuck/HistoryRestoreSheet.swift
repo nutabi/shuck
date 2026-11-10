@@ -15,22 +15,14 @@ struct HistoryRestoreSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            switch restore.phase {
-            case .askingAboutTakenPaths:
-                question
-            case .running:
-                running
-            case .finished(let report):
-                summary(report)
-            case .failed(let error):
-                failure(error)
-            }
-        }
-        .padding(20)
-        .frame(minWidth: 520, idealWidth: 600, minHeight: 360, idealHeight: 440)
-        // A run ends with a report; the sheet stays until the user has seen it (SAF-011).
-        .interactiveDismissDisabled(restore.phase == .running)
+        RunSheet(
+            run: restore.run, runningTitle: Text("Restoring ^[\(restore.items.count) item](inflect: true)…"),
+            stopHelp: Text("Stop before the next item. Items already restored stay where they are."),
+            failureTitle: Text("Nothing was restored"),
+            failureMessage: Text(
+                "Shuck never moves anything without recording it first, and it couldn't record this run."),
+            waiting: { question },
+            summary: { summary($0) })
     }
 
     /// One answer for every taken path (D-68). Cancel moves nothing.
@@ -68,21 +60,6 @@ struct HistoryRestoreSheet: View {
         }
     }
 
-    @ViewBuilder private var running: some View {
-        Text("Restoring ^[\(restore.items.count) item](inflect: true)…")
-            .font(.title2.bold())
-        Spacer()
-        ProgressView()
-            .frame(maxWidth: .infinity)
-        Spacer()
-        HStack {
-            Spacer()
-            Button("Stop") { restore.stop() }
-                .keyboardShortcut(.cancelAction)
-                .help("Stop before the next item. Items already restored stay where they are.")
-        }
-    }
-
     /// Every item with its outcome, so a skipped or failed one is visible (SAF-011).
     @ViewBuilder private func summary(_ report: RestoreReport) -> some View {
         let restored = report.outcomes.filter { if case .done = $0.result { true } else { false } }.count
@@ -100,25 +77,6 @@ struct HistoryRestoreSheet: View {
             }
         }
         .listStyle(.bordered)
-        HStack {
-            Spacer()
-            Button("Done") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-        }
-    }
-
-    @ViewBuilder private func failure(_ error: HistoryError) -> some View {
-        Text("Nothing was restored")
-            .font(.title2.bold())
-        // Every action is logged before it runs, so without the log nothing runs (SAF-005).
-        Text("Shuck never moves anything without recording it first, and it couldn't record this run.")
-        HistoryErrorText(error: error)
-        Spacer()
-        HStack {
-            Spacer()
-            Button("Done") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-        }
     }
 
     /// What happened to an item, in words (SAF-011).

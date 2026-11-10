@@ -96,6 +96,21 @@ struct HistoryTests {
                 == "Interrupted before its outcome was recorded")
     }
 
+    /// HIS-004, SAF-006: permanent deletions are shown as not restorable, and Restore offers nothing for them.
+    @Test func aDeletedItemIsNotRestorableHIS004SAF006() {
+        let deleted = run(
+            [
+                item(.succeeded, restorability: .permanent, operation: .delete),
+                item(.skipped("missing"), operation: .delete),
+            ],
+            tool: .developerJunk)
+
+        #expect(deleted.restorableItems.isEmpty)
+        #expect(OutcomeWording.method(of: deleted) == "Deleted permanently")
+        #expect(String(localized: HistoryView.status(of: deleted.items[0])) == "Not restorable")
+        #expect(HistoryView.area(of: deleted, in: .standard) == "Developer Junk")
+    }
+
     /// HIS-002: a run is labelled by its items' one operation, or by every operation they used (D-90).
     @Test func aRunsMethodComesFromItsItemsHIS002() {
         #expect(OutcomeWording.method(of: run([item(.succeeded), item(.succeeded)])) == "Moved to the Trash")
@@ -156,6 +171,60 @@ struct HistoryTests {
         let error = ActionError(errno: EACCES)
         #expect(String(localized: HistoryView.status(of: item(.failed(error.logged)))) == "Failed: Permission denied")
         #expect(String(localized: HistoryView.status(of: item(.failed(nil)))) == "Failed")
+    }
+
+    /// An item at `path`, of `operation`, as the log holds it.
+    private func display(_ operation: HistoryRecord.Operation, path: String) -> HistoryItemDisplay {
+        HistoryItemDisplay(
+            HistoryRun.Item(
+                operation: operation, path: path, trashedPath: nil, bytes: nil, tier: .rebuildable,
+                outcome: .succeeded, restorability: nil),
+            home: home)
+    }
+
+    /// HIS-002, #63: a trashed, deleted or restored item is a file, shown with its folder.
+    @Test func aFileItemShowsItsNameAndFolderHIS002() {
+        for operation in [HistoryRecord.Operation.trash, .delete, .restore] {
+            let shown = display(operation, path: "/StubHome/Movies/clip.mov")
+            #expect(shown == HistoryItemDisplay(title: "clip.mov", location: "~/Movies", isCommand: false))
+        }
+    }
+
+    /// HIS-002, #63: a tool run shows the tool and its command, and the tool's own path, never a made-up folder.
+    @Test func aToolItemShowsItsCommandHIS002() throws {
+        let command = try ToolCommand(
+            executable: "/usr/bin/xcrun", arguments: ["simctl", "delete", "unavailable"],
+            environment: ["PATH": "/usr/bin"])
+
+        let shown = display(.tool, path: command.display)
+        #expect(
+            shown
+                == HistoryItemDisplay(
+                    title: "xcrun simctl delete unavailable", location: "/usr/bin/xcrun", isCommand: true))
+        // A record that is not a quoted command is shown as logged, and not as a file.
+        let unknown = display(.tool, path: "brew")
+        #expect(unknown.title == "brew")
+        #expect(unknown.isCommand)
+        #expect(unknown.location == "Tool command")
+    }
+
+    /// HIS-002, #63: a launchctl change shows its job label, which is not a file name.
+    @Test func aLaunchctlItemShowsItsJobLabelHIS002() {
+        let shown = display(.launchctl, path: "com.example.agent")
+        #expect(shown == HistoryItemDisplay(title: "com.example.agent", location: "Launchd job", isCommand: false))
+    }
+
+    /// SAF-011, DEV-004, #63: a tool's end reads as words, from the code the log keeps (D-115).
+    @Test func aToolRunsEndReadsAsWordsSAF011() {
+        func text(_ domain: String, _ code: Int) -> String {
+            let error = ActionError(domain: domain, code: code, message: "x")
+            return String(localized: HistoryView.status(of: item(.failed(error.logged), operation: .tool)))
+        }
+
+        #expect(text("ShuckToolExit", 3) == "Failed: the tool ended with status 3")
+        #expect(text("ShuckToolSignal", 9) == "Failed: the tool was ended by signal 9")
+        #expect(text("ShuckToolTimeout", 600) == "Failed: the tool did not finish in 600 seconds, so Shuck stopped it")
+        #expect(text("ShuckToolStopped", 15) == "Stopped before the tool finished")
     }
 
     /// The sheets and the History page word a reason the same, from its code (D-90).

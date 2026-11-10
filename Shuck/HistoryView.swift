@@ -44,7 +44,9 @@ struct HistoryView: View {
         case .loaded(let history) where history.runs.isEmpty && history.unreadableLineCount == 0:
             ContentUnavailableView(
                 "No history yet", systemImage: "clock.arrow.circlepath",
-                description: Text("Everything Shuck moves to the Trash is listed here, with a way to put it back."))
+                description: Text(
+                    "Everything Shuck removes is listed here. Items moved to the Trash can be put back; deleted ones can't."
+                ))
         case .loaded(let history):
             List(selection: $selection) {
                 if history.unreadableLineCount > 0 {
@@ -212,20 +214,29 @@ private struct HistoryRunRow: View {
     }
 }
 
-/// An item's name and folder, what was done to it, its outcome and its size.
+/// An item's name and where it is, what was done to it, its outcome and its size. A tool run shows its command, and
+/// its output when it printed any (HIS-002, #63).
 private struct HistoryItemRow: View {
     let item: HistoryRun.Item
     let home: URL
 
     var body: some View {
-        let url = URL(filePath: item.path)
-        HStack {
+        let display = HistoryItemDisplay(item, home: home)
+        HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: url.lastPathComponent)
+                Text(verbatim: display.title)
+                    .font(display.isCommand ? .body.monospaced() : .body)
                 // Each item says what was done to it: a run may mix methods (HIS-002).
-                Text("\(ResultRow.folder(of: url, home: home)) · \(Text(OutcomeWording.method(item.operation)))")
+                Text("\(display.location) · \(Text(OutcomeWording.method(item.operation)))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let output = item.toolOutput {
+                    Text(verbatim: output)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(6)
+                        .textSelection(.enabled)
+                }
             }
             Spacer()
             Text(HistoryView.status(of: item))

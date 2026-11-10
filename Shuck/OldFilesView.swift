@@ -19,8 +19,8 @@ struct OldFilesView: View {
                 "Scan to list files you haven't opened in \(subTool.period). Scanning never removes anything."),
             nothingFound: Text("No files left unopened for \(subTool.period)"),
             scanHelp: Text("Look for files you haven't opened in a long time. Scanning never removes anything.")
-        ) { moveToTrash in
-            PersonalFilesTable(results: results, registry: registry, moveToTrash: moveToTrash)
+        ) { actions in
+            PersonalFilesTable(results: results, registry: registry, moveToTrash: actions.moveToTrash)
         }
     }
 

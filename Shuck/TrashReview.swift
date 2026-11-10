@@ -8,25 +8,11 @@ import ShuckKit
 /// most once. `TrashReviewSheet` shows it.
 @Observable
 final class TrashReview: Identifiable {
-    /// Where the review stands.
-    nonisolated enum Phase: Equatable {
-        /// The plan is listed and nothing has moved.
-        case reviewing
-        case running
-        /// Every item has an outcome: moved, skipped or failed, with a reason (SAF-011).
-        case finished(RunReport)
-        /// The history log could not be opened, so nothing moved (SAF-005).
-        case failed(HistoryError)
-    }
-
-    /// Moves a plan's items to the Trash. The app passes ``AppEnvironment/run(_:)``; tests pass a stub.
-    typealias RunPlan = @Sendable (Plan) async throws(HistoryError) -> RunReport
-
     let plan: Plan
-    private(set) var phase = Phase.reviewing
+    /// The run's phase, start and Stop (``RunModel``). Until it starts, the review is on screen.
+    let run = RunModel<RunReport>()
     private let runPlan: RunPlan
     private let onFinish: (RunReport) -> Void
-    private var task: Task<Void, Never>?
 
     var id: UUID { plan.run }
 
@@ -42,27 +28,24 @@ final class TrashReview: Identifiable {
         self.onFinish = onFinish
     }
 
+    var phase: RunPhase<RunReport> { run.phase }
+
     /// Starts the run, or returns `nil` if it has started before.
     @discardableResult
     func start() -> Task<Void, Never>? {
-        guard phase == .reviewing else { return nil }
-        phase = .running
-        let task = Task {
-            do throws(HistoryError) {
-                let report = try await runPlan(plan)
-                phase = .finished(report)
-                onFinish(report)
-            } catch {
-                phase = .failed(error)
-            }
-        }
-        self.task = task
-        return task
+        let plan = plan
+        let runPlan = runPlan
+        let onFinish = onFinish
+        return run.start(
+            onFinish: { report in
+                if let report { onFinish(report) }
+            },
+            work: { () async throws(HistoryError) -> RunReport in try await runPlan(plan) })
     }
 
     /// Stops the run before its next item (SAF-014). Items already moved stay in the Trash, and the report says which.
     func stop() {
-        task?.cancel()
+        run.stop()
     }
 }
 

@@ -31,12 +31,15 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     public let identity: FileIdentity?
     /// The bundle IDs of the apps that use the item. While one of them runs, the item is not acted on (SAF-009).
     public let apps: Set<String>
+    /// The name of the app the item belongs to, which a page groups items by (CAC-002). `nil` when the sub-tool does not
+    /// group by app.
+    public let appName: String?
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
         source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
         category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil,
-        apps: Set<String> = []
+        apps: Set<String> = [], appName: String? = nil
     ) {
         self.target = .path(url)
         self.snapshot = snapshot
@@ -52,6 +55,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         self.scope = scope
         self.identity = identity
         self.apps = apps
+        self.appName = appName
     }
 
     /// A command carries its estimate without a fictional file kind or snapshot. No command runs in T03 (M2-T10).
@@ -74,6 +78,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         scope = .item
         identity = nil
         self.apps = apps
+        appName = nil
     }
 }
 
@@ -117,16 +122,21 @@ public struct ScanContext: Sendable {
     public let protection: PathGuardConfiguration
     /// The apps running now; a scan disables the items of a running app (SAF-009, CAC-003).
     public let runningApps: any RunningApps
+    /// The folder tools are looked for under: `/` in the app, so a tool is found where it is installed, and the fixture
+    /// root in a UI test, so a test never reaches a real tool (SAF-016, D-114). `nil` finds none, so a scan that does
+    /// not ask for tools never lists a tool's rule (DEV-002, D-124).
+    public let toolRoot: URL?
 
     /// Without `protection`, a scan uses the production list for `home` with Shuck's own bundle. Tests pass the
     /// fixture root's configuration (D-41). Without `runningApps`, a scan asks this Mac which apps run; the app's
     /// fixture-root mode passes a stub (D-110).
     public init(
         home: URL, ownership: OwnershipMap? = nil, protection: PathGuardConfiguration? = nil,
-        runningApps: any RunningApps = SystemRunningApps()
+        runningApps: any RunningApps = SystemRunningApps(), toolRoot: URL? = nil
     ) {
         self.home = home
         self.runningApps = runningApps
+        self.toolRoot = toolRoot
         self.ownership = ownership ?? OwnershipMap(home: home)
         self.protection =
             protection ?? .production(home: home, appBundle: Bundle.main.bundleURL, userExclusions: [])

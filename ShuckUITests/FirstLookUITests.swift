@@ -31,12 +31,12 @@ final class FirstLookUITests: ShuckUITestCase {
 
         step("The File Cleanup landing page lists each sub-tool with its summary and Scan button (FCL-004)") {
             sidebar.staticTexts["File Cleanup"].click()
-            // Large Files, Old Files and Developer Junk can scan; Caches & Logs says which milestone builds it.
+            // Every sub-tool can scan.
             let subTools = [
                 ("Large Files", "What is taking the most space?", true),
                 ("Old Files", "What haven't I opened in a long time?", true),
                 ("Developer Junk", "What can developer tools rebuild?", true),
-                ("Caches & Logs", "Which caches and logs can go?", false),
+                ("Caches & Logs", "Which caches and logs can go?", true),
             ]
             XCTAssertTrue(app.staticTexts[subTools[0].1].appears(within: 5))
             for (name, summary, available) in subTools {
@@ -46,18 +46,14 @@ final class FirstLookUITests: ShuckUITestCase {
                 XCTAssertEqual(scan.isEnabled, available, "\(name)'s Scan button")
             }
             XCTAssertTrue(app.staticTexts["Not scanned yet"].exists)
-            XCTAssertTrue(app.staticTexts["Planned for milestone M2."].exists)
             XCTAssertTrue(app.staticTexts["No total yet"].exists)
             XCTAssertTrue(app.buttons["Scan All"].isEnabled)
             attachScreenshot(of: app, named: "File Cleanup landing page")
         }
 
         step("Each tool a later milestone builds opens a page that names the milestone (NFR-QA-003)") {
-            // Overview comes first, so the landing page, which shows the same summary for Caches & Logs, is gone before
-            // it is checked.
             for (title, summary, milestone) in [
                 ("Overview", "Disk space at a glance, and what each sub-tool could reclaim.", "M5"),
-                ("Caches & Logs", "Which caches and logs can go?", "M2"),
                 ("Applications", "Uninstall apps together with the files they leave behind.", "M3"),
                 ("Startup Items", "See what starts automatically and turn off what you don't want.", "M4"),
             ] {
@@ -97,6 +93,12 @@ final class FirstLookUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["No files left unopened for 12 months"].appears(within: 5))
             XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
             attachScreenshot(of: app, named: "Old Files with nothing to list")
+        }
+
+        step("Caches & Logs with nothing to list shows only a message, without a list or Delete… (D-61, CAC-001)") {
+            sidebar.staticTexts["Caches & Logs"].click()
+            XCTAssertTrue(app.staticTexts["No caches or logs to clear"].appears(within: 10))
+            XCTAssertFalse(app.buttons["Delete…"].exists, "An empty list's footer is shown")
         }
 
         step("⌘N opens no second main window, and ⌘, opens Settings in a window of its own (D-27, D-91)") {

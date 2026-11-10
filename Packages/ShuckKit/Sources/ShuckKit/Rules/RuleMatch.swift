@@ -42,25 +42,29 @@ extension CleanupRule {
     /// instead, such as the newest date inside a folder whose own date rarely changes, and may select an item whatever
     /// its age with `selectedRegardless`, unless the rule never selects (DEV-005, D-112). `reason` replaces the rule's
     /// explanation next to the item. `unselected` leaves the item unselected whatever the rule says, for an item the
-    /// scan found a reason to keep, such as the newest device support version (DEV-R02, D-118).
+    /// scan found a reason to keep, such as the newest device support version (DEV-R02, D-118). `apps` adds to the rule's
+    /// apps the app this one item belongs to, and `appName` names that app for grouping (CAC-002, D-120).
     public func scanItem(
         at url: URL, snapshot: ItemSnapshot, modified: Date, source: ToolID, runningApps: any RunningApps,
         now: Date = .now, disabledReason: LocalizedStringResource? = nil, reason: LocalizedStringResource? = nil,
-        lastActivity: Date? = nil, selectedRegardless: Bool = false, unselected: Bool = false
+        lastActivity: Date? = nil, selectedRegardless: Bool = false, unselected: Bool = false,
+        apps itemApps: Set<String> = [],
+        appName: String? = nil
     ) throws(RuleItemError) -> ScanItem {
         guard detection.isAvailable else { throw .unavailable }
         guard case .paths(_, let method, let scope) = action,
             accepts(.path(url), tier: tier, method: method, scope: scope),
             scope != .contents || snapshot.kind == .folder
         else { throw .targetMismatch }
+        let apps = apps.union(itemApps)
         return ScanItem(
             url: url, snapshot: snapshot, tier: tier, method: method, reason: reason ?? explanation, source: source,
             scope: scope, identity: method == .trash ? FileIdentity.read(url) : nil,
             category: category,
             selection: itemSelection(
                 modified: lastActivity ?? modified, now: now, disabledReason: disabledReason, running: runningApps,
-                selectedRegardless: selectedRegardless, unselected: unselected),
-            ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps)
+                selectedRegardless: selectedRegardless, unselected: unselected, apps: apps),
+            ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps, appName: appName)
     }
 
     /// A tool estimate is informational; it is never parsed into deletion paths (DEV-003, R-07).
@@ -81,14 +85,14 @@ extension CleanupRule {
 
     private func itemSelection(
         modified: Date?, now: Date, disabledReason: LocalizedStringResource?, running: any RunningApps,
-        selectedRegardless: Bool = false, unselected: Bool = false
+        selectedRegardless: Bool = false, unselected: Bool = false, apps: Set<String>? = nil
     ) -> ItemSelection {
         if let disabledReason { return .disabled(disabledReason) }
         let isSelected =
             !unselected && selection != .never
             && (selectedRegardless || selection.selects(modified: modified, now: now))
         let selection: ItemSelection = isSelected ? .selected : .unselected
-        return selection.unlessRunning(apps, in: running)
+        return selection.unlessRunning(apps ?? self.apps, in: running)
     }
 }
 

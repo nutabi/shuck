@@ -82,7 +82,11 @@ struct CombinedTotalTests {
     @Test func theTotalAddsOtherSubToolsAndSaysHowManyScanned() async throws {
         let largeFiles = LargeFiles(minimumSize: 1_000)
         let other = FixedSubTool(bytes: 3_000)
-        let planned = try #require(ToolRegistry.standard.subTools.first { $0.info.availability != .available })
+        let planned = PlannedSubTool(
+            info: ToolInfo(
+                id: ToolID(rawValue: "TPL"), name: "Planned", summary: "Comes later.", symbolName: "clock",
+                availability: .planned(milestone: "M9")),
+            tiers: [.rebuildable])
         let model = model([largeFiles, other, planned], files: [file("a.mov", size: 5_000)])
 
         await model.scan(other)?.value

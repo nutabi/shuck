@@ -1,5 +1,6 @@
 import ShuckKit
 import SwiftUI
+import os
 
 /// The layout every File Cleanup sub-tool page shares, so a page gives only what differs (FCL-003):
 ///
@@ -8,9 +9,11 @@ import SwiftUI
 ///   and Scan;
 /// - a scan when the page opens, if the sub-tool has not scanned yet (D-61);
 /// - while there is nothing to list, only a message: not scanned yet, scanning, or nothing found (D-61);
-/// - Move to Trash's review sheet, which belongs to the page so its summary stays when a run empties the list (D-77).
+/// - the sheets of Move to Trash's review and the summary confirmation, which belong to the page so a summary stays
+///   when a run empties the list (D-77).
 ///
-/// The page's list gets ``MoveToTrash`` for the review, or `nil` when the model cannot move anything, as in previews.
+/// The page's list gets ``PageActions`` to open them, or `nil` for an action when the model cannot run anything, as in
+/// previews.
 struct SubToolPage<Results: View, Controls: View>: View {
     let subTool: any SubTool
     let model: FileCleanupModel
@@ -23,12 +26,16 @@ struct SubToolPage<Results: View, Controls: View>: View {
     /// The Scan button's help tag.
     let scanHelp: Text
     /// The list, shown from its first row on.
-    @ViewBuilder let results: (MoveToTrash?) -> Results
+    @ViewBuilder let results: (PageActions) -> Results
     /// The page's own toolbar controls, before Scan, such as Group by Folder.
     @ViewBuilder let controls: Controls
 
     /// The open Move to Trash review, from the list's selection until the user closes the summary.
     @State private var review: TrashReview?
+    /// The open summary confirmation, from the list's button until the user closes the summary (SAF-003).
+    @State private var confirmation: SummaryConfirmation?
+    /// A plan the path guard refused when the list asked for a confirmation; nothing is deleted (SAF-007).
+    @State private var refusal: PlanError?
 
     var body: some View {
         // A ZStack, not a Group: a Group passes its modifiers on to the view inside it, so the sheet would belong to
@@ -37,7 +44,7 @@ struct SubToolPage<Results: View, Controls: View>: View {
             if model.results(of: subTool.id)?.isEmpty ?? true {
                 emptyState
             } else {
-                results(moveToTrash)
+                results(actions)
             }
         }
         .navigationTitle(Text(subTool.info.name))
@@ -74,13 +81,40 @@ struct SubToolPage<Results: View, Controls: View>: View {
         .sheet(item: $review) { review in
             TrashReviewSheet(review: review, home: model.home)
         }
+        .sheet(item: $confirmation) { confirmation in
+            SummaryConfirmationSheet(confirmation: confirmation, home: model.home)
+        }
+        .alert("Nothing was deleted", isPresented: isRefused, presenting: refusal) { _ in
+            Button("OK") {}
+        } message: { refusal in
+            Text(
+                "“\(Self.name(of: refusal.path))” didn't pass Shuck's safety checks, so Shuck deleted nothing."
+            )
+        }
     }
 
     private var isScanning: Bool { model.state(of: subTool.id) == .scanning }
 
-    /// "Move to Trash" for the list, or `nil` when the model cannot move anything, as in previews.
-    private var moveToTrash: MoveToTrash? {
-        model.canMoveToTrash ? MoveToTrash(model: model, subTool: subTool, review: $review) : nil
+    /// What the refusal names: a file's name, or a tool command as the tool and its arguments.
+    private static func name(of subject: String) -> String {
+        LoggedCommand(logged: subject)?.commandLine ?? URL(filePath: subject).lastPathComponent
+    }
+
+    /// What the list can open: each action is `nil` when the model cannot run anything, as in previews.
+    private var actions: PageActions {
+        PageActions(
+            moveToTrash: model.canRun ? MoveToTrash(model: model, subTool: subTool, review: $review) : nil,
+            confirmRebuildable: model.canRun
+                ? ConfirmRebuildable(model: model, subTool: subTool, confirmation: $confirmation, refusal: $refusal)
+                : nil)
+    }
+
+    private var isRefused: Binding<Bool> {
+        Binding {
+            refusal != nil
+        } set: {
+            if !$0 { refusal = nil }
+        }
     }
 
     /// What the page shows while there is nothing to list.
@@ -116,10 +150,39 @@ extension SubToolPage where Controls == EmptyView {
     /// A page without toolbar controls of its own.
     init(
         subTool: any SubTool, model: FileCleanupModel, subtitle: Text, notScanned: Text, nothingFound: Text,
-        scanHelp: Text, @ViewBuilder results: @escaping (MoveToTrash?) -> Results
+        scanHelp: Text, @ViewBuilder results: @escaping (PageActions) -> Results
     ) {
         self.init(
             subTool: subTool, model: model, subtitle: subtitle, notScanned: notScanned, nothingFound: nothingFound,
             scanHelp: scanHelp, results: results, controls: { EmptyView() })
+    }
+}
+
+/// What a sub-tool's list can open from its own buttons. ``SubToolPage`` makes it, and owns the sheets they show.
+struct PageActions {
+    /// The itemized review for "Your data" (SAF-002).
+    let moveToTrash: MoveToTrash?
+    /// The summary confirmation for "Rebuildable" items (SAF-003).
+    let confirmRebuildable: ConfirmRebuildable?
+}
+
+/// What a list needs to offer the summary confirmation for one sub-tool.
+struct ConfirmRebuildable {
+    let model: FileCleanupModel
+    let subTool: any SubTool
+    /// Where the list puts the confirmation it opens. The page owns it and shows the sheet.
+    let confirmation: Binding<SummaryConfirmation?>
+    /// Where the page learns the guard refused the plan.
+    let refusal: Binding<PlanError?>
+
+    /// Opens the confirmation for the selection. Nothing is deleted until the user confirms in it (SAF-003).
+    func review() {
+        do throws(PlanError) {
+            confirmation.wrappedValue = try model.confirmRebuildable(subTool)
+        } catch {
+            // Private: the error names the item the plan stopped at (NFR-SEC-006).
+            Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
+            refusal.wrappedValue = error
+        }
     }
 }

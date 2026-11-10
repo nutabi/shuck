@@ -51,7 +51,7 @@ struct HistoryRestoreTests {
         #expect(restore.takenItems.isEmpty)
         #expect(restore.totalBytes == 200)
         #expect(model.isRestoring)
-        await restore.task?.value
+        await restore.run.task?.value
 
         #expect(calls.requests.withLock { $0 } == items.map { RestoreRequest(item: $0, ifTaken: .skip) })
         guard case .finished(let report) = restore.phase else {
@@ -73,9 +73,9 @@ struct HistoryRestoreTests {
         let free = trashed(home.appending(path: "Movies/clip.mov"))
 
         let restore = try #require(model.restore([taken, free]))
-        #expect(restore.phase == .askingAboutTakenPaths)
+        #expect(restore.phase == .waiting)
         #expect(restore.takenItems == [taken])
-        #expect(restore.task == nil)
+        #expect(restore.run.task == nil)
         #expect(model.restore([free]) == nil, "A second restore started while the first was waiting")
 
         await restore.start(ifTaken: .keepBoth)?.value
@@ -95,9 +95,9 @@ struct HistoryRestoreTests {
             trashedURL: home.appending(path: ".Trash/clip 2.mov"), bytes: 100)
 
         let restore = try #require(model.restore([first, second]))
-        #expect(restore.phase == .askingAboutTakenPaths)
+        #expect(restore.phase == .waiting)
         #expect(restore.takenItems == [second])
-        #expect(restore.task == nil)
+        #expect(restore.run.task == nil)
         #expect(calls.requests.withLock { $0 }.isEmpty)
 
         await restore.start(ifTaken: ifTaken)?.value
@@ -126,7 +126,7 @@ struct HistoryRestoreTests {
         }
 
         let restore = try #require(model.restore([trashed(home.appending(path: "Movies/clip.mov"))]))
-        await restore.task?.value
+        await restore.run.task?.value
         #expect(restore.phase == .failed(failure))
     }
 
