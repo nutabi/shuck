@@ -282,7 +282,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     `node_modules` of a project; warn when the project uses `patch-package` or `file:` links; define "stale" by the
     newest file among the project's own files, not the folder's date.
 - [ ] M2-T14 User exclusions, moved from M5 so no release with permanent Delete ships without them: the engine applies
-  them to every tool and sub-tool, and Settings gets a minimal list with a folder picker and Remove (SET-001, D-127).
+  them to every tool and sub-tool, and Settings gets a minimal list with a folder picker and Remove (SET-001, D-135).
 
 Patch releases during M2 (D-94):
 
@@ -322,26 +322,26 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 - [x] M2-F05 Faster CI, at the owner's request: the engine builds once, in Xcode, from a workspace and test plan; the
   macOS job no longer repeats the Linux job's checks; `main` is not tested again after a merge; and builds reuse
   Xcode's compilation cache (D-111).
-- [x] M2-F06 Review of 2026-11-10: decisions D-120 to D-127 recorded, PRD and task list updated.
+- [x] M2-F06 Review of 2026-11-10: decisions D-129 to D-135 recorded, PRD and task list updated.
 
-Fixes from the review of 2026-11-10 (D-120 to D-127). Each is one reviewable pull request; the issues are opened
+Fixes from the review of 2026-11-10 (D-129 to D-135). Each is one reviewable pull request; the issues are opened
 separately. Changes to Safety and Execution go in pull requests of their own (D-62):
 
 - [ ] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
-  devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-120).
+  devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-129).
 - [ ] M2-F08 Old Files uses the latest of the last-used, modification and added dates, names the date that decided in
-  the reason, and uses the newest direct child for a package or folder (OLD-002, D-121, R-18).
+  the reason, and uses the newest direct child for a package or folder (OLD-002, D-130, R-18).
 - [ ] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,
-  D-122, D-127).
+  D-131, D-135).
 - [ ] M2-F10 Path guard: refuse a folder that contains a protected bundle or name among its direct children, and a
   Trash target that is itself a mount point; the same pull request words FCL-011's examples in code and text
-  (SAF-007, section 8.4, D-127). Safety change.
+  (SAF-007, section 8.4, D-135). Safety change.
 - [ ] M2-F11 Re-validation compares the modification date of every item, Trash or Delete, using the deep date for
-  contents-only items, and a plan refuses a Delete item without a rule match (SAF-008, D-123). Safety and Execution
+  contents-only items, and a plan refuses a Delete item without a rule match (SAF-008, D-132). Safety and Execution
   change.
 - [ ] M2-F12 One running instance: a second launch of the same build activates the first and quits, and the history log
-  is locked with `flock` while a run writes it (SAF-018, D-127).
+  is locked with `flock` while a run writes it (SAF-018, D-135).
 - [ ] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards
   Cmd-Q during a run. Write what a Restore needs before the move, or recover it at the next launch, and ask before
   quitting during a run (SAF-005, SAF-006, HIS-001, #115). Execution change.
@@ -349,7 +349,7 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
   Execution change.
 - [ ] M2-F15 Execution fixes: Delete holds one file descriptor per folder level, and a failed Restore leaves the parent
   folders it created behind (SAF-006, HIS-003, #119, #120). Execution change.
-- [ ] M2-F16 The two acceptance checks the PRD names (D-124): a test that stops a run between an intent and its result
+- [ ] M2-F16 The two acceptance checks the PRD names (D-133): a test that stops a run between an intent and its result
   record and checks History and Restore (HIS-001), and a static check that every Must SAF requirement built so far is
   named in a test (NFR-QA-001).
 - [ ] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
@@ -364,7 +364,7 @@ Exit criteria (PRD section 13):
 
 - [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
   finds every tool run in History.
-- [ ] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-127).
+- [ ] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
 - [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
 - [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
@@ -390,13 +390,13 @@ M4 Startup Items:
 
 - `SMAppService.openSystemSettingsLoginItems()` is allowed in the app target by the static check; every other use
   stays an error outside `ShuckExecution`. D-97 said M3; Startup Items is M4. Change `scripts/static-checks.sh` and its
-  self-test in the pull request that adds the button (STA-004, D-126).
+  self-test in the pull request that adds the button (STA-004, D-134).
 
 M5 Overview, onboarding, settings, polish:
 
 - Clear History: "Clear History…" in Settings, which says that Restore is lost for the cleared runs (HIS-008, SET-007,
-  D-127).
-- The localization and compatibility pass builds two checks (D-124): hard-coded UI strings and stale String Catalog
+  D-135).
+- The localization and compatibility pass builds two checks (D-133): hard-coded UI strings and stale String Catalog
   keys (NFR-L10N-001), and the engine's macOS 26 build as a required check (NFR-COMP-001, D-06).
 - Info.plist usage strings are optional but recommended, and none are set today: `NSDesktopFolderUsageDescription`,
   `NSDocumentsFolderUsageDescription`, `NSDownloadsFolderUsageDescription`, and later `NSAppBundlesUsageDescription`

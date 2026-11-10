@@ -129,7 +129,7 @@ Shuck deletes files. These rules are not negotiable, and CI enforces them where 
    Rule-backed Delete items keep the target's modification date from `RuleMatch.modificationDate(at:)`; execution
    checks the rule again and skips any modification-date change after the scan, even if kind and size still match
    (owner decision, D-105). Scanners use that helper so scan and execution compare dates with the same precision.
-   D-123 extends the date check to every item, Trash or Delete, and makes a plan refuse a Delete item without a rule
+   D-132 extends the date check to every item, Trash or Delete, and makes a plan refuse a Delete item without a rule
    match; that is M2-F11 in `docs/progress.md` and is not built yet.
 3. **Tests stay inside the fixture root.** Use the fixture-root harness from test support (SAF-016). Never build test paths from `homeDirectoryForCurrentUser`, `NSHomeDirectory()`, `~` or environment variables. A test of code that takes a home folder passes a made-up one, such as `/Users/someone`. UI tests launch the app with the debug-only fixture-root argument (NFR-QA-002).
 4. **Never touch the real home folder.** Not in tests, not in experiments and not to "try out" a deletion. Never run the app against real data to test a change.
