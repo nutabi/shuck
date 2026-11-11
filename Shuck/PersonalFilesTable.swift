@@ -207,6 +207,17 @@ private struct GroupHeader: View {
     }
 }
 
+/// Marks an item that iCloud keeps on the user's other devices, in words, not color alone (FCL-012, NFR-A11Y-001). The
+/// results and the Move to Trash review show it (SAF-002, D-129).
+struct SyncedMark: View {
+    var body: some View {
+        Text("Synced")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .help("iCloud keeps this item on your other devices. Moving it to the Trash removes it there too.")
+    }
+}
+
 /// A date, marked in words when the last-opened column falls back to the modified date (OLD-002).
 private struct DateCell: View {
     let row: ResultRow
@@ -242,6 +253,7 @@ private struct NameCell: View {
                     .help(note(reason))
                     .accessibilityLabel(note(reason))
             }
+            if row.isSynced { SyncedMark() }
         }
     }
 
@@ -267,7 +279,7 @@ private struct NameCell: View {
             PersonalFile(
                 url: home.appending(path: "Movies/Holiday.mov"),
                 snapshot: ItemSnapshot(kind: .file, allocatedSize: 6_100_000_000),
-                modified: .now.addingTimeInterval(-90 * 86_400)),
+                modified: .now.addingTimeInterval(-90 * 86_400), isSynced: true),
             PersonalFile(
                 url: home.appending(path: "Pictures/Photos Library.photoslibrary"),
                 snapshot: ItemSnapshot(kind: .folder, allocatedSize: 48_000_000_000), modified: nil,

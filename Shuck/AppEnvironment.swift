@@ -24,6 +24,9 @@ nonisolated struct AppEnvironment {
     /// How long a personal-files scan waits before it starts, so a UI test can stop it (SAF-014). Only a debug build on
     /// a fixture root reads it; otherwise it is `nil`.
     let scanDelay: Duration?
+    /// The names of the files and packages a UI test's personal-files scan treats as synced by iCloud, since a fixture
+    /// file cannot be (D-137). Only a debug build on a fixture root reads them; otherwise there are none.
+    let syncedNames: Set<String>
 
     /// The launch argument UI tests pass, followed by the fixture root's path. Release builds ignore it.
     static let fixtureRootArgument = "-ShuckFixtureRoot"
@@ -38,6 +41,8 @@ nonisolated struct AppEnvironment {
     /// The apps a UI test pretends are running, as bundle IDs separated by commas: `-ShuckRunningApps
     /// com.apple.dt.Xcode`. Only a fixture root reads it (D-113).
     static let runningAppsKey = "ShuckRunningApps"
+    /// ``syncedNames``, separated by commas: `-ShuckSyncedFiles Holiday.mov`. Only a fixture root reads it (D-137).
+    static let syncedFilesKey = "ShuckSyncedFiles"
 
     /// Reads the stored value for a key, if any.
     typealias Settings = (String) -> Any?
@@ -90,7 +95,7 @@ nonisolated struct AppEnvironment {
                 home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
                 appBundle: appBundle, userExclusions: [])
             toolRunner = ToolRunner(executableRoots: [root])
-            runningApps = StubRunningApps(Self.bundleIDs(settings(Self.runningAppsKey)))
+            runningApps = StubRunningApps(Self.list(settings(Self.runningAppsKey)))
             context = ScanContext(home: root, protection: protection, runningApps: runningApps, toolRoot: root)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
@@ -112,6 +117,7 @@ nonisolated struct AppEnvironment {
             minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize)
         historyFolder = HistoryLog.folder(home: context.home, bundleID: bundleID)
         scanDelay = fixtureRoot == nil ? nil : Self.number(settings(Self.scanDelayKey)).map { .seconds($0) }
+        syncedNames = fixtureRoot == nil ? [] : Self.list(settings(Self.syncedFilesKey))
     }
 
     /// The preferences domain to clear at launch, before anything reads it: the debug build's own when a UI test
@@ -130,7 +136,7 @@ nonisolated struct AppEnvironment {
     func personalFilesScan(
         context: ScanContext, lastOpened: LastOpenedReader?
     ) -> AsyncStream<PersonalFilesEvent> {
-        let scanner = PersonalFilesScanner(context: context, lastOpened: lastOpened)
+        let scanner = PersonalFilesScanner(context: context, readValues: readValues, lastOpened: lastOpened)
         guard let scanDelay else { return scanner.scan() }
         return AsyncStream { continuation in
             let task = Task {
@@ -142,6 +148,17 @@ nonisolated struct AppEnvironment {
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Reads an entry's resource values from disk, marking the ones in ``syncedNames`` as synced.
+    var readValues: PersonalFilesScanner.ValueReader {
+        let syncedNames = syncedNames
+        guard !syncedNames.isEmpty else { return EntryValues.read }
+        return { url in
+            var values = EntryValues.read(url)
+            if syncedNames.contains(url.lastPathComponent) { values?.isSynced = true }
+            return values
         }
     }
 
@@ -212,8 +229,8 @@ nonisolated struct AppEnvironment {
         return isProcessTemporary || isRunnerTemporary
     }
 
-    /// The bundle IDs in a comma-separated launch argument, without blanks. Anything else gives none.
-    static func bundleIDs(_ setting: Any?) -> Set<String> {
+    /// The items of a comma-separated launch argument, such as bundle IDs, without blanks. Anything else gives none.
+    static func list(_ setting: Any?) -> Set<String> {
         guard let text = setting as? String else { return [] }
         return Set(text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
     }

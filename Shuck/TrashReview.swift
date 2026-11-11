@@ -9,6 +9,9 @@ import ShuckKit
 @Observable
 final class TrashReview: Identifiable {
     let plan: Plan
+    /// The plan's items that iCloud keeps on the user's other devices. The review marks them and says that moving them
+    /// to the Trash removes them there too (SAF-002, D-129).
+    let synced: Set<URL>
     /// The run's phase, start and Stop (``RunModel``). Until it starts, the review is on screen.
     let run = RunModel<RunReport>()
     private let runPlan: RunPlan
@@ -22,8 +25,11 @@ final class TrashReview: Identifiable {
     }
 
     /// - Parameter onFinish: Called with the report when the run ends, so the caller can drop the moved items.
-    init(plan: Plan, runPlan: @escaping RunPlan, onFinish: @escaping (RunReport) -> Void) {
+    init(
+        plan: Plan, synced: Set<URL> = [], runPlan: @escaping RunPlan, onFinish: @escaping (RunReport) -> Void
+    ) {
         self.plan = plan
+        self.synced = synced
         self.runPlan = runPlan
         self.onFinish = onFinish
     }

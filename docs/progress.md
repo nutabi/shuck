@@ -334,9 +334,12 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 Fixes from the review of 2026-11-10 (D-129 to D-135). Each is one reviewable pull request; the issues are opened
 separately. Changes to Safety and Execution go in pull requests of their own (D-62):
 
-- [ ] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
+- [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
   devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-129).
+  Done as D-137, with a UI test launch argument that marks fixture files synced. Left over, for the owner: check on a
+  Mac with iCloud's Desktop & Documents that Large Files still lists downloaded files in `~/Documents`, marked
+  "Synced", since no test can read what iCloud reports for a real folder.
 - [ ] M2-F08 Old Files uses the latest of the last-used, modification and added dates, names the date that decided in
   the reason, and uses the newest direct child for a package or folder (OLD-002, D-130, R-18).
 - [ ] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,

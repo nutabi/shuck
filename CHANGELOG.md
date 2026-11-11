@@ -37,11 +37,16 @@ All notable changes to Shuck are listed here. The format follows
   `~/Library/Caches/Homebrew`. Cleaning it up runs `brew cleanup`, Homebrew's own command, which removes old
   versions of packages and old downloads and keeps the current ones. The size shown is the download cache only.
   Shuck starts `brew` with Homebrew's analytics and automatic update turned off.
+- Large Files and Old Files mark files that iCloud keeps on your other devices, such as files in Desktop and Documents
+  when iCloud syncs them, with "Synced". Move to Trash's review warns that moving them to the Trash also removes them
+  from your other devices.
 
 ### Changed
 
 - Move to Trash skips a file that another file replaced since the scan, such as an installer you downloaded again, and
   says so: "another file took its place since the scan".
+- Large Files and Old Files no longer list packages and folders that are only in iCloud and not downloaded to your Mac,
+  as they already left out such files.
 
 ### Fixed
 

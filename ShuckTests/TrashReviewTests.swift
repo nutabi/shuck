@@ -20,8 +20,8 @@ struct TrashReviewTests {
 
     func url(_ path: String) -> URL { context.home.appending(path: path) }
 
-    /// A model whose scan found two large old movies, a small old note and a read-only folder, and whose runs go to
-    /// `runPlan`.
+    /// A model whose scan found two large old movies, the clip synced by iCloud, a small old note and a read-only folder,
+    /// and whose runs go to `runPlan`.
     func scannedModel(runPlan: @escaping RunPlan) async -> FileCleanupModel {
         let files = [
             ("Movies/big.mov", 5_000, nil), ("Movies/clip.mov", 3_000, nil), ("Documents/note.txt", 10, nil),
@@ -29,7 +29,7 @@ struct TrashReviewTests {
         ].map { path, size, readOnly in
             PersonalFile(
                 url: url(path), snapshot: ItemSnapshot(kind: .file, allocatedSize: Int64(size)), modified: yearsAgo,
-                readOnly: readOnly)
+                readOnly: readOnly, isSynced: path == "Movies/clip.mov")
         }
         let scan: FileCleanupModel.PersonalFilesScan = { _, _ in
             AsyncStream { continuation in
@@ -73,6 +73,19 @@ struct TrashReviewTests {
         #expect(review.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
         #expect(review.totalBytes == 8_000)
         #expect(review.phase == .waiting)
+    }
+
+    /// The review knows which of its items iCloud syncs, so it can mark them and warn (SAF-002, FCL-012, D-129).
+    @Test func theReviewNamesItsSyncedItemsSAF002() async throws {
+        let model = await scannedModel(runPlan: run(trashing: []))
+        let rows = try #require(model.personalFilesResults[.largeFiles]?.rows)
+        #expect(rows.filter(\.isSynced).map(\.name) == ["clip.mov"])
+
+        let both = try #require(
+            try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+        #expect(both.synced == [url("Movies/clip.mov")])
+        let one = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+        #expect(one.synced.isEmpty)
     }
 
     @Test func movedItemsLeaveBothListsAndTheEstimatesFCL006SAF011() async throws {

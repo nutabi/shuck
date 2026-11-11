@@ -197,6 +197,8 @@ nonisolated struct ResultRow: Identifiable, Equatable {
     /// table says so (OLD-002).
     let dateIsModifiedFallback: Bool
     let readOnly: ReadOnlyReason?
+    /// iCloud keeps the item on the user's other devices too (FCL-012, D-129).
+    let isSynced: Bool
 
     /// `date` for sorting. Rows without a date sort as the oldest.
     var sortDate: Date { date ?? .distantPast }
@@ -217,6 +219,7 @@ nonisolated struct ResultRow: Identifiable, Equatable {
             dateIsModifiedFallback = date != nil && file.lastOpened?.source != .lastUsed
         }
         readOnly = file.readOnly
+        isSynced = file.isSynced
     }
 
     static func folder(of url: URL, home: URL) -> String {

@@ -6,7 +6,8 @@ import os
 ///
 /// The scope is the home folder minus what ``OwnershipMap`` leaves out (`Library` except device backups, hidden
 /// top-level items), app bundles and the user's exclusions. Packages and device backups are single items (FCL-009),
-/// and iCloud placeholders are skipped (FCL-010). Locations another sub-tool owns (FCL-011), protected bundles and the
+/// and iCloud placeholders are skipped, whether files, packages or folders (FCL-010). A downloaded file that iCloud keeps
+/// is listed and marked synced (D-129). Locations another sub-tool owns (FCL-011), protected bundles and the
 /// protected locations inside the home folder (section 8.4) are listed read-only. Symlinks are never followed.
 ///
 /// Several folders are read at once, each by a task of the scan, off the main actor (D-81). Cancelling the task that
@@ -201,7 +202,9 @@ public struct PersonalFilesScanner: Sendable {
 
     /// Decides what to do with one entry. `parentInScope` is whether its folder is a personal-files location.
     func classify(_ url: URL, parentInScope: Bool) -> Decision {
-        guard let values = readValues(url), !values.isSymbolicLink else { return .skip }
+        // A placeholder's content is not on this Mac (FCL-010). It is skipped before anything measures or lists it,
+        // since reading inside an evicted package or folder can make macOS download it.
+        guard let values = readValues(url), !values.isSymbolicLink, !values.isPlaceholder else { return .skip }
         let key = self.key(url)
         let protection = protectionOf(url, key: key)
         // Exclusions apply to tool-owned locations too: do not even measure a hidden store (SET-001).
@@ -228,7 +231,7 @@ public struct PersonalFilesScanner: Sendable {
             let isWhole = key.map { locationKeys.wholeFolders.contains(Self.parentKey($0)) } ?? false
             return isWhole ? measured(url, values, readOnly: nil) : .descend(inScope: true)
         }
-        guard values.isRegularFile, !values.isPlaceholder else { return .skip }
+        guard values.isRegularFile else { return .skip }
         let snapshot = ItemSnapshot(kind: .file, allocatedSize: values.allocatedSize)
         return .item(file(url, snapshot, values, readOnly: nil))
     }
@@ -249,7 +252,7 @@ public struct PersonalFilesScanner: Sendable {
         let lastOpened = lastOpened?.read(url, size: snapshot.allocatedSize, modified: values.modified)
         return PersonalFile(
             url: url, identity: values.identity, snapshot: snapshot, modified: values.modified, lastOpened: lastOpened,
-            readOnly: readOnly)
+            readOnly: readOnly, isSynced: values.isSynced)
     }
 
     enum Protection {
@@ -356,14 +359,18 @@ public struct EntryValues: Equatable, Sendable {
     /// Allocated size in bytes (SAF-013). Zero for folders.
     public var allocatedSize: Int64
     public var modified: Date?
-    /// An iCloud file whose content is not on this Mac (FCL-010).
+    /// An iCloud file, package or folder whose content is not on this Mac (FCL-010).
     public var isPlaceholder: Bool
+    /// An item iCloud keeps on the user's other devices too, such as a file in Documents under iCloud's Desktop &
+    /// Documents (D-129).
+    public var isSynced: Bool
     /// Which file the entry is (FCL-007).
     public var identity: FileIdentity?
 
     public init(
         isDirectory: Bool = false, isPackage: Bool = false, isSymbolicLink: Bool = false, isRegularFile: Bool = false,
-        allocatedSize: Int64 = 0, modified: Date? = nil, isPlaceholder: Bool = false, identity: FileIdentity? = nil
+        allocatedSize: Int64 = 0, modified: Date? = nil, isPlaceholder: Bool = false, isSynced: Bool = false,
+        identity: FileIdentity? = nil
     ) {
         self.isDirectory = isDirectory
         self.isPackage = isPackage
@@ -372,6 +379,7 @@ public struct EntryValues: Equatable, Sendable {
         self.allocatedSize = allocatedSize
         self.modified = modified
         self.isPlaceholder = isPlaceholder
+        self.isSynced = isSynced
         self.identity = identity
     }
 
@@ -388,6 +396,6 @@ public struct EntryValues: Equatable, Sendable {
             isSymbolicLink: values.isSymbolicLink == true, isRegularFile: values.isRegularFile == true,
             allocatedSize: Int64(values.totalFileAllocatedSize ?? 0), modified: values.contentModificationDate,
             isPlaceholder: values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus == .notDownloaded,
-            identity: FileIdentity.read(url))
+            isSynced: values.isUbiquitousItem == true, identity: FileIdentity.read(url))
     }
 }

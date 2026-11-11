@@ -15,10 +15,13 @@ public struct PersonalFile: Equatable, Sendable {
     public let lastOpened: LastOpened?
     /// Set when the item is listed but can never be selected (FCL-011, section 8.4).
     public let readOnly: ReadOnlyReason?
+    /// iCloud keeps the item on the user's other devices too, so moving it to the Trash removes it there as well. The
+    /// results mark it and the review warns about it (FCL-012, SAF-002, D-129).
+    public let isSynced: Bool
 
     public init(
         url: URL, identity: FileIdentity? = nil, snapshot: ItemSnapshot, modified: Date?, lastOpened: LastOpened? = nil,
-        readOnly: ReadOnlyReason? = nil
+        readOnly: ReadOnlyReason? = nil, isSynced: Bool = false
     ) {
         self.url = url
         self.identity = identity
@@ -26,6 +29,7 @@ public struct PersonalFile: Equatable, Sendable {
         self.modified = modified
         self.lastOpened = lastOpened
         self.readOnly = readOnly
+        self.isSynced = isSynced
     }
 
     /// The item as `source` lists it: "Your data", moved to the Trash (LRG-004, OLD-004). `nil` if it is read-only.

@@ -9,7 +9,8 @@ import XCTest
 /// new tool or sub-tool adds its step to the workflow a user would follow, or adds a workflow, and lists it here:
 ///
 /// - File Cleanup: Scan All and the de-duplicated total, in `FindWhatTakesSpaceUITests`.
-/// - Large Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`; Stop a scan, in `FirstLookUITests`.
+/// - Large Files: scan, review and Move to Trash, with a synced file's mark and warning, in `CleanUpThenUndoUITests`;
+///   Stop a scan, in `FirstLookUITests`.
 /// - Old Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
 /// - History: a run's summary opens the run in History, in `CleanUpThenUndoUITests`.
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
@@ -45,7 +46,9 @@ class ShuckUITestCase: XCTestCase {
     @MainActor
     /// - Parameter runningApps: Bundle IDs of apps the app treats as running, so a test can see a disabled item. Without
     ///   them no app runs, even though Xcode itself runs these tests (D-110, D-113).
-    func launch(scanDelay: Int? = nil, runningApps: [String] = []) -> XCUIApplication {
+    /// - Parameter syncedFiles: Names of files the personal-files scan treats as synced by iCloud, which a fixture file
+    ///   cannot be (D-137).
+    func launch(scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)", "-OldFilesMinimumSize",
@@ -56,6 +59,9 @@ class ShuckUITestCase: XCTestCase {
         }
         if !runningApps.isEmpty {
             app.launchArguments += ["-ShuckRunningApps", runningApps.joined(separator: ",")]
+        }
+        if !syncedFiles.isEmpty {
+            app.launchArguments += ["-ShuckSyncedFiles", syncedFiles.joined(separator: ",")]
         }
         app.launch()
         return app
