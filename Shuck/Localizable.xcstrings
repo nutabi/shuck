@@ -7,6 +7,24 @@
     "Shuck doesn't know how much a tool removes when its size is not known, so the estimate leaves it out." : {
 
     },
+    "%@ is more than a quarter of the space in use on this Mac, %@. Check that you meant to include it: Shuck can't put it back." : {
+
+    },
+    "Clean Up Anyway" : {
+
+    },
+    "Clean up ^[%lld very large item](inflect: true)?" : {
+
+    },
+    "Delete Anyway" : {
+
+    },
+    "Delete ^[%lld very large item](inflect: true)?" : {
+
+    },
+    "Each of these is more than a quarter of the space in use on this Mac, %@: %@. Check that you meant to include them: Shuck can't put them back." : {
+
+    },
     "A tool's size is the most it may remove, so it can free less." : {
 
     },

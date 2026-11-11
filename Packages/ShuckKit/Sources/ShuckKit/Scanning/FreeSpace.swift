@@ -15,6 +15,39 @@ public enum FreeSpace {
         else { return nil }
         return Int64(bytes)
     }
+
+    /// The bytes in use on the volume that holds `url`: its capacity less what is free now, or `nil` if macOS doesn't
+    /// say. Like ``available(at:)``, it walks nothing.
+    public static func used(at url: URL) -> Int64? {
+        let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityKey]
+        guard let values = try? url.resourceValues(forKeys: keys), let total = values.volumeTotalCapacity,
+            let available = values.volumeAvailableCapacity
+        else { return nil }
+        return Int64(max(0, total - available))
+    }
+}
+
+/// The size above which one Rebuildable item needs a second confirmation before it is deleted or cleaned up (SAF-015).
+///
+/// The PRD's default is a quarter of the home folder's size, but measuring the home folder means walking all of it. A
+/// quarter of the space in use on the startup volume is read at once and is close to it on a Mac with one user, a little
+/// larger (D-144).
+public struct OversizeThreshold: Equatable, Sendable {
+    /// The size in bytes; an item larger than this is oversized.
+    public let bytes: Int64
+
+    /// The threshold for a volume with `usedSpace` bytes in use, or `nil` if that is not known, and then no item is
+    /// oversized.
+    public init?(usedSpace: Int64?) {
+        guard let usedSpace, usedSpace > 0 else { return nil }
+        bytes = usedSpace / 4
+    }
+
+    /// The Rebuildable items of `items` larger than the threshold, in plan order. "Your data" items get an itemized
+    /// review of their own (SAF-002).
+    public func oversized(_ items: [PlannedItem]) -> [PlannedItem] {
+        items.filter { $0.tier == .rebuildable && $0.allocatedSize > bytes }
+    }
 }
 
 /// How free space changed over a run, next to what the run expected to free, and why the two can differ (SAF-013,

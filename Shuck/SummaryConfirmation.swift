@@ -25,6 +25,13 @@ final class SummaryConfirmation: Identifiable {
     let run = RunModel<RunReport>()
     /// The categories in the order the plan first names them.
     let categoryTotals: [CategoryTotal]
+    /// The size above which an item needs a second confirmation, or `nil` if the used space is not known (SAF-015).
+    let threshold: OversizeThreshold?
+    /// The plan's items larger than ``threshold``, in plan order. Before the run starts, the user confirms them a
+    /// second time (SAF-015).
+    let oversized: [PlannedItem]
+    /// Whether the user has confirmed ``oversized`` a second time.
+    var confirmedOversized = false
     /// The measured change in free space over the run, once it has ended, if macOS gave both readings (SAF-013).
     private(set) var freeSpace: FreeSpaceChange?
     private let runPlan: RunPlan
@@ -50,10 +57,12 @@ final class SummaryConfirmation: Identifiable {
     ///   - readFreeSpace: Read just before the run and just after it.
     ///   - onFinish: Called with the report when the run ends, so the caller can drop the deleted items.
     init(
-        plan: Plan, runPlan: @escaping RunPlan, readFreeSpace: @escaping ReadFreeSpace,
+        plan: Plan, threshold: OversizeThreshold?, runPlan: @escaping RunPlan, readFreeSpace: @escaping ReadFreeSpace,
         onFinish: @escaping (RunReport) -> Void
     ) {
         self.plan = plan
+        self.threshold = threshold
+        oversized = threshold?.oversized(plan.items) ?? []
         self.runPlan = runPlan
         self.readFreeSpace = readFreeSpace
         self.onFinish = onFinish
@@ -70,9 +79,15 @@ final class SummaryConfirmation: Identifiable {
         categoryTotals = totals
     }
 
-    /// Starts the run, or returns `nil` if it has started before.
+    /// Whether the run waits for the user to confirm ``oversized`` a second time (SAF-015).
+    var needsSecondConfirmation: Bool {
+        !oversized.isEmpty && !confirmedOversized
+    }
+
+    /// Starts the run, or returns `nil` if it has started before or ``needsSecondConfirmation``.
     @discardableResult
     func start() -> Task<Void, Never>? {
+        guard !needsSecondConfirmation else { return nil }
         let plan = plan
         let runPlan = runPlan
         let onFinish = onFinish

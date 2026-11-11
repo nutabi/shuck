@@ -18,6 +18,8 @@ struct SummaryConfirmationSheet: View {
     @Environment(AppNavigation.self) private var navigation: AppNavigation?
     /// Whether the full item list is open under the totals (SAF-003).
     @State private var showsItems = false
+    /// Whether the second confirmation for oversized items is on screen (SAF-015).
+    @State private var asksAboutOversized = false
 
     var body: some View {
         RunSheet(
@@ -95,8 +97,54 @@ struct SummaryConfirmationSheet: View {
             Spacer()
             Button("Cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            Button(runsTools ? "Clean Up" : "Delete", role: .destructive) { confirmation.start() }
-                .disabled(confirmation.plan.items.isEmpty)
+            Button(runsTools ? "Clean Up" : "Delete", role: .destructive) {
+                if confirmation.needsSecondConfirmation {
+                    asksAboutOversized = true
+                } else {
+                    confirmation.start()
+                }
+            }
+            .disabled(confirmation.plan.items.isEmpty)
+        }
+        .alert(oversizedTitle, isPresented: $asksAboutOversized) {
+            Button("Cancel", role: .cancel) {}
+            Button(runsTools ? "Clean Up Anyway" : "Delete Anyway", role: .destructive) {
+                confirmation.confirmedOversized = true
+                confirmation.start()
+            }
+        } message: {
+            oversizedMessage
+        }
+    }
+
+    /// The second confirmation's title, which names how many items are oversized (SAF-015).
+    private var oversizedTitle: Text {
+        let count = confirmation.oversized.count
+        return runsTools
+            ? Text("Clean up ^[\(count) very large item](inflect: true)?")
+            : Text("Delete ^[\(count) very large item](inflect: true)?")
+    }
+
+    /// Which items are oversized and why that matters: each is more than a quarter of the space in use on this Mac, an
+    /// unusual size for something rebuildable (SAF-015, D-144).
+    private var oversizedMessage: Text {
+        let names = confirmation.oversized.map { name(of: $0.target) }.formatted(.list(type: .and))
+        let threshold = confirmation.threshold?.bytes ?? 0
+        if confirmation.oversized.count == 1 {
+            return Text(
+                "\(names) is more than a quarter of the space in use on this Mac, \(threshold, format: .byteCount(style: .file)). Check that you meant to include it: Shuck can't put it back."
+            )
+        }
+        return Text(
+            "Each of these is more than a quarter of the space in use on this Mac, \(threshold, format: .byteCount(style: .file)): \(names). Check that you meant to include them: Shuck can't put them back."
+        )
+    }
+
+    /// An item as the second confirmation names it: a file by its path from the home folder, a tool by its command.
+    private func name(of target: ItemTarget) -> String {
+        switch target {
+        case .path(let url): ResultRow.folder(of: url, home: home) + "/" + url.lastPathComponent
+        case .command(let command): command.commandLine
         }
     }
 

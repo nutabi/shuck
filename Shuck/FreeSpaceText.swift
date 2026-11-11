@@ -6,6 +6,10 @@ import SwiftUI
 /// ``AppEnvironment/availableSpace()``; tests pass a stub.
 typealias ReadFreeSpace = @Sendable () -> Int64?
 
+/// Reads the bytes in use on the scanned volume, or `nil` if macOS doesn't say, for the oversize threshold (SAF-015).
+/// The app passes ``AppEnvironment/usedSpace()``; tests pass a stub.
+typealias ReadUsedSpace = @Sendable () -> Int64?
+
 extension FreeSpaceChange {
     /// The change between two readings around `report`'s run, or `nil` if either reading is missing. The estimate is
     /// what the run deleted and the estimates of the tools it ran to the end; what it moved to the Trash frees nothing

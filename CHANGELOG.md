@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Added
 
+- Before deleting or cleaning up a single item larger than a quarter of the space in use on your Mac, Shuck asks you a
+  second time and names the item, since something that large is rarely just a cache.
 - After deleting, cleaning up or moving items to the Trash, the summary shows how much free space your Mac actually
   gained, measured on the disk, next to Shuck's estimate, and explains why they can differ: local Time Machine
   snapshots, APFS clones, a tool's estimate, or other apps using space at the same time.
