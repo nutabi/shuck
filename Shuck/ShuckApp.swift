@@ -9,6 +9,8 @@ struct ShuckApp: App {
     /// Kept for the app's lifetime, so scan results survive switching between pages.
     @State private var fileCleanup: FileCleanupModel
     @State private var history: HistoryModel
+    /// The excluded folders Settings lists (SET-001). Changing them rebuilds File Cleanup's guard and drops rows.
+    @State private var exclusions: ExclusionsModel
     @State private var navigation = AppNavigation()
 
     init() {
@@ -21,8 +23,9 @@ struct ShuckApp: App {
         let environment: AppEnvironment
         do {
             environment = try AppEnvironment(
-                arguments: arguments, settings: UserDefaults.standard.object(forKey:), bundleID: bundleID,
-                home: .homeDirectory)
+                arguments: arguments, settings: UserDefaults.standard.object(forKey:),
+                saveExcludedFolders: { UserDefaults.standard.set($0, forKey: AppEnvironment.excludedFoldersKey) },
+                bundleID: bundleID, home: .homeDirectory)
         } catch {
             // A UI test passed a bad fixture root, or the build has the wrong bundle ID. Stop rather than scan the real
             // home folder or share another build's data.
@@ -31,11 +34,15 @@ struct ShuckApp: App {
         }
         registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
         pages = SubToolPages(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
-        _fileCleanup = State(
-            initialValue: FileCleanupModel(
-                subTools: registry.subTools, context: environment.context,
-                personalFilesScan: environment.personalFilesScan, runPlan: environment.run,
-                readFreeSpace: environment.availableSpace, readUsedSpace: environment.usedSpace))
+        let fileCleanup = FileCleanupModel(
+            subTools: registry.subTools, context: environment.context,
+            personalFilesScan: environment.personalFilesScan, runPlan: environment.run,
+            readFreeSpace: environment.availableSpace, readUsedSpace: environment.usedSpace)
+        _fileCleanup = State(initialValue: fileCleanup)
+        _exclusions = State(
+            initialValue: ExclusionsModel(list: environment.excludedFolders) { folders in
+                fileCleanup.protect(with: environment.makeProtection(folders))
+            })
         _history = State(
             initialValue: HistoryModel(
                 home: environment.context.home, load: environment.loadHistory, runRestore: environment.restore))

@@ -18,6 +18,11 @@ nonisolated struct AppEnvironment {
     let toolRunner: ToolRunner
     let largeFiles: LargeFiles
     let oldFiles: OldFiles
+    /// The folders the user excluded, which every scan hides and every plan and run refuses (SET-001, D-150).
+    let excludedFolders: ExcludedFolders
+    /// The path guard's configuration for a list of excluded folders. The configuration is rebuilt when the list
+    /// changes; it never changes itself (D-150).
+    let makeProtection: @Sendable ([URL]) -> PathGuardConfiguration
     /// This build's data folder inside the home folder, which holds its history log: the release build's or the debug
     /// build's, named after its bundle ID (D-70).
     let historyFolder: URL
@@ -43,6 +48,11 @@ nonisolated struct AppEnvironment {
     static let runningAppsKey = "ShuckRunningApps"
     /// ``syncedNames``, separated by commas: `-ShuckSyncedFiles Holiday.mov`. Only a fixture root reads it (D-137).
     static let syncedFilesKey = "ShuckSyncedFiles"
+    /// The excluded folders in `UserDefaults` (SET-001, SET-004): an array of absolute paths.
+    static let excludedFoldersKey = "ExcludedFolders"
+    /// The folders a UI test excludes, as paths inside its fixture root separated by commas: `-ShuckExcludedFolders
+    /// Documents/Private`. Only a fixture root reads it, and then it replaces the stored list (D-150).
+    static let excludedFoldersArgumentKey = "ShuckExcludedFolders"
 
     /// Reads the stored value for a key, if any.
     typealias Settings = (String) -> Any?
@@ -73,7 +83,9 @@ nonisolated struct AppEnvironment {
 
     /// - Parameters:
     ///   - arguments: The process's launch arguments.
-    ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``.
+    ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``, and the excluded folders.
+    ///   - saveExcludedFolders: Stores the excluded folders, as ``excludedFoldersKey`` does, after each change. By default
+    ///     it stores nothing, as in tests; the app passes one that writes `UserDefaults`.
     ///   - debugBuild: Whether the fixture-root argument counts, and which bundle ID the build must have.
     ///   - bundleID: The app's bundle ID, which names its data folder.
     ///   - home: The home folder the app scans without a fixture root: the user's own. It has no default, so a test
@@ -81,7 +93,8 @@ nonisolated struct AppEnvironment {
     /// - Throws: ``LaunchError`` if a debug build gets a fixture-root argument it does not accept, or the bundle ID is
     ///   not the build's own.
     init(
-        arguments: [String], settings: Settings, debugBuild: Bool = isDebugBuild,
+        arguments: [String], settings: Settings, saveExcludedFolders: @escaping @Sendable ([String]) -> Void = { _ in },
+        debugBuild: Bool = isDebugBuild,
         appBundle: URL = Bundle.main.bundleURL, bundleID: String? = Bundle.main.bundleIdentifier,
         home: URL
     ) throws(LaunchError) {
@@ -91,21 +104,34 @@ nonisolated struct AppEnvironment {
         let fixtureRoot = try Self.fixtureRoot(in: arguments, debugBuild: debugBuild)
         if let root = fixtureRoot {
             // The engine tests' configuration (D-41): only the temporary folder's /private prefix is left out.
-            let protection = PathGuardConfiguration(
-                home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
-                appBundle: appBundle, userExclusions: [])
+            makeProtection = { exclusions in
+                PathGuardConfiguration(
+                    home: root, systemLocations: PathGuardConfiguration.systemLocations.filter { $0 != "/private" },
+                    appBundle: appBundle, userExclusions: exclusions)
+            }
+            // A UI test's list replaces the stored one, so a fixture root never reads a path of the real home folder.
+            let seeded = Self.fixtureExclusions(Self.list(settings(Self.excludedFoldersArgumentKey)), in: root)
+            excludedFolders = ExcludedFolders(stored: seeded, save: saveExcludedFolders)
             toolRunner = ToolRunner(executableRoots: [root])
             runningApps = StubRunningApps(Self.list(settings(Self.runningAppsKey)))
-            context = ScanContext(home: root, protection: protection, runningApps: runningApps, toolRoot: root)
+            context = ScanContext(
+                home: root, protection: makeProtection(excludedFolders.folders), runningApps: runningApps,
+                toolRoot: root)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
             let home = home.resolvingSymlinksInPath()
+            makeProtection = { exclusions in
+                .production(home: home, appBundle: appBundle, userExclusions: exclusions)
+            }
+            excludedFolders = ExcludedFolders(
+                stored: (settings(Self.excludedFoldersKey) as? [Any])?.compactMap { $0 as? String } ?? [],
+                save: saveExcludedFolders)
             runningApps = SystemRunningApps()
             toolRunner = ToolRunner(executableRoots: nil)
             context = ScanContext(
-                home: home, protection: .production(home: home, appBundle: appBundle, userExclusions: []),
-                runningApps: runningApps, toolRoot: URL(filePath: "/", directoryHint: .isDirectory))
+                home: home, protection: makeProtection(excludedFolders.folders), runningApps: runningApps,
+                toolRoot: URL(filePath: "/", directoryHint: .isDirectory))
             trash = SystemTrash()
         }
         largeFiles = LargeFiles(
@@ -173,9 +199,11 @@ nonisolated struct AppEnvironment {
     @concurrent
     func run(_ plan: Plan) async throws(HistoryError) -> RunReport {
         let log = try HistoryLog(folder: historyFolder)
+        // The guard is built when the run starts, from the list as it is then: it re-validates every item against
+        // it, and a change made while the run goes on waits for the next one (D-150).
         let executor = PlanExecutor(
-            pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash, runningApps: runningApps,
-            toolRunner: toolRunner)
+            pathGuard: PathGuard(configuration: makeProtection(excludedFolders.folders)), log: log, trash: trash,
+            runningApps: runningApps, toolRunner: toolRunner)
         return await executor.run(plan)
     }
 
@@ -196,7 +224,8 @@ nonisolated struct AppEnvironment {
     @concurrent
     func restore(_ requests: [RestoreRequest]) async throws(HistoryError) -> RestoreReport {
         let log = try HistoryLog(folder: historyFolder)
-        let executor = RestoreExecutor(pathGuard: PathGuard(configuration: context.protection), log: log, trash: trash)
+        let executor = RestoreExecutor(
+            pathGuard: PathGuard(configuration: makeProtection(excludedFolders.folders)), log: log, trash: trash)
         return await executor.run(requests)
     }
 
@@ -249,6 +278,18 @@ nonisolated struct AppEnvironment {
     static func list(_ setting: Any?) -> Set<String> {
         guard let text = setting as? String else { return [] }
         return Set(text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+    }
+
+    /// The paths of `names`, which are relative to the fixture root, as absolute paths inside it, sorted. A name that
+    /// is absolute or leaves the root with `..` is dropped, so a UI test cannot exclude, or point the app at, anything
+    /// outside the root.
+    static func fixtureExclusions(_ names: Set<String>, in root: URL) -> [String] {
+        names.sorted().compactMap { name in
+            guard !name.hasPrefix("/"), !name.hasPrefix("~"), !name.split(separator: "/").contains("..") else {
+                return nil
+            }
+            return ExcludedFolders.standardize(root.appending(path: name).path)
+        }
     }
 
     /// A stored number that is not negative, or `nil` if there is none or it is not one. The caller then uses the

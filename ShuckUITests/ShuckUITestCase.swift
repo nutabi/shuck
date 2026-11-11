@@ -48,7 +48,11 @@ class ShuckUITestCase: XCTestCase {
     ///   them no app runs, even though Xcode itself runs these tests (D-110, D-113).
     /// - Parameter syncedFiles: Names of files the personal-files scan treats as synced by iCloud, which a fixture file
     ///   cannot be (D-137).
-    func launch(scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = []) -> XCUIApplication {
+    /// - Parameter exclusions: Folders inside the fixture root, as paths relative to it, that the app starts with in
+    ///   its list of excluded folders (SET-001, D-150).
+    func launch(
+        scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = [], exclusions: [String] = []
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-ShuckFixtureRoot", root.url.path, "-LargeFilesMinimumSize", "\(1 << 20)", "-OldFilesMinimumSize",
@@ -62,6 +66,9 @@ class ShuckUITestCase: XCTestCase {
         }
         if !syncedFiles.isEmpty {
             app.launchArguments += ["-ShuckSyncedFiles", syncedFiles.joined(separator: ",")]
+        }
+        if !exclusions.isEmpty {
+            app.launchArguments += ["-ShuckExcludedFolders", exclusions.joined(separator: ",")]
         }
         app.launch()
         return app
