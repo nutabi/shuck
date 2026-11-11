@@ -25,6 +25,8 @@ import XCTest
 ///   and Delete, and a running app's disabled rows, in `CachesAndLogsUITests`; its empty page, in `FirstLookUITests`.
 /// - Overview, Applications and Startup Items: a placeholder that names its milestone, in `FirstLookUITests`.
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
+/// - Excluded folders: Settings lists them and Remove takes one out, in `FirstLookUITests`; Large Files, the totals and
+///   Developer Junk leave out what an exclusion covers, in `FindWhatTakesSpaceUITests` and `DeveloperJunkUITests`.
 ///
 /// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).
 class ShuckUITestCase: XCTestCase {

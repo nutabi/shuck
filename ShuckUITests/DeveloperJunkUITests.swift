@@ -53,12 +53,15 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             "Fresh-\(projectHash)", workspace: root.folder("Projects/Fresh"), modified: .now)
         let gone = try root.derivedDataProject(
             "Gone-\(projectHash)", workspace: root.url("Projects/Gone"), modified: .now)
+        // Stale, so it would be selected and counted, if its folder were not excluded (SET-001).
+        try root.derivedDataProject(
+            "Private-\(projectHash)", workspace: root.folder("Projects/Private"), modified: longAgo)
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
         try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 4096)
         try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
         let archive = try root.xcarchive(day: "2026-11-10", name: "Release Build")
-        let app = launch()
+        let app = launch(exclusions: ["Library/Developer/Xcode/DerivedData/Private-\(projectHash)"])
         let sidebar = app.outlines.firstMatch
         let sheet = app.sheets.firstMatch
 
@@ -69,6 +72,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["Fresh"].exists)
             XCTAssertTrue(app.staticTexts["Gone"].exists)
             XCTAssertFalse(app.staticTexts["Stale-\(projectHash)"].exists, "The folder's hash is shown")
+            XCTAssertFalse(app.staticTexts["Private"].exists, "A project in an excluded folder is listed (SET-001)")
             XCTAssertTrue(app.staticTexts["Its project is no longer on this Mac."].exists)
             XCTAssertTrue(app.staticTexts["Not built for 30 days or more."].exists)
             XCTAssertTrue(app.staticTexts["iOS 16.4 (20E247)"].exists, "No row for the device support version")

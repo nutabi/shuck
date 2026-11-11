@@ -9,6 +9,9 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Added
 
+- Settings lists excluded folders. Add folders with the Add button and take them out with Remove. Shuck never lists,
+  moves or deletes anything inside an excluded folder, or a folder that holds one, in any tool. Adding a folder hides
+  its files from every list at once. A folder you remove is scanned again from the next scan on.
 - Before deleting or cleaning up a single item larger than a quarter of the space in use on your Mac, Shuck asks you a
   second time and names the item, since something that large is rarely just a cache.
 - After deleting, cleaning up or moving items to the Trash, the summary shows how much free space your Mac actually
