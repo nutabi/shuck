@@ -342,8 +342,8 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
   "Synced", since no test can read what iCloud reports for a real folder.
 - [ ] M2-F08 Old Files uses the latest of the last-used, modification and added dates, names the date that decided in
   the reason, and uses the newest direct child for a package or folder (OLD-002, D-130, R-18).
-- [ ] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,
-  D-131, D-135).
+- [x] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,
+  D-131, D-135). Done as D-139: an entry whose volume cannot be read is skipped too.
 - [x] M2-F10 Path guard: refuse a folder that contains a protected bundle or name among its direct children, and a
   Trash target that is itself a mount point; the same pull request words FCL-011's examples in code and text
   (SAF-007, section 8.4, D-135). Safety change. Done as D-136: an unreadable folder is refused too and reads as "Not

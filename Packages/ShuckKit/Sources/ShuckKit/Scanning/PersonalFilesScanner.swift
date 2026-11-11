@@ -8,7 +8,8 @@ import os
 /// top-level items), app bundles and the user's exclusions. Packages and device backups are single items (FCL-009),
 /// and iCloud placeholders are skipped, whether files, packages or folders (FCL-010). A downloaded file that iCloud keeps
 /// is listed and marked synced (D-129). Locations another sub-tool owns (FCL-011), protected bundles and the
-/// protected locations inside the home folder (section 8.4) are listed read-only. Symlinks are never followed.
+/// protected locations inside the home folder (section 8.4) are listed read-only. Symlinks are never followed. Git's
+/// own files and other volumes mounted inside the home folder are out of scope (FCL-008, D-131, D-135).
 ///
 /// Several folders are read at once, each by a task of the scan, off the main actor (D-81). Cancelling the task that
 /// reads the stream stops the scan before the next entry (SAF-014).
@@ -25,6 +26,8 @@ public struct PersonalFilesScanner: Sendable {
     /// The home folder's path and a slash. Every entry the walk finds starts with it.
     let homePrefix: String
     let locationKeys: LocationKeys
+    /// The home folder's volume. An entry on any other volume is out of scope (FCL-008, D-135).
+    let homeVolume: Int32?
 
     /// The scan is shared by File Cleanup's personal-files sub-tools, so it logs under File Cleanup (NFR-OBS-001).
     private static let logger = Logger(tool: .fileCleanup)
@@ -47,6 +50,7 @@ public struct PersonalFilesScanner: Sendable {
         self.report = report
         homePrefix = context.home.path + "/"
         locationKeys = LocationKeys(home: context.home, protectedLocations: context.protection.protectedLocations)
+        homeVolume = FileIdentity.read(context.home)?.volume
     }
 
     public func scan() -> AsyncStream<PersonalFilesEvent> {
@@ -205,6 +209,12 @@ public struct PersonalFilesScanner: Sendable {
         // A placeholder's content is not on this Mac (FCL-010). It is skipped before anything measures or lists it,
         // since reading inside an evicted package or folder can make macOS download it.
         guard let values = readValues(url), !values.isSymbolicLink, !values.isPlaceholder else { return .skip }
+        // Both checks come before anything measures, lists or enters the entry.
+        // Git's own files are not personal files: trashing an old packfile corrupts the repository (FCL-008, D-131).
+        if PathGuard.fold(url.lastPathComponent) == ".git" { return .skip }
+        // Another volume mounted inside the home folder is out of scope. An entry whose volume is unknown is skipped
+        // too, since nothing shows it is on the home folder's (FCL-008, D-135).
+        guard let volume = values.identity?.volume, volume == homeVolume else { return .skip }
         let key = self.key(url)
         let protection = protectionOf(url, key: key)
         // Exclusions apply to tool-owned locations too: do not even measure a hidden store (SET-001).
