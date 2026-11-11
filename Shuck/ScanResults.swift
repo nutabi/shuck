@@ -29,13 +29,24 @@ final class ScanResults: SubToolResults {
     var selectedItems: [ScanItem] {
         items.filter { selected.contains($0.target) && $0.selection.isSelectable }
     }
-    /// The allocated size of the selected items, in bytes (SAF-013).
-    var selectedBytes: Int64 {
-        selectedItems.reduce(0) { $0 + $1.allocatedSize }
+    /// The selected items of one tier. A run never mixes tiers: "Rebuildable" items are deleted after a summary, "Your
+    /// data" items moved to the Trash after an itemized review (SAF-002, SAF-003, SAF-004), so each button counts and
+    /// acts on its own tier.
+    func selectedItems(in tier: Tier) -> [ScanItem] {
+        selectedItems.filter { $0.tier == tier }
     }
-    /// Selects every row that can be chosen; the setter leaves out locked rows (SAF-009).
+    /// The allocated size of the selected items of one tier, in bytes (SAF-013).
+    func selectedBytes(in tier: Tier) -> Int64 {
+        selectedItems(in: tier).reduce(0) { $0 + $1.allocatedSize }
+    }
+    /// Whether the list has any "Your data" item, selectable or not, so the page offers Move to Trash (DEV-R05).
+    var hasYourData: Bool {
+        items.contains { $0.tier == .yourData }
+    }
+    /// Selects every row that can be chosen, except "Your data": the user chooses those one by one (SAF-002). A "Your
+    /// data" row the user chose already stays chosen. The setter leaves out locked rows (SAF-009).
     func selectAll() {
-        selection = Set(items.map(\.target))
+        selection = selected.union(items.filter { $0.tier != .yourData }.map(\.target))
     }
 
     /// Folders macOS did not let the scan read (SAF-012).

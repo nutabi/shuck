@@ -4,6 +4,21 @@
     "Added" : {
 
     },
+    "Your data: none selected" : {
+
+    },
+    "Your data: ^[%lld item](inflect: true) selected, %@" : {
+
+    },
+    "Review the selected items of your data before moving them to the Trash." : {
+
+    },
+    "Select every item that can be selected, except your data, which you choose one by one." : {
+
+    },
+    "Your data. Shuck moves it to the Trash, and you can restore it from History." : {
+
+    },
     "Shuck doesn't know how much a tool removes when its size is not known, so the estimate leaves it out." : {
 
     },
