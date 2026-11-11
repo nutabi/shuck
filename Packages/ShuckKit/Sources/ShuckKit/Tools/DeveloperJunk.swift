@@ -1,8 +1,9 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has eight,
-/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and, as commands
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has ten,
+/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04), the stale
+/// `node_modules` of the user's project folders (DEV-R06) and, as commands
 /// of the tools that own the data, unavailable simulators (DEV-R03) the npm and pip caches and Homebrew's cleanup (DEV-R07 to
 /// DEV-R09), and one rule for "Your data": Xcode's archives (DEV-R05). The other rules arrive one at a time.
 public struct DeveloperJunk: SubTool {
@@ -50,10 +51,11 @@ public struct DeveloperJunk: SubTool {
     /// simulators' caches and Xcode's Archives. The device support folders are found by name, so the roots stay narrow
     /// and leave out the rest of Xcode. Never the simulators' devices (DEV-007, D-119). The Archives root is one level
     /// wider than DEV-R05's targets, which are inside its date folders: the rule's pattern and the scan keep an item
-    /// to the bundles (D-145).
+    /// to the bundles (D-145). The project folders from Settings are roots too, for `node_modules` at the depths DEV-R06's
+    /// patterns allow: the rule's match, not the root, is what keeps a Delete to a `node_modules` (D-141, D-153).
     public func allowedRoots(home: URL) -> [URL] {
         [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home)
-            + [Self.simulatorCaches(home: home), Self.archives(home: home)]
+            + [Self.simulatorCaches(home: home), Self.archives(home: home)] + projects(home: home)
     }
 
     static func archives(home: URL) -> URL {
@@ -204,6 +206,7 @@ public struct DeveloperJunk: SubTool {
                 scanDeviceSupport(context) { continuation.yield($0) }
                 scanSimulatorCaches(context) { continuation.yield($0) }
                 scanArchives(context) { continuation.yield($0) }
+                scanNodeModules(context) { continuation.yield($0) }
                 scanUnavailableSimulators(context) { continuation.yield($0) }
                 scanNpmCache(context) { continuation.yield($0) }
                 scanPipCache(context) { continuation.yield($0) }
@@ -395,7 +398,7 @@ public struct DeveloperJunk: SubTool {
             != nil
     }
 
-    private static func isRealFolder(_ url: URL) -> Bool {
+    static func isRealFolder(_ url: URL) -> Bool {
         let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
         return values?.isDirectory == true && values?.isSymbolicLink != true
     }

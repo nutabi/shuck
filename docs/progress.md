@@ -314,6 +314,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - A stack of three pull requests, which the owner merges (not auto-merge):
     - [x] Ownership: Developer Junk owns `node_modules` inside the project folders, the personal-files scan skips it,
       and the project folders are values in the ownership map and in `DeveloperJunk` (D-152).
+    - [x] The DEV-R06 rule and its scan: depth limit, top-most only, a lockfile, the project's own files for staleness,
+      warnings for `patch-package` and `file:` links, and a pipeline test from scan to Delete to History (D-153).
 
 Patch releases during M2 (D-94):
 
