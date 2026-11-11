@@ -28,6 +28,10 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         app.descendants(matching: .any).matching(identifier: "project-\(name)").firstMatch
     }
 
+    private func exists(_ url: URL) -> Bool {
+        FileManager.default.fileExists(atPath: url.path)
+    }
+
     /// What the window holds, in one line, for a failure message.
     @MainActor
     private func outline(of app: XCUIApplication) -> String {
@@ -61,7 +65,13 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 4096)
         try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
         let archive = try root.xcarchive(day: "2026-11-10", name: "Release Build")
-        let app = launch(exclusions: ["Library/Developer/Xcode/DerivedData/Private-\(projectHash)"])
+        // Two Node.js projects in a project folder, both left alone for 40 days: `web` would be selected, and `shop`
+        // patches its packages, so it is listed and never selected (DEV-R06, DEV-006).
+        let web = try root.nodeProject("Developer/web", edited: longAgo)
+        let shop = try root.nodeProject(
+            "Developer/shop", manifest: "{\"scripts\": {\"postinstall\": \"patch-package\"}}", edited: longAgo)
+        let app = launch(
+            exclusions: ["Library/Developer/Xcode/DerivedData/Private-\(projectHash)"], projectFolders: ["Developer"])
         let sidebar = app.outlines.firstMatch
         let sheet = app.sheets.firstMatch
 
@@ -79,10 +89,32 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             attachScreenshot(of: app, named: "Developer Junk, Xcode build folders")
         }
 
+        step("A project's node_modules is a row named by its project, with its path and how to restore it (DEV-R06)") {
+            XCTAssertTrue(app.staticTexts["web"].appears(within: 10), "No row for the project: \(outline(of: app))")
+            XCTAssertTrue(app.staticTexts["shop"].exists)
+            XCTAssertTrue(app.staticTexts["Node.js projects"].exists, "The projects have no group of their own")
+            XCTAssertTrue(app.staticTexts["~/Developer/web"].exists, "The project's path is missing")
+            XCTAssertFalse(app.staticTexts["node_modules"].exists, "The row is named after the folder, not the project")
+            // Shuck has no network, so every row says that restoring needs an install and a connection.
+            let restore =
+                "To restore it, run npm install, or your project's package manager, which needs an internet connection."
+            XCTAssertTrue(app.staticTexts[restore].exists, "No way to restore: \(outline(of: app))")
+            XCTAssertTrue(
+                app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", restore + " This project patches"))
+                    .firstMatch.exists,
+                "The patch-package warning is missing: \(outline(of: app))")
+            attachScreenshot(of: app, named: "Developer Junk with Node.js projects")
+        }
+
         step("A project that is stale or gone starts selected, a recent one does not (DEV-005, DEV-008)") {
             XCTAssertTrue(isChecked(app, "Stale"))
             XCTAssertTrue(isChecked(app, "Gone"))
             XCTAssertFalse(isChecked(app, "Fresh"))
+        }
+
+        step("A stale project's node_modules starts selected, one that patches its packages does not (DEV-006)") {
+            XCTAssertTrue(isChecked(app, "web"))
+            XCTAssertFalse(isChecked(app, "shop"))
         }
 
         step("A device support version starts selected unless it is its platform's newest (DEV-R02)") {
@@ -93,30 +125,31 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         step("A simulator cache starts selected, and the simulators' devices are not listed (DEV-R04, DEV-007)") {
             XCTAssertTrue(isChecked(app, "dyld"))
             XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
-            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5), outline(of: app))
+            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
         }
 
         step("Choosing a recent project selects it, and clearing a box deselects it (DEV-005)") {
             checkbox(app, "Fresh").click()
-            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "6 items selected").appears(within: 5))
             checkbox(app, "Stale").click()
             checkbox(app, "Gone").click()
-            XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5))
         }
 
         step("Delete… opens the summary confirmation: totals per category, the list on demand, Cancel deletes nothing")
         {
-            // The recent project is still selected; leave out the device support and the simulator cache and choose
-            // the stale project, so the run is two build folders.
+            // The recent project and `web` are still selected; leave out the device support and the simulator cache and
+            // choose the stale project, so the run is two build folders and a node_modules.
             checkbox(app, "iOS 16.4 (20E247)").click()
             checkbox(app, "dyld").click()
             checkbox(app, "Stale").click()
-            XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5))
+            XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5))
             app.buttons["Delete…"].click()
             XCTAssertTrue(
-                text(sheet, startingWith: "Delete 2 items, ").appears(within: 5), "No confirmation: \(outline(of: app))"
+                text(sheet, startingWith: "Delete 3 items, ").appears(within: 5), "No confirmation: \(outline(of: app))"
             )
             XCTAssertTrue(sheet.staticTexts["Xcode"].exists, "The category's total is missing: \(outline(of: app))")
+            XCTAssertTrue(sheet.staticTexts["Node.js projects"].exists, "The projects' total is missing")
             XCTAssertFalse(sheet.staticTexts["Stale-\(projectHash)"].exists, "The list is open before it was asked for")
             attachScreenshot(of: app, named: "Summary confirmation")
 
@@ -133,16 +166,22 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(FileManager.default.fileExists(atPath: stale.path))
             XCTAssertTrue(FileManager.default.fileExists(atPath: fresh.path))
             XCTAssertTrue(
-                footer(app, startingWith: "2 items selected").appears(within: 5), "Cancel cleared the selection")
+                exists(web.appending(path: "node_modules")), "A node_modules was deleted before the confirmation")
+            XCTAssertTrue(
+                footer(app, startingWith: "3 items selected").appears(within: 5), "Cancel cleared the selection")
         }
 
         step("Delete removes the selection permanently, and the summary says what happened (SAF-003, SAF-011)") {
             app.buttons["Delete…"].click()
-            XCTAssertTrue(text(sheet, startingWith: "Delete 2 items, ").appears(within: 5))
+            XCTAssertTrue(text(sheet, startingWith: "Delete 3 items, ").appears(within: 5))
             sheet.buttons["Delete"].click()
-            XCTAssertTrue(sheet.staticTexts["Deleted 2 items"].appears(within: 10), outline(of: app))
+            XCTAssertTrue(sheet.staticTexts["Deleted 3 items"].appears(within: 10), outline(of: app))
             XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path), "Stale was not deleted")
             XCTAssertFalse(FileManager.default.fileExists(atPath: fresh.path), "Fresh was not deleted")
+            // Only the node_modules goes: the project's own files stay, and so does the one that was not selected.
+            XCTAssertFalse(exists(web.appending(path: "node_modules")), "web's node_modules was not deleted")
+            XCTAssertTrue(exists(web.appending(path: "package.json")), "A project's own file was deleted")
+            XCTAssertTrue(exists(shop.appending(path: "node_modules")), "A node_modules that was not selected went")
             XCTAssertTrue(
                 FileManager.default.fileExists(atPath: gone.path), "A folder that was not selected was deleted")
             XCTAssertFalse(
@@ -155,7 +194,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             sheet.buttons["Show in History"].click()
             let run = runRow(in: app, startingWith: "Developer Junk · Deleted permanently")
             XCTAssertTrue(run.appears(within: 5), "The run is missing: \(outline(of: app))")
-            XCTAssertTrue(run.label.contains(", 2 items, "), "Wrong count: \(run.label)")
+            XCTAssertTrue(run.label.contains(", 3 items, "), "Wrong count: \(run.label)")
             XCTAssertTrue(run.label.hasSuffix(", Completed"), "Wrong status: \(run.label)")
             XCTAssertTrue(app.staticTexts["Not restorable"].appears(within: 5), "The items are not marked")
             XCTAssertFalse(app.buttons["Restore All"].exists, "A deletion offers Restore")
@@ -180,7 +219,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
 
         step("Select All chooses the rebuildable rows and leaves the archive unchecked (SAF-002)") {
             app.buttons["Select All"].click()
-            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5), outline(of: app))
+            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
             XCTAssertFalse(isChecked(app, "Release Build"), "Select All chose an archive")
             XCTAssertTrue(footer(app, startingWith: "Your data: none selected").exists)
             XCTAssertFalse(app.buttons["Move to Trash…"].isEnabled)
@@ -190,7 +229,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             checkbox(app, "Release Build").click()
             XCTAssertTrue(footer(app, startingWith: "Your data: 1 item selected, ").appears(within: 5))
             XCTAssertTrue(app.buttons["Move to Trash…"].isEnabled)
-            XCTAssertTrue(footer(app, startingWith: "4 items selected").exists, "The archive was counted with Delete")
+            XCTAssertTrue(footer(app, startingWith: "5 items selected").exists, "The archive was counted with Delete")
         }
 
         step("Move to Trash… lists the archive in the itemized review, then moves it (SAF-002, DEV-R05)") {

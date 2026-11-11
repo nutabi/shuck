@@ -11,7 +11,7 @@ final class FirstLookUITests: ShuckUITestCase {
         // Too small for Large Files and Old Files, so neither has anything to list.
         try root.file("Documents/notes.txt", size: 10)
         let secret = try root.file("Documents/Private/secret.txt", size: 10)
-        let app = launch(scanDelay: 2, exclusions: ["Documents/Private"])
+        let app = launch(scanDelay: 2, exclusions: ["Documents/Private"], projectFolders: ["Developer"])
         let sidebar = app.outlines.firstMatch
 
         step("The sidebar lists every tool and sub-tool, and Settings is not one of them (FCL-001, D-27)") {
@@ -122,9 +122,10 @@ final class FirstLookUITests: ShuckUITestCase {
                 NSPredicate(format: "label ENDSWITH %@ OR value ENDSWITH %@", "Documents/Private", "Documents/Private")
             ).firstMatch
             XCTAssertTrue(folder.appears(within: 5), "The excluded folder is not listed: \(app.debugDescription)")
-            XCTAssertTrue(app.buttons["Add…"].exists)
+            // Both lists have an Add… and a Remove, told apart by their identifiers.
+            XCTAssertTrue(app.buttons.matching(identifier: "excluded-folders-add").firstMatch.exists)
             XCTAssertFalse(app.staticTexts["No folders are excluded."].exists)
-            let remove = app.buttons["Remove"]
+            let remove = app.buttons.matching(identifier: "excluded-folders-remove").firstMatch
             XCTAssertFalse(remove.isEnabled, "Remove is enabled with nothing selected")
             folder.click()
             XCTAssertTrue(remove.isEnabled)
@@ -133,6 +134,22 @@ final class FirstLookUITests: ShuckUITestCase {
             XCTAssertTrue(folder.disappears(within: 5))
             // Removing an exclusion deletes nothing.
             XCTAssertTrue(FileManager.default.fileExists(atPath: secret.path))
+        }
+
+        step("Settings lists the project folder too, with its own Add… and Remove (SET-003)") {
+            let folder = app.staticTexts.matching(
+                NSPredicate(format: "label ENDSWITH %@ OR value ENDSWITH %@", "/Developer", "/Developer")
+            ).firstMatch
+            XCTAssertTrue(folder.appears(within: 5), "The project folder is not listed: \(app.debugDescription)")
+            XCTAssertTrue(app.buttons.matching(identifier: "project-folders-add").firstMatch.exists)
+            XCTAssertFalse(app.staticTexts["No project folders."].exists)
+            let remove = app.buttons.matching(identifier: "project-folders-remove").firstMatch
+            XCTAssertFalse(remove.isEnabled, "Remove is enabled with nothing selected")
+            folder.click()
+            XCTAssertTrue(remove.isEnabled)
+            remove.click()
+            XCTAssertTrue(app.staticTexts["No project folders."].appears(within: 5))
+            XCTAssertTrue(folder.disappears(within: 5))
         }
     }
 }

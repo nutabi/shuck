@@ -112,6 +112,9 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 - A workflow that checks what excluding a folder hides launches with `launch(exclusions:)`, whose paths are relative to
   the fixture root. They are the app's whole list of excluded folders (SET-001, D-150). A UI test never drives the open
   panel.
+- A workflow that needs developer project folders (stale `node_modules`, DEV-R06) launches with
+  `launch(projectFolders:)`, whose paths are relative to the fixture root too. They are the app's whole list, and a
+  fixture root never starts with the default folders (SET-003, D-154).
 - A fixture file was added to its folder when the test made it, so the app's fixture-root mode reads no added dates
   and Old Files judges fixture files by their last-opened and modified dates only (D-140). No UI test can show the
   "Added" reason or label; unit tests cover them.

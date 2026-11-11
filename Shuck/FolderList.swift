@@ -1,12 +1,12 @@
 import Foundation
 import Synchronization
 
-/// The folders the user excluded in Settings (SET-001): absolute paths in the order they were added, kept in
-/// `UserDefaults` (SET-004).
+/// A list of folders the user chose in Settings: the excluded folders (SET-001) or the developer project folders
+/// (SET-003). Absolute paths in the order they were added, kept in `UserDefaults` (SET-004).
 ///
 /// Anything may read it from any thread: a run builds its path guard off the main actor, and what it reads is the list
-/// as it stands when the run starts (D-150). Only the main actor changes it, through ``ExclusionsModel``.
-nonisolated final class ExcludedFolders: Sendable {
+/// as it stands when the run starts (D-150). Only the main actor changes it, through ``FolderListModel``.
+nonisolated final class FolderList: Sendable {
     private let paths: Mutex<[String]>
     private let save: @Sendable ([String]) -> Void
 
@@ -19,12 +19,12 @@ nonisolated final class ExcludedFolders: Sendable {
         self.save = save
     }
 
-    /// The excluded folders, as they were added. A folder that no longer exists stays in the list (D-150).
+    /// The folders, as they were added. A folder that no longer exists stays in the list (D-150).
     var folders: [URL] {
         paths.withLock { $0 }.map { URL(filePath: $0) }
     }
 
-    /// Adds the folders that are not excluded yet and returns the list now.
+    /// Adds the folders that are not in the list yet and returns the list now.
     @discardableResult
     func add(_ added: [URL]) -> [URL] {
         change { Self.unique($0 + added.map(\.path)) }

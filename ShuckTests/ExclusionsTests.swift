@@ -30,7 +30,7 @@ final class ExclusionsTests {
     // MARK: - The stored list
 
     @Test func pathsAreStandardizedAndRepeatsAndRelativePathsAreDroppedSET001() {
-        let list = ExcludedFolders(
+        let list = FolderList(
             stored: [
                 "/Users/someone/Work/", "/Users/someone//Work", "/Users/someone/Other/../Work", "Work", "", "/a/./b",
             ]
@@ -45,13 +45,13 @@ final class ExclusionsTests {
         let link = URL(filePath: fixture).appending(path: "Link")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
 
-        let list = ExcludedFolders(stored: ["/Users/someone/Gone", link.path]) { _ in }
+        let list = FolderList(stored: ["/Users/someone/Gone", link.path]) { _ in }
 
         #expect(list.folders.map(\.path) == ["/Users/someone/Gone", link.path])
     }
 
     @Test func eachChangeIsStoredAndRemovalComparesStandardizedPathsSET004() {
-        let list = ExcludedFolders(stored: ["/a"]) { paths in self.stored.withLock { $0 = paths } }
+        let list = FolderList(stored: ["/a"]) { paths in self.stored.withLock { $0 = paths } }
 
         list.add([URL(filePath: "/b/"), URL(filePath: "/a"), URL(filePath: "/c")])
         #expect(stored.withLock { $0 } == ["/a", "/b", "/c"])
@@ -63,7 +63,7 @@ final class ExclusionsTests {
 
     @Test func theModelReportsOnlyRealChangesSET001() {
         let reported = Mutex<[[String]]>([])
-        let model = ExclusionsModel(list: ExcludedFolders(stored: ["/a"]) { _ in }) { folders in
+        let model = FolderListModel(list: FolderList(stored: ["/a"]) { _ in }) { folders in
             reported.withLock { $0.append(folders.map(\.path)) }
         }
 

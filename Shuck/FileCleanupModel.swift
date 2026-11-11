@@ -39,7 +39,8 @@ final class FileCleanupModel {
         let availableCount: Int
     }
 
-    let subTools: [any SubTool]
+    /// The sub-tools in sidebar order. Developer Junk is replaced when the project folders change (D-154).
+    private(set) var subTools: [any SubTool]
     /// The list each available personal-files sub-tool shows (FCL-012).
     let personalFilesResults: [ToolID: PersonalFilesResults]
     /// The list each other available sub-tool shows, such as Developer Junk.
@@ -50,6 +51,8 @@ final class FileCleanupModel {
     /// How many times the user's exclusions have changed. A scan that started before a change leaves out what the new
     /// list hides (SET-001).
     private var exclusionRevision = 0
+    /// How many times the project folders have changed, so only the newest change removes rows.
+    private var projectRevision = 0
     private let personalFilesScan: PersonalFilesScan
     /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
     private let runPlan: RunPlan?
@@ -94,6 +97,11 @@ final class FileCleanupModel {
         }
         self.personalFilesResults = personalFilesResults
         self.scanResults = scanResults
+    }
+
+    /// The sub-tool with `id` as it is now, so a page never plans with a stale copy (D-154).
+    func subTool(_ id: ToolID) -> (any SubTool)? {
+        subTools.first { $0.id == id }
     }
 
     /// The scanned home folder, shown as `~` in folder paths.
@@ -241,6 +249,42 @@ final class FileCleanupModel {
             if !hidden.files.isEmpty { remove(hidden.files) }
             if !hidden.commands.isEmpty { remove(commands: hidden.commands) }
         }
+    }
+
+    /// Gives scans, plans and runs the user's project folders as they are now: the ownership map and Developer Junk, which
+    /// carries them as a value, replace the old ones (SET-003, D-154). Rows the new list leaves out go at once, without
+    /// a rescan: Developer Junk's `node_modules` rows whose folder is no longer a project folder, and the personal files
+    /// inside a `node_modules` that Developer Junk now owns. A folder that is added is scanned at the next scan. A scan
+    /// already running finishes with the list it started with.
+    ///
+    /// The rows are found off the main actor (NFR-PERF-001). The returned task finishes when they are gone.
+    @discardableResult
+    func useProjectFolders(_ developerJunk: DeveloperJunk, ownership: OwnershipMap) -> Task<Void, Never> {
+        context = ScanContext(
+            home: context.home, ownership: ownership, protection: context.protection,
+            runningApps: context.runningApps, toolRoot: context.toolRoot)
+        if let index = subTools.firstIndex(where: { $0.id == developerJunk.id }) { subTools[index] = developerJunk }
+        projectRevision += 1
+        let revision = projectRevision
+        let items = scanResults[developerJunk.id]?.items ?? []
+        let files = Array(personalFiles.items.keys)
+        return Task {
+            let outside = await Self.outsideProjects(files: files, items: items, ownership: ownership)
+            guard revision == projectRevision else { return }
+            if !outside.isEmpty { remove(outside) }
+        }
+    }
+
+    /// The listed files inside a project's `node_modules`, and Developer Junk's `node_modules` items that are not, under
+    /// `ownership`'s project folders.
+    @concurrent
+    private nonisolated static func outsideProjects(files: [URL], items: [ScanItem], ownership: OwnershipMap) async
+        -> [URL]
+    {
+        let gone = items.filter { $0.ruleMatch?.rule.id == "DEV-R06" }.compactMap(\.url).filter {
+            !ownership.isProjectDependencies($0)
+        }
+        return files.filter(ownership.isProjectDependencies) + gone
     }
 
     /// The files and tool commands among the listed ones that `context`'s exclusions hide.

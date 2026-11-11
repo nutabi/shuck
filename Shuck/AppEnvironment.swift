@@ -18,8 +18,15 @@ nonisolated struct AppEnvironment {
     let toolRunner: ToolRunner
     let largeFiles: LargeFiles
     let oldFiles: OldFiles
+    /// Developer Junk with the user's project folders (SET-003). It is rebuilt when the list changes (D-154).
+    let developerJunk: DeveloperJunk
     /// The folders the user excluded, which every scan hides and every plan and run refuses (SET-001, D-150).
-    let excludedFolders: ExcludedFolders
+    let excludedFolders: FolderList
+    /// The developer project folders the user chose, which DEV-R06 scans for `node_modules` (SET-003, D-154).
+    let projectFolders: FolderList
+    /// What scans, plans and runs know about a list of project folders: the ownership map and Developer Junk. Like the
+    /// guard's configuration it is rebuilt when the list changes (D-154).
+    let makeProjectScope: @Sendable ([URL]) -> ProjectScope
     /// The path guard's configuration for a list of excluded folders. The configuration is rebuilt when the list
     /// changes; it never changes itself (D-150).
     let makeProtection: @Sendable ([URL]) -> PathGuardConfiguration
@@ -54,6 +61,19 @@ nonisolated struct AppEnvironment {
     /// Documents/Private`. Only a fixture root reads it, and then it replaces the stored list (D-150).
     static let excludedFoldersArgumentKey = "ShuckExcludedFolders"
 
+    /// The developer project folders in `UserDefaults` (SET-003, SET-004): an array of absolute paths. Without a stored
+    /// list, the default folders that exist are used (D-154).
+    static let projectFoldersKey = "ProjectFolders"
+    /// The project folders a UI test uses, as paths inside its fixture root separated by commas: `-ShuckProjectFolders
+    /// Developer`. Only a fixture root reads it, and then it replaces the stored list and the defaults (D-154).
+    static let projectFoldersArgumentKey = "ShuckProjectFolders"
+
+    /// The ownership map and Developer Junk for one list of project folders.
+    nonisolated struct ProjectScope {
+        let ownership: OwnershipMap
+        let developerJunk: DeveloperJunk
+    }
+
     /// Reads the stored value for a key, if any.
     typealias Settings = (String) -> Any?
 
@@ -86,6 +106,8 @@ nonisolated struct AppEnvironment {
     ///   - settings: Reads the stored thresholds, such as ``largeFilesMinimumSizeKey``, and the excluded folders.
     ///   - saveExcludedFolders: Stores the excluded folders, as ``excludedFoldersKey`` does, after each change. By default
     ///     it stores nothing, as in tests; the app passes one that writes `UserDefaults`.
+    ///   - saveProjectFolders: Stores the project folders, as ``projectFoldersKey`` does, after each change.
+    ///   - isFolder: Whether a default project folder exists. Tests pass a stub, so none reads the real home folder.
     ///   - debugBuild: Whether the fixture-root argument counts, and which bundle ID the build must have.
     ///   - bundleID: The app's bundle ID, which names its data folder.
     ///   - home: The home folder the app scans without a fixture root: the user's own. It has no default, so a test
@@ -94,7 +116,8 @@ nonisolated struct AppEnvironment {
     ///   not the build's own.
     init(
         arguments: [String], settings: Settings, saveExcludedFolders: @escaping @Sendable ([String]) -> Void = { _ in },
-        debugBuild: Bool = isDebugBuild,
+        saveProjectFolders: @escaping @Sendable ([String]) -> Void = { _ in },
+        isFolder: @escaping (URL) -> Bool = ProjectFolders.isExistingFolder, debugBuild: Bool = isDebugBuild,
         appBundle: URL = Bundle.main.bundleURL, bundleID: String? = Bundle.main.bundleIdentifier,
         home: URL
     ) throws(LaunchError) {
@@ -102,6 +125,7 @@ nonisolated struct AppEnvironment {
             throw .unexpectedBundleID(bundleID)
         }
         let fixtureRoot = try Self.fixtureRoot(in: arguments, debugBuild: debugBuild)
+        let scope: ProjectScope
         if let root = fixtureRoot {
             // The engine tests' configuration (D-41): only the temporary folder's /private prefix is left out.
             makeProtection = { exclusions in
@@ -110,13 +134,19 @@ nonisolated struct AppEnvironment {
                     appBundle: appBundle, userExclusions: exclusions)
             }
             // A UI test's list replaces the stored one, so a fixture root never reads a path of the real home folder.
-            let seeded = Self.fixtureExclusions(Self.list(settings(Self.excludedFoldersArgumentKey)), in: root)
-            excludedFolders = ExcludedFolders(stored: seeded, save: saveExcludedFolders)
+            let seeded = Self.fixtureFolders(Self.list(settings(Self.excludedFoldersArgumentKey)), in: root)
+            excludedFolders = FolderList(stored: seeded, save: saveExcludedFolders)
+            // The same for the project folders, and a fixture root never starts with the default ones.
+            projectFolders = FolderList(
+                stored: Self.fixtureFolders(Self.list(settings(Self.projectFoldersArgumentKey)), in: root),
+                save: saveProjectFolders)
+            makeProjectScope = { Self.projectScope($0, home: root, resolvingLinks: false) }
             toolRunner = ToolRunner(executableRoots: [root])
             runningApps = StubRunningApps(Self.list(settings(Self.runningAppsKey)))
+            scope = Self.projectScope(projectFolders.folders, home: root, resolvingLinks: false)
             context = ScanContext(
-                home: root, protection: makeProtection(excludedFolders.folders), runningApps: runningApps,
-                toolRoot: root)
+                home: root, ownership: scope.ownership, protection: makeProtection(excludedFolders.folders),
+                runningApps: runningApps, toolRoot: root)
             trash = FolderTrash(folder: root.appending(path: ".Trash"))
         } else {
             // The ownership map compares paths with symlinks resolved (D-53).
@@ -124,16 +154,25 @@ nonisolated struct AppEnvironment {
             makeProtection = { exclusions in
                 .production(home: home, appBundle: appBundle, userExclusions: exclusions)
             }
-            excludedFolders = ExcludedFolders(
+            excludedFolders = FolderList(
                 stored: (settings(Self.excludedFoldersKey) as? [Any])?.compactMap { $0 as? String } ?? [],
                 save: saveExcludedFolders)
+            // Without a stored list, the default folders that exist: the key's absence, not an empty list, says the user
+            // never chose (SET-003).
+            let storedProjects = (settings(Self.projectFoldersKey) as? [Any])?.compactMap { $0 as? String }
+            projectFolders = FolderList(
+                stored: storedProjects ?? ProjectFolders.defaults(home: home, isFolder: isFolder),
+                save: saveProjectFolders)
+            makeProjectScope = { Self.projectScope($0, home: home) }
             runningApps = SystemRunningApps()
             toolRunner = ToolRunner(executableRoots: nil)
+            scope = Self.projectScope(projectFolders.folders, home: home)
             context = ScanContext(
-                home: home, protection: makeProtection(excludedFolders.folders), runningApps: runningApps,
-                toolRoot: URL(filePath: "/", directoryHint: .isDirectory))
+                home: home, ownership: scope.ownership, protection: makeProtection(excludedFolders.folders),
+                runningApps: runningApps, toolRoot: URL(filePath: "/", directoryHint: .isDirectory))
             trash = SystemTrash()
         }
+        developerJunk = scope.developerJunk
         largeFiles = LargeFiles(
             minimumSize: Self.number(settings(Self.largeFilesMinimumSizeKey)) ?? LargeFiles.defaultMinimumSize)
         // A period of 0 months would list every file, however recently opened.
@@ -282,14 +321,23 @@ nonisolated struct AppEnvironment {
 
     /// The paths of `names`, which are relative to the fixture root, as absolute paths inside it, sorted. A name that
     /// is absolute or leaves the root with `..` is dropped, so a UI test cannot exclude, or point the app at, anything
-    /// outside the root.
-    static func fixtureExclusions(_ names: Set<String>, in root: URL) -> [String] {
+    /// outside the root. Excluded folders and project folders both come from it.
+    static func fixtureFolders(_ names: Set<String>, in root: URL) -> [String] {
         names.sorted().compactMap { name in
             guard !name.hasPrefix("/"), !name.hasPrefix("~"), !name.split(separator: "/").contains("..") else {
                 return nil
             }
-            return ExcludedFolders.standardize(root.appending(path: name).path)
+            return FolderList.standardize(root.appending(path: name).path)
         }
+    }
+
+    /// The ownership map and Developer Junk for `folders`, which may be any paths: only those inside `home`, with links
+    /// resolved, count (SET-003, D-152, D-154).
+    static func projectScope(_ folders: [URL], home: URL, resolvingLinks: Bool = true) -> ProjectScope {
+        let engine = ProjectFolders.engineFolders(folders, home: home, resolvingLinks: resolvingLinks)
+        return ProjectScope(
+            ownership: OwnershipMap(home: home, projectFolders: engine),
+            developerJunk: DeveloperJunk(projectFolders: engine))
     }
 
     /// A stored number that is not negative, or `nil` if there is none or it is not one. The caller then uses the
