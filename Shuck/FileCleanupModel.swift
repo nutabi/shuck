@@ -50,6 +50,8 @@ final class FileCleanupModel {
     private let personalFilesScan: PersonalFilesScan
     /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
     private let runPlan: RunPlan?
+    /// Reads the free space before and after each run, so its summary can show the measured change (SAF-013).
+    private let readFreeSpace: ReadFreeSpace
     private var states: [ToolID: ScanState] = [:]
     /// The task of each running scan, so Stop can cancel it. The personal-files sub-tools share one.
     private var scans: [ToolID: Task<Void, Never>] = [:]
@@ -58,15 +60,18 @@ final class FileCleanupModel {
     /// pass made-up events.
     typealias PersonalFilesScan = @Sendable (ScanContext, LastOpenedReader?) -> AsyncStream<PersonalFilesEvent>
 
-    /// - Parameter runPlan: The app passes ``AppEnvironment/run(_:)``.
+    /// - Parameters:
+    ///   - runPlan: The app passes ``AppEnvironment/run(_:)``.
+    ///   - readFreeSpace: The app passes ``AppEnvironment/availableSpace()``. Tests that leave it out measure nothing.
     init(
         subTools: [any SubTool], context: ScanContext,
         personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0, lastOpened: $1).scan() },
-        runPlan: RunPlan? = nil
+        runPlan: RunPlan? = nil, readFreeSpace: @escaping ReadFreeSpace = { nil }
     ) {
         self.subTools = subTools
         self.context = context
         self.runPlan = runPlan
+        self.readFreeSpace = readFreeSpace
         self.personalFilesScan = personalFilesScan
         var personalFilesResults: [ToolID: PersonalFilesResults] = [:]
         var scanResults: [ToolID: ScanResults] = [:]
@@ -226,7 +231,7 @@ final class FileCleanupModel {
         let plan = try Plan(
             subTool: subTool, items: results.selectedItems.filter { $0.tier == .rebuildable },
             pathGuard: PathGuard(configuration: context.protection))
-        return SummaryConfirmation(plan: plan, runPlan: runPlan) { [weak self] report in
+        return SummaryConfirmation(plan: plan, runPlan: runPlan, readFreeSpace: readFreeSpace) { [weak self] report in
             self?.remove(report.deletedURLs)
             self?.remove(commands: report.cleanedCommands)
         }
@@ -242,7 +247,8 @@ final class FileCleanupModel {
             subTool: subTool, items: scanItems(subTool, urls: urls),
             pathGuard: PathGuard(configuration: context.protection))
         let synced = Set(plan.items.compactMap(\.url).filter { personalFiles.items[$0]?.isSynced == true })
-        return TrashReview(plan: plan, synced: synced, runPlan: runPlan) { [weak self] report in
+        return TrashReview(plan: plan, synced: synced, runPlan: runPlan, readFreeSpace: readFreeSpace) {
+            [weak self] report in
             self?.remove(report.trashedURLs)
         }
     }

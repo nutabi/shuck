@@ -34,7 +34,8 @@ struct ShuckApp: App {
         _fileCleanup = State(
             initialValue: FileCleanupModel(
                 subTools: registry.subTools, context: environment.context,
-                personalFilesScan: environment.personalFilesScan, runPlan: environment.run))
+                personalFilesScan: environment.personalFilesScan, runPlan: environment.run,
+                readFreeSpace: environment.availableSpace))
         _history = State(
             initialValue: HistoryModel(
                 home: environment.context.home, load: environment.loadHistory, runRestore: environment.restore))

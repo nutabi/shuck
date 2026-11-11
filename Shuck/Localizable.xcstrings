@@ -4,6 +4,24 @@
     "Added" : {
 
     },
+    "Shuck doesn't know how much a tool removes when its size is not known, so the estimate leaves it out." : {
+
+    },
+    "A tool's size is the most it may remove, so it can free less." : {
+
+    },
+    "Local Time Machine snapshots and APFS clones can keep deleted data on the disk, so less space may be freed until macOS removes them." : {
+
+    },
+    "macOS and other apps also use and free space while Shuck runs, and macOS frees purgeable space when it needs it." : {
+
+    },
+    "Measured on the disk, free space didn't grow." : {
+
+    },
+    "Measured on the disk, free space grew by %@." : {
+
+    },
     "Delete ^[%lld item](inflect: true), %@, permanently?" : {
 
     },

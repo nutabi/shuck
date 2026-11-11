@@ -127,9 +127,12 @@ struct SummaryConfirmationSheet: View {
                 Text("Deleted \(deleted.count) of ^[\(report.outcomes.count) item](inflect: true)")
                     .font(.title2.bold())
             }
-            // The size is the scan's estimate: the measured change in free space comes with M2-T07 (SAF-013).
+            // The size is the scan's estimate; the measured change follows it (SAF-013).
             Text("About \(bytes, format: .byteCount(style: .file)) was deleted permanently. It is not in the Trash.")
                 .foregroundStyle(.secondary)
+        }
+        if let change = confirmation.freeSpace {
+            FreeSpaceText(change: change)
         }
         if !notDeleted.isEmpty {
             OutcomeList(

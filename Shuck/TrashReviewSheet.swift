@@ -96,6 +96,9 @@ struct TrashReviewSheet: View {
         // Moving to the Trash frees nothing yet (SAF-013).
         Text("\(bytes, format: .byteCount(style: .file)) is in the Trash. The space is freed when you empty the Trash.")
             .foregroundStyle(.secondary)
+        if let change = review.freeSpace {
+            FreeSpaceText(change: change)
+        }
         if !notMoved.isEmpty {
             OutcomeList(title: Text("Not moved"), outcomes: notMoved, home: home)
         } else {
