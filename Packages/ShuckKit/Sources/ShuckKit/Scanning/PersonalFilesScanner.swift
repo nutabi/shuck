@@ -259,7 +259,8 @@ public struct PersonalFilesScanner: Sendable {
     private func file(_ url: URL, _ snapshot: ItemSnapshot, _ values: EntryValues, readOnly: ReadOnlyReason?)
         -> PersonalFile
     {
-        let lastOpened = lastOpened?.read(url, size: snapshot.allocatedSize, modified: values.modified)
+        let lastOpened = lastOpened?.read(
+            url, size: snapshot.allocatedSize, modified: values.modified, isFolder: snapshot.kind == .folder)
         return PersonalFile(
             url: url, identity: values.identity, snapshot: snapshot, modified: values.modified, lastOpened: lastOpened,
             readOnly: readOnly, isSynced: values.isSynced)

@@ -15,7 +15,8 @@ struct CombinedTotalTests {
     func file(_ path: String, size: Int64, modified: Date = .now, identity: FileIdentity? = nil) -> PersonalFile {
         PersonalFile(
             url: context.home.appending(path: path), identity: identity,
-            snapshot: ItemSnapshot(kind: .file, allocatedSize: size), modified: modified)
+            snapshot: ItemSnapshot(kind: .file, allocatedSize: size), modified: modified,
+            lastOpened: LastOpened(date: modified, source: .modified))
     }
 
     func model(_ subTools: [any SubTool], files: [PersonalFile]) -> FileCleanupModel {

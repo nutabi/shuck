@@ -134,8 +134,8 @@ struct PersonalFilesScanModelTests {
         let lastYear = Date.now.addingTimeInterval(-400 * 86_400)
         let files = [
             file("Movies/older.mov", size: 5_000, lastOpened: LastOpened(date: lastYear, source: .lastUsed)),
-            file("Movies/oldest.mov", size: 5_000, modified: yearsAgo),
-            file("Movies/recent.mov", size: 5_000, modified: .now),
+            file("Movies/oldest.mov", size: 5_000, lastOpened: LastOpened(date: yearsAgo, source: .modified)),
+            file("Movies/recent.mov", size: 5_000, lastOpened: LastOpened(date: .now, source: .added)),
         ]
         let oldFiles = OldFiles(minimumSize: 1_000)
         let model = FileCleanupModel(subTools: [oldFiles], context: context) { _, _ in
@@ -151,7 +151,7 @@ struct PersonalFilesScanModelTests {
         #expect(results?.sortOrder == [KeyPathComparator(\ResultRow.sortDate)])
         #expect(results?.dateColumn == .lastOpened)
         #expect(results?.rows.map(\.name) == ["oldest.mov", "older.mov"])
-        #expect(results?.rows.map(\.dateIsModifiedFallback) == [true, false])
+        #expect(results?.rows.map(\.dateSource) == [.modified, nil])
     }
 
     /// Only files of at least Old Files' minimum size need a Spotlight lookup (OLD-002, D-59).

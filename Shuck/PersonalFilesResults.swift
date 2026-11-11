@@ -180,7 +180,7 @@ final class PersonalFilesResults {
 nonisolated enum DateColumn {
     /// The content-modified date, for Large Files.
     case modified
-    /// When the file was last opened, or its modified date when Spotlight has none, for Old Files.
+    /// When the file was last in use, the latest of its last-opened, modified and added dates, for Old Files (D-130).
     case lastOpened
 }
 
@@ -198,9 +198,9 @@ nonisolated struct ResultRow: Identifiable, Equatable {
     let size: Int64
     /// The date the Date column shows: the modified date, or the last-opened date (OLD-002).
     let date: Date?
-    /// The last-opened column shows the modified date, because Spotlight has no record of the file being opened. The
-    /// table says so (OLD-002).
-    let dateIsModifiedFallback: Bool
+    /// Which date the last-opened column shows, when it is not the date the file was last opened: the modified or the
+    /// added date was later. The table says so (OLD-002, D-130). `nil` in the modified column.
+    let dateSource: LastOpened.Source?
     let readOnly: ReadOnlyReason?
     /// iCloud keeps the item on the user's other devices too (FCL-012, D-129).
     let isSynced: Bool
@@ -218,10 +218,10 @@ nonisolated struct ResultRow: Identifiable, Equatable {
         switch dateColumn {
         case .modified:
             date = file.modified
-            dateIsModifiedFallback = false
+            dateSource = nil
         case .lastOpened:
-            date = file.lastOpened?.date ?? file.modified
-            dateIsModifiedFallback = date != nil && file.lastOpened?.source != .lastUsed
+            date = file.lastOpened?.date
+            dateSource = file.lastOpened.flatMap { $0.source == .lastUsed ? nil : $0.source }
         }
         readOnly = file.readOnly
         isSynced = file.isSynced

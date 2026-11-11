@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Added" : {
+
+    },
     "Delete ^[%lld item](inflect: true), %@, permanently?" : {
 
     },
@@ -20,6 +23,12 @@
 
     },
     "Scan to list the caches and logs your apps keep. Scanning never removes anything." : {
+
+    },
+    "This is when the file last changed, which is later than any record of it being opened." : {
+
+    },
+    "This is when the file was put in its folder, which is later than any record of it being opened or changed." : {
 
     },
     "Tools can rebuild these. They don't go to the Trash, so Shuck can't put them back." : {
@@ -575,9 +584,6 @@
 
     },
     "Some folders were not accessible" : {
-
-    },
-    "Spotlight has no record of this file being opened, so this is when it last changed." : {
 
     },
     "Stop" : {

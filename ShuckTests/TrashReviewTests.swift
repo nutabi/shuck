@@ -29,7 +29,8 @@ struct TrashReviewTests {
         ].map { path, size, readOnly in
             PersonalFile(
                 url: url(path), snapshot: ItemSnapshot(kind: .file, allocatedSize: Int64(size)), modified: yearsAgo,
-                readOnly: readOnly, isSynced: path == "Movies/clip.mov")
+                lastOpened: LastOpened(date: yearsAgo, source: .modified), readOnly: readOnly,
+                isSynced: path == "Movies/clip.mov")
         }
         let scan: FileCleanupModel.PersonalFilesScan = { _, _ in
             AsyncStream { continuation in

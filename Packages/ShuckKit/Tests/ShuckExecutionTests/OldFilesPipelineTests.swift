@@ -18,7 +18,8 @@ struct OldFilesPipelineTests {
         let yearsAgo = Date.now.addingTimeInterval(-2 * 365 * 86_400)
         let old = try root.file("Downloads/Installer.dmg", size: 1 << 20, modified: yearsAgo)
         let recent = try root.file("Downloads/Recent.dmg", size: 1 << 20)
-        let subTool = OldFiles(minimumSize: 1 << 20) { _ in nil }
+        // Every fixture file was added just now (D-140).
+        let subTool = OldFiles(minimumSize: 1 << 20, lastUsedDate: { _ in nil }, addedDate: { _ in nil })
 
         let items = await items(
             from: subTool, context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()))

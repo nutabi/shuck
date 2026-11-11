@@ -20,9 +20,10 @@ struct PersonalFilesSharedStateTests {
         let bigOnly = try root.file("Movies/recent.mov", size: 64_000)
         let oldOnly = try root.file("Documents/notes.txt", size: 10, modified: yearsAgo)
 
-        // Spotlight has no record of the fixture files being opened, so Old Files uses their modified dates.
+        // Spotlight has no record of the fixture files being opened, and every one was added just now, so Old Files is
+        // stubbed to use their modified dates (D-140).
         let large = LargeFiles(minimumSize: 64_000)
-        let old = OldFiles(periodMonths: 12, minimumSize: 0) { _ in nil }
+        let old = OldFiles(periodMonths: 12, minimumSize: 0, lastUsedDate: { _ in nil }, addedDate: { _ in nil })
         var state = PersonalFilesState()
         let scanner = PersonalFilesScanner(
             context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()),

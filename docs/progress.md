@@ -340,8 +340,10 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
   Done as D-137, with a UI test launch argument that marks fixture files synced. Left over, for the owner: check on a
   Mac with iCloud's Desktop & Documents that Large Files still lists downloaded files in `~/Documents`, marked
   "Synced", since no test can read what iCloud reports for a real folder.
-- [ ] M2-F08 Old Files uses the latest of the last-used, modification and added dates, names the date that decided in
-  the reason, and uses the newest direct child for a package or folder (OLD-002, D-130, R-18).
+- [x] M2-F08 Old Files uses the latest of the last-used, modification and added dates, names the date that decided in
+  the reason, and uses the newest direct child for a package or folder (OLD-002, D-130, R-18). Done as D-140; the app's
+  fixture-root mode ignores added dates, since a UI test makes every file just now. Left over: no UI test can show the
+  "Added" reason or label.
 - [x] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,
   D-131, D-135). Done as D-139: an entry whose volume cannot be read is skipped too.
 - [x] M2-F10 Path guard: refuse a folder that contains a protected bundle or name among its direct children, and a
