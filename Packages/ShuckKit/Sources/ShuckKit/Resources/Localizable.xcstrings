@@ -58,6 +58,12 @@
     "File Cleanup" : {
 
     },
+    "Homebrew Cleanup" : {
+
+    },
+    "Homebrew's own command removes old versions and old downloads and keeps the current ones. The size is its download cache; old versions are not counted." : {
+
+    },
     "Its project is no longer on this Mac." : {
 
     },
@@ -85,13 +91,37 @@
     "Not opened in %@" : {
 
     },
+    "npm Cache" : {
+
+    },
+    "npm's own command empties its cache. It downloads a package again the next time a project needs it." : {
+
+    },
     "Old Files" : {
+
+    },
+    "Old versions of packages and old downloads that Homebrew keeps." : {
+
+    },
+    "Package managers" : {
+
+    },
+    "Packages and wheels pip has downloaded or built and keeps for the next install." : {
+
+    },
+    "Packages npm has downloaded and keeps so it can install them again faster." : {
 
     },
     "Part of macOS or an Apple app, so it starts unselected." : {
 
     },
     "Personal files" : {
+
+    },
+    "pip Cache" : {
+
+    },
+    "pip's own command empties its cache. It downloads or builds a package again the next time it needs it." : {
 
     },
     "Reclaim space from files, one sub-tool at a time." : {
@@ -107,6 +137,9 @@
 
     },
     "Simulator Caches" : {
+
+    },
+    "Simulators whose system version is no longer installed, so Xcode can't start them." : {
 
     },
     "Stale node_modules" : {
@@ -148,6 +181,9 @@
     "To restore it, run npm install, or your project's package manager, which needs an internet connection. This project patches packages with patch-package, which a reinstall may not redo." : {
 
     },
+    "Unavailable Simulators" : {
+
+    },
     "Uninstall apps together with the files they leave behind." : {
 
     },
@@ -178,7 +214,7 @@
     "Xcode Archives" : {
 
     },
-    "Xcode builds this project again when you next need it." : {
+    "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again." : {
 
     },
     "Xcode copies this again the next time you connect a device that runs this version." : {
@@ -188,6 +224,9 @@
 
     },
     "Xcode Device Support Files" : {
+
+    },
+    "Xcode's own tool removes the simulators that can no longer start. You can create new ones in Xcode." : {
 
     }
   },

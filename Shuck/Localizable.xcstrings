@@ -678,6 +678,78 @@
     },
     "Unknown" : {
 
+    },
+    "Review the totals before cleaning up the selected items." : {
+
+    },
+    "Tool command" : {
+
+    },
+    "Launchd job" : {
+
+    },
+    "Completed" : {
+
+    },
+    "%lld of %lld done" : {
+
+    },
+    "Failed: the tool ended with status %lld" : {
+
+    },
+    "Failed: the tool was ended by signal %lld" : {
+
+    },
+    "Failed: the tool did not finish in %lld seconds, so Shuck stopped it" : {
+
+    },
+    "Stopped before the tool finished" : {
+
+    },
+    "Up to %@" : {
+
+    },
+    "Size not known" : {
+
+    },
+    "Cleaning up ^[%lld item](inflect: true)…" : {
+
+    },
+    "Stop before the next item. Items already cleaned up stay that way." : {
+
+    },
+    "Nothing was cleaned up" : {
+
+    },
+    "Shuck never changes anything without recording it first, and it couldn't record this run." : {
+
+    },
+    "Clean up ^[%lld item](inflect: true), up to %@?" : {
+
+    },
+    "Clean up ^[%lld item](inflect: true)?" : {
+
+    },
+    "Tools can rebuild these. Items that are deleted don't go to the Trash, and a tool removes its own data with its own command, so Shuck can't put either back. A tool's size is an estimate." : {
+
+    },
+    "^[%lld item](inflect: true)" : {
+
+    },
+    "Cleaned up ^[%lld item](inflect: true)" : {
+
+    },
+    "Cleaned up %lld of ^[%lld item](inflect: true)" : {
+
+    },
+    "Up to %@ was removed. It is not in the Trash." : {
+
+    },
+    "What the tool removed is not in the Trash." : {
+
+    },
+    "Not cleaned up" : {
+
     }
   },
   "version" : "1.1"
