@@ -120,9 +120,9 @@ Left over from M1 tasks:
 
 - [x] M1-T15: UI tests run the real app, which would trash fixture files into the real Trash. The app needs a fixture
   Trash for its debug-only fixture-root mode (D-47). Done in M1-T12 (D-63).
-- [ ] M2: decide the owner of `node_modules` in project folders (DEV-R06). It is inside the personal-files scope
+- [x] M2: decide the owner of `node_modules` in project folders (DEV-R06). It is inside the personal-files scope
   (FCL-008), so the ownership map needs an entry for it (FCL-005, D-53). `~/go/pkg/mod` went to Developer Junk in
-  M1-T07 (D-55). M2-T13 decides it.
+  M1-T07 (D-55). Done in M2-T13: Developer Junk owns it inside the project folders (D-152).
 - [x] M1-T11: give `FileCleanupModel`'s personal-files scan a `LastOpenedReader` with Old Files' minimum size, and
   show Old Files' list with `dateColumn: .lastOpened`, oldest first (OLD-003, D-59). Done in M1-T11.
 - [x] M1-T15: UI tests share the app's real preferences domain, `me.nutabi.shuck`. AppKit saves the main window's
@@ -311,6 +311,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     connection, since Shuck has no network. Require a lockfile next to `node_modules`; take only the top-most
     `node_modules` of a project; warn when the project uses `patch-package` or `file:` links; define "stale" by the
     newest file among the project's own files, not the folder's date.
+  - A stack of three pull requests, which the owner merges (not auto-merge):
+    - [x] Ownership: Developer Junk owns `node_modules` inside the project folders, the personal-files scan skips it,
+      and the project folders are values in the ownership map and in `DeveloperJunk` (D-152).
 
 Patch releases during M2 (D-94):
 

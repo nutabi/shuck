@@ -82,6 +82,29 @@ struct PersonalFilesScannerTests {
         #expect(read.withLock { !$0.contains("objects") && !$0.contains("HEAD") })
     }
 
+    /// A project's `node_modules` is Developer Junk's (DEV-R06, D-152): neither listed, not even read-only, nor read.
+    /// Outside the project folders it is an ordinary folder.
+    @Test func aProjectsNodeModulesIsNotEnteredOrListedButOthersAreDEVR06() async throws {
+        try root.file("Developer/app/node_modules/big/blob.bin", size: 8_000)
+        try root.file("Developer/app/web/node_modules/x.js", size: 8_000)
+        try root.file("Developer/app/src/main.js", size: 10)
+        try root.file("Documents/site/node_modules/y.js", size: 8_000)
+        let read = Mutex<[String]>([])
+        let scanner = PersonalFilesScanner(
+            context: ScanContext(
+                home: root.url, ownership: OwnershipMap(home: root.url, projectFolders: [try root.url("Developer")]),
+                protection: root.pathGuardConfiguration()),
+            readValues: { url in
+                read.withLock { $0.append(url.lastPathComponent) }
+                return EntryValues.read(url)
+            })
+
+        let result = try await scan(scanner)
+
+        #expect(Set(result.items.keys) == ["Developer/app/src/main.js", "Documents/site/node_modules/y.js"])
+        #expect(read.withLock { !$0.contains("big") && !$0.contains("blob.bin") && !$0.contains("x.js") })
+    }
+
     /// A disk mounted inside the home folder is not the user's home: the scan neither lists nor enters it (D-135).
     @Test func anotherVolumeIsNotEnteredFCL008() async throws {
         try root.file("Mounted/Disk/movie.mov", size: 8_000)

@@ -144,4 +144,15 @@ struct DeveloperJunkTests {
     func theProjectNameDropsXcodesHashDEV008(folder: String, name: String) {
         #expect(DerivedDataProject.name(ofFolder: folder) == name)
     }
+
+    @Test func projectFoldersOutsideTheHomeFolderOrRepeatedAreIgnoredSET003() throws {
+        let inside = try root.url("Developer")
+        let outside = URL(filePath: "/Users/someone/Projects")
+        let junk = DeveloperJunk(projectFolders: [
+            inside, root.url, outside, inside, root.url.appending(path: "Developer/../Code"),
+        ])
+
+        #expect(junk.projects(home: root.url) == [inside])
+        #expect(DeveloperJunk().projects(home: root.url).isEmpty)
+    }
 }

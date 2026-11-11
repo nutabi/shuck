@@ -133,6 +133,57 @@ struct OwnershipMapTests {
         #expect(owners("Library/Containers/com.example.Notes/Data/Documents/x").isEmpty)
     }
 
+    // MARK: - node_modules in project folders (DEV-R06, D-152)
+
+    private func projectMap() throws -> OwnershipMap {
+        OwnershipMap(home: root.url, projectFolders: [try root.url("Developer"), try root.url("Code/work")])
+    }
+
+    @Test(arguments: [
+        "Developer/node_modules", "Developer/node_modules/left-pad/index.js", "Developer/app/node_modules",
+        "Developer/app/web/packages/ui/node_modules/x", "Developer/app/NODE_MODULES", "Code/work/api/node_modules",
+        "Developer/app/node_modules/dep/node_modules",
+    ])
+    func aProjectsNodeModulesBelongsToDeveloperJunkAtAnyDepthFCL005(path: String) throws {
+        let map = try projectMap()
+        let url = try root.url(path)
+        #expect(map.isProjectDependencies(url))
+        #expect(map.owners(of: url) == [.developerJunk])
+    }
+
+    @Test(arguments: [
+        "Developer/app/src/main.js", "Developer/app/node_modules_backup", "Developer", "Developer/app",
+        "Documents/site/node_modules", "Code/node_modules", "Code/other/node_modules", "Developer2/app/node_modules",
+    ])
+    func everythingElseStaysWhereTheEntriesPutItFCL005(path: String) throws {
+        let map = try projectMap()
+        let url = try root.url(path)
+        #expect(!map.isProjectDependencies(url))
+        #expect(map.owners(of: url) == OwnershipMap(home: root.url).owners(of: url))
+    }
+
+    /// The override turns personal files into Developer Junk and nothing else, so it can never give a location to a
+    /// second owner or take one from Caches & Logs. The pattern overlap test cannot see it, since it is no pattern.
+    @Test func theOverrideOnlyTakesLocationsFromThePersonalFilesFCL005() throws {
+        let plain = OwnershipMap(home: root.url)
+        let withProjects = OwnershipMap(home: root.url, projectFolders: [try root.url("Developer")])
+        for path in [
+            "Developer/app/node_modules/x", "Developer/app/main.swift", "Developer/.hidden/node_modules",
+            "Library/Caches/com.example/node_modules", "Developer/go/pkg/mod/node_modules",
+        ] {
+            let url = try root.url(path)
+            let (before, after) = (plain.owners(of: url), withProjects.owners(of: url))
+            #expect(after.count <= 1 || after == OwnershipMap.personalFiles, "\(path)")
+            #expect(after == before || (before == OwnershipMap.personalFiles && after == [.developerJunk]), "\(path)")
+        }
+    }
+
+    @Test func aMapWithoutProjectFoldersTreatsNodeModulesLikeAnyFolderFCL005() throws {
+        #expect(!map.isProjectDependencies(try root.url("Developer/app/node_modules")))
+        #expect(map.owners(of: try root.url("Developer/app/node_modules")) == OwnershipMap.personalFiles)
+        #expect(map.withProjectFolders([try root.url("Developer")]).projectFolders == [try root.url("Developer")])
+    }
+
     // MARK: - Most specific wins
 
     @Test func theMostSpecificPatternWins() {
