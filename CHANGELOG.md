@@ -47,6 +47,12 @@ All notable changes to Shuck are listed here. The format follows
   says so: "another file took its place since the scan".
 - Large Files and Old Files no longer list packages and folders that are only in iCloud and not downloaded to your Mac,
   as they already left out such files.
+- A row that cannot be selected names the app that is running, such as "Xcode is running", instead of "App is running".
+- Developer Junk shows each Xcode project's path under its name, so two projects with the same name can be told apart.
+- Tool commands are shown as you would type them, such as `/opt/homebrew/bin/brew cleanup`, without quotes around every
+  word.
+- Large Files, Old Files, Developer Junk and Caches & Logs have Select All and Select None buttons. Select All never
+  selects a row whose app is running.
 
 ### Fixed
 

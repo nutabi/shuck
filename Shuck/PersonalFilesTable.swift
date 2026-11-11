@@ -119,6 +119,11 @@ struct PersonalFilesTable: View {
             if results.selectionIncludesReadOnly {
                 Label("Read-only items are not included", systemImage: "lock")
             }
+            SelectAllButtons(isEmpty: results.selection.isEmpty) {
+                results.selectAll()
+            } selectNone: {
+                results.selection = []
+            }
             Spacer()
             Button("Quick Look") { preview(results.selection) }
                 .disabled(results.selection.isEmpty)

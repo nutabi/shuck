@@ -81,7 +81,7 @@ struct DeviceSupportTests {
 
         let items = await items(running: ["com.apple.dt.Xcode"])
 
-        #expect(items.values.map(\.selection) == [.appIsRunning])
+        #expect(items.values.map(\.selection) == [.appIsRunning(nil)])
     }
 
     @Test func onlyRealVersionFoldersAreListedDEV002() async throws {

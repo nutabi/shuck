@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ is running" : {
+
+    },
     "A file an app keeps directly in Library's Caches." : {
 
     },

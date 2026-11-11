@@ -42,7 +42,7 @@ struct SimulatorCachesTests {
 
         for app in ["com.apple.dt.Xcode", "com.apple.iphonesimulator"] {
             let items = await items(running: [app])
-            #expect(items.values.map(\.selection) == [.appIsRunning], "\(app)")
+            #expect(items.values.map(\.selection) == [.appIsRunning(nil)], "\(app)")
         }
         #expect(DeveloperJunk.simulatorBundleID == "com.apple.iphonesimulator")
     }

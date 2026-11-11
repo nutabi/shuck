@@ -27,10 +27,29 @@ public struct ToolCommand: Equatable, Hashable, Sendable {
         self.timeout = timeout
     }
 
-    /// The exact executable and arguments, quoted for display only. Never pass this string to a shell.
+    /// The exact executable and arguments, each in single quotes. The history log records this form and
+    /// ``LoggedCommand`` reads it back, so it never changes. Never pass this string to a shell.
     public var display: String {
-        ([executable] + arguments).map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(
-            separator: " ")
+        ([executable] + arguments).map(Self.quoted).joined(separator: " ")
+    }
+
+    /// The exact executable and arguments as people read them, such as `/opt/homebrew/bin/npm cache clean --force`.
+    /// Only a word that would otherwise be misread, such as one with a space or a quote, is quoted (D-138). For
+    /// display only; never pass this string to a shell.
+    public var commandLine: String {
+        ([executable] + arguments).map { Self.isPlain($0) ? $0 : Self.quoted($0) }.joined(separator: " ")
+    }
+
+    private static func quoted(_ word: String) -> String {
+        "'" + word.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// Whether a word reads the same without quotes: not empty, and only letters, digits and `_@%+=:,./-`.
+    private static func isPlain(_ word: String) -> Bool {
+        !word.isEmpty
+            && word.unicodeScalars.allSatisfy {
+                $0.isASCII && (CharacterSet.alphanumerics.contains($0) || "_@%+=:,./-".unicodeScalars.contains($0))
+            }
     }
 }
 

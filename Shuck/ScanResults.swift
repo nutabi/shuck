@@ -33,6 +33,11 @@ final class ScanResults: SubToolResults {
     var selectedBytes: Int64 {
         selectedItems.reduce(0) { $0 + $1.allocatedSize }
     }
+    /// Selects every row that can be chosen; the setter leaves out locked rows (SAF-009).
+    func selectAll() {
+        selection = Set(items.map(\.target))
+    }
+
     /// Folders macOS did not let the scan read (SAF-012).
     private(set) var notAccessibleCount = 0
     /// Folders the scan could not read for another reason, such as a disk error (SAF-011).

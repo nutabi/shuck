@@ -62,6 +62,17 @@ private struct ProjectRow: View {
             SelectionMark(item: item, name: name, identifier: "project-\(name)", isSelected: isSelected)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name)
+                if let project = item.project {
+                    // Two projects can share a name; the path Xcode recorded tells them apart (D-138).
+                    let path = ResultRow.folder(of: project, home: home) + "/" + project.lastPathComponent
+                    Text(verbatim: path)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(Text(verbatim: path))
+                        .textSelection(.enabled)
+                }
                 if let reason = item.selection.disabledReason {
                     Text(reason)
                         .font(.caption)
@@ -72,7 +83,7 @@ private struct ProjectRow: View {
                     .foregroundStyle(.secondary)
                 if case .command(let command) = item.target {
                     // The exact command, as the review shows it (SAF-002).
-                    Text(verbatim: command.display)
+                    Text(verbatim: command.commandLine)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)

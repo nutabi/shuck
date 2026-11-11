@@ -91,7 +91,7 @@ struct RulePipelineTests {
         let rule = try rule(apps: ["com.example.Fixture"])
         // Bundle IDs compare without case, as a folder named after one may differ in case from the app.
         let busy = try scanned(folder, rule: rule, running: ["COM.EXAMPLE.fixture", "com.example.Other"])
-        #expect(busy.selection == .appIsRunning && busy.apps == ["com.example.Fixture"])
+        #expect(busy.selection == .appIsRunning(nil) && busy.apps == ["com.example.Fixture"])
         #expect(busy.selection.disabledReason.map { String(localized: $0) } == "App is running")
         #expect(throws: PlanError.notSelectable(folder.path)) { try self.plan([busy]) }
         let other = try scanned(folder, rule: rule, running: ["com.example.Other"])
