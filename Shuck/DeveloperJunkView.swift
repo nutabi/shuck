@@ -153,6 +153,8 @@ private struct ProjectRow: View {
                 Text(item.reason)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    // A long sentence wraps to the row's width instead of squeezing the size out of it.
+                    .fixedSize(horizontal: false, vertical: true)
                 if item.tier == .yourData {
                     // In words, not color alone: what this row is, and what choosing it does (SAF-002, NFR-A11Y-001).
                     Text("Your data. Shuck moves it to the Trash, and you can restore it from History.")
@@ -167,8 +169,9 @@ private struct ProjectRow: View {
                         .textSelection(.enabled)
                 }
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
             SizeText(target: item.target, bytes: item.allocatedSize)
+                .fixedSize()
         }
     }
 

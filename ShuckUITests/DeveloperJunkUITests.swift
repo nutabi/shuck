@@ -98,11 +98,16 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             // Shuck has no network, so every row says that restoring needs an install and a connection.
             let restore =
                 "To restore it, run npm install, or your project's package manager, which needs an internet connection."
-            XCTAssertTrue(app.staticTexts[restore].exists, "No way to restore: \(outline(of: app))")
             XCTAssertTrue(
-                app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", restore + " This project patches"))
-                    .firstMatch.exists,
-                "The patch-package warning is missing: \(outline(of: app))")
+                app.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", restore, restore)).count
+                    == 1,
+                "The restore sentence is not shown once: \(outline(of: app))")
+            // macOS text can expose its content as a value rather than a label, and the sentence is shown once.
+            let warned = app.staticTexts.matching(
+                NSPredicate(
+                    format: "label BEGINSWITH %@ OR value BEGINSWITH %@", restore + " This project patches",
+                    restore + " This project patches"))
+            XCTAssertEqual(warned.count, 1, "The patch-package warning is not shown once: \(outline(of: app))")
             attachScreenshot(of: app, named: "Developer Junk with Node.js projects")
         }
 
