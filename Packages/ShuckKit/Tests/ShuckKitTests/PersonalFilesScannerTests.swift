@@ -63,6 +63,51 @@ struct PersonalFilesScannerTests {
         #expect(result.items.values.allSatisfy { $0.readOnly == nil })
     }
 
+    /// A large old packfile matches both sub-tools, and trashing it corrupts the repository (D-131).
+    @Test func gitsOwnFilesAreNotEnteredOrListedAtAnyDepthFCL008() async throws {
+        try root.file("Projects/app/.git/objects/pack/pack-1.pack", size: 8_000)
+        try root.file("Projects/app/Vendor/lib/.GIT/HEAD", size: 10)
+        try root.file("Projects/app/Vendor/linked/.git", size: 10)
+        try root.file("Projects/app/main.swift", size: 10)
+        try root.file("Projects/app/.env", size: 10)
+        let read = Mutex<[String]>([])
+
+        let result = try await scan(
+            scanner { url in
+                read.withLock { $0.append(url.lastPathComponent) }
+                return EntryValues.read(url)
+            })
+
+        #expect(Set(result.items.keys) == ["Projects/app/main.swift", "Projects/app/.env"])
+        #expect(read.withLock { !$0.contains("objects") && !$0.contains("HEAD") })
+    }
+
+    /// A disk mounted inside the home folder is not the user's home: the scan neither lists nor enters it (D-135).
+    @Test func anotherVolumeIsNotEnteredFCL008() async throws {
+        try root.file("Mounted/Disk/movie.mov", size: 8_000)
+        try root.file("Mounted/disk.img", size: 8_000)
+        try root.file("Mounted/Unknown/clip.mov", size: 8_000)
+        try root.file("Documents/report.pdf", size: 10)
+        let read = Mutex<[String]>([])
+
+        let result = try await scan(
+            scanner { url in
+                read.withLock { $0.append(url.lastPathComponent) }
+                var values = EntryValues.read(url)
+                switch url.lastPathComponent {
+                case "Disk", "disk.img":
+                    let identity = values?.identity
+                    values?.identity = identity.map { FileIdentity(volume: $0.volume &+ 1, file: $0.file) }
+                case "Unknown": values?.identity = nil
+                default: break
+                }
+                return values
+            })
+
+        #expect(Set(result.items.keys) == ["Documents/report.pdf"])
+        #expect(read.withLock { !$0.contains("movie.mov") && !$0.contains("clip.mov") })
+    }
+
     @Test func exclusionsMatchWhateverTheirCaseAndUnicodeFormFCL008() async throws {
         try root.file("Excluded/kept.mov", size: 1_000)
         try root.file("Caf\u{E9}/menu.pdf", size: 1_000)

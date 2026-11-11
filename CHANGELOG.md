@@ -53,6 +53,8 @@ All notable changes to Shuck are listed here. The format follows
   word.
 - Large Files, Old Files, Developer Junk and Caches & Logs have Select All and Select None buttons. Select All never
   selects a row whose app is running.
+- Large Files and Old Files no longer look inside a Git repository's own `.git` folder, so they never offer its packfiles,
+  which the repository needs. They also leave out any disk mounted inside your home folder.
 
 ### Fixed
 
