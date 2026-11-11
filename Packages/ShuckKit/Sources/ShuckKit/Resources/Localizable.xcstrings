@@ -25,6 +25,9 @@
     "App Logs" : {
 
     },
+    "Apple says to keep the archive of every build you distribute. Xcode cannot make it again." : {
+
+    },
     "At least %@" : {
 
     },
@@ -32,6 +35,9 @@
 
     },
     "Build products and indexes Xcode keeps for each project." : {
+
+    },
+    "Builds you archived in Xcode, for testing, for distribution or for the App Store." : {
 
     },
     "Cache Files" : {
@@ -140,6 +146,9 @@
 
     },
     "Xcode" : {
+
+    },
+    "Xcode Archives" : {
 
     },
     "Xcode builds this project again when you next need it." : {
