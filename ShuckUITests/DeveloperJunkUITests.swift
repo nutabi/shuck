@@ -183,10 +183,11 @@ final class DeveloperJunkUITests: ShuckUITestCase {
                     NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", "Up to ", "Up to ")
                 ).firstMatch.exists,
                 "The npm cache has no size estimate: \(outline(of: app))")
+            // As a user would type it, with no quotes around plain words (D-138).
             let command = app.staticTexts.matching(
                 NSPredicate(
-                    format: "label CONTAINS %@ OR value CONTAINS %@", "'simctl' 'delete' 'unavailable'",
-                    "'simctl' 'delete' 'unavailable'")
+                    format: "label ENDSWITH %@ OR value ENDSWITH %@", "/usr/bin/xcrun simctl delete unavailable",
+                    "/usr/bin/xcrun simctl delete unavailable")
             ).firstMatch
             XCTAssertTrue(command.exists, "The command is not shown: \(outline(of: app))")
             XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
@@ -204,7 +205,9 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             sheet.buttons["Show All Items"].click()
             XCTAssertTrue(
                 sheet.staticTexts.matching(
-                    NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "'simctl'", "'simctl'")
+                    NSPredicate(
+                        format: "label ENDSWITH %@ OR value ENDSWITH %@", "xcrun simctl delete unavailable",
+                        "xcrun simctl delete unavailable")
                 ).firstMatch
                     .appears(within: 5), "The command is not in the item list")
             XCTAssertFalse(root.aFakeToolRan, "The tool ran before the confirmation")
