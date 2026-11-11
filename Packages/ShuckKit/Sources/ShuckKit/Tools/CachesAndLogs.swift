@@ -13,6 +13,8 @@ public struct CachesAndLogs: SubTool {
     /// A log is selected after this many days without a change (CAC-005, SET-002).
     static let staleLogDays = 7
     private static let logger = Logger(tool: .cachesAndLogs)
+    /// The category of the two log rules, whose items are selected by age alone (CAC-005).
+    static let logsCategoryID = "logs"
 
     private let appNames: any AppNames
 
@@ -62,7 +64,7 @@ public struct CachesAndLogs: SubTool {
     /// 30 days, or 7 for logs (CAC-005), except what macOS itself writes (D-120).
     static func rule(_ kind: Kind, home: URL) throws(RuleError) -> CleanupRule {
         let cachesCategory = ItemCategory(id: "caches", name: LocalizedStringResource("Caches", bundle: #bundle))
-        let logsCategory = ItemCategory(id: "logs", name: LocalizedStringResource("Logs", bundle: #bundle))
+        let logsCategory = ItemCategory(id: logsCategoryID, name: LocalizedStringResource("Logs", bundle: #bundle))
         let containersCategory = ItemCategory(
             id: "container-caches", name: LocalizedStringResource("App Container Caches", bundle: #bundle))
         let cacheText = LocalizedStringResource("The app builds this cache again when it needs it.", bundle: #bundle)
@@ -166,13 +168,15 @@ public struct CachesAndLogs: SubTool {
             let name = entry.lastPathComponent
             if values.isDirectory == true {
                 let bundleID = Self.bundleID(ofFolder: name)
+                let appName = bundleID.flatMap(appNames.name(ofBundleID:))
                 emitItem(
-                    at: entry, rule: folderRule, bundleID: bundleID,
-                    group: bundleID.flatMap(appNames.name(ofBundleID:)) ?? name, context, emit)
+                    at: entry, rule: folderRule, bundleID: bundleID, group: appName ?? name,
+                    knownApp: appName != nil, context, emit)
             } else {
+                // A loose file names no app Shuck can look up.
                 emitItem(
                     at: entry, rule: fileRule, bundleID: nil,
-                    group: entry.deletingPathExtension().lastPathComponent, context, emit)
+                    group: entry.deletingPathExtension().lastPathComponent, knownApp: false, context, emit)
             }
         }
     }
@@ -213,9 +217,10 @@ public struct CachesAndLogs: SubTool {
                 continue
             }
             let bundleID = container.lastPathComponent
+            let appName = appNames.name(ofBundleID: bundleID)
             emitItem(
-                at: caches, rule: rule, bundleID: bundleID,
-                group: appNames.name(ofBundleID: bundleID) ?? bundleID, context, emit)
+                at: caches, rule: rule, bundleID: bundleID, group: appName ?? bundleID, knownApp: appName != nil,
+                context, emit)
         }
     }
 
@@ -227,8 +232,12 @@ public struct CachesAndLogs: SubTool {
     }
 
     /// Builds the item for a cache or log, if it has anything in it. A folder with nothing inside is not listed.
+    ///
+    /// `knownApp` is whether Shuck found the installed app the entry belongs to. A cache without one is listed but
+    /// never selected by default: some apps keep state in Caches, and nothing says this entry is only a cache
+    /// (CAC-009). A log is a log whoever wrote it, so its age alone decides (CAC-005).
     private func emitItem(
-        at url: URL, rule: CleanupRule, bundleID: String?, group: String, _ context: ScanContext,
+        at url: URL, rule: CleanupRule, bundleID: String?, group: String, knownApp: Bool, _ context: ScanContext,
         _ emit: (ScanEvent) -> Void
     ) {
         guard case .paths(_, _, let scope) = rule.action else { return }
@@ -246,6 +255,7 @@ public struct CachesAndLogs: SubTool {
         let activity = scope == .contents ? FolderActivity.newest(in: url, modified: modified) : modified
         // macOS writes these too, and some hold work in progress, so they are listed but never selected (D-120).
         let apple = (bundleID ?? url.lastPathComponent).lowercased().hasPrefix("com.apple.")
+        let unknownApp = !knownApp && rule.category.id != Self.logsCategoryID
         do {
             emit(
                 .item(
@@ -253,8 +263,10 @@ public struct CachesAndLogs: SubTool {
                         at: url, snapshot: snapshot, modified: modified, source: id, runningApps: context.runningApps,
                         now: now,
                         reason: Self.reason(
-                            rule: rule, apple: apple, stale: rule.selection.selects(modified: activity, now: now)),
-                        lastActivity: activity, unselected: apple, apps: bundleID.map { [$0] } ?? [], appName: group)))
+                            rule: rule, apple: apple, unknownApp: unknownApp,
+                            stale: rule.selection.selects(modified: activity, now: now)),
+                        lastActivity: activity, unselected: apple || unknownApp, apps: bundleID.map { [$0] } ?? [],
+                        appName: group)))
         } catch {
             Self.logger.error("Skipped a cache or log: \(String(describing: error), privacy: .public)")
         }
@@ -271,9 +283,15 @@ public struct CachesAndLogs: SubTool {
     }
 
     /// Why an item is selected or kept, `nil` for the rule's own explanation.
-    private static func reason(rule: CleanupRule, apple: Bool, stale: Bool) -> LocalizedStringResource? {
+    private static func reason(
+        rule: CleanupRule, apple: Bool, unknownApp: Bool, stale: Bool
+    ) -> LocalizedStringResource? {
         if apple {
             return LocalizedStringResource("Part of macOS or an Apple app, so it starts unselected.", bundle: #bundle)
+        }
+        if unknownApp {
+            return LocalizedStringResource(
+                "Shuck can't tell which app this belongs to, so it starts unselected.", bundle: #bundle)
         }
         guard stale, case .modifiedAtLeast(let days) = rule.selection else { return nil }
         return LocalizedStringResource("Not changed for \(days) days or more.", bundle: #bundle)

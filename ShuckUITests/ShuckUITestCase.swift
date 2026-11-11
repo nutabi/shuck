@@ -56,9 +56,11 @@ class ShuckUITestCase: XCTestCase {
     ///   its list of excluded folders (SET-001, D-150).
     /// - Parameter projectFolders: Folders inside the fixture root, as paths relative to it, that the app starts with as
     ///   its developer project folders, instead of the default ones (SET-003, D-154).
+    /// - Parameter installedApps: Bundle IDs of apps Caches & Logs treats as installed, each named by its ID, so a
+    ///   cache folder of that name belongs to a known app and can start selected (CAC-009, D-156).
     func launch(
         scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = [], exclusions: [String] = [],
-        projectFolders: [String] = []
+        projectFolders: [String] = [], installedApps: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -76,6 +78,9 @@ class ShuckUITestCase: XCTestCase {
         }
         if !exclusions.isEmpty {
             app.launchArguments += ["-ShuckExcludedFolders", exclusions.joined(separator: ",")]
+        }
+        if !installedApps.isEmpty {
+            app.launchArguments += ["-ShuckInstalledApps", installedApps.joined(separator: ",")]
         }
         if !projectFolders.isEmpty {
             app.launchArguments += ["-ShuckProjectFolders", projectFolders.joined(separator: ",")]

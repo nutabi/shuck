@@ -10,6 +10,8 @@ struct CachesAndLogsPipelineTests {
     let root: FixtureRoot
     let pathGuard: PathGuard
     let longAgo = Date.now.addingTimeInterval(-40 * 86_400)
+    /// The apps this Mac is taken to have: a cache whose app is unknown is never selected (CAC-009).
+    let names = StubAppNames(["com.example.Notes": "Notes", "com.example.Mail": "Mail", "com.example.Recent": "Recent"])
 
     init() throws {
         root = try FixtureRoot()
@@ -19,11 +21,11 @@ struct CachesAndLogsPipelineTests {
     private func scanned(running: Set<String> = []) async -> [ScanItem] {
         let context = ScanContext(
             home: root.url, protection: root.pathGuardConfiguration(), runningApps: StubRunningApps(running))
-        return await items(from: CachesAndLogs(appNames: StubAppNames()), context: context)
+        return await items(from: CachesAndLogs(appNames: names), context: context)
     }
 
     private func plan(_ items: [ScanItem]) throws -> Plan {
-        try Plan(subTool: CachesAndLogs(appNames: StubAppNames()), items: items, pathGuard: pathGuard)
+        try Plan(subTool: CachesAndLogs(appNames: names), items: items, pathGuard: pathGuard)
     }
 
     @discardableResult

@@ -9,7 +9,10 @@ struct CachesAndLogsTests {
     let root: FixtureRoot
     let longAgo = Date.now.addingTimeInterval(-40 * 86_400)
     let lastMonth = Date.now.addingTimeInterval(-10 * 86_400)
-    let names = StubAppNames(["com.example.Notes": "Notes", "com.example.Mail": "Mail Pro"])
+    let names = StubAppNames([
+        "com.example.Notes": "Notes", "com.example.Mail": "Mail Pro", "com.example.Stale": "Stale",
+        "com.example.Recent": "Recent", "com.example.Busy": "Busy",
+    ])
 
     init() throws {
         root = try FixtureRoot()
@@ -131,8 +134,46 @@ struct CachesAndLogsTests {
         #expect(items["Library/Caches/com.example.Stale"]?.selection == .selected)
         #expect(items["Library/Caches/com.example.Recent"]?.selection == .unselected)
         #expect(items["Library/Caches/com.example.Busy"]?.selection == .unselected)
-        #expect(items["Library/Caches/old.dat"]?.selection == .selected)
+        // A loose file names no app, so its age never selects it (CAC-009).
+        #expect(items["Library/Caches/old.dat"]?.selection == .unselected)
         #expect(items["Library/Caches/new.dat"]?.selection == .unselected)
+    }
+
+    @Test func aCacheWhoseAppIsUnknownIsListedButNeverSelectedCAC009() async throws {
+        // Not named like a bundle ID, named like one no installed app has, and a sandboxed app that is gone.
+        try cache("Firefox")
+        try cache("claude-cli-nodejs")
+        try cache("com.example.Gone")
+        try root.file("Library/Containers/com.example.Gone/Data/Library/Caches/g.db", size: 10, modified: longAgo)
+        try FileManager.default.setAttributes(
+            [.modificationDate: longAgo],
+            ofItemAtPath: root.url("Library/Containers/com.example.Gone/Data/Library/Caches").path)
+        try cache("com.example.Notes")
+        // A folder named `cache` outside Caches is no sub-tool's to list, whatever its name.
+        try root.file("Library/Application Support/Notes/cache/state.db", size: 100, modified: longAgo)
+
+        let items = await items()
+
+        for path in [
+            "Library/Caches/Firefox", "Library/Caches/claude-cli-nodejs", "Library/Caches/com.example.Gone",
+            "Library/Containers/com.example.Gone/Data/Library/Caches",
+        ] {
+            let item = try #require(items[path], "\(path) is not listed")
+            #expect(item.selection == .unselected, "\(path) is selected")
+            #expect(
+                String(localized: item.reason) == "Shuck can't tell which app this belongs to, so it starts unselected."
+            )
+        }
+        #expect(items["Library/Caches/com.example.Notes"]?.selection == .selected)
+        #expect(!items.keys.contains { $0.hasPrefix("Library/Application Support") })
+    }
+
+    @Test func aLogIsSelectedByItsAgeWhoeverWroteItCAC005CAC009() async throws {
+        try root.file("Library/Logs/Unknown Tool/old.log", size: 100, modified: lastMonth)
+        try FileManager.default.setAttributes(
+            [.modificationDate: lastMonth], ofItemAtPath: root.url("Library/Logs/Unknown Tool").path)
+
+        #expect(await items()["Library/Logs/Unknown Tool"]?.selection == .selected)
     }
 
     @Test func logsNotChangedForSevenDaysAreSelectedAndNewerOnesAreListedCAC005() async throws {
@@ -168,8 +209,8 @@ struct CachesAndLogsTests {
     }
 
     @Test func aStaleItemSaysWhyItIsSelected() async throws {
-        try cache("Firefox")
-        let item = try #require(await items()["Library/Caches/Firefox"])
+        try cache("com.example.Notes")
+        let item = try #require(await items()["Library/Caches/com.example.Notes"])
         #expect(String(localized: item.reason) == "Not changed for 30 days or more.")
     }
 

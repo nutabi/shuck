@@ -100,6 +100,9 @@
     "See what starts automatically and turn off what you don't want." : {
 
     },
+    "Shuck can't tell which app this belongs to, so it starts unselected." : {
+
+    },
     "Shuck could not tell which version this is." : {
 
     },

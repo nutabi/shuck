@@ -371,6 +371,17 @@ Review done on 2026-11-12: `docs/m2-review.md` (D-155). It proposes sixteen pull
 fixes below and its own findings, and puts ten questions to the owner. No fix starts, and the open items below are
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
+Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, one GitHub stack, no hard
+stop; `docs/m2-review.md` has each one's scope). Stacks 2 and 3 are not approved yet.
+
+- [x] An unknown app's cache starts unselected (R-01, CAC-009, D-156): part of M2-F19.
+- [ ] `npm` and `pip` stay off the network, and `simctl` needs Xcode (R-02, R-13, DEV-002, DEV-004): the rest of
+  M2-F19's code items.
+- [ ] M2-F21 A stray `node_modules` in a project folder does not hide the projects below it (R-08, DEV-006).
+- [ ] Scans report what they cannot measure (R-10, M2-F17, #118).
+- [ ] String Catalog entries and a check for missing ones (R-09, M2-F17, #116), with DEV-R01's explanation.
+- [ ] Plans are built off the main actor (R-07, R-17, M2-F03, #62).
+
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
   devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-129).
