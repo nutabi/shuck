@@ -163,7 +163,7 @@ public struct CachesAndLogs: SubTool {
         for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard !Task.isCancelled else { return }
             guard let values = try? entry.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
-                values.isSymbolicLink != true, isOurs(entry, context)
+                values.isSymbolicLink != true, isOurs(entry, context, emit)
             else { continue }
             let name = entry.lastPathComponent
             if values.isDirectory == true {
@@ -205,7 +205,7 @@ public struct CachesAndLogs: SubTool {
             let caches = container.appending(path: "Data/Library/Caches", directoryHint: .isDirectory)
             guard (try? container.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink != true,
                 let values = try? caches.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
-                values.isDirectory == true, values.isSymbolicLink != true, isOurs(caches, context)
+                values.isDirectory == true, values.isSymbolicLink != true, isOurs(caches, context, emit)
             else {
                 // A container whose caches macOS hides from the scan is one unreadable folder, not one per app.
                 if !reportedDenial, FileManager.default.fileExists(atPath: container.path),
@@ -224,11 +224,12 @@ public struct CachesAndLogs: SubTool {
         }
     }
 
-    /// Whether the ownership map gives `url` to this sub-tool and the guard accepts it (FCL-005, SAF-007).
-    private func isOurs(_ url: URL, _ context: ScanContext) -> Bool {
+    /// Whether the ownership map gives `url` to this sub-tool and the guard accepts it (FCL-005, SAF-007). A folder
+    /// the guard refuses because Shuck may not read it is reported as not accessible (SAF-012).
+    private func isOurs(_ url: URL, _ context: ScanContext, _ emit: (ScanEvent) -> Void) -> Bool {
         context.ownership.owners(of: url).contains(id)
-            && (try? PathGuard(configuration: context.protection).validate(
-                url, allowedRoots: allowedRoots(home: context.home))) != nil
+            && ScanAccess(url, allowedRoots: allowedRoots(home: context.home), protection: context.protection)
+                .admits(url, emit)
     }
 
     /// Builds the item for a cache or log, if it has anything in it. A folder with nothing inside is not listed.
@@ -248,9 +249,7 @@ public struct CachesAndLogs: SubTool {
             }
             if inside.isEmpty { return }
         }
-        guard let snapshot = ItemSnapshot.read(url, while: { !Task.isCancelled }),
-            let modified = RuleMatch.modificationDate(at: url)
-        else { return }
+        guard let (snapshot, modified) = ScanAccess.measure(url, emit) else { return }
         let now = Date.now
         let activity = scope == .contents ? FolderActivity.newest(in: url, modified: modified) : modified
         // macOS writes these too, and some hold work in progress, so they are listed but never selected (D-120).

@@ -106,7 +106,7 @@ extension DeveloperJunk {
         if let modules = folders.first(where: {
             PathGuard.fold($0.lastPathComponent) == OwnershipMap.dependenciesFolderName
         }) {
-            if let item = nodeModulesItem(modules, project: folder, rule: rule, context: context, now: now) {
+            if let item = nodeModulesItem(modules, project: folder, rule: rule, context: context, now: now, emit) {
                 emit(.item(item))
             }
             // A stray `node_modules` in the project folder itself must not hide the projects below it.
@@ -127,17 +127,23 @@ extension DeveloperJunk {
     /// The item for `modules`, the `node_modules` of the project at `project`, or `nil` if it is not Developer Junk's to
     /// list: another sub-tool's, refused by the path guard, or with no lockfile next to it (DEV-006).
     private func nodeModulesItem(
-        _ modules: URL, project: URL, rule: CleanupRule, context: ScanContext, now: Date
+        _ modules: URL, project: URL, rule: CleanupRule, context: ScanContext, now: Date, _ emit: (ScanEvent) -> Void
     ) -> ScanItem? {
         guard NodeProject.hasLockfile(in: project), context.ownership.owners(of: modules).contains(id),
-            isAllowed(modules, context), let modified = RuleMatch.modificationDate(at: modules)
+            access(modules, context).admits(modules, emit)
         else { return nil }
+        guard let modified = RuleMatch.modificationDate(at: modules) else {
+            if !Task.isCancelled { emit(.notAccessible(modules)) }
+            return nil
+        }
         let warning = NodeProject.warning(in: project)
         // The project's own files say when it was last worked on, not `node_modules` (DEV-006). If that cannot be read to
         // the end, or Shuck cannot tell what a reinstall would lose, the item is listed and never selected.
         let activity = NodeProject.newestActivity(
             in: project, isSkipped: { Self.isInsideExclusion($0, context) }, shouldContinue: { !Task.isCancelled })
-        guard !Task.isCancelled, let snapshot = ItemSnapshot.read(modules, while: { !Task.isCancelled }) else {
+        guard !Task.isCancelled else { return nil }
+        guard let snapshot = ItemSnapshot.read(modules, while: { !Task.isCancelled }) else {
+            if !Task.isCancelled { emit(.notAccessible(modules)) }
             return nil
         }
         do {

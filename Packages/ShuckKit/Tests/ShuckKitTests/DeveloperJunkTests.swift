@@ -155,4 +155,40 @@ struct DeveloperJunkTests {
         #expect(junk.projects(home: root.url) == [inside])
         #expect(DeveloperJunk().projects(home: root.url).isEmpty)
     }
+
+    private func notAccessible(excluding exclusions: [URL] = []) async -> (denied: [String], items: Set<String>) {
+        let context = ScanContext(
+            home: root.url, protection: root.pathGuardConfiguration(userExclusions: exclusions),
+            runningApps: StubRunningApps([]))
+        var denied: [String] = []
+        var items: Set<String> = []
+        for await event in DeveloperJunk().scan(context) {
+            switch event {
+            case .notAccessible(let url): denied.append(url.lastPathComponent)
+            case .item(let item): items.insert(item.url?.lastPathComponent ?? "")
+            default: break
+            }
+        }
+        return (denied, items)
+    }
+
+    @Test func aFolderShuckMayNotReadIsReportedNotListedSAF011SAF012() async throws {
+        try root.derivedDataProject("Open-\(hash)", workspace: nil, modified: longAgo)
+        try root.folder("Library/Developer/Xcode/DerivedData/Locked-\(hash)", permissions: 0o000)
+
+        let result = await notAccessible()
+
+        #expect(result.denied == ["Locked-\(hash)"])
+        #expect(result.items == ["Open-\(hash)"])
+    }
+
+    @Test func aFolderAnExclusionHidesIsNotReportedSAF011SAF012() async throws {
+        try root.derivedDataProject("Open-\(hash)", workspace: nil, modified: longAgo)
+        let locked = try root.folder("Library/Developer/Xcode/DerivedData/Locked-\(hash)", permissions: 0o000)
+
+        let result = await notAccessible(excluding: [locked])
+
+        #expect(result.denied.isEmpty)
+        #expect(result.items == ["Open-\(hash)"])
+    }
 }

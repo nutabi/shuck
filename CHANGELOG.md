@@ -86,6 +86,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Developer Junk and Caches & Logs say "Not accessible" when macOS keeps Shuck out of a folder they would list,
+  instead of leaving it out without a word. Developer Junk's page now shows the note, as Caches & Logs' does.
 - Move to Trash's review, Quick Look and Show in Finder now follow the folder order shown in grouped results.
 - The time since a scan on the File Cleanup page now updates while the page stays open.
 - Excluded folders no longer appear in personal-file results when another cleanup tool manages them.

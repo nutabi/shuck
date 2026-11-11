@@ -57,6 +57,9 @@ struct DeveloperJunkView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if results.notAccessibleCount > 0 { NotAccessibleNote() }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 RebuildableFooter(
                     results: results, action: actions.confirmRebuildable,
@@ -122,7 +125,27 @@ struct DeveloperJunkView: View {
     }
 }
 
-/// One row: a checkbox or the reason it has none, the name of a project or tool rule, why it is listed and its size.
+/// What the page tells before its list if macOS kept the scan out of some folders: what is missing and how to let
+/// Shuck in (SAF-012, ONB-002). A symbol and words, never color alone.
+private struct NotAccessibleNote: View {
+    var body: some View {
+        Label {
+            Text(
+                "Not accessible: macOS kept Shuck out of some folders, so they are not listed. Allow Full Disk Access for Shuck in System Settings, then scan again to include them."
+            )
+        } icon: {
+            Image(systemName: "lock")
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+}
+
+/// One row:a checkbox or the reason it has none, the name of a project or tool rule, why it is listed and its size.
 /// A tool rule's row also shows the exact command that cleaning would run.
 private struct ProjectRow: View {
     let item: ScanItem
