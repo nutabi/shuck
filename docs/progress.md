@@ -245,7 +245,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [ ] Owner item (review of 2026-11-10): check on the owner's Mac whether `~/Library/Developer/CoreSimulator/Caches`
     still exists under the current Xcode. DevCleaner's maintainer reports it gone on recent Xcode versions and advises
     against cleaning these caches (PRD S77). If it is gone or risky, the owner decides whether DEV-R04 stays.
-- [ ] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
+- [x] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
   Two pull requests, a stack (D-62, D-76):
   - [x] Engine: the scan of caches, logs and container caches, each item naming its app, and the ownership map leaving
@@ -254,7 +254,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] App: register the sub-tool, its page grouped by app with Delete through the summary confirmation, the note
     about macOS clearing caches, and the UI workflow steps (CAC-002, CAC-006, CAC-007, D-122). Left over: a folder named
     after an app rather than a bundle ID, such as `Firefox`, is not tied to a running app (D-121).
-- [ ] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
+- [x] M2-T10 Tool runner: an absolute path, an argument array, an explicit environment and a timeout; output and exit
   code in the history log; fake tools in test support; in the fixture-root mode, tools are found only inside the
   fixture root (DEV-002, DEV-004, SAF-006, SAF-010, NFR-SEC-004). `PlanAction.act` becomes `async` here, so a tool
   command can be stopped while it runs (SAF-014, D-93). Two pull requests, a stack (D-76):
@@ -266,7 +266,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     NFR-SEC-004, D-114, D-115). Left over for M2-T11: History shows a tool failure's output in its message until the
     item display is decided (#63); no test covers a tool that cannot be started at all, since a fake cannot fail
     `posix_spawn` without a shell.
-- [ ] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
+- [x] M2-T11 Tool rules, one per pull request: unavailable simulators, npm, pip and Homebrew; History shows each tool
   run (DEV-R03, DEV-R07 to DEV-R09). Its first pull request decides what a History item shows for each operation,
   since `path` holds a tool name for `tool` and a job label for `launchctl`: for example the tool and its command, and
   the job label, with a unit test for each operation (#63). Six pull requests, a stack (D-62, D-76):
@@ -321,7 +321,7 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 - [x] M2-F02 File Cleanup fixes, in one owner-requested pull request: review, Quick Look and Finder follow grouped
   results' display order (#60); the landing page's scan age updates while idle (#61); exclusions hide tool-owned
   stores as well as personal files (#64, D-109). M2-T04 remains the next roadmap task.
-- [ ] M2-F03 Measure Move to Trash's plan building on the main actor with a few thousand selected files, using
+- [ ] M2-F03 Deferred until the rest of M2 has merged (D-142). Measure Move to Trash's plan building on the main actor with a few thousand selected files, using
   Instruments' Hangs instrument. If it hangs: fold the protected locations once instead of in every guard check, work
   out Old Files' period once, and build the plan off the main actor (#62, NFR-PERF-001).
 - [x] M2-F04 CI cancels only pull request runs, so a push to `main` never cancels the check of an earlier merge (#65).
@@ -333,6 +333,10 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 
 Fixes from the review of 2026-11-10 (D-129 to D-135). Each is one reviewable pull request; the issues are opened
 separately. Changes to Safety and Execution go in pull requests of their own (D-62):
+
+Deferred (D-142): the open fixes below and M2-F03 wait until M2-T07 and M2-T12 to M2-T14 have merged. A complete
+review of M2 then follows, in a session of its own, and decides how these fixes are done together with its own
+findings. They still come before the 0.2.0 release items.
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
