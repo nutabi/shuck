@@ -16,7 +16,25 @@ public struct DeveloperJunk: SubTool {
     static let archiveSuffix = ".xcarchive"
     static let logger = Logger(tool: .developerJunk)
 
-    public init() {}
+    /// The developer project folders from Settings (SET-003) that DEV-R06 scans for `node_modules`. The app rebuilds the
+    /// sub-tool when the user changes them, so a scan, a plan and a run all see one list (D-152).
+    public let projectFolders: [URL]
+
+    /// - Parameter projectFolders: Folders inside the home folder, with symlinks resolved as the home folder's are. One
+    ///   outside it is ignored, whatever is passed (``projects(home:)``).
+    public init(projectFolders: [URL] = []) {
+        self.projectFolders = projectFolders
+    }
+
+    /// The project folders that lie strictly inside `home`, without repeats. The allowed roots stay inside the home
+    /// folder, so a folder outside it, or the home folder itself, is never scanned (SET-003, D-152).
+    public func projects(home: URL) -> [URL] {
+        var seen: Set<[String]> = []
+        return projectFolders.filter { folder in
+            folder.isFileURL && !folder.pathComponents.contains("..") && folder.isStrictlyInside(home)
+                && seen.insert(folder.pathComponents.map(PathGuard.fold)).inserted
+        }
+    }
 
     public var info: ToolInfo {
         ToolInfo(

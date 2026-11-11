@@ -228,6 +228,9 @@ public struct PersonalFilesScanner: Sendable {
         // Both checks come before anything measures, lists or enters the entry.
         // Git's own files are not personal files: trashing an old packfile corrupts the repository (FCL-008, D-131).
         if PathGuard.fold(url.lastPathComponent) == ".git" { return .skip }
+        // A project's `node_modules` belongs to Developer Junk: it is neither listed here, not even read-only, nor
+        // measured or entered (DEV-R06, D-152).
+        if context.ownership.isProjectDependencies(url) { return .skip }
         // Another volume mounted inside the home folder is out of scope. An entry whose volume is unknown is skipped
         // too, since nothing shows it is on the home folder's (FCL-008, D-135).
         guard let volume = values.identity?.volume, volume == homeVolume else { return .skip }

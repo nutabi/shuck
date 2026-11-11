@@ -9,6 +9,10 @@ import Foundation
 /// cache belongs to Developer Junk only. A pattern with no owners marks locations no sub-tool scans, such as
 /// `Library`. A scan skips any item whose owners do not include it.
 ///
+/// One location is not a pattern: a `node_modules` folder below a developer project folder, at any depth, belongs to
+/// Developer Junk (DEV-R06, D-152). The patterns have no `**`, and the project folders are the user's setting, so the map
+/// holds them as a value and checks that case itself.
+///
 /// Ownership covers File Cleanup only; Applications and Startup Items may act on the same locations (D-25).
 public struct OwnershipMap: Sendable {
     /// One location and the sub-tools that own it.
@@ -92,13 +96,39 @@ public struct OwnershipMap: Sendable {
             [Entry("Library/Caches/\(id)", owners: []), Entry("Library/Logs/\(id)", owners: [])]
         } + [Entry("Library/Containers/com.docker.docker/Data/Library/Caches", owners: [])]
 
+    /// The name of the folder a package manager fills with a project's dependencies (DEV-R06).
+    public static let dependenciesFolderName = "node_modules"
+
     /// The home folder the patterns are relative to.
     public let home: URL
     public let entries: [Entry]
+    /// The developer project folders from Settings (SET-003), inside the home folder and resolved like it. Empty when the
+    /// user has none, so `node_modules` is nobody's special case.
+    public let projectFolders: [URL]
 
-    public init(home: URL, entries: [Entry] = Self.standardEntries) {
+    public init(home: URL, entries: [Entry] = Self.standardEntries, projectFolders: [URL] = []) {
         self.home = home
         self.entries = entries
+        self.projectFolders = projectFolders
+    }
+
+    /// The same map with other project folders.
+    public func withProjectFolders(_ folders: [URL]) -> OwnershipMap {
+        OwnershipMap(home: home, entries: entries, projectFolders: folders)
+    }
+
+    /// Whether `url` is a `node_modules` folder, or inside one, below a project folder, at any depth. Names are compared
+    /// ignoring case, as the patterns are. The personal-files scan leaves such a path out, as it leaves out `.git`
+    /// (D-139, D-152).
+    public func isProjectDependencies(_ url: URL) -> Bool {
+        let components = url.pathComponents
+        guard !components.contains(where: { $0 == "." || $0 == ".." }) else { return false }
+        return projectFolders.contains { folder in
+            let base = folder.pathComponents
+            return components.count > base.count
+                && zip(base, components).allSatisfy { $0.caseInsensitiveCompare($1) == .orderedSame }
+                && components.dropFirst(base.count).contains { PathGuard.fold($0) == Self.dependenciesFolderName }
+        }
     }
 
     /// The sub-tools that own `url`, or none if it is outside the home folder or no sub-tool scans it.
@@ -111,6 +141,9 @@ public struct OwnershipMap: Sendable {
             if let current = best, entry.specificity <= current.specificity { continue }
             best = entry
         }
+        // A project's `node_modules` is Developer Junk's, but only where the patterns would give it to the personal files:
+        // the override never takes a location from Caches & Logs, or one that no sub-tool may list (D-152).
+        if best?.owners == Self.personalFiles, isProjectDependencies(url) { return [.developerJunk] }
         return best?.owners ?? []
     }
 
