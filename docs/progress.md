@@ -293,7 +293,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     action for each tier, Delete and Move to Trash, each with its own count and size, and the footer no longer counts
     "Your data" with Delete (DEV-R05, SAF-002, SAF-003, D-147). Left over: the UI workflow steps for archives could
     not be run in the agent's sandbox (AGENTS.md); CI or the owner's run shows them.
-- [ ] M2-T14 User exclusions, moved from M5 so no release with permanent Delete ships without them: the engine applies
+- [x] M2-T14 User exclusions, moved from M5 so no release with permanent Delete ships without them: the engine applies
   them to every tool and sub-tool, and Settings gets a minimal list with a folder picker and Remove (SET-001, D-135).
   Done before M2-T13 (D-148). A stack of three pull requests:
   - [x] Exclusions in every scan: Developer Junk and the personal-files scan hide what an exclusion covers or holds;
@@ -302,6 +302,8 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Stored exclusions reach scans, plans and runs: `UserDefaults` storage, the guard rebuilt when the list
     changes, rows dropped on Add without a rescan, a run keeps the configuration it started with, and the UI test
     launch argument `launch(exclusions:)` (D-150).
+  - [x] Exclusions in Settings: the list with Add… and Remove, the UI test steps and the changelog line (D-151).
+    Left over for M5: drag and drop into the list (SET-001).
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
   DEV-006, SET-003, FCL-005). Done after M2-T14 (D-148): it scans the user's project folders, which must honour
   exclusions from the first release, and it reuses M2-T14's stored folder list and Settings wiring.
@@ -413,7 +415,7 @@ Exit criteria (PRD section 13):
   finds every tool run in History.
 - The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
   0.2.0 release items below.
-- [ ] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
+- [x] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
 - [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
 - [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
@@ -443,6 +445,7 @@ M4 Startup Items:
 
 M5 Overview, onboarding, settings, polish:
 
+- Drag and drop into Settings' list of excluded folders, which SET-001 names; M2-T14 built the folder picker (D-151).
 - Clear History: "Clear History…" in Settings, which says that Restore is lost for the cleared runs (HIS-008, SET-007,
   D-135).
 - The localization and compatibility pass builds two checks (D-133): hard-coded UI strings and stale String Catalog

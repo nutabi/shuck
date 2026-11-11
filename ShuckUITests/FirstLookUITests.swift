@@ -10,7 +10,8 @@ final class FirstLookUITests: ShuckUITestCase {
     func testFirstLookWithNothingToClean() throws {
         // Too small for Large Files and Old Files, so neither has anything to list.
         try root.file("Documents/notes.txt", size: 10)
-        let app = launch(scanDelay: 2)
+        let secret = try root.file("Documents/Private/secret.txt", size: 10)
+        let app = launch(scanDelay: 2, exclusions: ["Documents/Private"])
         let sidebar = app.outlines.firstMatch
 
         step("The sidebar lists every tool and sub-tool, and Settings is not one of them (FCL-001, D-27)") {
@@ -105,12 +106,33 @@ final class FirstLookUITests: ShuckUITestCase {
             // If ⌘N opened a window, there would be three once Settings is open.
             app.typeKey("n", modifierFlags: .command)
             app.typeKey(",", modifierFlags: .command)
-            let summary = "Exclusions, thresholds and project folders."
-            XCTAssertTrue(app.staticTexts[summary].appears(within: 5), "⌘, did not open Settings")
-            XCTAssertTrue(app.staticTexts["Planned for milestone M5."].exists)
+            let heading = "Excluded folders"
+            XCTAssertTrue(app.staticTexts[heading].appears(within: 5), "⌘, did not open Settings")
             XCTAssertEqual(app.windows.count, 2)
-            let main = app.windows.containing(.outline, identifier: nil).element
-            XCTAssertFalse(main.staticTexts[summary].exists, "Settings opened in the main window")
+            // The main window has the sidebar's History row; Settings must not share a window with it.
+            let shared = app.windows.allElementsBoundByIndex.filter {
+                $0.staticTexts[heading].exists && $0.staticTexts["History"].exists
+            }
+            XCTAssertTrue(shared.isEmpty, "Settings opened in the main window")
+        }
+
+        step("Settings lists the excluded folder, Add… is there, and Remove takes the folder out (SET-001)") {
+            // macOS text can expose its content as an accessibility value rather than a label.
+            let folder = app.staticTexts.matching(
+                NSPredicate(format: "label ENDSWITH %@ OR value ENDSWITH %@", "Documents/Private", "Documents/Private")
+            ).firstMatch
+            XCTAssertTrue(folder.appears(within: 5), "The excluded folder is not listed: \(app.debugDescription)")
+            XCTAssertTrue(app.buttons["Add…"].exists)
+            XCTAssertFalse(app.staticTexts["No folders are excluded."].exists)
+            let remove = app.buttons["Remove"]
+            XCTAssertFalse(remove.isEnabled, "Remove is enabled with nothing selected")
+            folder.click()
+            XCTAssertTrue(remove.isEnabled)
+            remove.click()
+            XCTAssertTrue(app.staticTexts["No folders are excluded."].appears(within: 5))
+            XCTAssertTrue(folder.disappears(within: 5))
+            // Removing an exclusion deletes nothing.
+            XCTAssertTrue(FileManager.default.fileExists(atPath: secret.path))
         }
     }
 }

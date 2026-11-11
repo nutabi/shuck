@@ -59,7 +59,7 @@ struct ShuckApp: App {
 
         // Settings opens in its own window from the app menu (⌘,), not from the sidebar (D-27).
         Settings {
-            SettingsView()
+            SettingsView(exclusions: exclusions)
         }
     }
 }

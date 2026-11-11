@@ -11,7 +11,9 @@ final class FindWhatTakesSpaceUITests: ShuckUITestCase {
         try root.file("Movies/Clip.mov", size: 2 << 20)
         try root.file("Downloads/Installer.dmg", size: 3 << 20, modified: .now.addingTimeInterval(-2 * year))
         try root.file("Documents/notes.txt", size: 10, modified: .now.addingTimeInterval(-5 * year))
-        let app = launch()
+        // Large and old, but in an excluded folder: no list shows it, and no total counts it (SET-001).
+        try root.file("Documents/Private/Huge.bin", size: 4 << 20, modified: .now.addingTimeInterval(-4 * year))
+        let app = launch(exclusions: ["Documents/Private"])
         let sidebar = app.outlines.firstMatch
 
         /// The three large files in the order the page shows them, top to bottom.
@@ -55,6 +57,7 @@ final class FindWhatTakesSpaceUITests: ShuckUITestCase {
                 XCTAssertTrue(app.staticTexts[name].exists, "Missing \(name)")
             }
             XCTAssertFalse(app.staticTexts["notes.txt"].exists, "A file below the minimum size is listed")
+            XCTAssertFalse(app.staticTexts["Huge.bin"].exists, "A file in an excluded folder is listed (SET-001)")
             // Movies (7.3 MB) is a bigger group than Downloads (3.1 MB), so it comes first.
             XCTAssertLessThan(app.staticTexts["Movies"].frame.minY, app.staticTexts["Downloads"].frame.minY)
             XCTAssertTrue(app.staticTexts["7.3 MB"].exists, "Missing the Movies subtotal")
@@ -91,6 +94,7 @@ final class FindWhatTakesSpaceUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["Installer.dmg"].exists)
             XCTAssertFalse(app.staticTexts["Clip.mov"].exists, "A recently changed file is listed")
             XCTAssertFalse(app.staticTexts["notes.txt"].exists, "A file below the minimum size is listed")
+            XCTAssertFalse(app.staticTexts["Huge.bin"].exists, "A file in an excluded folder is listed (SET-001)")
             // Spotlight has no record of fixture files being opened, so each row says it shows the modified date.
             XCTAssertTrue(app.staticTexts["Modified"].exists, "The fallback to the modified date is not marked")
             XCTAssertLessThan(app.staticTexts["Holiday.mov"].frame.minY, app.staticTexts["Installer.dmg"].frame.minY)
