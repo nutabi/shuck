@@ -34,7 +34,8 @@ public struct FixtureSubTool: SubTool {
                     let snapshot = ItemSnapshot.read(url)
                 else { continue }
                 let item = ScanItem(
-                    url: url, snapshot: snapshot, tier: tier, method: method, reason: "Fixture file", source: id)
+                    url: url, snapshot: snapshot, tier: tier, method: method, reason: "Fixture file", source: id,
+                    modified: ModificationDate.read(at: url))
                 continuation.yield(.item(item))
             }
             continuation.finish()

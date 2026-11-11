@@ -352,9 +352,9 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
   accessible", and the mount-point rule covers every method; FCL-011's code already named the Go module cache only.
   Left over: a scan can still list a folder the guard refuses, such as one holding a Photos library, and one such row
   refuses the whole plan. The scanner could mark such folders read-only.
-- [ ] M2-F11 Re-validation compares the modification date of every item, Trash or Delete, using the deep date for
+- [x] M2-F11 Re-validation compares the modification date of every item, Trash or Delete, using the deep date for
   contents-only items, and a plan refuses a Delete item without a rule match (SAF-008, D-132). Safety and Execution
-  change.
+  change. Done as D-141.
 - [ ] M2-F12 One running instance: a second launch of the same build activates the first and quits, and the history log
   is locked with `flock` while a run writes it (SAF-018, D-135).
 - [ ] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards

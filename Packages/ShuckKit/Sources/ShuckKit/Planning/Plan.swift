@@ -17,11 +17,15 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
     public let scope: ItemScope
     /// Which file the scan found, if the executor must skip another file put at its path since (SAF-008, D-103).
     public let identity: FileIdentity?
+    /// The modification date the scan read; the executor skips the item if it differs just before acting (SAF-008,
+    /// D-132). `nil` for a command, and for a path whose date the scan could not read, which the executor skips.
+    public let modified: Date?
     /// The bundle IDs of the apps that use the item; the executor skips it while one of them runs (SAF-009).
     public let apps: Set<String>
 
     public init(
-        url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, scope: ItemScope = .item,
+        url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, modified: Date? = nil,
+        scope: ItemScope = .item,
         identity: FileIdentity? = nil, category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected,
         ruleMatch: RuleMatch? = nil, apps: Set<String> = []
     ) {
@@ -35,6 +39,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         self.snapshot = snapshot
         self.scope = scope
         self.identity = identity
+        self.modified = modified
         self.apps = apps
     }
 
@@ -52,6 +57,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         snapshot = nil
         scope = .item
         identity = nil
+        modified = nil
         self.apps = apps
     }
 
@@ -62,6 +68,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         snapshot = item.snapshot
         scope = item.scope
         identity = item.identity
+        modified = item.modified
         allocatedSize = item.allocatedSize
         category = item.category
         selection = item.selection
@@ -73,8 +80,9 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
 /// The exact list of operations shown at review time; the executor performs exactly this list (PRD section 8.1).
 ///
 /// A plan belongs to one tool or sub-tool (FCL-002). Creating one checks every item: its method must be allowed by
-/// its tier (SAF-004), only a folder deleted permanently may keep the folder and lose its contents (CAC-004), and its
-/// path must pass the path guard (SAF-007).
+/// its tier (SAF-004), a permanent Delete needs the cleanup rule that justifies it (SAF-008, D-132), only a folder
+/// deleted permanently may keep the folder and lose its contents (CAC-004), and its path must pass the path guard
+/// (SAF-007).
 public struct Plan: Sendable {
     public let run: UUID
     public let tool: ToolID
@@ -91,6 +99,8 @@ public struct Plan: Sendable {
                 throw .methodNotAllowed(subject, tier: item.tier, method: item.method)
             }
             guard item.selection.isSelectable else { throw .notSelectable(subject) }
+            // A Delete without a rule has no evidence that the item is safe to lose (D-132).
+            guard item.method != .delete || item.ruleMatch != nil else { throw .ruleRequired(subject) }
             if let match = item.ruleMatch,
                 !match.rule.accepts(item.target, tier: item.tier, method: item.method, scope: item.scope)
                     || (item.method == .delete && match.modified == nil)
@@ -153,6 +163,8 @@ public enum PlanError: Error, Equatable {
     case commandRequired(String)
     /// The item's target, tier, method or scope differs from the rule its scan matched (D-100).
     case ruleMismatch(String)
+    /// The item is to be deleted permanently, but no cleanup rule matched it (SAF-008, D-132).
+    case ruleRequired(String)
     /// The path guard rejected the item (SAF-007).
     case rejected(String, PathGuardError)
 }
@@ -163,7 +175,7 @@ extension PlanError {
         switch self {
         case .otherSubTool(let path, _), .tierNotAllowed(let path, _), .methodNotAllowed(let path, _, _),
             .contentsNotAllowed(let path, _), .contentsOfNonFolder(let path), .rejected(let path, _),
-            .notSelectable(let path), .commandRequired(let path), .ruleMismatch(let path):
+            .notSelectable(let path), .commandRequired(let path), .ruleMismatch(let path), .ruleRequired(let path):
             path
         }
     }

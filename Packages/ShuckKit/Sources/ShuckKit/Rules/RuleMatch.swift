@@ -12,11 +12,10 @@ public struct RuleMatch: Equatable, Sendable {
     }
 
     /// A fresh stat, without following a final symlink or using URL resource-value caches. This compares the target's
-    /// own modification date; size re-validation still measures its contents (SAF-008).
+    /// own modification date; size re-validation still measures its contents (SAF-008). The same as
+    /// ``ModificationDate/read(at:)``.
     public static func modificationDate(at url: URL) -> Date? {
-        var info = stat()
-        guard lstat(url.path, &info) == 0 else { return nil }
-        return Date(timeIntervalSince1970: Double(info.st_mtimespec.tv_sec) + Double(info.st_mtimespec.tv_nsec) / 1e9)
+        ModificationDate.read(at: url)
     }
 }
 
@@ -60,7 +59,8 @@ extension CleanupRule {
         let apps = apps.union(itemApps)
         return ScanItem(
             url: url, snapshot: snapshot, tier: tier, method: method, reason: reason ?? explanation, source: source,
-            scope: scope, identity: method == .trash ? FileIdentity.read(url) : nil,
+            modified: ModificationDate.compared(at: url, scope: scope, own: modified), scope: scope,
+            identity: method == .trash ? FileIdentity.read(url) : nil,
             category: category,
             selection: itemSelection(
                 modified: lastActivity ?? modified, now: now, disabledReason: disabledReason, running: runningApps,

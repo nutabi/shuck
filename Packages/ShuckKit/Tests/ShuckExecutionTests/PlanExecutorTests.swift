@@ -19,7 +19,7 @@ struct PlanExecutorTests {
     }
 
     private func planned(_ url: URL, tier: Tier = .yourData, method: ActionMethod = .trash) throws -> PlannedItem {
-        PlannedItem(url: url, tier: tier, method: method, snapshot: try #require(ItemSnapshot.read(url)))
+        try root.planned(url, tier: tier, method: method)
     }
 
     private func plan(_ items: [PlannedItem]) throws -> Plan {
@@ -129,6 +129,38 @@ struct PlanExecutorTests {
         #expect(exists(grown) && exists(replaced))
         let statuses = try HistoryLog.read(folder: logFolder).records.compactMap(\.status)
         #expect(statuses == [.skipped, .skipped, .skipped, .ok])
+    }
+
+    /// A file being written keeps its kind and, within 1%, its size, but not its modification date (D-132).
+    @Test func aTrashItemWhoseOnlyChangeIsItsModificationDateIsSkippedSAF008() async throws {
+        let touched = try root.file("Downloads/touched.mov", size: 10_000)
+        let unchanged = try root.file("Downloads/unchanged.mov", size: 10_000)
+        let plan = try plan([planned(touched), planned(unchanged)])
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(60)], ofItemAtPath: touched.path)
+
+        let report = try await run(plan)
+
+        #expect(report.outcomes[0].result == .skipped(.modifiedSinceScan))
+        guard case .done = report.outcomes[1].result else {
+            Issue.record("The unchanged item was not trashed: \(report.outcomes[1].result)")
+            return
+        }
+        #expect(exists(touched))
+        let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
+        #expect(results.map(\.detail) == ["modifiedSinceScan", nil])
+    }
+
+    /// Nothing shows that an item whose scan read no date is unchanged, so it is skipped (D-132).
+    @Test func anItemWithoutAScanDateIsSkippedSAF008() async throws {
+        let file = try root.file("Downloads/undated.mov", size: 10_000)
+        let item = PlannedItem(
+            url: file, tier: .yourData, method: .trash, snapshot: try #require(ItemSnapshot.read(file)))
+
+        let report = try await run(plan([item]))
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.modifiedSinceScan)])
+        #expect(exists(file))
     }
 
     @Test func anItemShuckMayNotReadIsSkippedAsNotAccessibleNotMissingSAF012() async throws {

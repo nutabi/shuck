@@ -396,17 +396,20 @@ public struct EntryValues: Equatable, Sendable {
 
     static let keys: Set<URLResourceKey> = [
         .isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .isRegularFileKey, .totalFileAllocatedSizeKey,
-        .contentModificationDateKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey,
+        .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey,
     ]
 
     /// Reads the values from the file system. Returns `nil` if nothing is at `url`.
     public static func read(_ url: URL) -> EntryValues? {
         guard let values = try? url.resourceValues(forKeys: keys) else { return nil }
+        // One `lstat` gives the identity and the modification date, read as re-validation reads it (D-132).
+        let status = ModificationDate.status(of: url)
         return EntryValues(
             isDirectory: values.isDirectory == true, isPackage: values.isPackage == true,
             isSymbolicLink: values.isSymbolicLink == true, isRegularFile: values.isRegularFile == true,
-            allocatedSize: Int64(values.totalFileAllocatedSize ?? 0), modified: values.contentModificationDate,
+            allocatedSize: Int64(values.totalFileAllocatedSize ?? 0), modified: status.map(ModificationDate.date),
             isPlaceholder: values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus == .notDownloaded,
-            isSynced: values.isUbiquitousItem == true, identity: FileIdentity.read(url))
+            isSynced: values.isUbiquitousItem == true,
+            identity: status.map { FileIdentity(volume: $0.st_dev, file: $0.st_ino) })
     }
 }

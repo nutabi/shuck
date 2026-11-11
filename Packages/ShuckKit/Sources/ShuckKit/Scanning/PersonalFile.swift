@@ -8,7 +8,7 @@ public struct PersonalFile: Equatable, Sendable {
     public let identity: FileIdentity?
     /// A file, or a package with its total allocated size (FCL-009).
     public let snapshot: ItemSnapshot
-    /// The content-modified date.
+    /// The item's own modification date, read with `lstat` as re-validation reads it (SAF-008, D-132).
     public let modified: Date?
     /// When the item was last opened (OLD-002). `nil` if the scan did not look it up, because the item is smaller than
     /// the reader's minimum or no reader was given, or if the item has no date at all.
@@ -33,12 +33,13 @@ public struct PersonalFile: Equatable, Sendable {
     }
 
     /// The item as `source` lists it: "Your data", moved to the Trash (LRG-004, OLD-004). `nil` if it is read-only.
-    /// It keeps its identity, so a file put in its place after the scan is not trashed instead (SAF-008).
+    /// It keeps its identity, so a file put in its place after the scan is not trashed instead, and its modification
+    /// date, so a file changed since is not trashed either (SAF-008, D-132).
     public func scanItem(source: ToolID, reason: LocalizedStringResource) -> ScanItem? {
         guard readOnly == nil else { return nil }
         return ScanItem(
             url: url, snapshot: snapshot, tier: .yourData, method: .trash, reason: reason, source: source,
-            identity: identity)
+            modified: modified, identity: identity)
     }
 }
 

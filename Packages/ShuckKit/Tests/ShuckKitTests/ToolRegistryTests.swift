@@ -163,8 +163,11 @@ struct ToolRegistryTests {
         _ path: String, source: ToolID, tier: Tier = .yourData, method: ActionMethod? = nil
     ) throws -> ScanItem {
         let file = try root.file(path, size: 10)
+        let method = method ?? (tier == .yourData ? .trash : .delete)
+        // A plan refuses a Delete without a rule before it asks the guard (D-132).
+        let rule = method == .delete ? RuleMatch(rule: try root.fixtureRule(for: file), modified: .now) : nil
         return ScanItem(
-            url: file, snapshot: try #require(ItemSnapshot.read(file)), tier: tier,
-            method: method ?? (tier == .yourData ? .trash : .delete), reason: "Test", source: source)
+            url: file, snapshot: try #require(ItemSnapshot.read(file)), tier: tier, method: method, reason: "Test",
+            source: source, ruleMatch: rule)
     }
 }

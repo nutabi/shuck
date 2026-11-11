@@ -29,7 +29,7 @@ struct PlanTests {
             ? PlannedItem(
                 command: command, allocatedSize: 4096, tier: tier,
                 category: ItemCategory(id: "fixture", name: "Fixture"))
-            : PlannedItem(url: file, tier: tier, method: method, snapshot: try #require(ItemSnapshot.read(file)))
+            : try root.planned(file, tier: tier, method: method)
         let isAllowed = Self.allowed.contains("\(tier.rawValue)-\(method.rawValue)")
 
         #expect(tier.allows(method) == isAllowed)
@@ -42,6 +42,23 @@ struct PlanTests {
             }
             #expect(error == .methodNotAllowed(file.path, tier: tier, method: method))
         }
+    }
+
+    /// A Delete without a rule has no evidence that the item is safe to lose (D-132).
+    @Test func aPlanRefusesADeleteItemWithoutARuleSAF008() throws {
+        let cache = try root.file("Library/Caches/cache.db", size: 10)
+        let item = PlannedItem(
+            url: cache, tier: .rebuildable, method: .delete, snapshot: try #require(ItemSnapshot.read(cache)),
+            modified: ModificationDate.read(at: cache))
+
+        let error = #expect(throws: PlanError.self) {
+            try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
+        }
+        #expect(error == .ruleRequired(cache.path))
+        #expect(error?.path == cache.path)
+        #expect(
+            try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [root.planned(cache)], pathGuard: pathGuard)
+                .items.count == 1)
     }
 
     @Test func yourDataIsNeverDeletedSAF004() {
@@ -64,9 +81,7 @@ struct PlanTests {
     @Test func aDeletedFolderMayKeepTheFolderAndLoseItsContentsCAC004() throws {
         let cache = try root.folder("Library/Caches/com.example.app")
         try root.file("Library/Caches/com.example.app/cache.db", size: 10)
-        let item = PlannedItem(
-            url: cache, tier: .rebuildable, method: .delete, snapshot: try #require(ItemSnapshot.read(cache)),
-            scope: .contents)
+        let item = try root.planned(cache, scope: .contents)
         let plan = try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
         #expect(plan.items.map(\.scope) == [.contents])
     }
@@ -86,9 +101,7 @@ struct PlanTests {
 
     @Test func onlyAFolderHasContentsToRemoveCAC004() throws {
         let log = try root.file("Library/Logs/app.log", size: 10)
-        let item = PlannedItem(
-            url: log, tier: .rebuildable, method: .delete, snapshot: try #require(ItemSnapshot.read(log)),
-            scope: .contents)
+        let item = try root.planned(log, scope: .contents)
         let error = #expect(throws: PlanError.self) {
             try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
         }
@@ -99,10 +112,11 @@ struct PlanTests {
         let cache = try root.folder("Library/Caches/com.example.app")
         let log = try root.file("Library/Logs/app.log", size: 10)
         let subTool = FixtureSubTool(tier: .rebuildable, method: .delete)
-        let items = [(cache, ItemScope.contents), (log, .item)].map { url, scope in
+        let items = try [(cache, ItemScope.contents), (log, .item)].map { url, scope in
             ScanItem(
                 url: url, snapshot: ItemSnapshot.read(url) ?? ItemSnapshot(kind: .file, allocatedSize: 0),
-                tier: .rebuildable, method: .delete, reason: "Fixture file", source: FixtureSubTool.id, scope: scope)
+                tier: .rebuildable, method: .delete, reason: "Fixture file", source: FixtureSubTool.id, scope: scope,
+                ruleMatch: RuleMatch(rule: try root.fixtureRule(for: url, scope: scope), modified: .now))
         }
         let plan = try Plan(subTool: subTool, items: items, pathGuard: pathGuard)
         #expect(plan.items.map(\.scope) == [.contents, .item])

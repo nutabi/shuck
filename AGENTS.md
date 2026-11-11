@@ -131,11 +131,12 @@ Shuck deletes files. These rules are not negotiable, and CI enforces them where 
 
 1. **Every mutation goes through the Execution layer.** No code outside the `ShuckExecution` module may delete, move, rename or modify user files or launchd state (SAF-017). That includes the app target, other engine modules and scripts.
 2. **The path guard is mandatory.** Every target passes the path guard (SAF-007) and the protected-locations list (PRD section 8.4) when planned, and is re-validated just before acting (SAF-008). Never bypass, weaken or special-case the guard, not even to make a test pass. The only test difference allowed is D-41: tests configure the guard with the fixture root as home and without the temporary folder's `/private` prefix. If a guard rule looks wrong, stop and ask the owner.
-   Rule-backed Delete items keep the target's modification date from `RuleMatch.modificationDate(at:)`; execution
-   checks the rule again and skips any modification-date change after the scan, even if kind and size still match
-   (owner decision, D-105). Scanners use that helper so scan and execution compare dates with the same precision.
-   D-132 extends the date check to every item, Trash or Delete, and makes a plan refuse a Delete item without a rule
-   match; that is M2-F11 in `docs/progress.md` and is not built yet.
+   Every item, Trash or Delete, keeps the modification date its scan read in `ScanItem.modified`, and execution skips
+   it if the date differs just before acting, even if kind and size still match (owner decisions D-105, D-132). For an
+   item whose scope is its contents, the date is the newest inside it, as the scan judged staleness. Scanners read
+   dates with `ModificationDate` (or `RuleMatch.modificationDate(at:)`, the same `lstat`), so scan and execution
+   compare at the same precision; an item without a date is skipped. A plan refuses a Delete item without a rule
+   match, and execution checks the rule again (D-141). Tests build such items with `FixtureRoot.planned(_:)`.
 3. **Tests stay inside the fixture root.** Use the fixture-root harness from test support (SAF-016). Never build test paths from `homeDirectoryForCurrentUser`, `NSHomeDirectory()`, `~` or environment variables. A test of code that takes a home folder passes a made-up one, such as `/Users/someone`. UI tests launch the app with the debug-only fixture-root argument (NFR-QA-002).
 4. **Never touch the real home folder.** Not in tests, not in experiments and not to "try out" a deletion. Never run the app against real data to test a change.
 5. **The tier sets the review and limits the method** (SAF-004). "Your data" is never deleted permanently. Data owned by a tool (Docker, simulators, Homebrew, npm, pip) is cleaned only through that tool's documented command (SAF-010).
