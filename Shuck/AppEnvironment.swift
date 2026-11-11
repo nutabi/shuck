@@ -112,9 +112,14 @@ nonisolated struct AppEnvironment {
             minimumSize: Self.number(settings(Self.largeFilesMinimumSizeKey)) ?? LargeFiles.defaultMinimumSize)
         // A period of 0 months would list every file, however recently opened.
         let months = Self.number(settings(Self.oldFilesPeriodKey)).flatMap { $0 > 0 ? Int($0) : nil }
+        // A UI test made every fixture file just now, so their added dates say nothing; their modified dates are the
+        // test's (D-140).
+        let addedDate: LastOpenedReader.AddedDate =
+            fixtureRoot == nil ? LastOpenedReader.addedToFolderDate : { @Sendable _ in nil }
         oldFiles = OldFiles(
             periodMonths: months ?? OldFiles.defaultPeriodMonths,
-            minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize)
+            minimumSize: Self.number(settings(Self.oldFilesMinimumSizeKey)) ?? OldFiles.defaultMinimumSize,
+            addedDate: addedDate)
         historyFolder = HistoryLog.folder(home: context.home, bundleID: bundleID)
         scanDelay = fixtureRoot == nil ? nil : Self.number(settings(Self.scanDelayKey)).map { .seconds($0) }
         syncedNames = fixtureRoot == nil ? [] : Self.list(settings(Self.syncedFilesKey))

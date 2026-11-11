@@ -4,7 +4,8 @@ import ShuckKitTestSupport
 import Synchronization
 import Testing
 
-/// "Last opened" is Spotlight's last-used date, or the content-modified date when Spotlight has none (OLD-002).
+/// "Last opened" is the latest of Spotlight's last-used date, the content-modified date and the date the file was added
+/// to its folder, and says which one decided (OLD-002, D-130).
 struct LastOpenedTests {
     let root: FixtureRoot
     let opened = Date(timeIntervalSince1970: 1_600_000_000)
@@ -14,22 +15,57 @@ struct LastOpenedTests {
         root = try FixtureRoot()
     }
 
-    @Test func spotlightsLastUsedDateComesFirstOLD002() {
-        let opened = opened
-        let reader = LastOpenedReader(minimumSize: 0) { _ in opened }
-
-        let lastOpened = reader.read(root.url.appending(path: "a.mov"), size: 10, modified: modified)
-
-        #expect(lastOpened == LastOpened(date: opened, source: .lastUsed))
+    private func reader(opened: Date?, added: Date?) -> LastOpenedReader {
+        LastOpenedReader(minimumSize: 0, lastUsedDate: { _ in opened }, addedDate: { _ in added })
     }
 
-    @Test func withoutALastUsedDateItFallsBackToTheModifiedDateOLD002() {
-        let reader = LastOpenedReader(minimumSize: 0) { _ in nil }
+    /// A file a script rewrites daily, or one copied yesterday, must not look old because Spotlight saw it opened long
+    /// ago (D-130).
+    @Test(arguments: LastOpened.Source.allCases)
+    func eachDateCanDecideAndTheLatestCountsOLD002(latest: LastOpened.Source) {
+        let older = Date(timeIntervalSince1970: 1_000_000_000)
+        let newest = Date(timeIntervalSince1970: 1_700_000_000)
+        func date(_ source: LastOpened.Source) -> Date { source == latest ? newest : older }
+
+        let lastOpened = reader(opened: date(.lastUsed), added: date(.added))
+            .read(root.url.appending(path: "a.mov"), size: 10, modified: date(.modified))
+
+        #expect(lastOpened == LastOpened(date: newest, source: latest))
+    }
+
+    @Test func aMissingDateIsIgnoredOLD002() {
+        let url = root.url.appending(path: "a.mov")
 
         #expect(
-            reader.read(root.url.appending(path: "a.mov"), size: 10, modified: modified)
+            reader(opened: nil, added: nil).read(url, size: 10, modified: modified)
                 == LastOpened(date: modified, source: .modified))
-        #expect(reader.read(root.url.appending(path: "a.mov"), size: 10, modified: nil) == nil)
+        #expect(
+            reader(opened: nil, added: opened).read(url, size: 10, modified: nil)
+                == LastOpened(date: opened, source: .added))
+        #expect(reader(opened: nil, added: nil).read(url, size: 10, modified: nil) == nil)
+    }
+
+    @Test func whenDatesAreEqualOpenedIsNamedFirstOLD002() {
+        let lastOpened = reader(opened: modified, added: modified)
+            .read(root.url.appending(path: "a.mov"), size: 10, modified: modified)
+
+        #expect(lastOpened == LastOpened(date: modified, source: .lastUsed))
+    }
+
+    /// Editing a document inside a package changes the file inside, not the package's own date (D-130).
+    @Test func aFoldersModifiedDateIsTheNewestOfItAndItsDirectChildrenOLD002() throws {
+        let child = Date(timeIntervalSince1970: 1_550_000_000)
+        try root.file("Documents/Report.rtfd/TXT.rtf", size: 10, modified: child)
+        try root.file("Documents/Report.rtfd/old.png", size: 10, modified: modified)
+        let package = try root.url("Documents/Report.rtfd")
+        let reader = reader(opened: nil, added: nil)
+
+        #expect(
+            reader.read(package, size: 10, modified: modified, isFolder: true)
+                == LastOpened(date: child, source: .modified))
+        // An item that is not a folder is not listed.
+        #expect(
+            reader.read(package, size: 10, modified: modified) == LastOpened(date: modified, source: .modified))
     }
 
     @Test func itemsBelowTheMinimumSizeAreNotLookedUp() {
@@ -46,16 +82,19 @@ struct LastOpenedTests {
         #expect(lookups.withLock { $0 } == 1)
     }
 
-    /// Whether Spotlight has a last-used date for a new fixture file depends on the Mac, so either answer passes; a
-    /// fallback must carry the modified date.
-    @Test func theSpotlightReaderAnswersForARealFile() throws {
+    /// Whether Spotlight has a last-used date for a new fixture file depends on the Mac, so only a missing file's
+    /// answer is certain. A file made just now was added to its folder just now, later than its old modified date.
+    @Test func theRealReadersAnswerForARealFile() throws {
+        let start = Date.now.addingTimeInterval(-60)
         let file = try root.file("Downloads/new.dmg", size: 10, modified: modified)
-        #expect(LastOpenedReader.spotlightLastUsedDate(root.url.appending(path: "Downloads/missing.dmg")) == nil)
+        let missing = root.url.appending(path: "Downloads/missing.dmg")
+        #expect(LastOpenedReader.spotlightLastUsedDate(missing) == nil)
+        #expect(LastOpenedReader.addedToFolderDate(missing) == nil)
 
+        let added = try #require(LastOpenedReader.addedToFolderDate(file))
+        #expect(added >= start)
         let lastOpened = try #require(LastOpenedReader(minimumSize: 0).read(file, size: 10, modified: modified))
-        if lastOpened.source == .modified {
-            #expect(lastOpened.date == modified)
-        }
+        #expect(lastOpened.date >= start)
     }
 
     @Test func theScanLooksUpLastOpenedDatesForLargeEnoughItemsOLD002() async throws {
@@ -63,9 +102,9 @@ struct LastOpenedTests {
         try root.file("Documents/small.txt", size: 10, modified: modified)
         try root.file("Documents/Report.rtfd/TXT.rtf", size: 8_192, modified: modified)
         let opened = opened
-        let reader = LastOpenedReader(minimumSize: 8_192) { url in
-            url.lastPathComponent == "large.mov" ? opened : nil
-        }
+        let reader = LastOpenedReader(
+            minimumSize: 8_192, lastUsedDate: { url in url.lastPathComponent == "large.mov" ? opened : nil },
+            addedDate: { _ in nil })
         let scanner = PersonalFilesScanner(
             context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()), lastOpened: reader)
 

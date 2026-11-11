@@ -132,32 +132,32 @@ struct PersonalFilesResultsTests {
         #expect(ResultRow.kind(of: URL(filePath: "/Backup/00008110"), snapshot: folder) == "Folder")
     }
 
-    @Test func theLastOpenedColumnShowsSpotlightsDateOrALabelledFallbackOLD002() {
+    /// The column shows the date Old Files judged by and labels it when it is not the last-opened date (D-130).
+    @Test func theLastOpenedColumnShowsTheDecidingDateAndLabelsItOLD002() {
         let opened = Date(timeIntervalSince1970: 1_600_000_000)
         let modified = Date(timeIntervalSince1970: 1_500_000_000)
-        let used = PersonalFile(
-            url: home.appending(path: "used.mov"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
-            modified: modified, lastOpened: LastOpened(date: opened, source: .lastUsed))
-        let neverOpened = PersonalFile(
-            url: home.appending(path: "new.dmg"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
-            modified: modified, lastOpened: LastOpened(date: modified, source: .modified))
-        let notLookedUp = PersonalFile(
-            url: home.appending(path: "small.txt"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
-            modified: modified)
-        let noDate = PersonalFile(
-            url: home.appending(path: "odd"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1), modified: nil)
-
-        let usedRow = ResultRow(used, home: home, dateColumn: .lastOpened)
-        #expect(usedRow.date == opened && !usedRow.dateIsModifiedFallback)
-        for file in [neverOpened, notLookedUp] {
-            let row = ResultRow(file, home: home, dateColumn: .lastOpened)
-            #expect(row.date == modified && row.dateIsModifiedFallback)
+        func file(_ name: String, _ lastOpened: LastOpened?) -> PersonalFile {
+            PersonalFile(
+                url: home.appending(path: name), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
+                modified: modified, lastOpened: lastOpened)
         }
-        #expect(!ResultRow(noDate, home: home, dateColumn: .lastOpened).dateIsModifiedFallback)
 
-        // The modified column never marks a fallback.
-        let modifiedRow = ResultRow(used, home: home, dateColumn: .modified)
-        #expect(modifiedRow.date == modified && !modifiedRow.dateIsModifiedFallback)
+        let used = ResultRow(
+            file("used.mov", LastOpened(date: opened, source: .lastUsed)), home: home, dateColumn: .lastOpened)
+        #expect(used.date == opened && used.dateSource == nil)
+        for source in [LastOpened.Source.modified, .added] {
+            let row = ResultRow(
+                file("a.dmg", LastOpened(date: opened, source: source)), home: home, dateColumn: .lastOpened)
+            #expect(row.date == opened && row.dateSource == source)
+        }
+        // A file that was not looked up has no last-opened date to show.
+        let notLookedUp = ResultRow(file("small.txt", nil), home: home, dateColumn: .lastOpened)
+        #expect(notLookedUp.date == nil && notLookedUp.dateSource == nil)
+
+        // The modified column shows the modified date, unlabelled.
+        let modifiedRow = ResultRow(
+            file("b.dmg", LastOpened(date: opened, source: .added)), home: home, dateColumn: .modified)
+        #expect(modifiedRow.date == modified && modifiedRow.dateSource == nil)
     }
 
     @Test func aLastOpenedListSortsByTheDateItShows() async {
@@ -171,7 +171,8 @@ struct PersonalFilesResultsTests {
                     lastOpened: LastOpened(date: Date(timeIntervalSince1970: 900), source: .lastUsed)),
                 PersonalFile(
                     url: home.appending(path: "stale"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 1),
-                    modified: Date(timeIntervalSince1970: 500)),
+                    modified: Date(timeIntervalSince1970: 100),
+                    lastOpened: LastOpened(date: Date(timeIntervalSince1970: 500), source: .added)),
             ]))
         #expect(names(results) == ["stale", "recent"])
     }

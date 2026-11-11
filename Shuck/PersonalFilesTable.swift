@@ -231,11 +231,21 @@ private struct DateCell: View {
         if let date = row.date {
             HStack(spacing: 4) {
                 Text(date, format: .dateTime.day().month().year())
-                if row.dateIsModifiedFallback {
+                switch row.dateSource {
+                case .modified:
                     Text("Modified")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .help("Spotlight has no record of this file being opened, so this is when it last changed.")
+                        .help("This is when the file last changed, which is later than any record of it being opened.")
+                case .added:
+                    Text("Added")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help(
+                            "This is when the file was put in its folder, which is later than any record of it being opened or changed."
+                        )
+                case .lastUsed, nil:
+                    EmptyView()
                 }
             }
         } else {

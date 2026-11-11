@@ -53,6 +53,10 @@ All notable changes to Shuck are listed here. The format follows
   word.
 - Large Files, Old Files, Developer Junk and Caches & Logs have Select All and Select None buttons. Select All never
   selects a row whose app is running.
+- Old Files judges a file by the latest of when it was last opened, last changed and added to its folder, so a file
+  that a script rewrites every day, or one you copied or downloaded recently, no longer looks old. The reason and the
+  Last Opened column say which date decided: "Not opened", "Not modified" or "Added". For a package, such as a
+  document bundle, a change to a file directly inside it counts as a change to the package.
 - Large Files and Old Files no longer look inside a Git repository's own `.git` folder, so they never offer its packfiles,
   which the repository needs. They also leave out any disk mounted inside your home folder.
 
