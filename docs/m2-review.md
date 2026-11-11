@@ -214,8 +214,7 @@ row names a question, the owner's answer can change the design.
   "Size not known"), `HistoryItemDisplay` ("Tool command", "Launchd job"), `HistoryView` ("Completed", "… of … done")
   and one help tag in `DeveloperJunkView`. In the engine, about 15: the names, descriptions and explanations of
   DEV-R03, DEV-R07, DEV-R08 and DEV-R09, "Package managers" and `ToolID`'s "Restore". The script found none missing
-  among
-  the strings of M2-T12 to M2-T14. It skips a literal that starts with a lowercase letter, such as "npm Cache", which
+  among the strings of M2-T12 to M2-T14. It skips a literal that starts with a lowercase letter, such as "npm Cache", which
   `grep` then showed is missing too, so the count is a lower bound.
 - **Why it matters:** English shows correctly, since the key is the text. The rule is broken all the same, and no
   check finds it: a command-line build adds no keys (`AGENTS.md`).
