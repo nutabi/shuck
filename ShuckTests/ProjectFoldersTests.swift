@@ -182,6 +182,25 @@ struct ProjectFoldersTests {
         #expect(Set(model.personalFilesResults[largeFiles.id]?.rows.map(\.name) ?? []) == ["main.js"])
     }
 
+    /// The model plans with its own Developer Junk, so a page's older copy cannot plan with old roots (R-17, SAF-007).
+    @Test func aPlanUsesTheModelsCurrentSubToolNotAStaleCopyHandedInSAF007() async throws {
+        let stale = DeveloperJunk()
+        let model = FileCleanupModel(
+            subTools: [stale], context: ScanContext(home: home), runPlan: YourDataItemsTests().runAll)
+        let results = try #require(model.results(of: .developerJunk) as? ScanResults)
+        results.apply(.item(try nodeItem("Developer/kept")))
+        results.selectAll()
+        let ownership = OwnershipMap(home: home).withProjectFolders([url("Developer")])
+        await model.useProjectFolders(DeveloperJunk(projectFolders: [url("Developer")]), ownership: ownership).value
+        #expect(results.items.count == 1)
+
+        let confirmation = try #require(try await model.confirmRebuildable(stale))
+
+        #expect(confirmation.plan.allowedRoots.contains(url("Developer")))
+        #expect(confirmation.plan.items.compactMap(\.url) == [url("Developer/kept/node_modules")])
+        #expect(!model.isPlanning)
+    }
+
     /// Both settings rebuild the model's context, so neither change may undo the other, in either order.
     @Test(arguments: [true, false])
     func exclusionsAndProjectFoldersBothSurviveInEitherOrderSET001SET003(exclusionsFirst: Bool) async throws {

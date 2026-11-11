@@ -98,13 +98,17 @@ struct DeveloperJunkView: View {
     /// Opens the itemized review of the selected "Your data" rows. Nothing moves until the user confirms in it
     /// (SAF-002).
     private func review(with moveToTrash: MoveToTrash) {
-        do throws(PlanError) {
-            moveToTrash.review.wrappedValue = try moveToTrash.model.reviewMoveToTrash(
-                moveToTrash.subTool, urls: results.selectedItems(in: .yourData).compactMap(\.url))
-        } catch {
-            // Private: the error names the item the plan stopped at (NFR-SEC-006).
-            Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
-            refusal = error
+        let urls = results.selectedItems(in: .yourData).compactMap(\.url)
+        // The plan is built off the main actor; the sheet opens when it is ready (NFR-PERF-001).
+        Task {
+            do throws(PlanError) {
+                moveToTrash.review.wrappedValue = try await moveToTrash.model.reviewMoveToTrash(
+                    moveToTrash.subTool, urls: urls)
+            } catch {
+                // Private: the error names the item the plan stopped at (NFR-SEC-006).
+                Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
+                refusal = error
+            }
         }
     }
 

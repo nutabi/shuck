@@ -350,9 +350,10 @@ Fixes from the review of `main` at 380a07d (#55 to #73):
 - [x] M2-F02 File Cleanup fixes, in one owner-requested pull request: review, Quick Look and Finder follow grouped
   results' display order (#60); the landing page's scan age updates while idle (#61); exclusions hide tool-owned
   stores as well as personal files (#64, D-109). M2-T04 remains the next roadmap task.
-- [ ] M2-F03 Deferred until the rest of M2 has merged (D-142). Measure Move to Trash's plan building on the main actor with a few thousand selected files, using
-  Instruments' Hangs instrument. If it hangs: fold the protected locations once instead of in every guard check, work
-  out Old Files' period once, and build the plan off the main actor (#62, NFR-PERF-001).
+- [x] M2-F03 Done as D-160, by building the plan off the main actor instead of measuring first (#62,
+  NFR-PERF-001). It read: measure Move to Trash's plan building on the main actor with a few thousand selected files,
+  using Instruments' Hangs instrument; if it hangs, fold the protected locations once instead of in every guard check,
+  work out Old Files' period once, and build the plan off the main actor.
 - [x] M2-F04 CI cancels only pull request runs, so a push to `main` never cancels the check of an earlier merge (#65).
   Moot after M2-F05: a push to `main` no longer runs the check, only a build that warms the cache (D-111).
 - [x] M2-F05 Faster CI, at the owner's request: the engine builds once, in Xcode, from a workspace and test plan; the
@@ -390,7 +391,10 @@ change and writes the documents. The other four are a second stack, in the order
   unreadable subfolder still shows a size that is too small, with no mark, and ONB-002's banner that lists the
   folders is M5.
 - [ ] String Catalog entries and a check for missing ones (R-09, M2-F17, #116), with DEV-R01's explanation.
-- [ ] Plans are built off the main actor (R-07, R-17, M2-F03, #62).
+- [x] Plans are built off the main actor (R-07, R-17, M2-F03, #62, D-160). This closes M2-F03 without the Instruments
+  measurement: the review's probe measured 1.7 s for 5,000 files. Left over: no test shows that a second click
+  while a plan is being built starts no second plan, since it depends on task scheduling; the buttons are disabled
+  meanwhile.
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other

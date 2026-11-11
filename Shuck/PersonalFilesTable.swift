@@ -66,7 +66,9 @@ struct PersonalFilesTable: View {
             if moveToTrash != nil {
                 Divider()
                 Button("Move to Trash…") { review(urls) }
-                    .disabled(!results.rows.contains { urls.contains($0.id) && $0.readOnly == nil })
+                    .disabled(
+                        moveToTrash?.model.isPlanning == true
+                            || !results.rows.contains { urls.contains($0.id) && $0.readOnly == nil })
             }
         } primaryAction: { urls in
             reveal(urls)
@@ -131,7 +133,7 @@ struct PersonalFilesTable: View {
                 .disabled(results.selection.isEmpty)
             if moveToTrash != nil {
                 Button("Move to Trash…") { review(results.selection) }
-                    .disabled(results.actionableSelection.isEmpty)
+                    .disabled(results.actionableSelection.isEmpty || moveToTrash?.model.isPlanning == true)
                     .keyboardShortcut(.delete, modifiers: .command)
                     .help("Review the selected items before moving them to the Trash.")
             }
@@ -156,13 +158,17 @@ struct PersonalFilesTable: View {
     /// Opens the review for `urls`. Nothing moves until the user confirms in it (SAF-002).
     private func review(_ urls: Set<URL>) {
         guard let moveToTrash else { return }
-        do throws(PlanError) {
-            moveToTrash.review.wrappedValue = try moveToTrash.model.reviewMoveToTrash(
-                moveToTrash.subTool, urls: ordered(urls))
-        } catch {
-            // Private: the error names the item the plan stopped at (NFR-SEC-006).
-            Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
-            refusal = error
+        let urls = ordered(urls)
+        // The plan is built off the main actor; the sheet opens when it is ready (NFR-PERF-001).
+        Task {
+            do throws(PlanError) {
+                moveToTrash.review.wrappedValue = try await moveToTrash.model.reviewMoveToTrash(
+                    moveToTrash.subTool, urls: urls)
+            } catch {
+                // Private: the error names the item the plan stopped at (NFR-SEC-006).
+                Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
+                refusal = error
+            }
         }
     }
 
