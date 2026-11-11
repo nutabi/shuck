@@ -371,8 +371,14 @@ Review done on 2026-11-12: `docs/m2-review.md` (D-155). It proposes sixteen pull
 fixes below and its own findings, and puts ten questions to the owner. No fix starts, and the open items below are
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
-Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, one GitHub stack, no hard
-stop; `docs/m2-review.md` has each one's scope). Stacks 2 and 3 are not approved yet.
+Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, no hard stop;
+`docs/m2-review.md` has each one's scope). Stacks 2 and 3 are not approved yet.
+
+Stopped after the second pull request, at the owner's request on 2026-11-12: the first two are one GitHub stack of
+their own. The four unchecked items below are approved and not started; no branch or code exists for them. They wait
+for the owner's word to go on, and then form the next stack, in this order. The UI workflow changes of the first two
+(`CachesAndLogsUITests`, the fake Xcode in `DeveloperJunkUITests`) could not be run in the agent's sandbox, so CI's
+run is their first.
 
 - [x] An unknown app's cache starts unselected (R-01, CAC-009, D-156): part of M2-F19.
 - [x] `npm` and `pip` stay off the network, and `simctl` needs Xcode (R-02, R-13, DEV-002, DEV-004, D-157): the
