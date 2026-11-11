@@ -28,7 +28,7 @@ struct ScanResultsTests {
         #expect(list.selectedItems == [recent] && list.selection == [recent.target])
         #expect(list.items(at: [URL(filePath: "/StubHome/Library/Caches/running")]).isEmpty)
         #expect(list.summary(finished: .now).reclaimableBytes == 8192)
-        #expect(list.selectedBytes == 4096)
+        #expect(list.selectedBytes(in: .rebuildable) == 4096)
     }
 
     /// Select All chooses every row a user could tick, never a running app's (SAF-009, D-138).

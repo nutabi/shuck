@@ -2,7 +2,8 @@ import ShuckKitTestSupport
 import XCTest
 
 /// Developer Junk's Xcode files: one row per project, stale ones and those whose project is gone selected, device
-/// support versions selected unless they are the newest, simulator caches selected, and the rows of a running Xcode disabled.
+/// support versions selected unless they are the newest, simulator caches selected, the rows of a running Xcode
+/// disabled, and an Xcode archive, which is "Your data": never selected, moved to the Trash after its own review.
 final class DeveloperJunkUITests: ShuckUITestCase {
     private let projectHash = "abcdefghijklmnopqrstuvwxyzab"
 
@@ -56,6 +57,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
         try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 4096)
         try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
+        let archive = try root.xcarchive(day: "2026-11-10", name: "Release Build")
         let app = launch()
         let sidebar = app.outlines.firstMatch
         let sheet = app.sheets.firstMatch
@@ -154,6 +156,72 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["Not restorable"].appears(within: 5), "The items are not marked")
             XCTAssertFalse(app.buttons["Restore All"].exists, "A deletion offers Restore")
             attachScreenshot(of: app, named: "History with a deletion")
+        }
+
+        // The archive is "Your data": the steps below choose it by hand, since neither a scan nor Select All does.
+        step(
+            "An archive is its own group, unselected, and says it is Your data and goes to the Trash (DEV-R05, SAF-002)"
+        ) {
+            sidebar.staticTexts["Developer Junk"].click()
+            XCTAssertTrue(app.staticTexts["Release Build"].appears(within: 10), outline(of: app))
+            XCTAssertTrue(app.staticTexts["Xcode Archives"].exists, "The archives have no group of their own")
+            XCTAssertTrue(
+                app.staticTexts["Your data. Shuck moves it to the Trash, and you can restore it from History."].exists,
+                "The row does not say it is Your data: \(outline(of: app))")
+            XCTAssertFalse(isChecked(app, "Release Build"), "An archive starts selected")
+            XCTAssertTrue(footer(app, startingWith: "Your data: none selected").exists)
+            XCTAssertFalse(app.buttons["Move to Trash…"].isEnabled, "Nothing of Your data is selected")
+            attachScreenshot(of: app, named: "Developer Junk with an archive")
+        }
+
+        step("Select All chooses the rebuildable rows and leaves the archive unchecked (SAF-002)") {
+            app.buttons["Select All"].click()
+            XCTAssertTrue(footer(app, startingWith: "4 items selected").appears(within: 5), outline(of: app))
+            XCTAssertFalse(isChecked(app, "Release Build"), "Select All chose an archive")
+            XCTAssertTrue(footer(app, startingWith: "Your data: none selected").exists)
+            XCTAssertFalse(app.buttons["Move to Trash…"].isEnabled)
+        }
+
+        step("Choosing the archive enables Move to Trash with its own count, and Delete keeps its own (SAF-002)") {
+            checkbox(app, "Release Build").click()
+            XCTAssertTrue(footer(app, startingWith: "Your data: 1 item selected, ").appears(within: 5))
+            XCTAssertTrue(app.buttons["Move to Trash…"].isEnabled)
+            XCTAssertTrue(footer(app, startingWith: "4 items selected").exists, "The archive was counted with Delete")
+        }
+
+        step("Move to Trash… lists the archive in the itemized review, then moves it (SAF-002, DEV-R05)") {
+            app.buttons["Move to Trash…"].click()
+            XCTAssertTrue(
+                text(sheet, startingWith: "Move 1 item, ").appears(within: 5), "No review: \(outline(of: app))")
+            XCTAssertTrue(sheet.staticTexts["Release Build.xcarchive"].exists, "The archive is not in the review")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: archive.path), "The archive moved before the review")
+            attachScreenshot(of: app, named: "Move to Trash review of an archive")
+
+            sheet.buttons["Move to Trash"].click()
+            XCTAssertTrue(sheet.staticTexts["Moved 1 item to the Trash"].appears(within: 10), outline(of: app))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: archive.path), "The archive did not move")
+            XCTAssertTrue(
+                FileManager.default.fileExists(atPath: root.url.appending(path: ".Trash/Release Build.xcarchive").path))
+            XCTAssertTrue(
+                FileManager.default.fileExists(atPath: gone.path), "A rebuildable item was touched by the Trash run")
+        }
+
+        step("History shows the archive as moved to the Trash and restorable (HIS-003, HIS-004)") {
+            sheet.buttons["Show in History"].click()
+            let run = runRow(in: app, startingWith: "Developer Junk · Moved to the Trash")
+            XCTAssertTrue(run.appears(within: 5), "The run is missing: \(outline(of: app))")
+            XCTAssertTrue(run.label.contains(", 1 item, "), "Wrong count: \(run.label)")
+            XCTAssertTrue(run.label.hasSuffix(", Completed"), "Wrong status: \(run.label)")
+            XCTAssertTrue(app.staticTexts["In the Trash"].appears(within: 5), "The item is not marked restorable")
+            XCTAssertTrue(app.buttons["Restore All"].exists, "A move to the Trash offers no Restore")
+            attachScreenshot(of: app, named: "History with an archive in the Trash")
+        }
+
+        step("The moved archive left the list, and the page stops offering Move to Trash (SAF-011)") {
+            sidebar.staticTexts["Developer Junk"].click()
+            XCTAssertTrue(app.staticTexts["Gone"].appears(within: 5))
+            XCTAssertTrue(app.staticTexts["Release Build"].disappears(within: 5), "The moved archive is still listed")
+            XCTAssertFalse(app.buttons["Move to Trash…"].exists, "Move to Trash stays with nothing of Your data")
         }
     }
 

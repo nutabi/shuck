@@ -21,6 +21,10 @@ All notable changes to Shuck are listed here. The format follows
   except the newest of its platform starts selected, because Xcode copies the files again when you connect a device.
 - Developer Junk also lists the iOS Simulator's caches, which start selected and are disabled while Xcode or Simulator
   is running.
+- Developer Junk also lists your Xcode archives, one row for each, in a group of their own. They are your data: Apple says
+  to keep the archive of every build you distribute, so none starts selected and Select All leaves them out. Choose each
+  one yourself, then Move to Trash shows them in a list to review first. They go to the Trash, and History can put them
+  back.
 - Developer Junk has a Delete button. It shows one confirmation with the totals for each category, and a button to list
   every item, before anything is deleted. Deleted items don't go to the Trash, and History lists them as not
   restorable.

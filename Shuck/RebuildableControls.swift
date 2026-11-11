@@ -36,12 +36,14 @@ struct SelectionMark: View {
 struct SelectAllButtons: View {
     /// Whether nothing is selected, which disables Select None.
     let isEmpty: Bool
+    /// What Select All's help tag says it selects.
+    var selectAllHelp = Text("Select every item that can be selected.")
     let selectAll: () -> Void
     let selectNone: () -> Void
 
     var body: some View {
         Button("Select All", action: selectAll)
-            .help("Select every item that can be selected.")
+            .help(selectAllHelp)
         Button("Select None", action: selectNone)
             .disabled(isEmpty)
             .help("Deselect every item.")
@@ -50,30 +52,58 @@ struct SelectAllButtons: View {
 
 /// The bar under a list of Rebuildable items: how many are selected, and "Delete…", which opens the summary
 /// confirmation (SAF-003). It is `nil` when the model cannot run anything, as in previews.
+///
+/// A list that also has "Your data" items, such as Developer Junk with Xcode Archives, gets a second action with its own
+/// count and size: "Move to Trash…", which opens the itemized review (SAF-002). Each action counts and acts on its own
+/// tier only, so a run never mixes them, and each is disabled while its own count is zero (D-147).
 struct RebuildableFooter: View {
     let results: ScanResults
     let action: ConfirmRebuildable?
     /// What the Delete button's help tag says it reviews.
     let help: Text
+    /// Opens the review of the selected "Your data" items. `nil` for a page whose list has none, or when the model
+    /// cannot run anything.
+    var moveToTrash: (() -> Void)?
 
     var body: some View {
+        let rebuildable = results.selectedItems(in: .rebuildable)
+        let yourData = results.selectedItems(in: .yourData)
+        let hasYourData = moveToTrash != nil && results.hasYourData
         HStack {
-            if results.selectedItems.isEmpty {
-                Text("No items selected")
-            } else {
-                Text(
-                    "^[\(results.selectedItems.count) item](inflect: true) selected, \(results.selectedBytes, format: .byteCount(style: .file))"
-                )
-            }
-            SelectAllButtons(isEmpty: results.selectedItems.isEmpty) {
+            SelectAllButtons(
+                isEmpty: results.selectedItems.isEmpty,
+                selectAllHelp: hasYourData
+                    ? Text("Select every item that can be selected, except your data, which you choose one by one.")
+                    : Text("Select every item that can be selected.")
+            ) {
                 results.selectAll()
             } selectNone: {
                 results.selection = []
             }
             Spacer()
+            if let moveToTrash, hasYourData {
+                if yourData.isEmpty {
+                    Text("Your data: none selected")
+                } else {
+                    Text(
+                        "Your data: ^[\(yourData.count) item](inflect: true) selected, \(results.selectedBytes(in: .yourData), format: .byteCount(style: .file))"
+                    )
+                }
+                Button("Move to Trash…") { moveToTrash() }
+                    .disabled(yourData.isEmpty)
+                    .help("Review the selected items of your data before moving them to the Trash.")
+                Divider().frame(height: 16)
+            }
+            if rebuildable.isEmpty {
+                Text("No items selected")
+            } else {
+                Text(
+                    "^[\(rebuildable.count) item](inflect: true) selected, \(results.selectedBytes(in: .rebuildable), format: .byteCount(style: .file))"
+                )
+            }
             if let action {
                 Button("Delete…") { action.review() }
-                    .disabled(results.selectedItems.isEmpty)
+                    .disabled(rebuildable.isEmpty)
                     .help(help)
             }
         }

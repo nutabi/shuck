@@ -284,13 +284,15 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] pip cache: `pip cache purge` with Homebrew's `pip` or `pip3`, sized from `~/Library/Caches/pip` (DEV-R08, D-127).
   - [x] Homebrew: `brew cleanup` with analytics and automatic update off, sized from the download cache (DEV-R09,
     DEV-007, D-128).
-- [ ] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
+- [x] M2-T12 Xcode Archives: "Your data", moved to the Trash after the itemized review, never selected by default
   (DEV-R05, SAF-002). Decides how Developer Junk shows its "Your data" items next to its rebuildable ones.
   Two pull requests, a stack (D-62, D-76):
   - [x] Xcode Archives rule: one item per `.xcarchive` bundle, Trash, "Your data", never selected; Archives is a root
     of Developer Junk and owned by it (DEV-R05, SAF-002, SAF-004, SAF-009, FCL-005, D-145).
-  - [ ] Developer Junk's page: archives as their own group, never preselected, left out of Select All; one footer
-    action for each tier, Delete and Move to Trash, each with its own count and size (DEV-R05, SAF-002, SAF-003).
+  - [x] Developer Junk's page: archives as their own group, never preselected, left out of Select All; one footer
+    action for each tier, Delete and Move to Trash, each with its own count and size, and the footer no longer counts
+    "Your data" with Delete (DEV-R05, SAF-002, SAF-003, D-147). Left over: the UI workflow steps for archives could
+    not be run in the agent's sandbox (AGENTS.md); CI or the owner's run shows them.
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
   DEV-006, SET-003, FCL-005)
   - Review of 2026-11-10 (DEV-006, DEV-R06): the rule's explanation says that restoring needs `npm install` and a

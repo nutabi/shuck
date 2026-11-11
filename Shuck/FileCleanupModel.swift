@@ -234,7 +234,7 @@ final class FileCleanupModel {
     func confirmRebuildable(_ subTool: any SubTool) throws(PlanError) -> SummaryConfirmation? {
         guard let runPlan, let results = scanResults[subTool.id] else { return nil }
         let plan = try Plan(
-            subTool: subTool, items: results.selectedItems.filter { $0.tier == .rebuildable },
+            subTool: subTool, items: results.selectedItems(in: .rebuildable),
             pathGuard: PathGuard(configuration: context.protection))
         return SummaryConfirmation(
             plan: plan, threshold: OversizeThreshold(usedSpace: readUsedSpace()), runPlan: runPlan,
@@ -247,12 +247,13 @@ final class FileCleanupModel {
 
     /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot run anything. Every
     /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). The review knows which items
-    /// iCloud syncs, so it can warn about them (D-129). When the run ends, the moved items leave every list.
+    /// iCloud syncs, so it can warn about them (D-129). When the run ends, the moved items leave every list. Only
+    /// "Your data" items are in the plan: a run never mixes tiers, and the others have their own confirmation (D-147).
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
     func reviewMoveToTrash(_ subTool: any SubTool, urls: [URL]) throws(PlanError) -> TrashReview? {
         guard let runPlan else { return nil }
         let plan = try Plan(
-            subTool: subTool, items: scanItems(subTool, urls: urls),
+            subTool: subTool, items: scanItems(subTool, urls: urls).filter { $0.tier == .yourData },
             pathGuard: PathGuard(configuration: context.protection))
         let synced = Set(plan.items.compactMap(\.url).filter { personalFiles.items[$0]?.isSynced == true })
         return TrashReview(plan: plan, synced: synced, runPlan: runPlan, readFreeSpace: readFreeSpace) {
