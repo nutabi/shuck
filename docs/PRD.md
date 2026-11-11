@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.6 — SAF-015 threshold (see Revision history) |
+| Version | 1.7 — SET-003 in M2 (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -25,6 +25,7 @@
 | 1.4 | 2026-11-02 | Execution is its own module, `ShuckExecution`, inside the ShuckKit package (D-28). The dependency ban covers third-party packages only (NFR-SEC-002, ENG-006, D-29). |
 | 1.5 | 2026-11-10 | Review of 2026-11-10 (D-129 to D-135): synced files are listed, marked and warned about (FCL-010, FCL-012, SAF-002, OQ-06); Old Files uses the latest date it knows (OLD-002); the scan skips `.git` and other volumes (FCL-008); re-validation checks every item's modification date, and Delete needs a rule (SAF-008); the guard also refuses folders that contain a protected bundle or name (SAF-007, section 8.4); one running instance and a locked history log (SAF-018); Clear History (HIS-008, SET-007); user exclusions move to M2 (SET-001); acceptance checks name their milestone (D-133); `SMAppService` may open System Settings (STA-004, ENG-006, D-134). Brings the text in line with decisions D-43, D-62, D-65, D-66, D-70, D-75, D-111, D-115, D-119: protected locations, pull request size and template, CI, debug bundle ID, UI test wording, the history log's `detail` field, the repository layout. Adds tool-rule and Caches & Logs requirements from research (DEV-002, DEV-004, DEV-006, CAC-009, rule notes), new risks R-16 to R-18, open questions OQ-07 and OQ-08, and sources S71 to S78. |
 | 1.6 | 2026-11-11 | SAF-015's threshold is 25% of the space in use on the startup volume, since measuring the home folder means walking all of it (D-144). |
+| 1.7 | 2026-11-12 | SET-003 (developer project folders) is built in M2 as a minimal list with DEV-R06, not in M5 (D-154); a project's `node_modules` belongs to Developer Junk (D-152). |
 
 ## How to read this document
 
@@ -199,7 +200,7 @@ There is no time-based deadline (D-15).
 | History & Restore | HIS | Log of every action; restore trashed items in the app | M1 |
 | Overview | OVR | Scan everything; show reclaimable space per File Cleanup sub-tool, and counts for Applications and Startup Items | M5 |
 | Onboarding & Permissions | ONB | First launch, Full Disk Access guidance, limited-access handling | M5 |
-| Settings | SET | Exclusions, thresholds, project folders, Clear History, About and legal notices | M2 (SET-001 exclusions: engine and a minimal list, D-135), M5 (the rest) |
+| Settings | SET | Exclusions, thresholds, project folders, Clear History, About and legal notices | M2 (SET-001 exclusions: engine and a minimal list, D-135; SET-003 project folders: a minimal list with DEV-R06, D-154), M5 (the rest) |
 
 ### 7.2 Post-MVP backlog (proposed order; the owner may reorder)
 
@@ -500,7 +501,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 |---|---|---|---|
 | SET-001 | Exclusions list: add with a folder picker or drag and drop, remove. Applies to every tool and sub-tool. Built in M2, as the engine and a minimal list in Settings, so no release with permanent Delete ships without it (D-135). | Must | Fixture test: excluded paths never appear. |
 | SET-002 | Thresholds: Large Files minimum size (500 MB); Old Files period (12 months) and minimum size (50 MB); Developer Junk staleness (30 days); log age (7 days). | Must | Unit test: defaults and persistence. |
-| SET-003 | Developer project folders (for DEV-R06). The default suggestion is whichever of `~/Developer`, `~/Projects`, `~/Code`, `~/src` and `~/repos` exist. | Must | Unit test. |
+| SET-003 | Developer project folders (for DEV-R06). The default suggestion is whichever of `~/Developer`, `~/Projects`, `~/Code`, `~/src` and `~/repos` exist, used until the user changes the list. A folder must be inside the home folder. Built in M2 as a minimal list with DEV-R06 (D-154). | Must | Unit test. |
 | SET-004 | Settings are stored in `UserDefaults` under the domain `me.nutabi.shuck` (debug builds: `me.nutabi.shuck.debug`, D-70). | Must | Unit test. |
 | SET-005 | About window: version, build, copyright, GPL notices, source link, trademark attribution (section 6). | Must | UI test. |
 | SET-006 | "Reset to defaults". | Should | Unit test. |

@@ -18,7 +18,11 @@ struct SubToolPages {
         pages = [
             developerJunk.id: { model, _ in
                 model.scanResults[developerJunk.id].map { results in
-                    AnyView(DeveloperJunkView(subTool: developerJunk, model: model, results: results))
+                    // The model's copy carries the project folders as they are now (D-154).
+                    AnyView(
+                        DeveloperJunkView(
+                            subTool: model.subTool(developerJunk.id) as? DeveloperJunk ?? developerJunk, model: model,
+                            results: results))
                 }
             },
             cachesAndLogs.id: { model, _ in

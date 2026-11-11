@@ -10,7 +10,10 @@ struct ShuckApp: App {
     @State private var fileCleanup: FileCleanupModel
     @State private var history: HistoryModel
     /// The excluded folders Settings lists (SET-001). Changing them rebuilds File Cleanup's guard and drops rows.
-    @State private var exclusions: ExclusionsModel
+    @State private var exclusions: FolderListModel
+    /// The project folders Settings lists (SET-003). Changing them rebuilds File Cleanup's ownership map and Developer
+    /// Junk (D-154).
+    @State private var projectFolders: FolderListModel
     @State private var navigation = AppNavigation()
 
     init() {
@@ -25,6 +28,7 @@ struct ShuckApp: App {
             environment = try AppEnvironment(
                 arguments: arguments, settings: UserDefaults.standard.object(forKey:),
                 saveExcludedFolders: { UserDefaults.standard.set($0, forKey: AppEnvironment.excludedFoldersKey) },
+                saveProjectFolders: { UserDefaults.standard.set($0, forKey: AppEnvironment.projectFoldersKey) },
                 bundleID: bundleID, home: .homeDirectory)
         } catch {
             // A UI test passed a bad fixture root, or the build has the wrong bundle ID. Stop rather than scan the real
@@ -32,16 +36,28 @@ struct ShuckApp: App {
             Logger.app.fault("Cannot launch: \(error.description, privacy: .private)")
             fatalError(error.description)
         }
-        registry = .standard(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
-        pages = SubToolPages(largeFiles: environment.largeFiles, oldFiles: environment.oldFiles)
+        registry = .standard(
+            largeFiles: environment.largeFiles, oldFiles: environment.oldFiles, developerJunk: environment.developerJunk
+        )
+        pages = SubToolPages(
+            largeFiles: environment.largeFiles, oldFiles: environment.oldFiles,
+            developerJunk: environment.developerJunk)
         let fileCleanup = FileCleanupModel(
             subTools: registry.subTools, context: environment.context,
             personalFilesScan: environment.personalFilesScan, runPlan: environment.run,
             readFreeSpace: environment.availableSpace, readUsedSpace: environment.usedSpace)
         _fileCleanup = State(initialValue: fileCleanup)
         _exclusions = State(
-            initialValue: ExclusionsModel(list: environment.excludedFolders) { folders in
+            initialValue: FolderListModel(list: environment.excludedFolders) { folders in
                 fileCleanup.protect(with: environment.makeProtection(folders))
+            })
+        let home = environment.context.home
+        _projectFolders = State(
+            initialValue: FolderListModel(
+                list: environment.projectFolders, accepts: { ProjectFolders.isInsideHome($0, home: home) }
+            ) { folders in
+                let scope = environment.makeProjectScope(folders)
+                fileCleanup.useProjectFolders(scope.developerJunk, ownership: scope.ownership)
             })
         _history = State(
             initialValue: HistoryModel(
@@ -59,7 +75,7 @@ struct ShuckApp: App {
 
         // Settings opens in its own window from the app menu (⌘,), not from the sidebar (D-27).
         Settings {
-            SettingsView(exclusions: exclusions)
+            SettingsView(exclusions: exclusions, projectFolders: projectFolders)
         }
     }
 }

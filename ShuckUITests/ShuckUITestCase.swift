@@ -27,6 +27,8 @@ import XCTest
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
 /// - Excluded folders: Settings lists them and Remove takes one out, in `FirstLookUITests`; Large Files, the totals and
 ///   Developer Junk leave out what an exclusion covers, in `FindWhatTakesSpaceUITests` and `DeveloperJunkUITests`.
+/// - Project folders: Settings lists them, in `FirstLookUITests`; Developer Junk lists a stale project's `node_modules`
+///   selected, a warned one unselected, and deletes the first, in `DeveloperJunkUITests`.
 ///
 /// Tests wait with `appears(within:)` and `disappears(within:)`, defined below, not with XCTest's own waits (D-74).
 class ShuckUITestCase: XCTestCase {
@@ -52,8 +54,11 @@ class ShuckUITestCase: XCTestCase {
     ///   cannot be (D-137).
     /// - Parameter exclusions: Folders inside the fixture root, as paths relative to it, that the app starts with in
     ///   its list of excluded folders (SET-001, D-150).
+    /// - Parameter projectFolders: Folders inside the fixture root, as paths relative to it, that the app starts with as
+    ///   its developer project folders, instead of the default ones (SET-003, D-154).
     func launch(
-        scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = [], exclusions: [String] = []
+        scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = [], exclusions: [String] = [],
+        projectFolders: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -71,6 +76,9 @@ class ShuckUITestCase: XCTestCase {
         }
         if !exclusions.isEmpty {
             app.launchArguments += ["-ShuckExcludedFolders", exclusions.joined(separator: ",")]
+        }
+        if !projectFolders.isEmpty {
+            app.launchArguments += ["-ShuckProjectFolders", projectFolders.joined(separator: ",")]
         }
         app.launch()
         return app

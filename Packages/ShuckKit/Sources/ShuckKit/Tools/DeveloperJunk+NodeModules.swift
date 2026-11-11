@@ -8,7 +8,7 @@ extension DeveloperJunk {
     /// `node_modules` is at most this many levels plus one below it.
     static let projectDepth = 4
 
-    static var nodeProjects: ItemCategory {
+    public static var nodeProjects: ItemCategory {
         ItemCategory(id: "node-projects", name: LocalizedStringResource("Node.js projects", bundle: #bundle))
     }
 

@@ -31,8 +31,20 @@ struct DeveloperJunkView: View {
             scanHelp: Text("Look for what developer tools can rebuild. Scanning never removes anything.")
         ) { actions in
             List {
-                ForEach(rows(in: .rebuildable)) { item in
+                ForEach(rows(in: .rebuildable).filter { !isNodeProject($0) }) { item in
                     ProjectRow(item: item, home: model.home, isSelected: isSelected(item))
+                }
+                // Node.js projects have a group of their own: a row is a project of the user's, named by its folder
+                // (DEV-R06, D-154).
+                let nodeRows = rows(in: .rebuildable).filter(isNodeProject)
+                if !nodeRows.isEmpty {
+                    Section {
+                        ForEach(nodeRows) { item in
+                            ProjectRow(item: item, home: model.home, isSelected: isSelected(item))
+                        }
+                    } header: {
+                        Text(DeveloperJunk.nodeProjects.name)
+                    }
                 }
                 // "Your data" in groups of their own, one per category, after the rebuildable rows (D-147).
                 ForEach(yourDataGroups, id: \.category.id) { group in
@@ -64,6 +76,11 @@ struct DeveloperJunkView: View {
     /// The rows of one tier, the biggest first, as Large Files lists its files.
     private func rows(in tier: Tier) -> [ScanItem] {
         results.items.filter { $0.tier == tier }.sorted { $0.allocatedSize > $1.allocatedSize }
+    }
+
+    /// Whether the item is a project's `node_modules` (DEV-R06).
+    private func isNodeProject(_ item: ScanItem) -> Bool {
+        item.category.id == DeveloperJunk.nodeProjects.id
     }
 
     private var yourDataGroups: [(category: ItemCategory, rows: [ScanItem])] {
@@ -136,6 +153,8 @@ private struct ProjectRow: View {
                 Text(item.reason)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    // A long sentence wraps to the row's width instead of squeezing the size out of it.
+                    .fixedSize(horizontal: false, vertical: true)
                 if item.tier == .yourData {
                     // In words, not color alone: what this row is, and what choosing it does (SAF-002, NFR-A11Y-001).
                     Text("Your data. Shuck moves it to the Trash, and you can restore it from History.")
@@ -150,15 +169,19 @@ private struct ProjectRow: View {
                         .textSelection(.enabled)
                 }
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
             SizeText(target: item.target, bytes: item.allocatedSize)
+                .fixedSize()
         }
     }
 
-    /// A project's name without Xcode's hash, a device support version with its platform, an archive's name without
-    /// its extension, or a tool rule's name.
+    /// A project's name without Xcode's hash, a Node.js project's folder name, a device support version with its
+    /// platform, an archive's name without its extension, or a tool rule's name.
     private var name: String {
         guard let url = item.url else { return item.ruleMatch.map { String(localized: $0.rule.name) } ?? "" }
+        if item.category.id == DeveloperJunk.nodeProjects.id, let project = item.project {
+            return project.lastPathComponent
+        }
         if item.tier == .yourData { return url.deletingPathExtension().lastPathComponent }
         let device = DeviceSupportVersion.name(ofFolder: url)
         return device == url.lastPathComponent ? DerivedDataProject.name(ofFolder: device) : device

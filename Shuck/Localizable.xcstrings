@@ -7,6 +7,21 @@
     "Excluded folders" : {
 
     },
+    "Chooses folders that hold your projects." : {
+
+    },
+    "No project folders." : {
+
+    },
+    "Not added: %@. A project folder must be inside your home folder." : {
+
+    },
+    "Project folders" : {
+
+    },
+    "Shuck looks for node_modules folders in these folders, up to four levels down, and lists those of projects you haven't changed for 30 days. A project folder must be inside your home folder. A change applies from the next scan on." : {
+
+    },
     "Shuck never lists, moves or deletes anything inside these folders, or a folder that holds one, in any tool. A folder you remove is scanned again from the next scan on." : {
 
     },
@@ -25,7 +40,7 @@
     "Takes the selected folders out of the list." : {
 
     },
-    "Thresholds and project folders are planned for milestone M5." : {
+    "Thresholds are planned for milestone M5." : {
 
     },
     "Your data: none selected" : {

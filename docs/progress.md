@@ -304,18 +304,21 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     launch argument `launch(exclusions:)` (D-150).
   - [x] Exclusions in Settings: the list with Add… and Remove, the UI test steps and the changelog line (D-151).
     Left over for M5: drag and drop into the list (SET-001).
-- [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
+- [x] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
   DEV-006, SET-003, FCL-005). Done after M2-T14 (D-148): it scans the user's project folders, which must honour
   exclusions from the first release, and it reuses M2-T14's stored folder list and Settings wiring.
   - Review of 2026-11-10 (DEV-006, DEV-R06): the rule's explanation says that restoring needs `npm install` and a
     connection, since Shuck has no network. Require a lockfile next to `node_modules`; take only the top-most
     `node_modules` of a project; warn when the project uses `patch-package` or `file:` links; define "stale" by the
     newest file among the project's own files, not the folder's date.
-  - A stack of three pull requests, which the owner merges (not auto-merge):
+  - A stack of three pull requests, merged with `gh stack merge` once CI passed (D-146):
     - [x] Ownership: Developer Junk owns `node_modules` inside the project folders, the personal-files scan skips it,
       and the project folders are values in the ownership map and in `DeveloperJunk` (D-152).
     - [x] The DEV-R06 rule and its scan: depth limit, top-most only, a lockfile, the project's own files for staleness,
       warnings for `patch-package` and `file:` links, and a pipeline test from scan to Delete to History (D-153).
+    - [x] The project folders in Settings: stored list with the default folders, a refusal outside the home folder,
+      Developer Junk and the ownership map rebuilt when the list changes, the Node.js projects' rows, the UI test steps
+      and the changelog line (D-154). Left over for M5: drag and drop into the list.
 
 Patch releases during M2 (D-94):
 

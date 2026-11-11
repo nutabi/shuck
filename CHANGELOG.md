@@ -12,6 +12,13 @@ All notable changes to Shuck are listed here. The format follows
 - Settings lists excluded folders. Add folders with the Add button and take them out with Remove. Shuck never lists,
   moves or deletes anything inside an excluded folder, or a folder that holds one, in any tool. Adding a folder hides
   its files from every list at once. A folder you remove is scanned again from the next scan on.
+- Developer Junk also lists the node_modules folders of projects you have not changed for 30 days, one row for each
+  project, in a group of their own. Shuck looks in your project folders only: Settings lists them, and starts with
+  whichever of Developer, Projects, Code, src and repos exist in your home folder. A project needs a lockfile next to
+  its node_modules, and Shuck lists only the top-most node_modules of a project. A project you worked on within 30 days
+  starts unselected. So does one that patches packages with patch-package or depends on local folders with file:, and its
+  row says why. Every row says that restoring node_modules needs npm install and an internet connection. Large Files and
+  Old Files no longer list what is inside those node_modules folders.
 - Before deleting or cleaning up a single item larger than a quarter of the space in use on your Mac, Shuck asks you a
   second time and names the item, since something that large is rarely just a cache.
 - After deleting, cleaning up or moving items to the Trash, the summary shows how much free space your Mac actually
