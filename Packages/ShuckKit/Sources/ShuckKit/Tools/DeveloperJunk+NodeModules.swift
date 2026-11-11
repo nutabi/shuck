@@ -67,8 +67,10 @@ extension DeveloperJunk {
         }
     }
 
-    /// One item per project that has a `node_modules` and a lockfile next to it, in each project folder. The walk ends at
-    /// a folder that holds a `node_modules`, so only a project's top-most one is found (DEV-006).
+    /// One item per project that has a `node_modules` and a lockfile next to it, in each project folder. Below a project
+    /// folder the walk ends at a folder that holds a `node_modules`, so only a project's top-most one is found. A project
+    /// folder that holds one itself, left by an install run in the wrong place, is listed if it qualifies, and the walk
+    /// goes on into its other folders, so the projects below it are still found (DEV-006).
     func scanNodeModules(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
         guard let volume = FileIdentity.read(context.home)?.volume else { return }
         let now = Date.now
@@ -81,9 +83,10 @@ extension DeveloperJunk {
         }
     }
 
-    /// Looks for projects in `folder`, `level` levels below a project folder. A folder with a real `node_modules` is a
-    /// project root, and nothing below it is looked at. Otherwise it goes down into folders only: never a link, a package,
-    /// `.git`, another volume or an excluded folder.
+    /// Looks for projects in `folder`, `level` levels below a project folder. Below level 0, a folder with a real
+    /// `node_modules` is a project root, and nothing below it is looked at. The project folder itself (level 0) is listed
+    /// the same way but is not a project root: the walk goes on into its other folders. The walk goes down into folders
+    /// only, never a `node_modules`, a link, a package, `.git`, another volume or an excluded folder.
     private func findProjects(
         in folder: URL, level: Int, volume: Int32, rule: CleanupRule, context: ScanContext, now: Date,
         _ emit: (ScanEvent) -> Void
@@ -106,13 +109,15 @@ extension DeveloperJunk {
             if let item = nodeModulesItem(modules, project: folder, rule: rule, context: context, now: now) {
                 emit(.item(item))
             }
-            return
+            // A stray `node_modules` in the project folder itself must not hide the projects below it.
+            if level > 0 { return }
         }
         guard level < Self.projectDepth else { return }
         for child in folders.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard !Task.isCancelled else { return }
             let values = try? child.resourceValues(forKeys: [.isPackageKey])
-            guard PathGuard.fold(child.lastPathComponent) != ".git", values?.isPackage != true,
+            let name = PathGuard.fold(child.lastPathComponent)
+            guard name != ".git", name != OwnershipMap.dependenciesFolderName, values?.isPackage != true,
                 FileIdentity.read(child)?.volume == volume, !Self.isInsideExclusion(child, context)
             else { continue }
             findProjects(in: child, level: level + 1, volume: volume, rule: rule, context: context, now: now, emit)

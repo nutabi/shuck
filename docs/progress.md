@@ -374,11 +374,9 @@ not "the next task", until the owner has approved the breakdown; the approved ta
 Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, no hard stop;
 `docs/m2-review.md` has each one's scope). Stacks 2 and 3 are not approved yet.
 
-Stopped after the second pull request, at the owner's request on 2026-11-12: the first two are one GitHub stack of
-their own. The four unchecked items below are approved and not started; no branch or code exists for them. They wait
-for the owner's word to go on, and then form the next stack, in this order. The UI workflow changes of the first two
-(`CachesAndLogsUITests`, the fake Xcode in `DeveloperJunkUITests`) could not be run in the agent's sandbox, so CI's
-run is their first.
+The first two merged as one GitHub stack (#152, #153), after a stop at the owner's request. The owner then said to go
+on, with Sonnet agents for the implementation and Haiku agents for research; the coordinating session reviews each
+change and writes the documents. The other four are a second stack, in the order below.
 
 - [x] An unknown app's cache starts unselected (R-01, CAC-009, D-156): part of M2-F19.
 - [x] `npm` and `pip` stay off the network, and `simctl` needs Xcode (R-02, R-13, DEV-002, DEV-004, D-157): the
@@ -386,7 +384,8 @@ run is their first.
   - [ ] Owner item: on the owner's Mac, check that `npm cache clean --force`, `pip cache purge` and `brew cleanup`,
     run from Developer Junk, open no network connection (for example with `nettop` or Little Snitch). An agent may
     not run real tools (DEV-004, NFR-SEC-001).
-- [ ] M2-F21 A stray `node_modules` in a project folder does not hide the projects below it (R-08, DEV-006).
+- [x] M2-F21 A stray `node_modules` in a project folder does not hide the projects below it (R-08, DEV-006,
+  D-158).
 - [ ] Scans report what they cannot measure (R-10, M2-F17, #118).
 - [ ] String Catalog entries and a check for missing ones (R-09, M2-F17, #116), with DEV-R01's explanation.
 - [ ] Plans are built off the main actor (R-07, R-17, M2-F03, #62).
