@@ -12,7 +12,10 @@ extension DeveloperJunk {
     /// exists. The size is an estimate from measuring the folder, "up to" what the tool may remove: it is never read
     /// from the tool's output, which never chooses a target (DEV-003, R-07, D-125).
     func scanToolCache(_ rule: CleanupRule, folder: URL, _ context: ScanContext, _ emit: (ScanEvent) -> Void) {
-        guard !Task.isCancelled, rule.detection.isAvailable, CleanupRule.Detection.folder(folder).isAvailable,
+        // A cache folder that is, or holds, an excluded folder is hidden, although the tool, not Shuck, cleans it
+        // (SET-001, D-149).
+        guard !Task.isCancelled, !context.protection.overlapsUserExclusion(folder), rule.detection.isAvailable,
+            CleanupRule.Detection.folder(folder).isAvailable,
             let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled })
         else { return }
         do {

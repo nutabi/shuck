@@ -40,6 +40,11 @@ public struct PathGuardConfiguration: Sendable, Equatable {
     /// Every protected location as an absolute path with symlinks resolved.
     public let protectedLocations: [URL]
 
+    /// The folders and files the user excluded in Settings (SET-001), as absolute paths with symlinks resolved. They
+    /// are also in ``protectedLocations``, so the guard refuses them like any protected location; this list tells a
+    /// scan which of them are the user's, for a command item that is not a path the guard can validate (D-149).
+    public let userExclusions: [URL]
+
     /// Builds a configuration from a home folder. Prefer ``production(home:appBundle:userExclusions:)`` in the app.
     ///
     /// - Parameters:
@@ -55,6 +60,18 @@ public struct PathGuardConfiguration: Sendable, Equatable {
             + Self.homeLocations.map { home.appending(path: $0) }
             + [appBundle] + userExclusions
         protectedLocations = locations.map { ResolvedPath($0)?.url ?? $0 }
+        self.userExclusions = userExclusions.map { ResolvedPath($0)?.url ?? $0 }
+    }
+
+    /// Whether `url` is inside one of the user's exclusions or contains one, compared as the guard compares: with case
+    /// folded and Unicode forms equal (SET-001, D-79). A scan hides what this says yes to, and the guard would refuse
+    /// it anyway.
+    public func overlapsUserExclusion(_ url: URL) -> Bool {
+        let target = (ResolvedPath(url)?.url ?? url).pathComponents.map(PathGuard.fold)
+        return userExclusions.contains { exclusion in
+            let excluded = exclusion.pathComponents.map(PathGuard.fold)
+            return target.starts(with: excluded) || excluded.starts(with: target)
+        }
     }
 
     /// The configuration the app uses: the real home folder and the full protected list.

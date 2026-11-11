@@ -49,12 +49,20 @@ public struct PersonalFilesScanner: Sendable {
         self.lastOpened = lastOpened
         self.report = report
         homePrefix = context.home.path + "/"
-        locationKeys = LocationKeys(home: context.home, protectedLocations: context.protection.protectedLocations)
+        locationKeys = LocationKeys(
+            home: context.home, protectedLocations: context.protection.protectedLocations,
+            userExclusions: context.protection.userExclusions)
         homeVolume = FileIdentity.read(context.home)?.volume
     }
 
     public func scan() -> AsyncStream<PersonalFilesEvent> {
         AsyncStream { continuation in
+            // The keys below only name places inside the home folder, so an exclusion that is the home folder, or
+            // holds it, is checked here: nothing is listed (SET-001).
+            if isHomeExcluded {
+                continuation.finish()
+                return
+            }
             let task = Task {
                 let start = ContinuousClock.now
                 let entries = await walkHome { continuation.yield($0) }
@@ -62,6 +70,14 @@ public struct PersonalFilesScanner: Sendable {
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Whether the home folder is one of the user's exclusions or inside one, compared as the guard compares.
+    private var isHomeExcluded: Bool {
+        let home = context.home.pathComponents.map(PathGuard.fold)
+        return context.protection.userExclusions.contains { exclusion in
+            home.starts(with: exclusion.pathComponents.map(PathGuard.fold))
         }
     }
 
@@ -248,12 +264,20 @@ public struct PersonalFilesScanner: Sendable {
 
     /// A file, or a folder measured as one item with its total size (FCL-009). Skipped if the scan is cancelled.
     private func measured(_ url: URL, _ values: EntryValues, readOnly: ReadOnlyReason?) -> Decision {
+        // Before anything measures it (SET-001).
+        if values.isDirectory, holdsExclusion(url) { return .skip }
         let snapshot =
             values.isDirectory
             ? ItemSnapshot.read(url) { !Task.isCancelled }
             : ItemSnapshot(kind: .file, allocatedSize: values.allocatedSize)
         guard let snapshot else { return .skip }
         return .item(file(url, snapshot, values, readOnly: readOnly))
+    }
+
+    /// Whether an exclusion lies inside the folder `url`, which is measured as one item (SET-001).
+    private func holdsExclusion(_ url: URL) -> Bool {
+        guard !locationKeys.excluded.isEmpty, let key = key(url) else { return false }
+        return locationKeys.excluded.contains { $0.hasPrefix(key + "/") }
     }
 
     private func file(_ url: URL, _ snapshot: ItemSnapshot, _ values: EntryValues, readOnly: ReadOnlyReason?)
@@ -301,13 +325,17 @@ public struct PersonalFilesScanner: Sendable {
         let hidden: Set<String>
         /// ``PersonalFilesScanner/wholeFolderLocations``.
         let wholeFolders: Set<String>
+        /// The user's exclusions (SET-001). A folder measured as one item, such as a package, that holds one is left
+        /// out: a plan would refuse it.
+        let excluded: Set<String>
 
-        init(home: URL, protectedLocations: [URL]) {
+        init(home: URL, protectedLocations: [URL], userExclusions: [URL]) {
             func keys(_ locations: [URL]) -> Set<String> {
                 Set(locations.compactMap { PersonalFilesScanner.locationKey($0, home: home) })
             }
             shown = keys(PathGuardConfiguration.homeLocations.map { home.appending(path: $0) })
             hidden = keys(protectedLocations)
+            excluded = keys(userExclusions)
             wholeFolders = keys(PersonalFilesScanner.wholeFolderLocations.map { home.appending(path: $0) })
         }
     }

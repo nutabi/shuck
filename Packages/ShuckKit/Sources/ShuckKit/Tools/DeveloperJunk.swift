@@ -214,7 +214,7 @@ public struct DeveloperJunk: SubTool {
         for folder in folders.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard !Task.isCancelled else { return }
             // A file or a link is not a project; and a folder another sub-tool owns is not ours (FCL-005).
-            guard context.ownership.owners(of: folder).contains(id),
+            guard context.ownership.owners(of: folder).contains(id), isAllowed(folder, context),
                 let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
                 values.isDirectory == true, values.isSymbolicLink != true,
                 let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
@@ -262,7 +262,7 @@ public struct DeveloperJunk: SubTool {
             let newest = DeviceSupportVersion.newest(among: folders.map(\.lastPathComponent))
             for folder in folders.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                 guard !Task.isCancelled else { return }
-                guard context.ownership.owners(of: folder).contains(id),
+                guard context.ownership.owners(of: folder).contains(id), isAllowed(folder, context),
                     let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
                     let modified = RuleMatch.modificationDate(at: folder)
                 else { continue }
@@ -302,7 +302,7 @@ public struct DeveloperJunk: SubTool {
         for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard !Task.isCancelled else { return }
             // A link is not the cache itself, and an entry another sub-tool owns is not ours (FCL-005).
-            guard context.ownership.owners(of: entry).contains(id),
+            guard context.ownership.owners(of: entry).contains(id), isAllowed(entry, context),
                 (try? entry.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink != true,
                 let snapshot = ItemSnapshot.read(entry, while: { !Task.isCancelled }),
                 let modified = RuleMatch.modificationDate(at: entry)
@@ -352,7 +352,7 @@ public struct DeveloperJunk: SubTool {
             for bundle in bundles.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                 guard !Task.isCancelled else { return }
                 guard bundle.lastPathComponent.hasSuffix(Self.archiveSuffix), Self.isRealFolder(bundle),
-                    context.ownership.owners(of: bundle).contains(id),
+                    context.ownership.owners(of: bundle).contains(id), isAllowed(bundle, context),
                     let snapshot = ItemSnapshot.read(bundle, while: { !Task.isCancelled }),
                     let modified = RuleMatch.modificationDate(at: bundle)
                 else { continue }
@@ -369,6 +369,14 @@ public struct DeveloperJunk: SubTool {
         }
     }
 
+    /// Whether the guard accepts `url` as a target of this sub-tool. It refuses anything inside a protected location or
+    /// the user's exclusions, and any folder that contains one, so a scan hides it instead of listing a row a plan
+    /// would refuse (SET-001, SAF-007, D-149).
+    func isAllowed(_ url: URL, _ context: ScanContext) -> Bool {
+        (try? PathGuard(configuration: context.protection).validate(url, allowedRoots: allowedRoots(home: context.home)))
+            != nil
+    }
+
     private static func isRealFolder(_ url: URL) -> Bool {
         let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
         return values?.isDirectory == true && values?.isSymbolicLink != true
@@ -378,7 +386,10 @@ public struct DeveloperJunk: SubTool {
     /// simulator is unavailable is only known to `simctl`, so the item is listed whenever Xcode has made simulators.
     private func scanUnavailableSimulators(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
         let devices = Self.simulatorDevices(home: context.home)
-        guard !Task.isCancelled, let tools = ToolLocations(context), CleanupRule.Detection.folder(devices).isAvailable,
+        // The devices are no path the guard can validate: they are protected, and only `simctl` changes them. So the
+        // exclusions are compared with the folder that holds them (SET-001, D-149).
+        guard !Task.isCancelled, !context.protection.overlapsUserExclusion(devices.deletingLastPathComponent()),
+            let tools = ToolLocations(context), CleanupRule.Detection.folder(devices).isAvailable,
             let rule = try? Self.unavailableSimulatorsRule(tools), rule.detection.isAvailable
         else { return }
         do {
