@@ -47,7 +47,7 @@ final class FileCleanupModel {
     let scanResults: [ToolID: ScanResults]
     /// The files the personal-files sub-tools list, from their shared scan (FCL-006).
     private(set) var personalFiles = PersonalFilesState()
-    private var context: ScanContext
+    private(set) var context: ScanContext
     /// How many times the user's exclusions have changed. A scan that started before a change leaves out what the new
     /// list hides (SET-001).
     private var exclusionRevision = 0

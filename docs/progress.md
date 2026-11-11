@@ -311,7 +311,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     connection, since Shuck has no network. Require a lockfile next to `node_modules`; take only the top-most
     `node_modules` of a project; warn when the project uses `patch-package` or `file:` links; define "stale" by the
     newest file among the project's own files, not the folder's date.
-  - A stack of three pull requests, which the owner merges (not auto-merge):
+  - A stack of three pull requests, merged with `gh stack merge` once CI passed (D-146):
     - [x] Ownership: Developer Junk owns `node_modules` inside the project folders, the personal-files scan skips it,
       and the project folders are values in the ownership map and in `DeveloperJunk` (D-152).
     - [x] The DEV-R06 rule and its scan: depth limit, top-most only, a lockfile, the project's own files for staleness,

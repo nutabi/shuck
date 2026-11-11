@@ -181,4 +181,27 @@ struct ProjectFoldersTests {
         #expect(model.personalFiles.items.keys.map(\.lastPathComponent) == ["main.js"])
         #expect(Set(model.personalFilesResults[largeFiles.id]?.rows.map(\.name) ?? []) == ["main.js"])
     }
+
+    /// Both settings rebuild the model's context, so neither change may undo the other, in either order.
+    @Test(arguments: [true, false])
+    func exclusionsAndProjectFoldersBothSurviveInEitherOrderSET001SET003(exclusionsFirst: Bool) async throws {
+        let model = FileCleanupModel(subTools: [DeveloperJunk()], context: ScanContext(home: home))
+        let protection = PathGuardConfiguration.production(
+            home: home, appBundle: appBundle, userExclusions: [url("Secret")])
+        let scope = AppEnvironment.projectScope([url("Developer")], home: home)
+
+        if exclusionsFirst {
+            await model.protect(with: protection).value
+            await model.useProjectFolders(scope.developerJunk, ownership: scope.ownership).value
+        } else {
+            await model.useProjectFolders(scope.developerJunk, ownership: scope.ownership).value
+            await model.protect(with: protection).value
+        }
+
+        let context = model.context
+        #expect(context.protection.userExclusions.map(\.path) == ["/StubHome/Secret"])
+        #expect(context.ownership.projectFolders.map(\.path) == ["/StubHome/Developer"])
+        #expect(
+            (model.subTool(.developerJunk) as? DeveloperJunk)?.projectFolders.map(\.path) == ["/StubHome/Developer"])
+    }
 }
