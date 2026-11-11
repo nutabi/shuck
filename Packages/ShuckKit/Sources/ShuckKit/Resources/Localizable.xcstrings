@@ -70,6 +70,9 @@
     "Logs" : {
 
     },
+    "Node.js projects" : {
+
+    },
     "Not built for %lld days or more." : {
 
     },
@@ -103,6 +106,9 @@
     "Simulator Caches" : {
 
     },
+    "Stale node_modules" : {
+
+    },
     "Startup Items" : {
 
     },
@@ -118,7 +124,25 @@
     "The newest version Xcode has for this platform." : {
 
     },
+    "The packages a Node.js project installed, in projects you have not changed for a while." : {
+
+    },
     "The simulators build this again the next time one starts." : {
+
+    },
+    "To restore it, run npm install, or your project's package manager, which needs an internet connection." : {
+
+    },
+    "To restore it, run npm install, or your project's package manager, which needs an internet connection. Shuck could not read this project's package.json, so it cannot tell what a reinstall would lose." : {
+
+    },
+    "To restore it, run npm install, or your project's package manager, which needs an internet connection. This project depends on local folders (file:), which a reinstall copies again from where they are then." : {
+
+    },
+    "To restore it, run npm install, or your project's package manager, which needs an internet connection. This project patches packages with patch-package and depends on local folders (file:), which a reinstall may not restore." : {
+
+    },
+    "To restore it, run npm install, or your project's package manager, which needs an internet connection. This project patches packages with patch-package, which a reinstall may not redo." : {
 
     },
     "Uninstall apps together with the files they leave behind." : {

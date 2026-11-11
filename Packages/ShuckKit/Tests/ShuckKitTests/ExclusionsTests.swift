@@ -16,7 +16,9 @@ struct ExclusionsTests {
 
     /// Every sub-tool of the standard registry, set up to list small fixture items.
     private var registry: ToolRegistry {
-        .standard(largeFiles: LargeFiles(minimumSize: 1 << 20), oldFiles: oldFiles)
+        .standard(
+            largeFiles: LargeFiles(minimumSize: 1 << 20), oldFiles: oldFiles,
+            developerJunk: DeveloperJunk(projectFolders: [root.url.appending(path: "Developer")]))
     }
 
     private var oldFiles: OldFiles {
@@ -25,8 +27,10 @@ struct ExclusionsTests {
 
     private func scan(excluding exclusions: [URL]) async -> [ScanItem] {
         let context = ScanContext(
-            home: root.url, protection: root.pathGuardConfiguration(userExclusions: exclusions),
-            runningApps: StubRunningApps([]), toolRoot: root.url)
+            home: root.url,
+            ownership: OwnershipMap(home: root.url, projectFolders: [root.url.appending(path: "Developer")]),
+            protection: root.pathGuardConfiguration(userExclusions: exclusions), runningApps: StubRunningApps([]),
+            toolRoot: root.url)
         var items: [ScanItem] = []
         for subTool in registry.subTools {
             items += await ShuckKitTestSupport.items(from: subTool, context: context)
@@ -63,6 +67,7 @@ struct ExclusionsTests {
             try root.file("Library/Containers/\(name)/Data/Library/Caches/f", size: 4096)
         }
         for name in ["excluded.log", "kept.log"] { try root.file("Library/Logs/\(name)", size: 4096) }
+        for name in ["Excluded", "Kept"] { try root.nodeProject("Developer/\(name)", edited: longAgo) }
     }
 
     private func makeTools() throws {
@@ -82,7 +87,7 @@ struct ExclusionsTests {
             "\(xcode)/DerivedData/Deep-\(hash)/Build", "\(xcode)/iOS DeviceSupport/17.0",
             "Library/Developer/CoreSimulator/Caches/excluded", "\(xcode)/Archives/2026-11-10/Excluded.xcarchive",
             "Library/Caches/com.example.excluded", "Library/Logs/excluded.log",
-            "Library/Containers/com.example.excluded/Data/Library/Caches",
+            "Library/Containers/com.example.excluded/Data/Library/Caches", "Developer/Excluded",
         ].map { try root.url($0) }
 
         let before = await scan(excluding: [])
@@ -111,7 +116,10 @@ struct ExclusionsTests {
         let expected = before.compactMap(\.url).filter { url in !excluded.contains { overlap(url, $0) } }
         #expect(Set(after.compactMap(\.url)) == Set(expected))
         #expect(!expected.isEmpty && after.count < before.count)
-        for kept in try ["Documents/Kept", "\(xcode)/DerivedData/Kept-\(hash)", "Library/Logs/kept.log"].map(root.url) {
+        for kept in try [
+            "Documents/Kept", "\(xcode)/DerivedData/Kept-\(hash)", "Library/Logs/kept.log",
+            "Developer/Kept/node_modules",
+        ].map(root.url) {
             #expect(after.contains { $0.url.map { overlap($0, kept) } == true }, "\(kept.lastPathComponent)")
         }
     }

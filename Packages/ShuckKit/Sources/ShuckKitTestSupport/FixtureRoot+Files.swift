@@ -5,7 +5,7 @@ import Foundation
 /// Each method takes a path relative to the root, creates missing parent folders and returns the new item's URL. It
 /// never overwrites: if anything already exists at the path, it throws ``FixtureError/alreadyExists(_:)``.
 extension FixtureRoot {
-    /// Creates a file of `size` bytes.
+    /// Creates a file of `size` bytes, or one that holds `text`, such as a `package.json`.
     ///
     /// The bytes are written for real, not left as a sparse hole, so the allocated size (SAF-013) is at least `size`.
     /// Dates and extended attributes are set after writing, so they are what the code under test sees.
@@ -13,6 +13,7 @@ extension FixtureRoot {
     public func file(
         _ relativePath: String,
         size: Int = 0,
+        text: String? = nil,
         modified: Date? = nil,
         created: Date? = nil,
         extendedAttributes: [String: Data] = [:],
@@ -26,7 +27,8 @@ extension FixtureRoot {
             let handle = try FileHandle(forWritingTo: target)
             defer { try? handle.close() }
             let chunkSize = 1 << 20
-            var remaining = size
+            if let text { try handle.write(contentsOf: Data(text.utf8)) }
+            var remaining = text == nil ? size : 0
             while remaining > 0 {
                 let count = min(chunkSize, remaining)
                 try handle.write(contentsOf: Data(repeating: 0x5A, count: count))
