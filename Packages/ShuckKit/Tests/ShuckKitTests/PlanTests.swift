@@ -76,6 +76,24 @@ struct PlanTests {
         #expect(error == .rejected(key.path, .protectedLocation(key.path, protected: protected)))
     }
 
+    /// SET-001: an exclusion is a protected location, so a plan refuses what is inside it and what holds it.
+    @Test(arguments: ["Documents/Keep", "Documents/Keep/inner", "Documents"])
+    func planRejectsAnItemInsideOrHoldingAnExclusionSET001SAF007(target: String) throws {
+        let inner = try root.file("Documents/Keep/inner/note.txt", size: 10)
+        let exclusion = try root.url("Documents/Keep/inner")
+        let guarded = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [exclusion]))
+        let url = try root.url(target)
+        let item = PlannedItem(
+            url: url, tier: .yourData, method: .trash, snapshot: try #require(ItemSnapshot.read(url)))
+
+        let error = #expect(throws: PlanError.self) {
+            try Plan(tool: .largeFiles, allowedRoots: [root.url], items: [item], pathGuard: guarded)
+        }
+
+        #expect(error == .rejected(url.path, .protectedLocation(url.path, protected: exclusion.path)))
+        #expect(FileManager.default.fileExists(atPath: inner.path))
+    }
+
     // MARK: - A folder's contents (CAC-004)
 
     @Test func aDeletedFolderMayKeepTheFolderAndLoseItsContentsCAC004() throws {

@@ -211,6 +211,20 @@ struct PlanExecutorTests {
         #expect(exists(moved))
     }
 
+    /// SET-001: a folder the user excludes after the plan was made is skipped when the run re-validates it.
+    @Test func skipsAFolderTheUserExcludedAfterThePlanSET001SAF008() async throws {
+        let project = try root.file("Pictures/Trip/beach.jpg", size: 10_000)
+        let trip = project.deletingLastPathComponent()
+        let plan = try plan([planned(trip)])
+        let excluding = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [trip]))
+
+        let report = try await run(plan, with: try PlanExecutor(root: root, pathGuard: excluding))
+
+        #expect(
+            report.outcomes.map(\.result) == [.skipped(.rejected(.protectedLocation(trip.path, protected: trip.path)))])
+        #expect(exists(project) && !exists(trashFolder.appending(path: "Trip")))
+    }
+
     // MARK: - Outcomes
 
     @Test func everyItemEndsWithAnOutcomeSAF011() async throws {

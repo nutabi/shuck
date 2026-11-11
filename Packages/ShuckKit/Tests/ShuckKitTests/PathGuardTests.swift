@@ -278,6 +278,19 @@ struct PathGuardTests {
         }
     }
 
+    /// SET-001: a scan compares a command's folder with the exclusions as the guard compares a path.
+    @Test func overlapsUserExclusionIsTrueInsideAndAboveAnExclusionOnlySET001() {
+        let configuration = root.pathGuardConfiguration(userExclusions: [home.appending(path: "Documents/Caf\u{E9}")])
+
+        #expect(configuration.overlapsUserExclusion(home.appending(path: "Documents/Cafe\u{301}/menu.pdf")))
+        #expect(configuration.overlapsUserExclusion(home.appending(path: "DOCUMENTS")))
+        #expect(!configuration.overlapsUserExclusion(home.appending(path: "Documents/Cafeteria")))
+        #expect(!configuration.overlapsUserExclusion(home.appending(path: "Downloads")))
+        // Shuck's own protected locations are not the user's.
+        #expect(!configuration.overlapsUserExclusion(home.appending(path: ".ssh")))
+        #expect(!root.pathGuardConfiguration().overlapsUserExclusion(home))
+    }
+
     @Test func allowedRootsStayCaseSensitiveSAF007() {
         let downloads = home.appending(path: "Downloads")
         let path = home.appending(path: "DOWNLOADS/movie.mov").path

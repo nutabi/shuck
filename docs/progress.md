@@ -293,14 +293,19 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     action for each tier, Delete and Move to Trash, each with its own count and size, and the footer no longer counts
     "Your data" with Delete (DEV-R05, SAF-002, SAF-003, D-147). Left over: the UI workflow steps for archives could
     not be run in the agent's sandbox (AGENTS.md); CI or the owner's run shows them.
+- [ ] M2-T14 User exclusions, moved from M5 so no release with permanent Delete ships without them: the engine applies
+  them to every tool and sub-tool, and Settings gets a minimal list with a folder picker and Remove (SET-001, D-135).
+  Done before M2-T13 (D-148). A stack of three pull requests:
+  - [x] Exclusions in every scan: Developer Junk and the personal-files scan hide what an exclusion covers or holds;
+    a test runs every sub-tool; the guard refuses a plan, re-validation skips a run's item and Restore refuses a
+    folder that is excluded (D-149).
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
-  DEV-006, SET-003, FCL-005)
+  DEV-006, SET-003, FCL-005). Done after M2-T14 (D-148): it scans the user's project folders, which must honour
+  exclusions from the first release, and it reuses M2-T14's stored folder list and Settings wiring.
   - Review of 2026-11-10 (DEV-006, DEV-R06): the rule's explanation says that restoring needs `npm install` and a
     connection, since Shuck has no network. Require a lockfile next to `node_modules`; take only the top-most
     `node_modules` of a project; warn when the project uses `patch-package` or `file:` links; define "stale" by the
     newest file among the project's own files, not the folder's date.
-- [ ] M2-T14 User exclusions, moved from M5 so no release with permanent Delete ships without them: the engine applies
-  them to every tool and sub-tool, and Settings gets a minimal list with a folder picker and Remove (SET-001, D-135).
 
 Patch releases during M2 (D-94):
 
