@@ -27,7 +27,7 @@ struct ItemRow<Detail: View>: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 case .command(let command):
-                    Text(verbatim: command.display)
+                    Text(verbatim: command.commandLine)
                         .font(.callout.monospaced())
                         .textSelection(.enabled)
                 }

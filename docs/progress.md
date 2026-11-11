@@ -377,6 +377,10 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
   shows each item's full path, so two DerivedData folders of one name differ (SAF-003, D-117); and `/usr/bin/xcrun`
   exists without Xcode and can raise the install prompt, so finding it is not detection (DEV-002, D-124). Tools
   installed through nvm, asdf, mise, fnm, volta or pyenv are not found (D-124): say so in the PRD or find them.
+- [x] M2-F20 The owner's test of `main` on 2026-11-11: tool commands quote only the words that need it, a locked row
+  names the running app ("Xcode is running"), a DerivedData row shows its project's path, and every sub-tool list has
+  Select All and Select None (CAC-003, SAF-002, SAF-009, D-138). Left over: no UI test checks the project path or
+  the buttons yet, and the checkbox lists have no keyboard shortcut for them.
 
 Exit criteria (PRD section 13):
 

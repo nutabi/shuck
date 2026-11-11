@@ -109,9 +109,9 @@ struct CachesAndLogsTests {
 
         let items = await items(running: ["COM.example.notes"])
 
-        #expect(items["Library/Caches/com.example.Notes"]?.selection == .appIsRunning)
-        #expect(items["Library/Containers/com.example.Notes/Data/Library/Caches"]?.selection == .appIsRunning)
-        #expect(items["Library/Logs/com.example.Notes"]?.selection == .appIsRunning)
+        #expect(items["Library/Caches/com.example.Notes"]?.selection == .appIsRunning(nil))
+        #expect(items["Library/Containers/com.example.Notes/Data/Library/Caches"]?.selection == .appIsRunning(nil))
+        #expect(items["Library/Logs/com.example.Notes"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Caches/com.example.Notes"]?.apps == ["com.example.Notes"])
         #expect(items["Library/Caches/com.example.Mail"]?.selection == .selected)
     }

@@ -108,6 +108,11 @@ struct CleanupRuleTests {
         let rule = try rule(detection: .executable(executable), action: .command(command), selection: .always)
         #expect(rule.action.method == .tool && command.timeout == 600)
         #expect(command.display.hasSuffix("'cache' 'a b' 'it'\\''s'"))
+        // Rows and the review quote only the words that need it (D-138); the log keeps `display`.
+        let readable = try ToolCommand(
+            executable: "/opt/homebrew/bin/npm", arguments: ["cache", "clean", "--force", "", "a b", "it's"],
+            environment: ["PATH": "/usr/bin:/bin"])
+        #expect(readable.commandLine == "/opt/homebrew/bin/npm cache clean --force '' 'a b' 'it'\\''s'")
         #expect(throws: RuleError.invalidDetection) { try self.rule(action: .command(command)) }
         for invalid in ["relative", "/tools/../cleaner", "/tools/clean\0er"] {
             #expect(throws: ToolCommandError.invalidExecutable) {

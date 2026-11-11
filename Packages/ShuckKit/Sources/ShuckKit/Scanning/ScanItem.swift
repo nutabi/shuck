@@ -34,12 +34,15 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     /// The name of the app the item belongs to, which a page groups items by (CAC-002). `nil` when the sub-tool does not
     /// group by app.
     public let appName: String?
+    /// The project a DerivedData folder was built from, as Xcode recorded it, so two projects of one name can be told
+    /// apart (D-138). It is read from a file, shown as text only and never acted on. `nil` for other items.
+    public let project: URL?
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
         source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
         category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil,
-        apps: Set<String> = [], appName: String? = nil
+        apps: Set<String> = [], appName: String? = nil, project: URL? = nil
     ) {
         self.target = .path(url)
         self.snapshot = snapshot
@@ -56,6 +59,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         self.identity = identity
         self.apps = apps
         self.appName = appName
+        self.project = project
     }
 
     /// A command carries its estimate without a fictional file kind or snapshot. No command runs in T03 (M2-T10).
@@ -79,6 +83,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         identity = nil
         self.apps = apps
         appName = nil
+        project = nil
     }
 }
 

@@ -21,6 +21,11 @@ final class PersonalFilesResults {
     /// The rows the user selected. Nothing is selected until the user chooses (D-10).
     var selection: Set<URL> = []
 
+    /// Selects every row. Read-only rows are selected too, as a click would, and still left out of a cleanup (FCL-011).
+    func selectAll() {
+        selection = Set(rows.map(\.id))
+    }
+
     /// Which date the Date column shows.
     let dateColumn: DateColumn
 

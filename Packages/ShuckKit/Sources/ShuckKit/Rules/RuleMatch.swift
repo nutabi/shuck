@@ -43,13 +43,14 @@ extension CleanupRule {
     /// its age with `selectedRegardless`, unless the rule never selects (DEV-005, D-112). `reason` replaces the rule's
     /// explanation next to the item. `unselected` leaves the item unselected whatever the rule says, for an item the
     /// scan found a reason to keep, such as the newest device support version (DEV-R02, D-118). `apps` adds to the rule's
-    /// apps the app this one item belongs to, and `appName` names that app for grouping (CAC-002, D-120).
+    /// apps the app this one item belongs to, and `appName` names that app for grouping (CAC-002, D-120). `project` is
+    /// the project a DerivedData folder belongs to, shown under its name (D-138).
     public func scanItem(
         at url: URL, snapshot: ItemSnapshot, modified: Date, source: ToolID, runningApps: any RunningApps,
         now: Date = .now, disabledReason: LocalizedStringResource? = nil, reason: LocalizedStringResource? = nil,
         lastActivity: Date? = nil, selectedRegardless: Bool = false, unselected: Bool = false,
         apps itemApps: Set<String> = [],
-        appName: String? = nil
+        appName: String? = nil, project: URL? = nil
     ) throws(RuleItemError) -> ScanItem {
         guard detection.isAvailable else { throw .unavailable }
         guard case .paths(_, let method, let scope) = action,
@@ -64,7 +65,7 @@ extension CleanupRule {
             selection: itemSelection(
                 modified: lastActivity ?? modified, now: now, disabledReason: disabledReason, running: runningApps,
                 selectedRegardless: selectedRegardless, unselected: unselected, apps: apps),
-            ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps, appName: appName)
+            ruleMatch: RuleMatch(rule: self, modified: modified), apps: apps, appName: appName, project: project)
     }
 
     /// A tool estimate is informational; it is never parsed into deletion paths (DEV-003, R-07).

@@ -184,7 +184,8 @@ public struct DeveloperJunk: SubTool {
                 let modified = RuleMatch.modificationDate(at: folder)
             else { continue }
             let activity = FolderActivity.newest(in: folder, modified: modified)
-            let missing = DerivedDataProject.workspace(in: folder).map(DerivedDataProject.isMissing) ?? false
+            let workspace = DerivedDataProject.workspace(in: folder)
+            let missing = workspace.map(DerivedDataProject.isMissing) ?? false
             let stale = rule.selection.selects(modified: activity, now: now)
             do {
                 emit(
@@ -193,7 +194,7 @@ public struct DeveloperJunk: SubTool {
                             at: folder, snapshot: snapshot, modified: modified, source: id,
                             runningApps: context.runningApps, now: now,
                             reason: Self.reason(missing: missing, stale: stale),
-                            lastActivity: activity, selectedRegardless: missing)))
+                            lastActivity: activity, selectedRegardless: missing, project: workspace)))
             } catch {
                 Self.logger.error("Skipped a DerivedData folder: \(String(describing: error), privacy: .public)")
             }

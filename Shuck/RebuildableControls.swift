@@ -31,6 +31,23 @@ struct SelectionMark: View {
     }
 }
 
+/// "Select All" and "Select None", next to a list's count. A row that cannot be chosen, such as a running app's, stays
+/// unselected (SAF-009).
+struct SelectAllButtons: View {
+    /// Whether nothing is selected, which disables Select None.
+    let isEmpty: Bool
+    let selectAll: () -> Void
+    let selectNone: () -> Void
+
+    var body: some View {
+        Button("Select All", action: selectAll)
+            .help("Select every item that can be selected.")
+        Button("Select None", action: selectNone)
+            .disabled(isEmpty)
+            .help("Deselect every item.")
+    }
+}
+
 /// The bar under a list of Rebuildable items: how many are selected, and "Delete…", which opens the summary
 /// confirmation (SAF-003). It is `nil` when the model cannot run anything, as in previews.
 struct RebuildableFooter: View {
@@ -47,6 +64,11 @@ struct RebuildableFooter: View {
                 Text(
                     "^[\(results.selectedItems.count) item](inflect: true) selected, \(results.selectedBytes, format: .byteCount(style: .file))"
                 )
+            }
+            SelectAllButtons(isEmpty: results.selectedItems.isEmpty) {
+                results.selectAll()
+            } selectNone: {
+                results.selection = []
             }
             Spacer()
             if let action {

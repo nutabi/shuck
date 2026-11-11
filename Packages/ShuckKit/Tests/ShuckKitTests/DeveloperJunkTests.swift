@@ -52,6 +52,9 @@ struct DeveloperJunkTests {
         #expect(reason(items["Gone-\(hash)"]) == "Its project is no longer on this Mac.")
         #expect(reason(items["Old-\(hash)"]) == "Not built for 30 days or more.")
         #expect(reason(items["Live-\(hash)"]) == "Xcode builds this project again when you next need it.")
+        // Each row names its project's path, so two projects of one name differ (D-138).
+        #expect(items["Live-\(hash)"]?.project?.path == project.path)
+        #expect(items["Gone-\(hash)"]?.project?.path == gone.path)
         for item in items.values {
             #expect(item.tier == .rebuildable && item.method == .delete && item.source == .developerJunk)
             #expect(item.snapshot?.kind == .folder && item.allocatedSize >= 4096)
@@ -104,7 +107,7 @@ struct DeveloperJunkTests {
 
         let items = await items(running: ["com.apple.dt.xcode"])
 
-        #expect(items.values.map(\.selection) == [.appIsRunning])
+        #expect(items.values.map(\.selection) == [.appIsRunning(nil)])
     }
 
     @Test func onlyFoldersAreListedAndOnlyWhenDerivedDataExistsDEV002() async throws {
