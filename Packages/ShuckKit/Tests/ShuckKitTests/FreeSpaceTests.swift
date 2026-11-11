@@ -98,3 +98,70 @@ struct FreeSpaceTests {
         #expect(beyond.gaps == [.snapshotsAndClones, .otherActivity])
     }
 }
+
+/// The second confirmation for an oversized Rebuildable item: its threshold is a quarter of the startup volume's used
+/// space (SAF-015, D-144).
+struct OversizeThresholdTests {
+    private func item(_ name: String, size: Int64, tier: Tier = .rebuildable) -> PlannedItem {
+        PlannedItem(
+            url: URL(filePath: "/StubHome/Library/Caches/\(name)"), tier: tier,
+            method: tier == .rebuildable ? .delete : .trash, snapshot: ItemSnapshot(kind: .folder, allocatedSize: size))
+    }
+
+    @Test func theVolumeOfAFixtureRootReportsItsUsedSpaceSAF015() throws {
+        let root = try FixtureRoot()
+
+        let used = try #require(FreeSpace.used(at: root.url))
+
+        #expect(used > 0)
+        #expect(FreeSpace.used(at: try root.url("missing/folder")) == nil)
+    }
+
+    /// SAF-015's fixture test: real folders, measured and planned as a scan plans them, against a made-up used space,
+    /// since a fixture can never be a quarter of the real disk.
+    @Test func aPlannedFixtureFolderLargerThanTheThresholdIsOversizedSAF015() throws {
+        let root = try FixtureRoot()
+        try root.file("Library/Caches/big/data", size: 256 * 1024)
+        try root.file("Library/Caches/small/data", size: 4 * 1024)
+        let big = try root.planned(try root.url("Library/Caches/big"))
+        let small = try root.planned(try root.url("Library/Caches/small"))
+        let plan = try Plan(
+            tool: .cachesAndLogs, allowedRoots: [root.url], items: [small, big],
+            pathGuard: PathGuard(configuration: root.pathGuardConfiguration()))
+        let threshold = try #require(OversizeThreshold(usedSpace: 4 * 128 * 1024))
+
+        #expect(threshold.oversized(plan.items) == [big])
+    }
+
+    @Test func theThresholdIsAQuarterOfTheUsedSpaceD144() throws {
+        let threshold = try #require(OversizeThreshold(usedSpace: 400_000))
+
+        #expect(threshold.bytes == 100_000)
+    }
+
+    @Test func onlyARebuildableItemLargerThanTheThresholdIsOversizedSAF015() throws {
+        let threshold = try #require(OversizeThreshold(usedSpace: 400_000))
+        let items = [
+            item("at", size: 100_000), item("over", size: 100_001), item("small", size: 10),
+            // "Your data" has its own itemized review (SAF-002).
+            item("mine", size: 300_000, tier: .yourData), item("huge", size: 900_000),
+        ]
+
+        #expect(threshold.oversized(items).compactMap(\.url?.lastPathComponent) == ["over", "huge"])
+    }
+
+    @Test func aToolsEstimateCountsLikeAnySize() throws {
+        let threshold = try #require(OversizeThreshold(usedSpace: 400_000))
+        let command = try ToolCommand(
+            executable: "/StubTools/cleaner", arguments: ["clean"], environment: ["PATH": "/usr/bin"])
+        let tool = PlannedItem(command: command, allocatedSize: 200_000, tier: .rebuildable, category: .personalFiles)
+
+        #expect(threshold.oversized([tool]) == [tool])
+    }
+
+    /// Without the used space there is nothing to compare with, and no item needs a second confirmation.
+    @Test func anUnknownUsedSpaceHasNoThreshold() {
+        #expect(OversizeThreshold(usedSpace: nil) == nil)
+        #expect(OversizeThreshold(usedSpace: 0) == nil)
+    }
+}

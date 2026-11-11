@@ -52,6 +52,8 @@ final class FileCleanupModel {
     private let runPlan: RunPlan?
     /// Reads the free space before and after each run, so its summary can show the measured change (SAF-013).
     private let readFreeSpace: ReadFreeSpace
+    /// Reads the used space when a summary confirmation opens, for its oversize threshold (SAF-015).
+    private let readUsedSpace: ReadUsedSpace
     private var states: [ToolID: ScanState] = [:]
     /// The task of each running scan, so Stop can cancel it. The personal-files sub-tools share one.
     private var scans: [ToolID: Task<Void, Never>] = [:]
@@ -63,15 +65,18 @@ final class FileCleanupModel {
     /// - Parameters:
     ///   - runPlan: The app passes ``AppEnvironment/run(_:)``.
     ///   - readFreeSpace: The app passes ``AppEnvironment/availableSpace()``. Tests that leave it out measure nothing.
+    ///   - readUsedSpace: The app passes ``AppEnvironment/usedSpace()``. Tests that leave it out have no threshold.
     init(
         subTools: [any SubTool], context: ScanContext,
         personalFilesScan: @escaping PersonalFilesScan = { PersonalFilesScanner(context: $0, lastOpened: $1).scan() },
-        runPlan: RunPlan? = nil, readFreeSpace: @escaping ReadFreeSpace = { nil }
+        runPlan: RunPlan? = nil, readFreeSpace: @escaping ReadFreeSpace = { nil },
+        readUsedSpace: @escaping ReadUsedSpace = { nil }
     ) {
         self.subTools = subTools
         self.context = context
         self.runPlan = runPlan
         self.readFreeSpace = readFreeSpace
+        self.readUsedSpace = readUsedSpace
         self.personalFilesScan = personalFilesScan
         var personalFilesResults: [ToolID: PersonalFilesResults] = [:]
         var scanResults: [ToolID: ScanResults] = [:]
@@ -231,7 +236,10 @@ final class FileCleanupModel {
         let plan = try Plan(
             subTool: subTool, items: results.selectedItems.filter { $0.tier == .rebuildable },
             pathGuard: PathGuard(configuration: context.protection))
-        return SummaryConfirmation(plan: plan, runPlan: runPlan, readFreeSpace: readFreeSpace) { [weak self] report in
+        return SummaryConfirmation(
+            plan: plan, threshold: OversizeThreshold(usedSpace: readUsedSpace()), runPlan: runPlan,
+            readFreeSpace: readFreeSpace
+        ) { [weak self] report in
             self?.remove(report.deletedURLs)
             self?.remove(commands: report.cleanedCommands)
         }

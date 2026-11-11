@@ -1,6 +1,7 @@
 import Foundation
 import ShuckExecution
 import ShuckKit
+import Synchronization
 import Testing
 
 @testable import Shuck
@@ -41,11 +42,13 @@ struct SummaryConfirmationTests {
     }
 
     func scannedModel(
-        items: [ScanItem], runPlan: RunPlan? = nil, readFreeSpace: @escaping ReadFreeSpace = { nil }
+        items: [ScanItem], runPlan: RunPlan? = nil, readFreeSpace: @escaping ReadFreeSpace = { nil },
+        readUsedSpace: @escaping ReadUsedSpace = { nil }
     ) async -> (FileCleanupModel, StubRebuildable) {
         let subTool = StubRebuildable(items: items)
         let model = FileCleanupModel(
-            subTools: [subTool], context: context, runPlan: runPlan, readFreeSpace: readFreeSpace)
+            subTools: [subTool], context: context, runPlan: runPlan, readFreeSpace: readFreeSpace,
+            readUsedSpace: readUsedSpace)
         await model.scan(subTool)?.value
         return (model, subTool)
     }
@@ -229,6 +232,54 @@ struct SummaryConfirmationTests {
 
         #expect(confirmation.freeSpace == nil)
         #expect(readings.count == 2)
+    }
+
+    /// SAF-015, D-144: an item larger than a quarter of the used space waits for a second confirmation; nothing runs
+    /// before it.
+    @Test func anOversizedItemNeedsASecondConfirmationSAF015() async throws {
+        let calls = Mutex(0)
+        let (model, subTool) = await scannedModel(
+            items: [item("huge", size: 30_000, category: xcode), item("small", size: 1_000, category: xcode)],
+            runPlan: { (plan: Plan) async throws(HistoryError) -> RunReport in
+                calls.withLock { $0 += 1 }
+                return RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .done(nil)) })
+            },
+            readUsedSpace: { 100_000 })
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+
+        #expect(confirmation.threshold?.bytes == 25_000)
+        #expect(confirmation.oversized.map(\.url) == [url("huge")])
+        #expect(confirmation.needsSecondConfirmation)
+        #expect(confirmation.start() == nil)
+        #expect(confirmation.phase == .waiting)
+
+        confirmation.confirmedOversized = true
+        await confirmation.start()?.value
+
+        #expect(calls.withLock { $0 } == 1)
+        #expect(model.scanResults[subTool.id]?.items.isEmpty == true)
+    }
+
+    @Test func itemsWithinTheThresholdNeedNoSecondConfirmationSAF015() async throws {
+        let (model, subTool) = await scannedModel(
+            items: [item("a", size: 25_000, category: xcode)], runPlan: run(deleting: ["a"]),
+            readUsedSpace: { 100_000 })
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+
+        #expect(confirmation.oversized.isEmpty)
+        #expect(!confirmation.needsSecondConfirmation)
+        await confirmation.start()?.value
+        #expect(confirmation.phase != .waiting)
+    }
+
+    /// Without the used space there is no threshold, and the one confirmation is enough.
+    @Test func anUnknownUsedSpaceNeedsNoSecondConfirmation() async throws {
+        let (model, subTool) = await scannedModel(
+            items: [item("a", size: 1_000_000, category: xcode)], runPlan: run(deleting: ["a"]))
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+
+        #expect(confirmation.threshold == nil)
+        #expect(!confirmation.needsSecondConfirmation)
     }
 
     @Test func aConfirmationRunsOnce() async throws {

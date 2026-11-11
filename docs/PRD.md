@@ -6,8 +6,8 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.5 — Review of 2026-11-10 (see Revision history) |
-| Date | 2026-11-10 |
+| Version | 1.6 — SAF-015 threshold (see Revision history) |
+| Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
 | Repository | `github.com/nutabi/shuck` (to be initialised by the owner) |
@@ -24,6 +24,7 @@
 | 1.3 | 2026-11-02 | Settings moves from the sidebar to its own window, opened with ⌘, (D-27). |
 | 1.4 | 2026-11-02 | Execution is its own module, `ShuckExecution`, inside the ShuckKit package (D-28). The dependency ban covers third-party packages only (NFR-SEC-002, ENG-006, D-29). |
 | 1.5 | 2026-11-10 | Review of 2026-11-10 (D-129 to D-135): synced files are listed, marked and warned about (FCL-010, FCL-012, SAF-002, OQ-06); Old Files uses the latest date it knows (OLD-002); the scan skips `.git` and other volumes (FCL-008); re-validation checks every item's modification date, and Delete needs a rule (SAF-008); the guard also refuses folders that contain a protected bundle or name (SAF-007, section 8.4); one running instance and a locked history log (SAF-018); Clear History (HIS-008, SET-007); user exclusions move to M2 (SET-001); acceptance checks name their milestone (D-133); `SMAppService` may open System Settings (STA-004, ENG-006, D-134). Brings the text in line with decisions D-43, D-62, D-65, D-66, D-70, D-75, D-111, D-115, D-119: protected locations, pull request size and template, CI, debug bundle ID, UI test wording, the history log's `detail` field, the repository layout. Adds tool-rule and Caches & Logs requirements from research (DEV-002, DEV-004, DEV-006, CAC-009, rule notes), new risks R-16 to R-18, open questions OQ-07 and OQ-08, and sources S71 to S78. |
+| 1.6 | 2026-11-11 | SAF-015's threshold is 25% of the space in use on the startup volume, since measuring the home folder means walking all of it (D-144). |
 
 ## How to read this document
 
@@ -270,7 +271,7 @@ Rationale: Apple defines caches as data that "can be regenerated as needed. Apps
 | SAF-012 | Permission errors (macOS privacy protection, TCC) MUST be reported as "Not accessible" with guidance (ONB-002). They MUST NOT trigger any privilege escalation. | Must | Fixture test using an unreadable folder. |
 | SAF-013 | Sizes MUST be allocated sizes (`totalFileAllocatedSizeKey`) [S44]. After a run, the app SHOULD show the measured change in free space next to the estimate and explain gaps: Trash not yet emptied (items in the Trash free nothing until it is emptied), local Time Machine snapshots and APFS clones (they keep blocks alive, so the measured change can be far below the estimate), purgeable space. | Must (size) / Should (comparison) | Unit test for size calculation; manual check for the comparison. |
 | SAF-014 | Scans and runs MUST be cancellable. Cancelling a run stops before the next item, and the log reflects the true state. | Must | Fixture test: cancel midway → the log matches the disk. |
-| SAF-015 | A single Rebuildable target larger than a sanity threshold (default: 25% of the home folder's size) SHOULD require a second confirmation. | Should | Fixture test. |
+| SAF-015 | A single Rebuildable target larger than a sanity threshold (default: 25% of the space in use on the startup volume, D-144) SHOULD require a second confirmation. | Should | Fixture test. |
 | SAF-016 | Tests MUST NOT touch the real home folder. A test harness creates a temporary fixture root and asserts that every path used is inside it. | Must | The harness fails any test that resolves a path outside the fixture root. |
 | SAF-017 | No code outside the engine's execution layer (the `ShuckExecution` module, D-28) may delete, move, rename or modify user files or launchd state. | Must | CI static check (ENG-006) for file-mutation APIs outside the allowed module. |
 | SAF-018 | Only one instance of a build runs. A second launch of the same build activates the first and quits. While a run writes the history log, the log is also locked (`flock`), so two processes never interleave records (D-135). | Must | Unit test: a second lock on the log is refused while the first is held; manual check of a second launch. |

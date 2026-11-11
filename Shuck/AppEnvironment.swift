@@ -185,6 +185,11 @@ nonisolated struct AppEnvironment {
         FreeSpace.available(at: context.home)
     }
 
+    /// The bytes in use on the volume of the scanned home folder, or `nil` if macOS doesn't say (SAF-015, D-144).
+    func usedSpace() -> Int64? {
+        FreeSpace.used(at: context.home)
+    }
+
     /// Moves trashed items back, off the main actor, and logs every step in the history log in ``historyFolder``
     /// (HIS-003, SAF-005, SAF-011).
     /// - Throws: ``HistoryError`` if the log cannot be opened. Then nothing moves.
