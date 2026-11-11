@@ -89,12 +89,12 @@ struct DeviceSupportTests {
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.file("Library/Developer/Xcode/iOS DeviceSupport/stray.txt", size: 10)
         try root.symlink("Library/Developer/Xcode/iOS DeviceSupport/18.0 (22A1)", to: root.folder("Elsewhere"))
-        try root.file("Library/Developer/Xcode/Archives/App.xcarchive/Info.plist", size: 10)
+        try root.file("Library/Developer/Xcode/UserData/Snippets/one.codesnippet", size: 10)
         try root.symlink("Library/Developer/Xcode/tvOS DeviceSupport", to: root.folder("Elsewhere/tv"))
 
         let items = await items()
 
-        // The link to 18.0 is not a version, so 16.4 is still the newest, and Archives are not listed.
+        // The link to 18.0 is not a version, so 16.4 is still the newest, and the rest of Xcode's folders are not listed.
         #expect(Set(items.keys) == ["iOS 16.4 (20E247)"])
         #expect(items["iOS 16.4 (20E247)"]?.selection == .unselected)
     }
@@ -102,19 +102,19 @@ struct DeviceSupportTests {
     @Test func theRuleTargetsVersionFoldersOnlyAndTheMapGivesThemToDeveloperJunkFCL005() throws {
         let rule = try DeveloperJunk.deviceSupportRule(home: root.url)
         let version = try root.url("Library/Developer/Xcode/watchOS DeviceSupport/10.0 (21R355)")
-        let archive = try root.url("Library/Developer/Xcode/Archives/App.xcarchive")
+        let other = try root.url("Library/Developer/Xcode/UserData/Snippets")
         let platform = try root.url("Library/Developer/Xcode/iOS DeviceSupport")
         let inside = version.appending(path: "Symbols")
 
         #expect(rule.accepts(.path(version), tier: .rebuildable, method: .delete, scope: .item))
-        #expect(!rule.accepts(.path(archive), tier: .rebuildable, method: .delete, scope: .item))
+        #expect(!rule.accepts(.path(other), tier: .rebuildable, method: .delete, scope: .item))
         #expect(!rule.accepts(.path(platform), tier: .rebuildable, method: .delete, scope: .item))
         #expect(!rule.accepts(.path(inside), tier: .rebuildable, method: .delete, scope: .item))
         #expect(rule.apps == ["com.apple.dt.Xcode"])
         let map = OwnershipMap(home: root.url)
         #expect(map.owners(of: version) == [.developerJunk])
         #expect(map.owners(of: platform) == [.developerJunk])
-        #expect(map.owners(of: archive).isEmpty)
+        #expect(map.owners(of: other).isEmpty)
     }
 
     @Test func aScanLeavesOutVersionsTheMapGivesAnotherSubToolFCL005() async throws {
@@ -126,10 +126,11 @@ struct DeviceSupportTests {
     @Test func allowedRootsAreTheExistingDeviceSupportFoldersAndTheOtherRulesRootsOnlyD118() throws {
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.deviceSupport("visionOS", "1.0 (21N1)")
-        try root.file("Library/Developer/Xcode/Archives/App.xcarchive/Info.plist", size: 10)
+        try root.file("Library/Developer/Xcode/UserData/Snippets/one.codesnippet", size: 10)
 
         let roots = DeveloperJunk().allowedRoots(home: root.url).map(\.lastPathComponent)
 
-        #expect(roots == ["DerivedData", "iOS DeviceSupport", "visionOS DeviceSupport", "Caches"])
+        // Archives is a root of its own rule (DEV-R05, D-145); the rest of Xcode's folders are not roots.
+        #expect(roots == ["DerivedData", "iOS DeviceSupport", "visionOS DeviceSupport", "Caches", "Archives"])
     }
 }

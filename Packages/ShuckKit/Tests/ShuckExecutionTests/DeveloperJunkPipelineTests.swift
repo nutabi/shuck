@@ -153,15 +153,30 @@ struct DeveloperJunkPipelineTests {
         #expect(FileManager.default.fileExists(atPath: device.path))
     }
 
-    @Test func archivesAreOutsideTheSubToolsRootsEvenNextToDeviceSupportSAF007() throws {
-        let archive = try root.file("Library/Developer/Xcode/Archives/App.xcarchive/Info.plist", size: 10)
+    @Test func restOfXcodeIsOutsideTheSubToolsRootsEvenNextToDeviceSupportSAF007() throws {
+        let other = try root.file("Library/Developer/Xcode/UserData/Snippets/one.codesnippet", size: 10)
         try root.deviceSupport("iOS", "16.4 (20E247)")
-        let folder = archive.deletingLastPathComponent()
+        let folder = other.deletingLastPathComponent()
         let item = ScanItem(
             url: folder, snapshot: try #require(ItemSnapshot.read(folder)), tier: .rebuildable, method: .delete,
             reason: "Not a rule's target", source: .developerJunk, selection: .selected)
 
         #expect(throws: PlanError.self) { try self.plan([item]) }
-        #expect(FileManager.default.fileExists(atPath: archive.path))
+        #expect(FileManager.default.fileExists(atPath: other.path))
+    }
+
+    @Test func restOfXcodeCannotBeMovedToTheTrashEitherSAF007() throws {
+        let other = try root.file("Library/Developer/Xcode/UserData/Snippets/one.codesnippet", size: 10)
+        let folder = other.deletingLastPathComponent()
+        let item = ScanItem(
+            url: folder, snapshot: try #require(ItemSnapshot.read(folder)), tier: .yourData, method: .trash,
+            reason: "Not a rule's target", source: .developerJunk, selection: .selected)
+
+        let error = #expect(throws: PlanError.self) { try self.plan([item]) }
+        guard case .rejected(_, .outsideAllowedRoots)? = error else {
+            Issue.record("Expected the path guard to refuse the folder, got \(String(describing: error))")
+            return
+        }
+        #expect(FileManager.default.fileExists(atPath: other.path))
     }
 }

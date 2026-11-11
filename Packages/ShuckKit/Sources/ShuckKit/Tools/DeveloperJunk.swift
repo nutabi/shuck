@@ -1,10 +1,10 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has seven,
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has eight,
 /// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and, as commands
 /// of the tools that own the data, unavailable simulators (DEV-R03) the npm and pip caches and Homebrew's cleanup (DEV-R07 to
-/// DEV-R09); the other rules arrive one at a time (M2-T11 onwards).
+/// DEV-R09), and one rule for "Your data": Xcode's archives (DEV-R05). The other rules arrive one at a time.
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
@@ -12,6 +12,8 @@ public struct DeveloperJunk: SubTool {
     static let simulatorBundleID = "com.apple.iphonesimulator"
     /// DerivedData is stale after this many days without a change (DEV-005, SET-002).
     static let staleDays = 30
+    /// An Xcode archive is a folder with this extension.
+    static let archiveSuffix = ".xcarchive"
     static let logger = Logger(tool: .developerJunk)
 
     public init() {}
@@ -23,14 +25,21 @@ public struct DeveloperJunk: SubTool {
             symbolName: "hammer", availability: .available)
     }
 
-    /// Two rules, Xcode Archives and Docker, are "Your data" (section 8.2); the first rule is rebuildable only.
+    /// Two rules, Xcode Archives and Docker, are "Your data" (section 8.2). Archives is the first of them.
     public var tiers: Set<Tier> { [.rebuildable, .yourData] }
 
     /// DerivedData, each platform's device support folder that exists, such as `iOS DeviceSupport`, and the
-    /// simulators' caches. The device support folders are found by name, so the roots stay as narrow as the rules'
-    /// targets and leave out Archives and the rest of Xcode. Never the simulators' devices (DEV-007, D-119).
+    /// simulators' caches and Xcode's Archives. The device support folders are found by name, so the roots stay narrow
+    /// and leave out the rest of Xcode. Never the simulators' devices (DEV-007, D-119). The Archives root is one level
+    /// wider than DEV-R05's targets, which are inside its date folders: the rule's pattern and the scan keep an item
+    /// to the bundles (D-145).
     public func allowedRoots(home: URL) -> [URL] {
-        [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home) + [Self.simulatorCaches(home: home)]
+        [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home)
+            + [Self.simulatorCaches(home: home), Self.archives(home: home)]
+    }
+
+    static func archives(home: URL) -> URL {
+        home.appending(path: "Library/Developer/Xcode/Archives", directoryHint: .isDirectory)
     }
 
     static func simulatorCaches(home: URL) -> URL {
@@ -119,6 +128,33 @@ public struct DeveloperJunk: SubTool {
             documentation: documentation, apps: [xcodeBundleID, simulatorBundleID])
     }
 
+    /// DEV-R05: one item per `.xcarchive` bundle, which Xcode keeps in a folder for each day, such as
+    /// `Archives/2026-11-11/App 11-11-26, 9.41 AM.xcarchive`. The PRD's `Archives/*` is shorthand for these bundles
+    /// (D-145). The archive of a build that was distributed is the user's own data: it is moved to the Trash, never
+    /// selected, and Xcode cannot rebuild it.
+    static func archivesRule(home: URL) throws(RuleError) -> CleanupRule {
+        let root = archives(home: home)
+        guard
+            let documentation = URL(
+                string:
+                    "https://developer.apple.com/documentation/xcode/building-your-app-to-include-debugging-information"
+            )
+        else { throw .invalidDocumentation }
+        return try CleanupRule(
+            id: "DEV-R05", name: LocalizedStringResource("Xcode Archives", bundle: #bundle),
+            description: LocalizedStringResource(
+                "Builds you archived in Xcode, for testing, for distribution or for the App Store.", bundle: #bundle),
+            category: ItemCategory(
+                id: "xcode-archives", name: LocalizedStringResource("Xcode Archives", bundle: #bundle)),
+            detection: .folder(root),
+            action: .paths([RulePath(root: root, pattern: "*/*\(archiveSuffix)")], method: .trash),
+            tier: .yourData, selection: .never,
+            explanation: LocalizedStringResource(
+                "Apple says to keep the archive of every build you distribute. Xcode cannot make it again.",
+                bundle: #bundle),
+            documentation: documentation, apps: [xcodeBundleID])
+    }
+
     /// DEV-R03: `xcrun simctl delete unavailable`, which removes the simulators whose runtime is no longer installed.
     /// The simulators' device data belongs to `simctl`, so only its command may change it (SAF-010, DEV-007). Selected,
     /// with no size: Shuck would have to read `simctl`'s output to know which simulators it would remove, and output
@@ -149,6 +185,7 @@ public struct DeveloperJunk: SubTool {
                 scanDerivedData(context) { continuation.yield($0) }
                 scanDeviceSupport(context) { continuation.yield($0) }
                 scanSimulatorCaches(context) { continuation.yield($0) }
+                scanArchives(context) { continuation.yield($0) }
                 scanUnavailableSimulators(context) { continuation.yield($0) }
                 scanNpmCache(context) { continuation.yield($0) }
                 scanPipCache(context) { continuation.yield($0) }
@@ -280,6 +317,61 @@ public struct DeveloperJunk: SubTool {
                 Self.logger.error("Skipped a simulator cache: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    /// One item per archive bundle inside Archives' date folders (DEV-R05). Only real folders count: a link, a file
+    /// or a folder without the `.xcarchive` extension is not an archive. Items are never selected (SAF-002).
+    private func scanArchives(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
+        let root = Self.archives(home: context.home)
+        guard let rule = try? Self.archivesRule(home: context.home), rule.detection.isAvailable else { return }
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
+        let days: [URL]
+        do {
+            days = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: keys)
+        } catch {
+            let error = error as NSError
+            Self.logger.error(
+                "Cannot list Archives: \(error.domain, privacy: .public) \(error.code, privacy: .public)")
+            emit(error.code == NSFileReadNoPermissionError ? .notAccessible(root) : .unreadable(root))
+            return
+        }
+        let now = Date.now
+        for day in days.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard !Task.isCancelled else { return }
+            guard Self.isRealFolder(day) else { continue }
+            let bundles: [URL]
+            do {
+                bundles = try FileManager.default.contentsOfDirectory(at: day, includingPropertiesForKeys: keys)
+            } catch {
+                let error = error as NSError
+                Self.logger.error(
+                    "Cannot list an archive folder: \(error.domain, privacy: .public) \(error.code, privacy: .public)")
+                emit(error.code == NSFileReadNoPermissionError ? .notAccessible(day) : .unreadable(day))
+                continue
+            }
+            for bundle in bundles.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+                guard !Task.isCancelled else { return }
+                guard bundle.lastPathComponent.hasSuffix(Self.archiveSuffix), Self.isRealFolder(bundle),
+                    context.ownership.owners(of: bundle).contains(id),
+                    let snapshot = ItemSnapshot.read(bundle, while: { !Task.isCancelled }),
+                    let modified = RuleMatch.modificationDate(at: bundle)
+                else { continue }
+                do {
+                    emit(
+                        .item(
+                            try rule.scanItem(
+                                at: bundle, snapshot: snapshot, modified: modified, source: id,
+                                runningApps: context.runningApps, now: now)))
+                } catch {
+                    Self.logger.error("Skipped an archive: \(String(describing: error), privacy: .public)")
+                }
+            }
+        }
+    }
+
+    private static func isRealFolder(_ url: URL) -> Bool {
+        let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        return values?.isDirectory == true && values?.isSymbolicLink != true
     }
 
     /// One item for DEV-R03, if this Mac has simulators and `xcrun` is where tools are found (DEV-002). Whether any

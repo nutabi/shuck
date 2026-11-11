@@ -133,7 +133,7 @@ struct DeveloperJunkTests {
         #expect(found == 0)
         let map = OwnershipMap(home: root.url)
         #expect(map.owners(of: try root.url("Library/Developer/Xcode/DerivedData/Mine")) == [.developerJunk])
-        #expect(map.owners(of: try root.url("Library/Developer/Xcode/Archives/App")).isEmpty)
+        #expect(map.owners(of: try root.url("Library/Developer/Xcode/UserData/Snippets")).isEmpty)
     }
 
     @Test(arguments: [
