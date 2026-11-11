@@ -48,10 +48,10 @@ struct TrashReviewSheet: View {
         if !review.synced.isEmpty {
             // The Trash keeps the item restorable on this Mac, but iCloud removes it from the user's other devices
             // (D-129). The rows say which items are synced.
-            Label {
-                syncedWarning
-            } icon: {
+            HStack(alignment: .firstTextBaseline) {
                 Image(systemName: "exclamationmark.icloud")
+                    .accessibilityHidden(true)
+                syncedWarning
             }
         }
         List(review.plan.items) { item in
