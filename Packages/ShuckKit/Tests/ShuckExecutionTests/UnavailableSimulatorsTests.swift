@@ -30,7 +30,7 @@ struct UnavailableSimulatorsTests {
     }
 
     @Test func itIsOneSelectedToolItemForXcrunWhenTheMacHasSimulatorsDEVR03() async throws {
-        let xcrun = try root.tool("usr/bin/xcrun", .exits(0))
+        let xcrun = try root.xcrun(.exits(0))
         try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
 
         let items = await scanned()
@@ -53,13 +53,39 @@ struct UnavailableSimulatorsTests {
         #expect(item.allocatedSize == 0 && item.snapshot == nil)
     }
 
+    /// `/usr/bin/xcrun` is on every Mac. Without Xcode it has no `simctl` to run, and running it can raise the prompt
+    /// to install the command line developer tools, so the rule is hidden (DEV-002).
+    @Test func xcrunWithoutXcodesSimctlIsNotDetectionDEV002() async throws {
+        try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
+        try root.tool("usr/bin/xcrun", .exits(0))
+        #expect(await scanned().isEmpty, "Listed without Xcode")
+
+        // Only the command line tools are selected: their folder has no simctl, whatever is in Applications.
+        try root.tool(FixtureRoot.simctlPath, .exits(0))
+        let commandLineTools = try root.folder("Library/Developer/CommandLineTools")
+        try root.folder("var/db")
+        try root.symlink("var/db/xcode_select_link", to: commandLineTools)
+        #expect(await scanned().isEmpty, "Listed with only the command line tools selected")
+    }
+
+    @Test func theSelectedDeveloperFolderIsWhereSimctlIsLookedForDEV002() async throws {
+        try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
+        try root.tool("usr/bin/xcrun", .exits(0))
+        try root.tool("Applications/Xcode-beta.app/Contents/Developer/usr/bin/simctl", .exits(0))
+        try root.folder("var/db")
+        try root.symlink(
+            "var/db/xcode_select_link", to: try root.url("Applications/Xcode-beta.app/Contents/Developer"))
+
+        #expect(await scanned().count == 1)
+    }
+
     @Test func withoutXcrunOrSimulatorsOrAToolRootNothingIsListedDEV002() async throws {
         try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
         #expect(await scanned().isEmpty, "Listed without xcrun")
 
-        try root.tool("usr/bin/xcrun", .exits(0))
+        try root.xcrun(.exits(0))
         let withoutSimulators = try FixtureRoot()
-        try withoutSimulators.tool("usr/bin/xcrun", .exits(0))
+        try withoutSimulators.xcrun(.exits(0))
         let context = ScanContext(
             home: withoutSimulators.url, protection: withoutSimulators.pathGuardConfiguration(),
             toolRoot: withoutSimulators.url)
@@ -73,7 +99,7 @@ struct UnavailableSimulatorsTests {
     }
 
     @Test func itRunsThroughTheToolAndTheDeviceDataStaysUntouchedSAF010DEV007() async throws {
-        let xcrun = try root.tool("usr/bin/xcrun", .reportsInvocation)
+        let xcrun = try root.xcrun(.reportsInvocation)
         let device = try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
 
         let report = try await run(scanned())
@@ -95,7 +121,7 @@ struct UnavailableSimulatorsTests {
     }
 
     @Test func aFailingXcrunIsAFailureAndHistoryShowsTheCommandAndItsOutputDEV004SAF011() async throws {
-        try root.tool("usr/bin/xcrun", .exits(2, output: "xcrun: error: unable to find utility \"simctl\""))
+        try root.xcrun(.exits(2, output: "xcrun: error: unable to find utility \"simctl\""))
         try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
 
         let report = try await run(scanned())
@@ -111,7 +137,7 @@ struct UnavailableSimulatorsTests {
     }
 
     @Test func xcrunThatWentAwayAfterTheScanIsSkippedSAF010() async throws {
-        let xcrun = try root.tool("usr/bin/xcrun", .exits(0))
+        let xcrun = try root.xcrun(.exits(0))
         try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
         let items = await scanned()
         try FileManager.default.removeItem(at: xcrun)

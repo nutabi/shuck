@@ -45,7 +45,10 @@ struct PipCacheTests {
             return
         }
         #expect(command.executable == pip.path && command.arguments == ["cache", "purge"])
-        #expect(command.environment.count == 2 && command.environment.values.contains(root.url.path))
+        // PATH and HOME, and the settings that stop pip's check for a newer version, a network request (DEV-004).
+        #expect(command.environment.count == 4 && command.environment.values.contains(root.url.path))
+        #expect(command.environment["PIP_DISABLE_PIP_VERSION_CHECK"] == "1")
+        #expect(command.environment["PIP_NO_INPUT"] == "1")
         #expect(item.allocatedSize >= 30_000)
         #expect(!root.aFakeToolRan, "Scanning started a tool")
     }

@@ -71,9 +71,10 @@ struct ExclusionsTests {
     }
 
     private func makeTools() throws {
-        for tool in ["opt/homebrew/bin/npm", "opt/homebrew/bin/pip3", "opt/homebrew/bin/brew", "usr/bin/xcrun"] {
+        for tool in ["opt/homebrew/bin/npm", "opt/homebrew/bin/pip3", "opt/homebrew/bin/brew"] {
             try root.tool(tool, .exits(0))
         }
+        try root.xcrun(.exits(0))
         for folder in [".npm/_cacache", "Library/Caches/pip", "Library/Caches/Homebrew"] {
             try root.file("\(folder)/f", size: 4096)
         }

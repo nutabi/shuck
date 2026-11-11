@@ -46,7 +46,10 @@ struct NpmCacheTests {
         }
         #expect(command.executable == npm.path)
         #expect(command.arguments == ["cache", "clean", "--force"])
-        #expect(command.environment.count == 2 && command.environment.values.contains(root.url.path))
+        // PATH and HOME, and the two settings that keep npm off the network (DEV-004, NFR-SEC-001).
+        #expect(command.environment.count == 4 && command.environment.values.contains(root.url.path))
+        #expect(command.environment["NPM_CONFIG_UPDATE_NOTIFIER"] == "false")
+        #expect(command.environment["NPM_CONFIG_OFFLINE"] == "true")
         // The estimate is the measured folder: at least the files' sizes, an upper bound for what npm removes.
         #expect(item.allocatedSize >= 30_000)
         // Scanning never starts a tool (R-07).

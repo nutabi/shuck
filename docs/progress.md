@@ -375,8 +375,11 @@ Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull
 stop; `docs/m2-review.md` has each one's scope). Stacks 2 and 3 are not approved yet.
 
 - [x] An unknown app's cache starts unselected (R-01, CAC-009, D-156): part of M2-F19.
-- [ ] `npm` and `pip` stay off the network, and `simctl` needs Xcode (R-02, R-13, DEV-002, DEV-004): the rest of
-  M2-F19's code items.
+- [x] `npm` and `pip` stay off the network, and `simctl` needs Xcode (R-02, R-13, DEV-002, DEV-004, D-157): the
+  rest of M2-F19's code items.
+  - [ ] Owner item: on the owner's Mac, check that `npm cache clean --force`, `pip cache purge` and `brew cleanup`,
+    run from Developer Junk, open no network connection (for example with `nettop` or Little Snitch). An agent may
+    not run real tools (DEV-004, NFR-SEC-001).
 - [ ] M2-F21 A stray `node_modules` in a project folder does not hide the projects below it (R-08, DEV-006).
 - [ ] Scans report what they cannot measure (R-10, M2-F17, #118).
 - [ ] String Catalog entries and a check for missing ones (R-09, M2-F17, #116), with DEV-R01's explanation.

@@ -77,7 +77,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 
 - `ShuckKit` holds Tools, Scanning, Rules, Planning, Safety and History, one folder each. It never mutates user files or launchd state.
 - `ShuckExecution` depends on `ShuckKit` and is the only code that mutates user files or launchd state, including Restore's moves. `ShuckKit` cannot import it.
-- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan, and `tool(_:_:)`, which writes a fake tool (a script that exits, prints, sleeps or ignores SIGTERM) inside the root. Execution tests build a plan executor for a fixture root with `PlanExecutor(root:pathGuard:)`, whose tool runner finds tools only inside the root; a test never starts a process itself (D-82, D-114).
+- `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan, and `tool(_:_:)`, which writes a fake tool (a script that exits, prints, sleeps or ignores SIGTERM) inside the root. `xcrun(_:)` writes the fake `xcrun` together with a fake Xcode's `simctl`, without which Developer Junk hides its `xcrun simctl` rule (DEV-002, D-157). Execution tests build a plan executor for a fixture root with `PlanExecutor(root:pathGuard:)`, whose tool runner finds tools only inside the root; a test never starts a process itself (D-82, D-114).
 - Tests for `ShuckExecution` go in its own test target, `Tests/ShuckExecutionTests/`.
 
 ## Coding conventions

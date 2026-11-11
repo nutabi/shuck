@@ -40,6 +40,22 @@ struct ToolLocations {
         return paths.first { CleanupRule.Detection.executable($0).isAvailable } ?? paths.first ?? ""
     }
 
+    /// Where `xcode-select` records the active developer folder, relative to the tool root: a link to it.
+    static let developerFolderLink = "var/db/xcode_select_link"
+    /// The developer folder `xcrun` uses when nothing is recorded: Xcode in Applications.
+    static let defaultDeveloperFolder = "Applications/Xcode.app/Contents/Developer"
+
+    /// Whether the active developer folder has `simctl`, so `xcrun simctl` runs Xcode's tool. `/usr/bin/xcrun` exists
+    /// on every Mac: without Xcode, or with only the command line tools, it has no `simctl` to run and can raise the
+    /// "install the command line developer tools" prompt, so finding `xcrun` alone is not detection (DEV-002). Only
+    /// reads: the link's destination, then whether the file is there and can run.
+    var hasSimctl: Bool {
+        let link = root.appending(path: Self.developerFolderLink)
+        let folder =
+            ModificationDate.status(of: link) == nil ? root.appending(path: Self.defaultDeveloperFolder) : link
+        return CleanupRule.Detection.executable(folder.appending(path: "usr/bin/simctl").path).isAvailable
+    }
+
     /// The command that runs `executable` with `arguments`: nothing of the app's environment, only `PATH` and `HOME`,
     /// which the tool needs to find its cache, and the `extra` variables the rule names (DEV-004).
     func command(
