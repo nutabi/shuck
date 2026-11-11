@@ -13,26 +13,27 @@ rejects the breakdown in "Proposed pull requests" and answers the questions in "
 Read in full:
 
 - `ShuckExecution`: every file.
-- `ShuckKit`: Safety, Planning, Rules, History (`HistoryLog`, `Restorability`, `HistoryRun`, `SkipCode`), every file in
-  Tools, and in Scanning `ScanItem`, `ItemSnapshot`, `ModificationDate`, `FolderActivity`, `FileIdentity`, `FreeSpace`,
-  `LastOpened`, `ReclaimableTotal` and `PersonalFilesScanner`'s walk (from line 150).
+- `ShuckKit`: every file in Safety, Planning, Rules, History and Tools, and every file in Scanning except the first
+  149 lines of `PersonalFilesScanner` (its set-up; the walk from line 150 was read).
 - The app: `AppEnvironment`, `FileCleanupModel`, `FolderList`, `FolderListModel`, `ProjectFolders`, `ShuckApp`,
-  `ContentView`, `SubToolPages`, `SubToolPage`, `ScanResults`, `SummaryConfirmation`, `RunModel`, `TrashReview`,
-  `DeveloperJunkView`, `RebuildableControls`, `SettingsView`, `HistoryModel`, `HistoryRestore`, `OutcomeWording`.
+  `ContentView`, `SubToolPages`, `SubToolPage`, `ScanResults`, `SummaryConfirmation`, `SummaryConfirmationSheet`,
+  `RunModel`, `TrashReview`, `DeveloperJunkView`, `CachesAndLogsView`, `RebuildableControls`, `SettingsView`,
+  `HistoryModel`, `HistoryRestore`, `HistoryItemDisplay`, `OutcomeWording`, `SizeText` and `ItemRow`.
 - `scripts/build-dmg.sh` and `scripts/notarize.sh`; the PRD's requirement rows for SAF, DEV, CAC, SET, HIS and the
-  NFRs named below; decisions D-142 to D-154; `docs/progress.md`'s M2 section; the titles of every open issue, and
-  the text of #116, #118 and #123 to #127.
+  NFRs named below; decisions D-120, D-121, D-124, D-126, D-127 and D-141 to D-154; `docs/progress.md`'s M2 section;
+  the titles of every open issue, and the text of #116, #118 and #123 to #127.
 
 Read in part, or not read:
 
-- Decisions D-82 to D-141: their titles only. A finding that says "revisits D-xx" for one of them rests on the title
-  and on the code.
+- The other decisions from D-82 on: their titles only.
+- The PRD outside its requirement rows, sections 8.4 and 8.5 included.
 - Tests: the names of every test for M2-T12 to M2-T14 and every UI workflow step, and the helpers in
   `ShuckKitTestSupport`. Test bodies were not read, except where a finding quotes one.
-- Not read: `HistoryRecord`, `LoggedCommand`, `PersonalFilesScanner` lines 1 to 149, `PersonalFilesResults`,
-  `PersonalFilesTable`, `CachesAndLogsView`, `FileCleanupView`, `TrashReviewSheet`, `HistoryView` (except
-  `status(of:)`), `SummaryConfirmationSheet` lines 1 to 83, `static-checks.sh` beyond its first 60 lines, the other
-  scripts and both workflows. Findings about those rest on the open issues, which the review of 2026-11-10 verified.
+- App files not read: `PersonalFilesResults`, `PersonalFilesTable`, `FileCleanupView`, `LargeFilesView`,
+  `OldFilesView`, `TrashReviewSheet`, `RunSheet`, `HistoryView` (except `status(of:)`), `HistoryRestoreSheet`,
+  `FreeSpaceText`, `OutcomeList`, `AppGroup` and the smaller views. Nothing here says they are sound.
+- `static-checks.sh` beyond its first 60 lines, the other scripts and both workflows. R-18 and R-19 rest on the text of
+  their issues, which the review of 2026-11-10 verified.
 
 Evidence: "probe" means a test added to a copy of the engine package outside the repository, run with `swift test`.
 "read" means the code was read and not run. "script" means a script compared the sources with the String Catalogs.
@@ -43,7 +44,9 @@ Severity is as in `docs/m1-review.md`: **High** means a bug, a safety or data-lo
 rule. **Medium** means a correctness or maintainability risk. **Low** means consistency or polish. "Safety/Exec" means
 the fix touches Safety, Planning or `ShuckExecution`, so it gets a pull request of its own (D-62). **Hard stop** means
 `AGENTS.md` sends the design to the owner before anything is implemented (D-146): the path guard, the static checks,
-the safety layer, or anything that could remove, move or hide user data beyond the PRD.
+the safety layer, or anything that could remove, move or hide user data beyond the PRD. For a hard stop, the owner's
+approval of its row in "Proposed pull requests" is the go-ahead for the fix as this document describes it; where the
+row names a question, the owner's answer can change the design.
 
 ## Findings at a glance
 
@@ -62,7 +65,7 @@ the safety layer, or anything that could remove, move or hide user data beyond t
 | R-11 | Medium | Delete holds a descriptor per folder level; a failed Restore leaves the folders it created | `DeleteAction.swift:67-77`, `RestoreExecutor.swift:95-106` | read | Yes | Yes | M2-F15, #119, #120 |
 | R-12 | Medium | The two acceptance checks the PRD names are not built | `scripts/static-checks.sh`, `ShuckExecutionTests` | read | Static checks | Yes | M2-F16 |
 | R-13 | Medium | `/usr/bin/xcrun` counts as "Xcode is installed"; a stopped tool's children keep running | `Tools/DeveloperJunk.swift:183,412-417`, `ToolRunner.swift:137-147` | read | Partly | Partly | M2-F19, #127 |
-| R-14 | Medium | A skip caused by an exclusion reads "failed a safety check" | `OutcomeWording.swift:54`, `SkipCode.swift:56` | read | Yes | No | new (D-149) |
+| R-14 | Medium | A skip caused by an exclusion reads "failed a safety check" | `OutcomeWording.swift:54`, `SkipCode.swift:56` | read | Yes | Yes | new (D-149) |
 | R-15 | Medium | Agent choices changed the path guard's inputs and a PRD row without the owner | D-145, D-153, D-154, PRD SET-003 | read | n/a | n/a | new |
 | R-16 | Low | An allowed root that becomes a link is followed out of the home folder | `Safety/PathGuard.swift:84` | read | Yes | Yes | new |
 | R-17 | Low | Pages hand the model a sub-tool value, so a stale copy could plan or scan | `SubToolPage.swift:72,106-108` | read | No | No | new (D-154) |
@@ -85,6 +88,12 @@ the safety layer, or anything that could remove, move or hide user data beyond t
   D-121 names).
 - **Why it matters:** the user who clicks Delete with the default selection deletes, permanently, the data the PRD
   says must be left unselected. This is the largest gap between the PRD and what 0.2.0 would do.
+- **What the decisions say:** D-120 selects any cache that is stale for 30 days, because "a cache is rebuilt, so a
+  wrong deletion costs time", and D-121 (3) says a folder not named like a bundle ID "is selected only after 30 days
+  without a change, which an app in use rarely has". CAC-009 came later, from the review of 2026-11-10, and M2-F19
+  leaves open whether the code or the PRD gives way. The age test does not answer CAC-009's case: an app the user has
+  not opened for a month is exactly the one whose state in Caches is deleted. So this review recommends the code
+  changes (question 10).
 - **Fix:** `unselected: apple || unresolved`, where unresolved means the folder is not named like a bundle ID or
   `AppNames` has no name for it, with its own reason text ("Shuck can't tell which app this belongs to, so it starts
   unselected."). Loose files and logs follow the same rule. Add CAC-009's fixture test.
@@ -97,6 +106,9 @@ the safety layer, or anything that could remove, move or hide user data beyond t
   `NpmCacheTests.swift` pins it: `#expect(command.environment.count == 2 …)`. `brew` gets its three variables (`:113`).
 - **What the PRD says:** DEV-004: "`npm` sets `NPM_CONFIG_UPDATE_NOTIFIER=false` and `NPM_CONFIG_OFFLINE=true`", and
   whether the commands use the network themselves was "to verify in M2-T11". Neither happened.
+- **What the decisions say:** D-124 (3) gives a command "exactly two environment variables" so that nothing of the
+  app's environment reaches a tool. Fixed variables a rule names are not the app's environment, and Homebrew's rule
+  already has three (D-128), so the fix does not go against it.
 - **Fix:** add the two npm variables, and `PIP_DISABLE_PIP_VERSION_CHECK=1` and `PIP_NO_INPUT=1` for pip. Extend the
   recorded-environment tests. The check that the three commands open no connection is a manual one on the owner's Mac
   (for example with Little Snitch or `nettop`), since an agent may not run real tools; add it as an owner item.
@@ -133,10 +145,14 @@ the safety layer, or anything that could remove, move or hide user data beyond t
 - **Why it matters:** quitting during a long run is ordinary. The item is in the Trash, History cannot put it back,
   and the user has to find it by hand before the Trash is emptied. R-05's crash leads here too.
 - **Fix (hard stop: Execution and the log's schema):**
-  1. The Trash intent record carries the item's `identity` (the optional field result records already have; the scan
-     or `TrashAction` reads it before the move). A move into the Trash on the same volume keeps the file number (D-84).
+  1. The Trash intent record carries the item's `identity`, read just before the record is written. A move into the
+     Trash on the same volume keeps the file number (D-84). This changes PRD section 8.5, where `identity` is a field
+     of trash result records only, and `HistoryRecord.intent(…)`, which takes none today. The field is optional and
+     the schema version stays 1, so Shuck 0.1.1 still reads the log.
   2. `Restorability` treats an interrupted Trash intent as restorable when its original path is gone and an entry
      directly inside the Trash has that identity; the trashed path is that entry's. Otherwise it stays "Interrupted".
+     If Shuck may not list the Trash, the item reads "not accessible", as a trashed item does today
+     (`Restorability.notAccessible`, SAF-012). Listing the Trash is one `readdir` when History loads.
   3. The app asks before quitting, or closing the window, while a run is under way: "Stop the run and quit?" Quit
      then cancels the run and waits for the item in hand.
 - **Size:** about 60 lines in Execution and History, about 50 in the app. Two pull requests.
@@ -161,8 +177,8 @@ the safety layer, or anything that could remove, move or hide user data beyond t
   built. `HistoryLog` takes an exclusive, non-blocking `flock` on its descriptor for the life of a run's log handle;
   a second lock fails with a `HistoryError` the run sheet words ("Another Shuck window is running a cleanup").
   SAF-018's unit test: a second lock is refused while the first is held.
-- **Size:** about 40 lines. `History/` and the app; not Execution. `flock` changes no file, so no static check
-  changes.
+- **Size:** about 40 lines. `History/` and the app; not Execution. `flock` changes no file, and no rule in
+  `static-checks.sh` names it (checked with `grep`).
 
 ## Medium
 
@@ -197,8 +213,10 @@ the safety layer, or anything that could remove, move or hide user data beyond t
   `SummaryConfirmationSheet` (lines 28-187), `OutcomeWording`'s four tool endings (88-91), `SizeText` ("Up to …",
   "Size not known"), `HistoryItemDisplay` ("Tool command", "Launchd job"), `HistoryView` ("Completed", "… of … done")
   and one help tag in `DeveloperJunkView`. In the engine, about 15: the names, descriptions and explanations of
-  DEV-R03, DEV-R07, DEV-R08 and DEV-R09, "Package managers" and `ToolID`'s "Restore". The strings of M2-T12 to M2-T14
-  are all there.
+  DEV-R03, DEV-R07, DEV-R08 and DEV-R09, "Package managers" and `ToolID`'s "Restore". The script found none missing
+  among
+  the strings of M2-T12 to M2-T14. It skips a literal that starts with a lowercase letter, such as "npm Cache", which
+  `grep` then showed is missing too, so the count is a lower bound.
 - **Why it matters:** English shows correctly, since the key is the text. The rule is broken all the same, and no
   check finds it: a command-line build adds no keys (`AGENTS.md`).
 - **Fix:** add the entries, and add a check to `scripts/lint.sh` that fails when a string literal passed to `Text`,
@@ -325,11 +343,40 @@ the safety layer, or anything that could remove, move or hide user data beyond t
 ### R-20 Stale comments and PRD rows
 
 - `DeveloperJunk.swift:4-8`: the comment says "ten" rules (there are nine) and its sentence is broken.
+- `docs/progress.md`, under M2-T05: DEV-R01's explanation should say that deleting DerivedData also removes
+  `SourcePackages`, which need the network to restore. "Not done yet", and in no M2-F item. Proposed with pull
+  request 5.
 - PRD DEV-R05's target is `Archives/*` and DEV-R06's is `<project folders>/**/node_modules`; the code has
   `*/*.xcarchive` (D-145) and a depth limit of four levels (D-153). Say so in the rows.
 - `docs/progress.md`'s M2-F17 and M2-F19 describe gaps that are partly closed (R-10) or settled: SAF-003's list shows
   each item's path from the home folder (`SummaryConfirmationSheet.swift:89-93`, read only as far as `ItemRow`'s
   call), and DEV-002 now says tools installed through nvm and the like are not found.
+
+## By task
+
+The task asked for everything merged in M2. This is where each task's findings are; "none found" covers only what
+"What was read" lists.
+
+| Task | Findings |
+|---|---|
+| M2-T01 M1 cleanup | None found. Its recorded left-overs (D-92, D-93) stand. |
+| M2-T02 Delete | R-11. |
+| M2-T03 Rules as data | R-03: the plan asks for a rule only for Delete. |
+| M2-T04 Running apps | None found. D-121's left-over, a folder not named like a bundle ID, matters less once R-01 is fixed. |
+| M2-T05 DerivedData | None in the code. DEV-R01's explanation is still open (R-20). |
+| M2-T06 Summary confirmation | R-09. SAF-003's item list shows each item's name and its folder from `~`. |
+| M2-T07 Free space and the second confirmation | None found. |
+| M2-T08 Device support, simulator caches | None found. The owner item about `CoreSimulator/Caches` is still open. |
+| M2-T09 Caches & Logs | R-01, R-10. |
+| M2-T10 Tool runner | R-05, R-13 (#127). |
+| M2-T11 Tool rules | R-02, R-09, R-13. |
+| M2-T12 Xcode Archives | R-03, R-15. |
+| M2-T13 Stale `node_modules` | R-03, R-08, R-15, R-16, R-17. |
+| M2-T14 Exclusions | R-14. |
+| M2-F07 to M2-F09 Synced files, Old Files' dates, `.git` and volumes | None found. |
+| M2-F10 Path guard | None found. Its left-over stands: a scan can list a folder the guard refuses. |
+| M2-F11 Modification dates, Delete needs a rule | R-03 is where its rule stops. |
+| M2-F20 Owner's test | None found. |
 
 ## The agent choices D-145 to D-154
 
@@ -348,7 +395,8 @@ the safety layer, or anything that could remove, move or hide user data beyond t
 
 ## Questions for the owner
 
-Each has a recommendation. Questions 3, 5 and 6 are hard stops: nothing is built before the owner answers.
+Each has a recommendation. Questions 1, 3, 5 and 6 belong to hard stops: the pull requests that depend on them are
+not started before the owner answers.
 
 1. **Restore into a folder that is now excluded (D-149 (8)).** Recommended: keep the refusal, since letting Restore
    ignore an exclusion would be a special case in the guard, and word it. The executors log
@@ -378,6 +426,8 @@ Each has a recommendation. Questions 3, 5 and 6 are hard stops: nothing is built
 8. **Repository settings (#124, #125).** Recommended: the owner adds `.github/CODEOWNERS` for `scripts/` and
    `.github/` and a tag ruleset for `v*`; `AGENTS.md` says a pull request that touches those paths never auto-merges.
 9. **Two more hard stops in `AGENTS.md` (R-15).** Recommended: yes.
+10. **CAC-009 or D-120 (R-01, M2-F19).** Recommended: the code follows CAC-009, and an unknown app's cache starts
+    unselected. The alternative is to withdraw CAC-009's sentence and keep D-120.
 
 ## Proposed pull requests
 
@@ -389,11 +439,11 @@ approves the breakdown.
 
 | # | Title | Scope | Size | Safety/Exec | Hard stop | Closes |
 |---|---|---|---|---|---|---|
-| 1 | `[M2-F19] An unknown app's cache starts unselected` | R-01, CAC-009's fixture test | ~25 | No | No | part of M2-F19 |
+| 1 | `[M2-F19] An unknown app's cache starts unselected` | R-01, CAC-009's fixture test | ~25 | No | No (Q10) | part of M2-F19 |
 | 2 | `[M2-F19] npm and pip stay off the network, and simctl needs Xcode` | R-02, R-13's detection, owner item for the network check | ~20 | No | No | M2-F19 |
 | 3 | `[M2-F21] A stray node_modules does not hide projects` | R-08 | ~10 | No | No | new |
 | 4 | `[M2-F17] Scans report what they cannot measure` | R-10 | ~50 | No (reads only) | No | M2-F17, #118 |
-| 5 | `[M2-F17] String Catalog entries and a check for missing ones` | R-09 | catalog + ~20 bash | No | No | M2-F17, #116 |
+| 5 | `[M2-F17] String Catalog entries and a check for missing ones` | R-09, DEV-R01's explanation (R-20) | catalog + ~20 bash | No | No | M2-F17, #116 |
 | 6 | `[M2-F03] Plans are built off the main actor` | R-07, R-17 | ~60 | No | No | M2-F03, #62 |
 
 **Stack 2: Safety and Execution, each a pull request of its own (D-62).** Starts after the owner answers questions 1,
@@ -402,7 +452,7 @@ approves the breakdown.
 | # | Title | Scope | Size | Safety/Exec | Hard stop | Closes |
 |---|---|---|---|---|---|---|
 | 7 | `[M2-F22] Every rule-based item needs its rule` | R-03, R-16 | ~40 | Safety, Planning, Execution | Yes (Q3) | new |
-| 8 | `[M2-F14] The tool runner never signals a process that has not launched` | R-05, and question 7's detail text | ~20 | Execution | Yes | M2-F14, #114, #127 in part |
+| 8 | `[M2-F14] The tool runner never signals a process that has not launched` | R-05, and question 7's detail text | ~20 | Execution | Yes (Q7 for the detail text) | M2-F14, #114, #127 in part |
 | 9 | `[M2-F15] Delete with one descriptor per level, and Restore cleans up after a failed move` | R-11 | ~40 | Execution | Yes | M2-F15, #119, #120 |
 | 10 | `[M2-F13] An interrupted Trash item can be restored` | R-04 steps 1 and 2, and R-12's interrupted-run test | ~60 | Execution, History | Yes (Q5) | M2-F13, #115, half of M2-F16 |
 | 11 | `[M2-F13] Shuck asks before quitting during a run` | R-04 step 3 | ~50 | No (app) | No | M2-F13 |

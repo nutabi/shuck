@@ -368,7 +368,7 @@ review of M2 then follows, in a session of its own, and decides how these fixes 
 findings. They still come before the 0.2.0 release items.
 
 Review done on 2026-11-12: `docs/m2-review.md` (D-155). It proposes sixteen pull requests in three stacks for the open
-fixes below and its own findings, and puts nine questions to the owner. No fix starts, and the open items below are
+fixes below and its own findings, and puts ten questions to the owner. No fix starts, and the open items below are
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
