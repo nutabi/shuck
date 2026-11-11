@@ -54,8 +54,10 @@ final class CachesAndLogsUITests: ShuckUITestCase {
         // Part of macOS, which the scan lists but does not select (D-120). TextEdit is on every Mac.
         let textEdit = try folder("Library/Caches/com.apple.TextEdit", modified: longAgo)
         try folder("Library/Caches/Homebrew", modified: longAgo)
+        // No installed app has this name, so Shuck cannot tell whose cache it is (CAC-009).
+        let mystery = try folder("Library/Caches/Mystery", modified: longAgo)
         try root.file("Library/Application Support/Notes/notes.db", size: 4096, modified: longAgo)
-        let app = launch()
+        let app = launch(installedApps: ["com.example.Notes", "com.example.Mail"])
         let sidebar = app.outlines.firstMatch
         let sheet = app.sheets.firstMatch
 
@@ -90,6 +92,11 @@ final class CachesAndLogsUITests: ShuckUITestCase {
             XCTAssertTrue(isChecked(app, "~/Library/Containers/com.example.Mail/Data/Library/Caches"))
             XCTAssertFalse(isChecked(app, "~/Library/Caches/Fresh"))
             XCTAssertFalse(isChecked(app, "~/Library/Caches/com.apple.TextEdit"))
+            // A cache whose app Shuck cannot name is listed, says why, and is never selected for the user (CAC-009).
+            XCTAssertFalse(isChecked(app, "~/Library/Caches/Mystery"))
+            XCTAssertTrue(
+                app.staticTexts["Shuck can't tell which app this belongs to, so it starts unselected."].firstMatch
+                    .exists)
             XCTAssertTrue(footer(app, startingWith: "3 items selected").appears(within: 5))
         }
 
@@ -125,6 +132,7 @@ final class CachesAndLogsUITests: ShuckUITestCase {
             }
             XCTAssertTrue(FileManager.default.fileExists(atPath: fresh.appending(path: "data.db").path))
             XCTAssertTrue(FileManager.default.fileExists(atPath: textEdit.appending(path: "data.db").path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: mystery.appending(path: "data.db").path))
             attachScreenshot(of: app, named: "Caches & Logs summary")
         }
 
@@ -143,7 +151,8 @@ final class CachesAndLogsUITests: ShuckUITestCase {
         try folder("Library/Caches/com.example.Notes", modified: longAgo)
         try folder("Library/Logs/com.example.Notes", files: ["notes.log"], modified: longAgo)
         try folder("Library/Caches/com.example.Mail", modified: longAgo)
-        let app = launch(runningApps: ["com.example.Notes"])
+        let app = launch(
+            runningApps: ["com.example.Notes"], installedApps: ["com.example.Notes", "com.example.Mail"])
         let sidebar = app.outlines.firstMatch
 
         step("While an app runs, its caches and logs have a note instead of a checkbox (SAF-009, CAC-003)") {

@@ -37,11 +37,11 @@ struct ShuckApp: App {
             fatalError(error.description)
         }
         registry = .standard(
-            largeFiles: environment.largeFiles, oldFiles: environment.oldFiles, developerJunk: environment.developerJunk
-        )
+            largeFiles: environment.largeFiles, oldFiles: environment.oldFiles,
+            developerJunk: environment.developerJunk, cachesAndLogs: environment.cachesAndLogs)
         pages = SubToolPages(
             largeFiles: environment.largeFiles, oldFiles: environment.oldFiles,
-            developerJunk: environment.developerJunk)
+            developerJunk: environment.developerJunk, cachesAndLogs: environment.cachesAndLogs)
         let fileCleanup = FileCleanupModel(
             subTools: registry.subTools, context: environment.context,
             personalFilesScan: environment.personalFilesScan, runPlan: environment.run,

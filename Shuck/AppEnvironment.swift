@@ -20,6 +20,9 @@ nonisolated struct AppEnvironment {
     let oldFiles: OldFiles
     /// Developer Junk with the user's project folders (SET-003). It is rebuilt when the list changes (D-154).
     let developerJunk: DeveloperJunk
+    /// Caches & Logs with the way it names an entry's app: Launch Services, or in a UI test's fixture root also the
+    /// apps the test says are installed (CAC-009, D-156).
+    let cachesAndLogs: CachesAndLogs
     /// The folders the user excluded, which every scan hides and every plan and run refuses (SET-001, D-150).
     let excludedFolders: FolderList
     /// The developer project folders the user chose, which DEV-R06 scans for `node_modules` (SET-003, D-154).
@@ -53,6 +56,10 @@ nonisolated struct AppEnvironment {
     /// The apps a UI test pretends are running, as bundle IDs separated by commas: `-ShuckRunningApps
     /// com.apple.dt.Xcode`. Only a fixture root reads it (D-113).
     static let runningAppsKey = "ShuckRunningApps"
+    /// The apps a UI test pretends are installed, as bundle IDs separated by commas: `-ShuckInstalledApps
+    /// com.example.Notes`. Caches & Logs then knows whose cache a folder of that name is. Only a fixture root reads
+    /// it (D-156).
+    static let installedAppsKey = "ShuckInstalledApps"
     /// ``syncedNames``, separated by commas: `-ShuckSyncedFiles Holiday.mov`. Only a fixture root reads it (D-137).
     static let syncedFilesKey = "ShuckSyncedFiles"
     /// The excluded folders in `UserDefaults` (SET-001, SET-004): an array of absolute paths.
@@ -72,6 +79,20 @@ nonisolated struct AppEnvironment {
     nonisolated struct ProjectScope {
         let ownership: OwnershipMap
         let developerJunk: DeveloperJunk
+    }
+
+    /// The apps a UI test's fixture root is taken to have: the ones the test names, each named by its bundle ID, and
+    /// whatever this Mac has, such as TextEdit. A fixture root cannot install an app (D-156).
+    nonisolated struct FixtureAppNames: AppNames {
+        let installed: Set<String>
+
+        init(installed: Set<String>) {
+            self.installed = Set(installed.map { $0.lowercased() })
+        }
+
+        func name(ofBundleID bundleID: String) -> String? {
+            installed.contains(bundleID.lowercased()) ? bundleID : SystemAppNames().name(ofBundleID: bundleID)
+        }
     }
 
     /// Reads the stored value for a key, if any.
@@ -143,6 +164,8 @@ nonisolated struct AppEnvironment {
             makeProjectScope = { Self.projectScope($0, home: root, resolvingLinks: false) }
             toolRunner = ToolRunner(executableRoots: [root])
             runningApps = StubRunningApps(Self.list(settings(Self.runningAppsKey)))
+            cachesAndLogs = CachesAndLogs(
+                appNames: FixtureAppNames(installed: Self.list(settings(Self.installedAppsKey))))
             scope = Self.projectScope(projectFolders.folders, home: root, resolvingLinks: false)
             context = ScanContext(
                 home: root, ownership: scope.ownership, protection: makeProtection(excludedFolders.folders),
@@ -165,6 +188,7 @@ nonisolated struct AppEnvironment {
                 save: saveProjectFolders)
             makeProjectScope = { Self.projectScope($0, home: home) }
             runningApps = SystemRunningApps()
+            cachesAndLogs = CachesAndLogs()
             toolRunner = ToolRunner(executableRoots: nil)
             scope = Self.projectScope(projectFolders.folders, home: home)
             context = ScanContext(

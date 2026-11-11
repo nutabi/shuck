@@ -13,6 +13,15 @@ struct AppGroupTests {
             reason: "Fixture", source: .cachesAndLogs, scope: .contents, appName: app)
     }
 
+    /// A UI test names the apps its fixture root is taken to have, so their caches can start selected (CAC-009,
+    /// D-156). The name is the bundle ID itself, whatever its case.
+    @Test func aFixtureRootsInstalledAppsAreNamedByTheirBundleIDCAC009() {
+        let names = AppEnvironment.FixtureAppNames(installed: ["com.example.Notes"])
+
+        #expect(names.name(ofBundleID: "COM.example.notes") == "COM.example.notes")
+        #expect(names.installed == ["com.example.notes"])
+    }
+
     @Test func itemsOfOneAppShareAGroupAndTheBiggestGroupComesFirstCAC002() {
         let groups = AppGroup.groups(
             of: [

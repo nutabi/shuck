@@ -40,8 +40,9 @@ All notable changes to Shuck are listed here. The format follows
   restorable.
 - Caches & Logs now lists the caches and logs your apps keep, in `~/Library/Caches`, `~/Library/Logs` and sandboxed
   apps' own caches, with a section for each app and its total size. A cache that nothing has changed in for 30 days, and
-  a log for 7 days, starts selected. Caches that macOS itself writes are listed but never start selected, and nothing
-  can be selected while its app is running. Delete shows the same confirmation as Developer Junk and empties each
+  a log for 7 days, starts selected. Caches that macOS itself writes are listed but never start selected, and neither
+  does a cache whose app Shuck can't find on your Mac, since some apps keep more than a cache there; its row says so.
+  Nothing can be selected while its app is running. Delete shows the same confirmation as Developer Junk and empties each
   folder without removing the folder. Caches that developer tools own, such as Homebrew's, stay with Developer Junk.
 - Developer Junk lists the simulators that Xcode can no longer start (unavailable simulators), when your Mac has
   simulators. Cleaning them up runs `xcrun simctl delete unavailable`, Xcode's own command; Shuck never deletes
