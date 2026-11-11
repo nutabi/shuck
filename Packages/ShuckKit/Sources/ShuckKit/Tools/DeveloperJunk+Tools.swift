@@ -8,6 +8,18 @@ extension DeveloperJunk {
         ItemCategory(id: "packages", name: LocalizedStringResource("Package managers", bundle: #bundle))
     }
 
+    /// The folder an item of the tool rule `ruleID` is sized from, which an exclusion can cover: the rule's cache folder,
+    /// and for unavailable simulators the folder that holds the simulators (D-149). `nil` for any other rule.
+    static func toolFolder(ruleID: String, home: URL) -> URL? {
+        switch ruleID {
+        case "DEV-R03": simulatorDevices(home: home).deletingLastPathComponent()
+        case "DEV-R07": npmCache(home: home)
+        case "DEV-R08": pipCache(home: home)
+        case "DEV-R09": homebrewCache(home: home)
+        default: nil
+        }
+    }
+
     /// One item for a tool rule whose data is a cache folder the tool cleans, if the tool is found and the folder
     /// exists. The size is an estimate from measuring the folder, "up to" what the tool may remove: it is never read
     /// from the tool's output, which never chooses a target (DEV-003, R-07, D-125).

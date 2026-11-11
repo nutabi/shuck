@@ -139,6 +139,21 @@ public struct ScanContext: Sendable {
     /// not ask for tools never lists a tool's rule (DEV-002, D-124).
     public let toolRoot: URL?
 
+    /// Whether the user's exclusions hide the path `url`, which a scan found: it is inside an exclusion or holds one.
+    public func hides(_ url: URL) -> Bool {
+        protection.overlapsUserExclusion(lexical: url)
+    }
+
+    /// Whether the user's exclusions hide `item`: the scan would not list it (SET-001, D-149). A path item is hidden
+    /// when it is inside an exclusion or holds one; a tool command, when the folder it is sized from is.
+    public func hides(_ item: ScanItem) -> Bool {
+        if let url = item.url { return hides(url) }
+        guard let rule = item.ruleMatch?.rule.id, let folder = DeveloperJunk.toolFolder(ruleID: rule, home: home) else {
+            return false
+        }
+        return protection.overlapsUserExclusion(folder)
+    }
+
     /// Without `protection`, a scan uses the production list for `home` with Shuck's own bundle. Tests pass the
     /// fixture root's configuration (D-41). Without `runningApps`, a scan asks this Mac which apps run; the app's
     /// fixture-root mode passes a stub (D-110).

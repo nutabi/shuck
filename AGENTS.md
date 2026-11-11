@@ -109,6 +109,9 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 - Never launch the debug app by hand with a made-up `-ShuckFixtureRoot`. The app accepts only a fixture root the test harness created (`AppEnvironment.fixtureRoot(in:debugBuild:)`) and otherwise stops with `fatalError`, which leaves "Shuck quit unexpectedly" dialogs behind.
 - A fixture-root scan finishes too fast to stop. A workflow that stops one launches with `launch(scanDelay:)`, which makes each personal-files scan wait that many seconds before it starts (D-91).
 - A fixture file cannot be synced by iCloud. A workflow that checks a synced file's mark or warning launches with `launch(syncedFiles:)`, whose names the personal-files scan treats as synced (D-137).
+- A workflow that checks what excluding a folder hides launches with `launch(exclusions:)`, whose paths are relative to
+  the fixture root. They are the app's whole list of excluded folders (SET-001, D-150). A UI test never drives the open
+  panel.
 - A fixture file was added to its folder when the test made it, so the app's fixture-root mode reads no added dates
   and Old Files judges fixture files by their last-opened and modified dates only (D-140). No UI test can show the
   "Added" reason or label; unit tests cover them.
@@ -210,5 +213,7 @@ A sub-tool must not require changes to other sub-tools or to the safety layer. I
 1. Add the rule as data in the engine: ID, name, description, detection, targets or tool command, tier, staleness rule, explanation, documentation link, and the bundle IDs of the apps that use its data (`apps`, D-110). Its scanner builds items with `CleanupRule.scanItem(…runningApps: context.runningApps…)`, which disables them while one of those apps runs (SAF-009).
 2. Targets must lie inside the allowed roots. Data owned by a tool is cleaned with that tool's documented command, never deleted directly (SAF-010). Tool commands follow DEV-004.
 3. Add the rule's locations to `OwnershipMap.standardEntries` (FCL-005).
-4. Add a fixture test for a path rule, or a recorded-output test with a fake tool executable for a tool rule. Never parse tool output to choose deletion targets (R-07).
-5. One rule per pull request. A rule that is not in the PRD's rule table (section 9.1.3) needs the owner's approval first.
+4. A tool command's item is hidden when the folder it is sized from is, or holds, an exclusion: add the rule to
+   `DeveloperJunk.toolFolder` and to the test in `ExclusionsTests` (SET-001, D-149).
+5. Add a fixture test for a path rule, or a recorded-output test with a fake tool executable for a tool rule. Never parse tool output to choose deletion targets (R-07).
+6. One rule per pull request. A rule that is not in the PRD's rule table (section 9.1.3) needs the owner's approval first.

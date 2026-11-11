@@ -45,6 +45,9 @@ public struct PathGuardConfiguration: Sendable, Equatable {
     /// scan which of them are the user's, for a command item that is not a path the guard can validate (D-149).
     public let userExclusions: [URL]
 
+    /// ``userExclusions`` as components with case folded, worked out once for ``overlapsUserExclusion(_:)``.
+    private let excludedComponents: [[String]]
+
     /// Builds a configuration from a home folder. Prefer ``production(home:appBundle:userExclusions:)`` in the app.
     ///
     /// - Parameters:
@@ -60,18 +63,24 @@ public struct PathGuardConfiguration: Sendable, Equatable {
             + Self.homeLocations.map { home.appending(path: $0) }
             + [appBundle] + userExclusions
         protectedLocations = locations.map { ResolvedPath($0)?.url ?? $0 }
-        self.userExclusions = userExclusions.map { ResolvedPath($0)?.url ?? $0 }
+        let resolved = userExclusions.map { ResolvedPath($0)?.url ?? $0 }
+        self.userExclusions = resolved
+        excludedComponents = resolved.map { $0.pathComponents.map(PathGuard.fold) }
     }
 
     /// Whether `url` is inside one of the user's exclusions or contains one, compared as the guard compares: with case
     /// folded and Unicode forms equal (SET-001, D-79). A scan hides what this says yes to, and the guard would refuse
     /// it anyway.
     public func overlapsUserExclusion(_ url: URL) -> Bool {
-        let target = (ResolvedPath(url)?.url ?? url).pathComponents.map(PathGuard.fold)
-        return userExclusions.contains { exclusion in
-            let excluded = exclusion.pathComponents.map(PathGuard.fold)
-            return target.starts(with: excluded) || excluded.starts(with: target)
-        }
+        overlapsUserExclusion(lexical: ResolvedPath(url)?.url ?? url)
+    }
+
+    /// Like ``overlapsUserExclusion(_:)`` for a path that is already resolved, such as an item's a scan found. It takes
+    /// no file-system call, so a list of thousands of items can be checked at once.
+    func overlapsUserExclusion(lexical url: URL) -> Bool {
+        guard !excludedComponents.isEmpty else { return false }
+        let target = url.pathComponents.map(PathGuard.fold)
+        return excludedComponents.contains { target.starts(with: $0) || $0.starts(with: target) }
     }
 
     /// The configuration the app uses: the real home folder and the full protected list.

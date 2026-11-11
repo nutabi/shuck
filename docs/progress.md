@@ -299,6 +299,9 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Exclusions in every scan: Developer Junk and the personal-files scan hide what an exclusion covers or holds;
     a test runs every sub-tool; the guard refuses a plan, re-validation skips a run's item and Restore refuses a
     folder that is excluded (D-149).
+  - [x] Stored exclusions reach scans, plans and runs: `UserDefaults` storage, the guard rebuilt when the list
+    changes, rows dropped on Add without a rescan, a run keeps the configuration it started with, and the UI test
+    launch argument `launch(exclusions:)` (D-150).
 - [ ] M2-T13 Stale `node_modules` in the project folders, with a depth limit; decides who owns `node_modules` (DEV-R06,
   DEV-006, SET-003, FCL-005). Done after M2-T14 (D-148): it scans the user's project folders, which must honour
   exclusions from the first release, and it reuses M2-T14's stored folder list and Settings wiring.

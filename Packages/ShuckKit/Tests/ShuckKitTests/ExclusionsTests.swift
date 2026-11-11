@@ -100,6 +100,13 @@ struct ExclusionsTests {
             let url = try #require(item.url)
             #expect(!excluded.contains { overlap(url, $0) }, "\(url.path) is listed")
         }
+        // The model drops rows with `hides` when the user adds an exclusion, so it must say what a rescan leaves out.
+        let context = ScanContext(
+            home: root.url, protection: root.pathGuardConfiguration(userExclusions: excluded), toolRoot: root.url)
+        let listed = Set(after.map(\.target))
+        for item in before {
+            #expect(context.hides(item) == !listed.contains(item.target), "\(item.target.description)")
+        }
         // Everything else is still listed.
         let expected = before.compactMap(\.url).filter { url in !excluded.contains { overlap(url, $0) } }
         #expect(Set(after.compactMap(\.url)) == Set(expected))
@@ -126,6 +133,13 @@ struct ExclusionsTests {
 
         #expect(before == tools)
         #expect(!after.contains(rule))
+        let hidden = ScanContext(
+            home: root.url, protection: root.pathGuardConfiguration(userExclusions: [try root.url(exclusion)]))
+        let items = await scan(excluding: [])
+        for item in items {
+            guard let id = item.ruleMatch?.rule.id, tools.contains(id) else { continue }
+            #expect(hidden.hides(item) == (id == rule), "\(id)")
+        }
         // A rule whose folder is elsewhere stays.
         #expect(after.contains(rule == "DEV-R07" ? "DEV-R09" : "DEV-R07"))
     }

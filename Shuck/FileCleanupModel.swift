@@ -46,7 +46,10 @@ final class FileCleanupModel {
     let scanResults: [ToolID: ScanResults]
     /// The files the personal-files sub-tools list, from their shared scan (FCL-006).
     private(set) var personalFiles = PersonalFilesState()
-    private let context: ScanContext
+    private var context: ScanContext
+    /// How many times the user's exclusions have changed. A scan that started before a change leaves out what the new
+    /// list hides (SET-001).
+    private var exclusionRevision = 0
     private let personalFilesScan: PersonalFilesScan
     /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
     private let runPlan: RunPlan?
@@ -140,9 +143,11 @@ final class FileCleanupModel {
         list.removeAll()
         states[id] = .scanning
         let context = context
+        let revision = exclusionRevision
         let task = Task {
             // Each event is one item. A sub-tool lists few enough of them for the main actor (NFR-PERF-001).
             for await event in await Self.start(subTool, context: context) {
+                if case .item(let item) = event, revision != exclusionRevision, self.context.hides(item) { continue }
                 list.apply(event)
             }
             scans[id] = nil
@@ -191,11 +196,12 @@ final class FileCleanupModel {
         // Old Files needs last-opened dates. If several sub-tools did, the smallest minimum size would cover them all.
         let reader = personalSubTools.compactMap(\.lastOpenedReader).min { $0.minimumSize < $1.minimumSize }
         let events = personalFilesScan(context, reader)
+        let revision = exclusionRevision
         let task = Task {
             // Each event is a batch of files, so the main actor takes a few thousand events for a large home folder.
             // Each list builds its rows off the main actor and merges them in (NFR-PERF-001).
             for await event in events {
-                await apply(event)
+                await apply(event, hiding: revision != exclusionRevision)
             }
             let finished = Date.now
             for id in ids {
@@ -212,6 +218,41 @@ final class FileCleanupModel {
             scans[id] = task
         }
         return task
+    }
+
+    /// Gives scans, plans and runs the path guard's configuration with the user's exclusions as they are now, and
+    /// removes the rows they hide from every list at once, without a rescan (SET-001, D-150). A run already confirmed
+    /// keeps the configuration it started with. Taking an exclusion away lists its folder again at the next scan.
+    ///
+    /// The rows are found off the main actor (NFR-PERF-001). The returned task finishes when they are gone; it removes
+    /// nothing if the exclusions changed again meanwhile, since the newer change finds the rows itself.
+    @discardableResult
+    func protect(with protection: PathGuardConfiguration) -> Task<Void, Never> {
+        context = ScanContext(
+            home: context.home, ownership: context.ownership, protection: protection,
+            runningApps: context.runningApps, toolRoot: context.toolRoot)
+        exclusionRevision += 1
+        let (context, revision) = (context, exclusionRevision)
+        let items = scanResults.values.flatMap(\.items)
+        let files = Array(personalFiles.items.keys)
+        return Task {
+            let hidden = await Self.hidden(files: files, items: items, context: context)
+            guard revision == exclusionRevision else { return }
+            if !hidden.files.isEmpty { remove(hidden.files) }
+            if !hidden.commands.isEmpty { remove(commands: hidden.commands) }
+        }
+    }
+
+    /// The files and tool commands among the listed ones that `context`'s exclusions hide.
+    @concurrent
+    private nonisolated static func hidden(files: [URL], items: [ScanItem], context: ScanContext) async -> (
+        files: [URL], commands: [ToolCommand]
+    ) {
+        let hiddenItems = items.filter { context.hides($0) }
+        let commands = hiddenItems.compactMap { item -> ToolCommand? in
+            if case .command(let command) = item.target { command } else { nil }
+        }
+        return (files.filter { context.hides($0) } + hiddenItems.compactMap(\.url), commands)
     }
 
     /// The items `subTool` acts on for the rows at `urls`, in that order. Read-only rows and rows the sub-tool no longer
@@ -318,13 +359,17 @@ final class FileCleanupModel {
     }
 
     /// Keeps only the files some sub-tool lists, so a home folder of a million files does not stay in memory.
-    private func apply(_ event: PersonalFilesEvent) async {
+    /// - Parameter hiding: Whether the user's exclusions changed since the scan started, so the files the new list hides
+    ///   are left out too (SET-001).
+    private func apply(_ event: PersonalFilesEvent, hiding: Bool) async {
         guard case .files(let files) = event else {
             personalFiles.apply(event)
             return
         }
         let subTools = personalSubTools
-        let listed = files.filter { file in subTools.contains { $0.includes(file) } }
+        let listed = files.filter { file in
+            subTools.contains { $0.includes(file) } && !(hiding && context.hides(file.url))
+        }
         guard !listed.isEmpty else { return }
         personalFiles.apply(.files(listed))
         for list in personalFilesResults.values {
