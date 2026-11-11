@@ -403,7 +403,8 @@ public struct DeveloperJunk: SubTool {
         return values?.isDirectory == true && values?.isSymbolicLink != true
     }
 
-    /// One item for DEV-R03, if this Mac has simulators and `xcrun` is where tools are found (DEV-002). Whether any
+    /// One item for DEV-R03, if this Mac has simulators, `xcrun` is where tools are found and the active developer
+    /// folder has `simctl`, which a Mac without Xcode does not (DEV-002). Whether any
     /// simulator is unavailable is only known to `simctl`, so the item is listed whenever Xcode has made simulators.
     private func scanUnavailableSimulators(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
         let devices = Self.simulatorDevices(home: context.home)
@@ -412,7 +413,7 @@ public struct DeveloperJunk: SubTool {
         guard !Task.isCancelled,
             Self.toolFolder(ruleID: "DEV-R03", home: context.home)
                 .map({ context.protection.overlapsUserExclusion($0) }) != true,
-            let tools = ToolLocations(context), CleanupRule.Detection.folder(devices).isAvailable,
+            let tools = ToolLocations(context), tools.hasSimctl, CleanupRule.Detection.folder(devices).isAvailable,
             let rule = try? Self.unavailableSimulatorsRule(tools), rule.detection.isAvailable
         else { return }
         do {

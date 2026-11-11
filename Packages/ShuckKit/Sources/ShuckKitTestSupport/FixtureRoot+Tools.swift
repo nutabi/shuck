@@ -19,6 +19,18 @@ public enum FakeTool: Sendable {
 }
 
 extension FixtureRoot {
+    /// Where a fake Xcode's `simctl` lies in the root: the developer folder `xcrun` uses when none is selected.
+    public static let simctlPath = "Applications/Xcode.app/Contents/Developer/usr/bin/simctl"
+
+    /// Creates a fake `xcrun` in `usr/bin` and the `simctl` of a fake Xcode, as on a Mac that has Xcode: Developer
+    /// Junk lists its `xcrun simctl` rule only when the active developer folder has `simctl` (DEV-002). Returns
+    /// `xcrun`'s location; the command runs `xcrun`, so only it behaves as `behavior` says.
+    @discardableResult
+    public func xcrun(_ behavior: FakeTool) throws(FixtureError) -> URL {
+        try tool(Self.simctlPath, .exits(0))
+        return try tool("usr/bin/xcrun", behavior)
+    }
+
     /// Creates a fake tool at `relativePath` and returns its location.
     ///
     /// It is executable, and like every fixture it lies inside the root. A tool runner in the fixture-root mode finds

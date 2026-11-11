@@ -45,14 +45,16 @@ All notable changes to Shuck are listed here. The format follows
   Nothing can be selected while its app is running. Delete shows the same confirmation as Developer Junk and empties each
   folder without removing the folder. Caches that developer tools own, such as Homebrew's, stay with Developer Junk.
 - Developer Junk lists the simulators that Xcode can no longer start (unavailable simulators), when your Mac has
-  simulators. Cleaning them up runs `xcrun simctl delete unavailable`, Xcode's own command; Shuck never deletes
+  Xcode and simulators. Cleaning them up runs `xcrun simctl delete unavailable`, Xcode's own command; Shuck never deletes
   simulator data itself. The confirmation says "Clean up" for tool commands, and its size is shown as unknown. History
   shows the command that ran, the tool's path and what it printed. Shuck finds tools only where they are usually
   installed (`/usr/bin`, `/opt/homebrew/bin`, `/usr/local/bin`).
 - Developer Junk lists npm's cache when npm is installed and has a cache in `~/.npm`. Cleaning it up runs
   `npm cache clean --force`, npm's own command, and the size shown is an upper estimate from the cache folder.
+  Shuck starts `npm` offline and with its update check turned off.
 - Developer Junk lists pip's cache when Homebrew's `pip` or `pip3` is installed and pip has a cache in
-  `~/Library/Caches/pip`. Cleaning it up runs `pip cache purge`, pip's own command. Apple's own `pip3` is not used.
+  `~/Library/Caches/pip`. Cleaning it up runs `pip cache purge`, pip's own command, with pip's check for a newer version turned off. Apple's
+  own `pip3` is not used.
 - Developer Junk lists Homebrew's cleanup when `brew` is installed and has downloads in
   `~/Library/Caches/Homebrew`. Cleaning it up runs `brew cleanup`, Homebrew's own command, which removes old
   versions of packages and old downloads and keeps the current ones. The size shown is the download cache only.

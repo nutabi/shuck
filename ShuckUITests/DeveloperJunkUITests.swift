@@ -278,7 +278,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
     /// (D-114, D-124).
     @MainActor
     func testCleanUpWithTheToolsOwnCommands() throws {
-        try root.tool("usr/bin/xcrun", .reportsInvocation)
+        try root.xcrun(.reportsInvocation)
         try root.tool("opt/homebrew/bin/npm", .reportsInvocation)
         let npmCache = try root.file(".npm/_cacache/content-v2/ab", size: 50_000)
         let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)

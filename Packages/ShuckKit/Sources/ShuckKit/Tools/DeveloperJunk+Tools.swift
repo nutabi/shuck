@@ -46,6 +46,14 @@ extension DeveloperJunk {
         home.appending(path: ".npm/_cacache", directoryHint: .isDirectory)
     }
 
+    /// What npm's command runs with besides `PATH` and `HOME`: no check for a newer npm, and offline mode, so the
+    /// command makes no network connection (DEV-004, NFR-SEC-001). Emptying the cache needs none.
+    static let npmEnvironment = ["NPM_CONFIG_UPDATE_NOTIFIER": "false", "NPM_CONFIG_OFFLINE": "true"]
+
+    /// What pip's command runs with besides `PATH` and `HOME`: no check for a newer pip, which is a network request,
+    /// and no question asked, since the command has no input (DEV-004, NFR-SEC-001).
+    static let pipEnvironment = ["PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1"]
+
     /// DEV-R07: `npm cache clean --force` (`--force` is what npm requires to clean its cache at all). npm downloads
     /// what it needs again, so the item is selected (D-125).
     static func npmCacheRule(_ tools: ToolLocations) throws(RuleError) -> CleanupRule {
@@ -58,7 +66,8 @@ extension DeveloperJunk {
             description: LocalizedStringResource(
                 "Packages npm has downloaded and keeps so it can install them again faster.", bundle: #bundle),
             category: packageManagers, detection: .executable(npm),
-            action: .command(try tools.command(npm, ["cache", "clean", "--force"])), tier: .rebuildable,
+            action: .command(try tools.command(npm, ["cache", "clean", "--force"], extra: npmEnvironment)),
+            tier: .rebuildable,
             selection: .always,
             explanation: LocalizedStringResource(
                 "npm's own command empties its cache. It downloads a package again the next time a project needs it.",
@@ -90,7 +99,8 @@ extension DeveloperJunk {
             description: LocalizedStringResource(
                 "Packages and wheels pip has downloaded or built and keeps for the next install.", bundle: #bundle),
             category: packageManagers, detection: .executable(pip),
-            action: .command(try tools.command(pip, ["cache", "purge"])), tier: .rebuildable, selection: .always,
+            action: .command(try tools.command(pip, ["cache", "purge"], extra: pipEnvironment)), tier: .rebuildable,
+            selection: .always,
             explanation: LocalizedStringResource(
                 "pip's own command empties its cache. It downloads or builds a package again the next time it needs it.",
                 bundle: #bundle),
