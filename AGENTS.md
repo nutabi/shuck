@@ -89,7 +89,9 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - Engine APIs throw typed errors (`throws(SomeError)`) whose cases callers can act on.
 - Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool (NFR-OBS-001): `Logger(tool:)` in the engine. Code shared by several tools, such as an executor, logs under the tool it runs for; a scan Large Files and Old Files share logs under File Cleanup. The history log logs under `History`, and the app's own diagnostics under `Logger.app`. Mark paths and file names `privacy: .private` (NFR-SEC-006). No `print` in shipped code.
 - The main thread is never blocked for more than 250 ms (NFR-PERF-001).
-- User-facing strings live in String Catalogs; no hard-coded UI strings (NFR-L10N-001).
+- User-facing strings live in String Catalogs; no hard-coded UI strings (NFR-L10N-001). A command-line build does not
+  add new keys to `Shuck/Localizable.xcstrings`; only a build in Xcode does. Without Xcode, add each new key by hand
+  as an empty entry like the ones around it, with `%@` for an interpolated value and `%lld` for an integer.
 - Every control has a VoiceOver label and works from the keyboard. Never convey information by color alone (NFR-A11Y-001).
 - Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004). Only `ShuckExecution` may start one, tests included (D-82).
 - No network APIs (`URLSession`, Network framework, `NSURLConnection`, sockets) and no authorization or privilege APIs (NFR-SEC-001, ONB-003).

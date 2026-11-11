@@ -22,7 +22,9 @@ struct TrashReviewTests {
 
     /// A model whose scan found two large old movies, the clip synced by iCloud, a small old note and a read-only folder,
     /// and whose runs go to `runPlan`.
-    func scannedModel(runPlan: @escaping RunPlan) async -> FileCleanupModel {
+    func scannedModel(
+        runPlan: @escaping RunPlan, readFreeSpace: @escaping ReadFreeSpace = { nil }
+    ) async -> FileCleanupModel {
         let files = [
             ("Movies/big.mov", 5_000, nil), ("Movies/clip.mov", 3_000, nil), ("Documents/note.txt", 10, nil),
             ("go/pkg/mod", 9_000, ReadOnlyReason.managedBy(.developerJunk)),
@@ -39,7 +41,8 @@ struct TrashReviewTests {
             }
         }
         let model = FileCleanupModel(
-            subTools: [largeFiles, oldFiles], context: context, personalFilesScan: scan, runPlan: runPlan)
+            subTools: [largeFiles, oldFiles], context: context, personalFilesScan: scan, runPlan: runPlan,
+            readFreeSpace: readFreeSpace)
         await model.scan(largeFiles)?.value
         return model
     }
@@ -111,6 +114,21 @@ struct TrashReviewTests {
             return
         }
         #expect(summary.reclaimableBytes == 3_000)
+    }
+
+    /// SAF-013: moving to the Trash expects to free nothing, so the measured change is compared with zero; the summary
+    /// says the space comes back when the Trash is emptied.
+    @Test func aTrashRunMeasuresTheChangeInFreeSpaceAgainstNothingSAF013() async throws {
+        let readings = FreeSpaceReadings([10_000_000_000, 10_000_000_000 - 2_000])
+        let model = await scannedModel(runPlan: run(trashing: ["big.mov"]), readFreeSpace: readings.read)
+        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+
+        await review.start()?.value
+
+        let change = try #require(review.freeSpace)
+        #expect(change.measured == -2_000)
+        #expect(change.estimate == 0)
+        #expect(change.gaps.isEmpty)
     }
 
     @Test func aReviewRunsOnce() async throws {

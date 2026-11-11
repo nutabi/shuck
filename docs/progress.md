@@ -233,10 +233,13 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     the UI workflow steps (D-117). Left over: the run shows an indeterminate progress indicator, not a count, since
     `PlanExecutor` reports only when it ends; the measured change in free space is M2-T07 (SAF-013).
 - [ ] M2-T07 The measured change in free space after a run, and a second confirmation for an oversized target
-  (SAF-013, SAF-015). Proposes the threshold's basis, since measuring the home folder means walking all of it.
-  - Review of 2026-11-10 (SAF-013, R-06): local Time Machine snapshots and APFS clones keep blocks alive, so the
-    measured change can be far below the estimate, and the summary says so. Items in the Trash free nothing until it is
-    emptied.
+  (SAF-013, SAF-015). The threshold is 25% of the startup volume's used space, the owner's choice, since measuring the
+  home folder means walking all of it (D-144). Two pull requests in one GitHub stack (D-62):
+  - [x] The measured change in free space after Delete, Clean Up and Move to Trash, next to the estimate, with the
+    reasons it differs: local Time Machine snapshots and APFS clones, a tool's estimate, and other activity, purgeable
+    space included. Items in the Trash free nothing until it is emptied, as the Trash summary already said (D-143).
+    Left over: the comparison's acceptance check is a manual one on the owner's Mac (SAF-013).
+  - [ ] A second confirmation for a Rebuildable item larger than the threshold (SAF-015, D-144).
 - [x] M2-T08 Device support files and CoreSimulator caches, one rule per pull request; stores a tool manages are
   refused (DEV-R02, DEV-R04, DEV-007). Two pull requests, a stack (D-62, D-76):
   - [x] Device support files: every version but the newest of each platform is selected (DEV-R02, D-118).

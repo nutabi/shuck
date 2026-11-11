@@ -40,9 +40,12 @@ struct SummaryConfirmationTests {
             tier: tier, selection: .always, explanation: "Stub", documentation: documentation)
     }
 
-    func scannedModel(items: [ScanItem], runPlan: RunPlan? = nil) async -> (FileCleanupModel, StubRebuildable) {
+    func scannedModel(
+        items: [ScanItem], runPlan: RunPlan? = nil, readFreeSpace: @escaping ReadFreeSpace = { nil }
+    ) async -> (FileCleanupModel, StubRebuildable) {
         let subTool = StubRebuildable(items: items)
-        let model = FileCleanupModel(subTools: [subTool], context: context, runPlan: runPlan)
+        let model = FileCleanupModel(
+            subTools: [subTool], context: context, runPlan: runPlan, readFreeSpace: readFreeSpace)
         await model.scan(subTool)?.value
         return (model, subTool)
     }
@@ -164,6 +167,68 @@ struct SummaryConfirmationTests {
             return
         }
         #expect(summary.reclaimableBytes == 2_000)
+    }
+
+    /// SAF-013: free space is read before the run and after it, and the estimate is what was deleted and what the
+    /// tools that ran said they may remove; a skipped item counts for nothing.
+    @Test func theSummaryMeasuresTheChangeInFreeSpaceSAF013() async throws {
+        let readings = FreeSpaceReadings([10_000_000_000, 10_000_004_000])
+        let (model, subTool) = await scannedModel(
+            items: [
+                item("a", size: 3_000, category: xcode), item("b", size: 9_000, category: xcode),
+                try toolItem(["clean"], estimate: 1_000),
+            ],
+            runPlan: { (plan: Plan) async throws(HistoryError) -> RunReport in
+                RunReport(
+                    run: plan.run,
+                    outcomes: plan.items.map { item in
+                        ItemOutcome(
+                            item: item, result: item.url?.lastPathComponent == "b" ? .skipped(.missing) : .done(nil))
+                    })
+            },
+            readFreeSpace: readings.read)
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        #expect(confirmation.freeSpace == nil)
+
+        await confirmation.start()?.value
+
+        let change = try #require(confirmation.freeSpace)
+        #expect(change.measured == 4_000)
+        #expect(change.estimate == 4_000)
+        #expect(change.gaps == [.toolEstimate])
+        #expect(readings.count == 2)
+    }
+
+    /// D-125: a tool with no estimate adds nothing to it, and the summary says its size is not known.
+    @Test func aToolWithoutAnEstimateIsLeftOutOfTheEstimateD125() async throws {
+        let readings = FreeSpaceReadings([10_000_000_000, 10_500_000_000])
+        let (model, subTool) = await scannedModel(
+            items: [try toolItem(["unavailable"], estimate: 0)],
+            runPlan: { (plan: Plan) async throws(HistoryError) -> RunReport in
+                RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .done(nil)) })
+            },
+            readFreeSpace: readings.read)
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+
+        await confirmation.start()?.value
+
+        let change = try #require(confirmation.freeSpace)
+        #expect(change.estimate == 0)
+        #expect(change.gaps == [.toolSizeUnknown])
+    }
+
+    /// Without both readings there is nothing to compare, and the summary states only the estimate.
+    @Test func withoutAReadingThereIsNoMeasuredChangeSAF013() async throws {
+        let readings = FreeSpaceReadings([10_000_000_000, nil])
+        let (model, subTool) = await scannedModel(
+            items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: ["a"]),
+            readFreeSpace: readings.read)
+        let confirmation = try #require(try model.confirmRebuildable(subTool))
+
+        await confirmation.start()?.value
+
+        #expect(confirmation.freeSpace == nil)
+        #expect(readings.count == 2)
     }
 
     @Test func aConfirmationRunsOnce() async throws {

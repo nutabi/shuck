@@ -9,6 +9,9 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Added
 
+- After deleting, cleaning up or moving items to the Trash, the summary shows how much free space your Mac actually
+  gained, measured on the disk, next to Shuck's estimate, and explains why they can differ: local Time Machine
+  snapshots, APFS clones, a tool's estimate, or other apps using space at the same time.
 - Developer Junk now lists Xcode's DerivedData, one row for each project. Projects that Xcode has not built for 30 days
   or whose project is no longer on your Mac start selected, and nothing can be selected while Xcode is running. You can
   look and choose.

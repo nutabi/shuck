@@ -179,6 +179,12 @@ nonisolated struct AppEnvironment {
         return await executor.run(plan)
     }
 
+    /// The bytes free now on the volume of the scanned home folder, or `nil` if macOS doesn't say (SAF-013). A UI
+    /// test's fixture root is on the startup volume too, so its runs measure the real free space; they only read it.
+    func availableSpace() -> Int64? {
+        FreeSpace.available(at: context.home)
+    }
+
     /// Moves trashed items back, off the main actor, and logs every step in the history log in ``historyFolder``
     /// (HIS-003, SAF-005, SAF-011).
     /// - Throws: ``HistoryError`` if the log cannot be opened. Then nothing moves.

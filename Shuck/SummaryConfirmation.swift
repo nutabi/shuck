@@ -25,7 +25,10 @@ final class SummaryConfirmation: Identifiable {
     let run = RunModel<RunReport>()
     /// The categories in the order the plan first names them.
     let categoryTotals: [CategoryTotal]
+    /// The measured change in free space over the run, once it has ended, if macOS gave both readings (SAF-013).
+    private(set) var freeSpace: FreeSpaceChange?
     private let runPlan: RunPlan
+    private let readFreeSpace: ReadFreeSpace
     private let onFinish: (RunReport) -> Void
 
     var id: UUID { plan.run }
@@ -43,10 +46,16 @@ final class SummaryConfirmation: Identifiable {
         plan.items.contains { $0.method == .tool }
     }
 
-    /// - Parameter onFinish: Called with the report when the run ends, so the caller can drop the deleted items.
-    init(plan: Plan, runPlan: @escaping RunPlan, onFinish: @escaping (RunReport) -> Void) {
+    /// - Parameters:
+    ///   - readFreeSpace: Read just before the run and just after it.
+    ///   - onFinish: Called with the report when the run ends, so the caller can drop the deleted items.
+    init(
+        plan: Plan, runPlan: @escaping RunPlan, readFreeSpace: @escaping ReadFreeSpace,
+        onFinish: @escaping (RunReport) -> Void
+    ) {
         self.plan = plan
         self.runPlan = runPlan
+        self.readFreeSpace = readFreeSpace
         self.onFinish = onFinish
         var totals: [CategoryTotal] = []
         for item in plan.items {
@@ -67,9 +76,14 @@ final class SummaryConfirmation: Identifiable {
         let plan = plan
         let runPlan = runPlan
         let onFinish = onFinish
+        let readFreeSpace = readFreeSpace
+        // Reading the volume's numbers takes well under a millisecond, so the main actor reads them (NFR-PERF-001).
+        let before = run.phase == .waiting ? readFreeSpace() : nil
         return run.start(
-            onFinish: { report in
-                if let report { onFinish(report) }
+            onFinish: { [weak self] report in
+                guard let report else { return }
+                self?.freeSpace = FreeSpaceChange(before: before, after: readFreeSpace(), report: report)
+                onFinish(report)
             },
             work: { () async throws(HistoryError) -> RunReport in try await runPlan(plan) })
     }
