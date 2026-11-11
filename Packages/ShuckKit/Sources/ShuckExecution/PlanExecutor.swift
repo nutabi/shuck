@@ -89,6 +89,9 @@ public struct PlanExecutor: Sendable {
         let target: URL
         do {
             target = try pathGuard.validate(url, allowedRoots: allowedRoots)
+        } catch .notReadable {
+            // A folder Shuck may not read is reported as macOS's privacy protection hiding it (SAF-012).
+            return Acted(.skipped(.notAccessible))
         } catch {
             return Acted(.skipped(.rejected(error)))
         }

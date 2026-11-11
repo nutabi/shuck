@@ -211,6 +211,47 @@ struct PathGuardTests {
         #expect(isProtected(rejection(home.appending(path: path).path)))
     }
 
+    /// D-135: a folder is refused when a protected bundle or name is among its direct children.
+    @Test(arguments: [
+        "Photos Library.photoslibrary", "Old.PHOTOSLIBRARY", "Music Library.musiclibrary", "Mac.backupbundle",
+        "BACKUPS.BACKUPDB", ".hidden.tvlibrary",
+    ])
+    func rejectsAFolderWithAProtectedBundleAmongItsChildrenSAF007(name: String) throws {
+        let trip = try root.folder("Pictures/Trip")
+        try root.file("Pictures/Trip/beach.jpg")
+        let bundle = try root.folder("Pictures/Trip/\(name)")
+        #expect(rejection(trip.path) == .protectedLocation(trip.path, protected: bundle.path))
+    }
+
+    /// D-135: only direct children are looked at; a deeper search would make every check as slow as a scan.
+    @Test func looksForProtectedBundlesAmongDirectChildrenOnlySAF007() throws {
+        let pictures = try root.folder("Pictures")
+        try root.folder("Pictures/Trip")
+        try root.folder("Pictures/Trip/Old.photoslibrary")
+        #expect(try pathGuard.validate(pictures, allowedRoots: [home]) == pictures)
+    }
+
+    @Test func acceptsAFolderWhoseChildrenAreOrdinarySAF007() throws {
+        let folder = try root.folder("Projects/App")
+        try root.file("Projects/App/photoslibrary.txt")
+        try root.folder("Projects/App/Backups")
+        #expect(try pathGuard.validate(folder, allowedRoots: [home]) == folder)
+    }
+
+    /// A folder Shuck may not read could hold a protected bundle, so it is refused rather than assumed empty.
+    @Test func rejectsAFolderItCannotReadSAF007SAF012() throws {
+        let locked = try root.folder("Documents/Locked", permissions: 0o000)
+        #expect(rejection(locked.path) == .notReadable(locked.path))
+    }
+
+    /// A symlink is never listed; its destination is checked as a folder of its own.
+    @Test func rejectsASymlinkToAFolderWithAProtectedBundleSAF007() throws {
+        let trip = try root.folder("Pictures/Trip")
+        let bundle = try root.folder("Pictures/Trip/Old.photoslibrary")
+        let link = try root.symlink("Desktop/Trip", to: trip)
+        #expect(rejection(link.path) == .protectedLocation(trip.path, protected: bundle.path))
+    }
+
     @Test func rejectsProtectedNamesInAnotherCaseOnDiskSAF007() throws {
         let backup = try root.folder("Backups/BACKUPS.BACKUPDB")
         #expect(isProtected(rejection(backup.appending(path: "Mac/Latest").path)))
@@ -288,5 +329,11 @@ struct PathGuardTests {
         #expect(rejection("/dev/null", allowedRoots: [URL(filePath: "/dev")]) == .otherVolume("/dev/null"))
         try root.symlink("Devices", to: URL(filePath: "/dev"))
         #expect(rejection(home.appending(path: "Devices/null").path) == .otherVolume("/dev/null"))
+    }
+
+    /// D-135: a volume mounted at the target is refused, although the folder it is mounted in is on the startup volume.
+    /// /dev is mounted at a folder of the root file system, as a disk image would be inside the home folder.
+    @Test func rejectsATargetThatIsItselfAMountPointSAF007() {
+        #expect(rejection("/dev", allowedRoots: [URL(filePath: "/")]) == .otherVolume("/dev"))
     }
 }

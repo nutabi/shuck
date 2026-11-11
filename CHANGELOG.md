@@ -55,6 +55,8 @@ All notable changes to Shuck are listed here. The format follows
 
 - Shuck now refuses to touch the simulators' devices and runtimes and Docker's disk image, which only `simctl` and
   Docker may change.
+- Shuck refuses to move or delete a folder that directly holds a Photos, Music or TV library or a Time Machine backup,
+  a folder it cannot read (shown as not accessible), and a disk or disk image mounted at the item itself.
 
 ## [0.1.1] - 2026-11-03
 

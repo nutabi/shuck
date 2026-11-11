@@ -341,9 +341,12 @@ separately. Changes to Safety and Execution go in pull requests of their own (D-
   the reason, and uses the newest direct child for a package or folder (OLD-002, D-130, R-18).
 - [ ] M2-F09 The personal-files scan skips `.git` folders at any depth and does not enter another volume (FCL-008,
   D-131, D-135).
-- [ ] M2-F10 Path guard: refuse a folder that contains a protected bundle or name among its direct children, and a
+- [x] M2-F10 Path guard: refuse a folder that contains a protected bundle or name among its direct children, and a
   Trash target that is itself a mount point; the same pull request words FCL-011's examples in code and text
-  (SAF-007, section 8.4, D-135). Safety change.
+  (SAF-007, section 8.4, D-135). Safety change. Done as D-136: an unreadable folder is refused too and reads as "Not
+  accessible", and the mount-point rule covers every method; FCL-011's code already named the Go module cache only.
+  Left over: a scan can still list a folder the guard refuses, such as one holding a Photos library, and one such row
+  refuses the whole plan. The scanner could mark such folders read-only.
 - [ ] M2-F11 Re-validation compares the modification date of every item, Trash or Delete, using the deep date for
   contents-only items, and a plan refuses a Delete item without a rule match (SAF-008, D-132). Safety and Execution
   change.

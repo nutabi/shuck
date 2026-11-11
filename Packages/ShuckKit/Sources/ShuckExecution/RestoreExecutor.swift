@@ -67,6 +67,8 @@ public struct RestoreExecutor: Sendable {
             // against the home folder rather than the Trash, so a trashed symlink to a file in the home folder passes.
             source = try pathGuard.validate(item.trashedURL, allowedRoots: [pathGuard.configuration.home])
             target = try pathGuard.validate(destination, allowedRoots: [pathGuard.configuration.home])
+        } catch .notReadable {
+            return .skipped(.notAccessible)
         } catch {
             return .skipped(.rejected(error))
         }
