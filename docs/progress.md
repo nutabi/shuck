@@ -367,6 +367,10 @@ Deferred (D-142): the open fixes below and M2-F03 wait until M2-T07 and M2-T12 t
 review of M2 then follows, in a session of its own, and decides how these fixes are done together with its own
 findings. They still come before the 0.2.0 release items.
 
+Review done on 2026-11-12: `docs/m2-review.md` (D-155). It proposes sixteen pull requests in three stacks for the open
+fixes below and its own findings, and puts ten questions to the owner. No fix starts, and the open items below are
+not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
+
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
   devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-129).
