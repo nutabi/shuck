@@ -16,8 +16,7 @@ struct DeleteActionTests {
     }
 
     private func planned(_ url: URL, scope: ItemScope = .item) throws -> PlannedItem {
-        PlannedItem(
-            url: url, tier: .rebuildable, method: .delete, snapshot: try #require(ItemSnapshot.read(url)), scope: scope)
+        try root.planned(url, scope: scope)
     }
 
     private func plan(_ items: [PlannedItem]) throws -> Plan {
@@ -156,8 +155,26 @@ struct DeleteActionTests {
         #expect(try results().map(\.status) == [.skipped, .skipped])
     }
 
-    @Test func aRebuildableFolderRecreatedSinceTheScanIsStillDeletedSAF008() async throws {
-        // Its scan reads no file identity, as Xcode may rebuild a DerivedData folder between scan and run (D-103).
+    /// Its scan reads no file identity, as Xcode may rebuild a DerivedData folder between scan and run (D-103), so a
+    /// recreated folder with the date the scan read is still deleted.
+    @Test func aRebuildableFolderRecreatedWithItsDateIsStillDeletedSAF008() async throws {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let derived = try root.folder("Library/Developer/Xcode/DerivedData/App-abc")
+        try root.file("Library/Developer/Xcode/DerivedData/App-abc/Build/App", size: 10_000)
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: derived.path)
+        let item = try planned(derived)
+        try FileManager.default.removeItem(at: derived)
+        try root.file("Library/Developer/Xcode/DerivedData/App-abc/Build/App", size: 10_000)
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: derived.path)
+
+        let report = try await run([item])
+
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(!exists(derived))
+    }
+
+    /// A recreated folder usually has a new modification date, so it is skipped as modified, not as replaced (D-105).
+    @Test func aRebuildableFolderRecreatedWithANewDateIsSkippedSAF008() async throws {
         let derived = try root.folder("Library/Developer/Xcode/DerivedData/App-abc")
         try root.file("Library/Developer/Xcode/DerivedData/App-abc/Build/App", size: 10_000)
         let item = try planned(derived)
@@ -166,8 +183,35 @@ struct DeleteActionTests {
 
         let report = try await run([item])
 
-        #expect(report.outcomes.map(\.result) == [.done(nil)])
-        #expect(!exists(derived))
+        #expect(report.outcomes.map(\.result) == [.skipped(.modifiedSinceScan)])
+        #expect(exists(derived))
+    }
+
+    /// An app writing its cache changes files inside it, not the folder's own date. The run compares the same deep date
+    /// the scan judged staleness by (D-112, D-132).
+    @Test func aContentsItemWhoseOnlyChangeIsDeepInsideIsSkippedSAF008() async throws {
+        let cache = try root.folder("Library/Caches/com.example.app")
+        let data = try root.file("Library/Caches/com.example.app/Store/data.db", size: 10_000)
+        let item = try planned(cache, scope: .contents)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(60)], ofItemAtPath: data.path)
+
+        let report = try await run([item])
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.modifiedSinceScan)])
+        #expect(exists(data))
+    }
+
+    /// `Plan` refuses a Delete without a rule; the executor skips one that reaches it some other way (D-132).
+    @Test func aDeleteItemWithoutARuleIsSkippedSAF008() async throws {
+        let cache = try root.file("Library/Caches/cache.db", size: 10)
+        let item = PlannedItem(
+            url: cache, tier: .rebuildable, method: .delete, snapshot: try #require(ItemSnapshot.read(cache)),
+            modified: ModificationDate.read(at: cache))
+        let executor = try PlanExecutor(root: root, pathGuard: pathGuard)
+
+        #expect(await executor.act(on: item, allowedRoots: [root.url]).result == .skipped(.ruleChanged))
+        #expect(exists(cache))
     }
 
     @Test func aDeleteItemTheGuardRejectsAtRunTimeIsNotDeletedSAF008() async throws {

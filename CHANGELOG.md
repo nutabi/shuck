@@ -57,6 +57,8 @@ All notable changes to Shuck are listed here. The format follows
   that a script rewrites every day, or one you copied or downloaded recently, no longer looks old. The reason and the
   Last Opened column say which date decided: "Not opened", "Not modified" or "Added". For a package, such as a
   document bundle, a change to a file directly inside it counts as a change to the package.
+- Move to Trash and Delete skip any item that changed after the scan, even when its size stayed the same, such as a
+  file still being written or a cache an app has just written to, and say "modified since the scan".
 - Large Files and Old Files no longer look inside a Git repository's own `.git` folder, so they never offer its packfiles,
   which the repository needs. They also leave out any disk mounted inside your home folder.
 

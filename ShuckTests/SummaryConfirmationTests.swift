@@ -22,10 +22,22 @@ struct SummaryConfirmationTests {
         _ name: String, size: Int64, category: ItemCategory, tier: Tier = .rebuildable,
         method: ActionMethod = .delete, selection: ItemSelection = .selected, folder: String = "Library/Caches"
     ) -> ScanItem {
-        ScanItem(
-            url: context.home.appending(path: folder).appending(path: name),
-            snapshot: ItemSnapshot(kind: .folder, allocatedSize: size), tier: tier, method: method, reason: "Stub",
-            source: StubRebuildable.id, category: category, selection: selection)
+        let folder = context.home.appending(path: folder)
+        // A plan refuses a Delete without the rule that justifies it (D-132).
+        let rule = method == .delete ? Self.rule(for: folder, tier: tier) : nil
+        return ScanItem(
+            url: folder.appending(path: name), snapshot: ItemSnapshot(kind: .folder, allocatedSize: size), tier: tier,
+            method: method, reason: "Stub", source: StubRebuildable.id, category: category, selection: selection,
+            ruleMatch: rule.map { RuleMatch(rule: $0, modified: .distantPast) })
+    }
+
+    /// A Delete rule for every item in `folder`. `nil` for a tier that never deletes, whose plan is refused anyway.
+    static func rule(for folder: URL, tier: Tier) -> CleanupRule? {
+        guard let documentation = URL(string: "https://example.test/stub") else { return nil }
+        return try? CleanupRule(
+            id: "stub", name: "Stub", description: "Stub", category: ItemCategory(id: "stub", name: "Stub"),
+            detection: .folder(folder), action: .paths([RulePath(root: folder, pattern: "*")], method: .delete),
+            tier: tier, selection: .always, explanation: "Stub", documentation: documentation)
     }
 
     func scannedModel(items: [ScanItem], runPlan: RunPlan? = nil) async -> (FileCleanupModel, StubRebuildable) {

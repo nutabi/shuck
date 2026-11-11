@@ -29,6 +29,10 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
     /// re-downloaded installer (SAF-008). `nil` for an item that may be recreated between scan and run and still be
     /// what the user chose, such as a DerivedData folder (D-103).
     public let identity: FileIdentity?
+    /// The modification date the run compares just before acting, read with ``ModificationDate``: the item's own, or
+    /// for an item whose scope is its contents, the newest inside it (SAF-008, D-132). `nil` for a command, and for an
+    /// item whose date could not be read, which the run then skips.
+    public let modified: Date?
     /// The bundle IDs of the apps that use the item. While one of them runs, the item is not acted on (SAF-009).
     public let apps: Set<String>
     /// The name of the app the item belongs to, which a page groups items by (CAC-002). `nil` when the sub-tool does not
@@ -40,7 +44,8 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
 
     public init(
         url: URL, snapshot: ItemSnapshot, tier: Tier, method: ActionMethod, reason: LocalizedStringResource,
-        source: ToolID, confidence: Confidence? = nil, scope: ItemScope = .item, identity: FileIdentity? = nil,
+        source: ToolID, modified: Date? = nil, confidence: Confidence? = nil, scope: ItemScope = .item,
+        identity: FileIdentity? = nil,
         category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil,
         apps: Set<String> = [], appName: String? = nil, project: URL? = nil
     ) {
@@ -57,6 +62,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         self.confidence = confidence
         self.scope = scope
         self.identity = identity
+        self.modified = modified
         self.apps = apps
         self.appName = appName
         self.project = project
@@ -81,6 +87,7 @@ public struct ScanItem: Equatable, Sendable, Identifiable {
         confidence = nil
         scope = .item
         identity = nil
+        modified = nil
         self.apps = apps
         appName = nil
         project = nil

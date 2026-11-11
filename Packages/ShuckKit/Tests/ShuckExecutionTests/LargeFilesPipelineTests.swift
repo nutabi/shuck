@@ -14,6 +14,8 @@ struct LargeFilesPipelineTests {
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
     }
 
+    /// The files keep the modification dates they were written with, to the nanosecond, so this also checks that the
+    /// scan and the run read the date at the same precision (D-132).
     @Test func largeFilesAreMovedToTheTrashAndLoggedForRestoreLRG004() async throws {
         let large = try root.file("Downloads/Installer.dmg", size: 1 << 20)
         let small = try root.file("Downloads/notes.txt", size: 10)

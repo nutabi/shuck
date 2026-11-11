@@ -22,7 +22,7 @@ struct RestoreExecutorTests {
     /// Trashes `urls` with the Trash executor and returns them as the history log now lists them.
     private func trashed(_ urls: [URL]) async throws -> [TrashedItem] {
         let items = try urls.map { url in
-            PlannedItem(url: url, tier: .yourData, method: .trash, snapshot: try #require(ItemSnapshot.read(url)))
+            try root.planned(url, tier: .yourData, method: .trash)
         }
         let plan = try Plan(tool: .largeFiles, allowedRoots: [root.url], items: items, pathGuard: pathGuard)
         _ = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)

@@ -5,20 +5,22 @@ enum FolderActivity {
     /// The newest modification date of the folder, what is directly inside it and what is inside those, such as
     /// `Build/Products`. A folder's own date changes only when something is added to or removed from it, and a rebuild
     /// or an app writing its cache mostly changes files deeper down, so the folder alone would make a folder in daily
-    /// use look stale (D-112, D-121).
+    /// use look stale (D-112, D-121). Dates are read with `lstat`, as re-validation reads them (D-132), and symlinks are
+    /// never followed.
     static func newest(in folder: URL, modified: Date) -> Date {
         var newest = modified
-        let manager = FileManager.default
-        let keys: [URLResourceKey] = [.contentModificationDateKey, .isDirectoryKey, .isSymbolicLinkKey]
-        for child in (try? manager.contentsOfDirectory(at: folder, includingPropertiesForKeys: keys)) ?? [] {
-            let values = try? child.resourceValues(forKeys: Set(keys))
-            newest = max(newest, values?.contentModificationDate ?? .distantPast)
-            guard values?.isDirectory == true, values?.isSymbolicLink != true else { continue }
-            for grandchild in (try? manager.contentsOfDirectory(at: child, includingPropertiesForKeys: keys)) ?? [] {
-                let date = try? grandchild.resourceValues(forKeys: [.contentModificationDateKey])
-                newest = max(newest, date?.contentModificationDate ?? .distantPast)
+        for child in entries(of: folder) {
+            guard let info = ModificationDate.status(of: child) else { continue }
+            newest = max(newest, ModificationDate.date(info))
+            guard info.st_mode & S_IFMT == S_IFDIR else { continue }
+            for grandchild in entries(of: child) {
+                newest = max(newest, ModificationDate.read(at: grandchild) ?? .distantPast)
             }
         }
         return newest
+    }
+
+    private static func entries(of folder: URL) -> [URL] {
+        (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
     }
 }

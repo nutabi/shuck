@@ -9,8 +9,10 @@ import os
 /// and it has the same type and about the same size as at scan time (SAF-008). An item whose scan read its file
 /// identity must also still be that file, so a file put in its place since is skipped (D-103). An action may check
 /// more, as the Trash reads the file identity it logs (D-84).
-/// Rule-backed items must still match the reviewed rule and its detection; Delete also compares the target's own
-/// modification date with the scan's, so newly active caches are skipped even when size and kind match (D-105).
+/// Rule-backed items must still match the reviewed rule and its detection, and a Delete item without a rule is skipped
+/// (D-100, D-132). Every item's modification date must still be the one its scan read, the newest inside for an item
+/// whose scope is its contents, so a file in use or a newly active cache is skipped even when size and kind match
+/// (SAF-008, D-105, D-132).
 /// Last, an item is skipped while one of its apps runs, as the app may have started after the scan (SAF-009, D-110).
 ///
 /// A plan may mix methods, as a Developer Junk run mixes Delete and Tool items behind one confirmation (section 8.2).
@@ -111,6 +113,13 @@ public struct PlanExecutor: Sendable {
                         return Acted(.skipped(.modifiedSinceScan))
                     }
                 }
+            } else if item.method == .delete {
+                // `Plan` refuses such an item too; checking again keeps D-132 next to the actions.
+                return Acted(.skipped(.ruleChanged))
+            }
+            // An item whose date the scan could not read is skipped too: nothing shows it is unchanged (D-132).
+            guard let modified = item.modified, ModificationDate.read(at: target, scope: item.scope) == modified else {
+                return Acted(.skipped(.modifiedSinceScan))
             }
             // Asked last, just before acting, since measuring a large folder can take a while (SAF-009).
             if runningApps.firstRunning(of: item.apps) != nil { return Acted(.skipped(.appRunning)) }
@@ -145,9 +154,11 @@ public struct ItemOutcome: Equatable, Sendable {
         /// Another file of the same type and about the same size is at the item's path now, such as an installer
         /// downloaded again (SAF-008, D-103).
         case replaced
-        /// The target or detection no longer matches the cleanup rule reviewed (D-100).
+        /// The target or detection no longer matches the cleanup rule reviewed, or a Delete item has no rule (D-100,
+        /// D-132).
         case ruleChanged
-        /// A rule-backed Delete target was modified after the scan (D-105).
+        /// The item's modification date differs from the one its scan read, or the scan could not read one (SAF-008,
+        /// D-105, D-132).
         case modifiedSinceScan
         /// One of the item's apps was running just before acting (SAF-009, D-110).
         case appRunning
