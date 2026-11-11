@@ -54,6 +54,7 @@ extension PathGuardError {
         case .unresolvable: "unresolvable"
         case .outsideAllowedRoots: "outsideAllowedRoots"
         case .protectedLocation(_, let protected): "protectedLocation \(protected)"
+        case .notReadable: "notReadable"
         case .otherVolume: "otherVolume"
         }
     }

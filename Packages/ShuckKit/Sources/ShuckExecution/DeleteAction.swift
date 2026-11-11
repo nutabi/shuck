@@ -30,7 +30,8 @@ package struct DeleteAction: PlanAction {
         }
 
         let isFolder = info.st_mode & S_IFMT == S_IFDIR
-        // A folder on another volume, mounted at the target: the guard checked only the folder it is mounted in.
+        // A folder on another volume, mounted at the target. The guard refuses one too (D-135); this checks again on
+        // the descriptor the deletion uses, in case a volume was mounted after the guard looked.
         if isFolder, info.st_dev != parentInfo.st_dev {
             return Acted(.skipped(.rejected(.otherVolume(target.path))))
         }

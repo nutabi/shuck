@@ -162,6 +162,23 @@ struct PlanExecutorTests {
         #expect(exists(try root.url("Moved/installer.dmg")))
     }
 
+    /// D-135: a Photos library moved into a planned folder after the plan was made keeps the folder where it is.
+    @Test func skipsAFolderThatGainedAProtectedBundleAfterThePlanSAF007SAF008() async throws {
+        let trip = try root.folder("Pictures/Trip")
+        try root.file("Pictures/Trip/beach.jpg", size: 10_000)
+        let library = try root.folder("Pictures/Trip.photoslibrary")
+        let plan = try plan([planned(trip)])
+        let moved = trip.appending(path: library.lastPathComponent)
+        try FileManager.default.moveItem(at: library, to: moved)
+
+        let report = try await run(plan)
+
+        #expect(
+            report.outcomes.map(\.result) == [.skipped(.rejected(.protectedLocation(trip.path, protected: moved.path)))]
+        )
+        #expect(exists(moved))
+    }
+
     // MARK: - Outcomes
 
     @Test func everyItemEndsWithAnOutcomeSAF011() async throws {

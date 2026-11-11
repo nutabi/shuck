@@ -6,9 +6,10 @@ import Foundation
 /// The checks, in order:
 /// - (a) the path is not empty, `/` or the home folder;
 /// - (b) it is absolute and has no `..` component;
-/// - (e) after resolving symlinks, it is on the startup volume;
+/// - (e) after resolving symlinks, it is on the startup volume, and no other volume is mounted at it;
 /// - (d) it is not inside a protected location, and does not contain one;
-/// - (c) it is strictly inside one of the allowed roots for its tool or sub-tool.
+/// - (c) it is strictly inside one of the allowed roots for its tool or sub-tool;
+/// - (d) again for a folder: no protected bundle or name is among its direct children, and Shuck can read it.
 ///
 /// Symlinks in the parent folders are resolved. A target that is itself a symlink is checked twice, as the link and as
 /// its destination, and both must pass; the executor then acts on the link itself, never its destination (D-43).
@@ -39,9 +40,13 @@ public struct PathGuard: Sendable {
         let lexical = URL(filePath: "/" + components.joined(separator: "/"))
         guard let parent = ResolvedPath(lexical.deletingLastPathComponent()) else { throw .unresolvable(path) }
         let target = parent.url.appending(path: lexical.lastPathComponent)
-        try check(target, existingAncestor: parent.existingAncestor, allowedRoots: allowedRoots)
+        // (e) looks at the target itself when it exists, so a volume mounted at the target is refused, not only one
+        // mounted at a folder above it (D-135). A symlink lives on its parent's volume; its destination is checked below.
+        let isLink = ResolvedPath.isSymbolicLink(target)
+        let onVolume = !isLink && ResolvedPath.itemExists(at: target) ? target : parent.existingAncestor
+        try check(target, existingAncestor: onVolume, allowedRoots: allowedRoots)
 
-        if ResolvedPath.isSymbolicLink(target) {
+        if isLink {
             guard let destination = ResolvedPath(target), ResolvedPath.itemExists(at: destination.url) else {
                 throw .unresolvable(path)
             }
@@ -78,6 +83,33 @@ public struct PathGuard: Sendable {
         // (c) stays case-sensitive: on a case-sensitive volume, a path that differs only in case is a different path.
         let roots = allowedRoots.map { ResolvedPath($0)?.url ?? $0 }
         guard roots.contains(where: { target.isStrictlyInside($0) }) else { throw .outsideAllowedRoots(target.path) }
+
+        // (d) again, last, so a folder is read only once it is known to be inside an allowed root.
+        try checkChildren(of: target)
+    }
+
+    /// (d) for a folder: none of its direct children may be a protected bundle or name (D-135). Deeper levels are not
+    /// searched, which would make every check as slow as a scan. A folder Shuck cannot read is refused, because
+    /// nothing then shows it holds no protected bundle. A target that is missing, a file or a symlink has no children:
+    /// a symlink is never followed here, and its destination gets a check of its own.
+    private func checkChildren(of target: URL) throws(PathGuardError) {
+        var info = stat()
+        guard lstat(target.path, &info) == 0, info.st_mode & S_IFMT == S_IFDIR else { return }
+        let names: [String]
+        do {
+            names = try FileManager.default.contentsOfDirectory(atPath: target.path)
+        } catch {
+            throw .notReadable(target.path)
+        }
+        let protectedNames = Set(PathGuardConfiguration.protectedNames.map(Self.fold))
+        for name in names {
+            let folded = Self.fold(name)
+            guard
+                protectedNames.contains(folded)
+                    || PathGuardConfiguration.protectedExtensions.contains((folded as NSString).pathExtension)
+            else { continue }
+            throw .protectedLocation(target.path, protected: target.appending(path: name).path)
+        }
     }
 
     /// The path's components with case folded, for comparisons that must not depend on case.
@@ -109,8 +141,11 @@ public enum PathGuardError: Error, Equatable {
     case unresolvable(String)
     /// (c) After resolving symlinks, the path is not strictly inside an allowed root.
     case outsideAllowedRoots(String)
-    /// (d) The path is, is inside, or contains a protected location (section 8.4).
+    /// (d) The path is, is inside, or contains a protected location (section 8.4), or is a folder with a protected
+    /// bundle or name among its direct children.
     case protectedLocation(String, protected: String)
-    /// (e) The path is not on the startup volume.
+    /// (d) The path is a folder Shuck may not read, so whether it contains a protected bundle or name is unknown.
+    case notReadable(String)
+    /// (e) The path, or a volume mounted at it, is not on the startup volume.
     case otherVolume(String)
 }
