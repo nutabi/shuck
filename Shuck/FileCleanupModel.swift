@@ -233,15 +233,16 @@ final class FileCleanupModel {
     }
 
     /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot run anything. Every
-    /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). When the run ends, the moved
-    /// items leave every list.
+    /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). The review knows which items
+    /// iCloud syncs, so it can warn about them (D-129). When the run ends, the moved items leave every list.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
     func reviewMoveToTrash(_ subTool: any SubTool, urls: [URL]) throws(PlanError) -> TrashReview? {
         guard let runPlan else { return nil }
         let plan = try Plan(
             subTool: subTool, items: scanItems(subTool, urls: urls),
             pathGuard: PathGuard(configuration: context.protection))
-        return TrashReview(plan: plan, runPlan: runPlan) { [weak self] report in
+        let synced = Set(plan.items.compactMap(\.url).filter { personalFiles.items[$0]?.isSynced == true })
+        return TrashReview(plan: plan, synced: synced, runPlan: runPlan) { [weak self] report in
             self?.remove(report.trashedURLs)
         }
     }

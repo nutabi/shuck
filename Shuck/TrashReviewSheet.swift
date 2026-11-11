@@ -45,8 +45,18 @@ struct TrashReviewSheet: View {
         .font(.title2.bold())
         Text("Shuck records where each item goes, so it can put it back.")
             .foregroundStyle(.secondary)
+        if !review.synced.isEmpty {
+            // The Trash keeps the item restorable on this Mac, but iCloud removes it from the user's other devices
+            // (D-129). The rows say which items are synced.
+            Label {
+                syncedWarning
+            } icon: {
+                Image(systemName: "exclamationmark.icloud")
+            }
+        }
         List(review.plan.items) { item in
             ItemRow(target: item.target, home: home) {
+                if let url = item.url, review.synced.contains(url) { SyncedMark() }
                 Text(item.allocatedSize, format: .byteCount(style: .file))
                     .monospacedDigit()
             }
@@ -59,6 +69,17 @@ struct TrashReviewSheet: View {
             Button("Move to Trash", role: .destructive) { review.start() }
                 .disabled(review.plan.items.isEmpty)
         }
+    }
+
+    private var syncedWarning: Text {
+        let count = review.synced.count
+        return count == 1
+            ? Text("1 item is synced with iCloud. Moving it to the Trash also removes it from your other devices.")
+            : Text(
+                """
+                \(count) items are synced with iCloud. Moving them to the Trash also removes them from your other \
+                devices.
+                """)
     }
 
     @ViewBuilder private func summary(_ report: RunReport) -> some View {

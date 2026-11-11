@@ -92,7 +92,30 @@ final class AppEnvironmentTests {
         #expect(debug.runningApps.bundleIDs() == ["com.apple.dt.xcode", "com.example.other"])
         #expect(debug.context.runningApps.bundleIDs() == debug.runningApps.bundleIDs())
         #expect(try environment(["Shuck"], debugBuild: false).runningApps is SystemRunningApps)
-        #expect(AppEnvironment.bundleIDs(nil).isEmpty && AppEnvironment.bundleIDs(3).isEmpty)
+        #expect(AppEnvironment.list(nil).isEmpty && AppEnvironment.list(3).isEmpty)
+    }
+
+    /// A UI test can mark items as synced by iCloud, since a fixture file cannot be (FCL-010, D-137), but only on a
+    /// fixture root; the real home folder never reads it.
+    @Test func onlyAFixtureRootMarksTheItemsTheTestNamesAsSyncedFCL010() throws {
+        let folder = URL(filePath: fixture, directoryHint: .isDirectory)
+        let settings: AppEnvironment.Settings = {
+            $0 == AppEnvironment.syncedFilesKey ? "Other.mov,\(folder.lastPathComponent)" : nil
+        }
+        let uiTest = try AppEnvironment(
+            arguments: ["Shuck", AppEnvironment.fixtureRootArgument, fixture], settings: settings, debugBuild: true,
+            appBundle: appBundle, bundleID: ShuckKit.debugBundleID, home: home)
+        #expect(uiTest.syncedNames == ["Other.mov", folder.lastPathComponent])
+        #expect(try #require(uiTest.readValues(folder)).isSynced)
+        #expect(try #require(uiTest.readValues(folder)).isDirectory)
+
+        for debugBuild in [true, false] {
+            let app = try AppEnvironment(
+                arguments: ["Shuck"], settings: settings, debugBuild: debugBuild, appBundle: appBundle,
+                bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
+            #expect(app.syncedNames.isEmpty)
+            #expect(try #require(app.readValues(folder)).isSynced == false)
+        }
     }
 
     /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.

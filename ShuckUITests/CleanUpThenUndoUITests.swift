@@ -13,7 +13,8 @@ final class CleanUpThenUndoUITests: ShuckUITestCase {
             "Downloads/Installer.dmg", size: 3 << 20, modified: .now.addingTimeInterval(-2 * 365 * 86_400))
         // Tests never use the real Trash: the app moves items into the fixture root's own (SAF-016, D-47).
         let trash = root.url.appending(path: ".Trash")
-        let app = launch()
+        // iCloud syncs the holiday movie, so Large Files marks it and the review warns (D-129).
+        let app = launch(syncedFiles: ["Holiday.mov"])
         let sidebar = app.outlines.firstMatch
         let sheet = app.sheets.firstMatch
 
@@ -55,21 +56,29 @@ final class CleanUpThenUndoUITests: ShuckUITestCase {
             XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown (D-61)")
         }
 
-        step("Large Files no longer lists the file moved from Old Files (FCL-006)") {
+        step("Large Files no longer lists the file moved from Old Files, and marks the synced one (FCL-006, FCL-012)") {
             sidebar.staticTexts["Large Files"].click()
             // Old Files doesn't list the clip, so the page has changed before the rows are checked.
             XCTAssertTrue(app.staticTexts["Clip.mov"].appears(within: 5))
             XCTAssertTrue(app.staticTexts["Holiday.mov"].exists)
             XCTAssertFalse(app.staticTexts["Installer.dmg"].exists, "Large Files still lists the moved file")
+            XCTAssertEqual(app.staticTexts.matching(identifier: "Synced").count, 1, "Only the synced file is marked")
         }
 
-        step("Large Files: the review lists the selection, then Move to Trash moves it (LRG-004, SAF-002, SAF-016)") {
+        step(
+            "Large Files: the review lists the selection, warns about the synced file, then Move to Trash moves it "
+                + "(LRG-004, SAF-002, SAF-016)"
+        ) {
             app.staticTexts["Holiday.mov"].click()
             XCUIElement.perform(withKeyModifiers: .command) { app.staticTexts["Clip.mov"].click() }
             app.buttons["Move to Trash…"].click()
             XCTAssertTrue(sheet.staticTexts["Move 2 items, 7.3 MB, to the Trash?"].appears(within: 5))
             XCTAssertTrue(sheet.staticTexts["Holiday.mov"].exists)
             XCTAssertTrue(sheet.staticTexts["Clip.mov"].exists)
+            let warning =
+                "1 item is synced with iCloud. Moving it to the Trash also removes it from your other devices."
+            XCTAssertTrue(sheet.staticTexts[warning].exists, "The review does not warn about the synced file (SAF-002)")
+            XCTAssertTrue(sheet.staticTexts["Synced"].exists)
             XCTAssertTrue(FileManager.default.fileExists(atPath: holiday.path), "An item moved before the confirmation")
             attachScreenshot(of: app, named: "Move to Trash review")
 

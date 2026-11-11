@@ -116,10 +116,53 @@ struct PersonalFilesScannerTests {
         #expect(Set(result.items.keys) == ["Documents/local.pdf"])
     }
 
+    /// An evicted package or folder is skipped as a whole: nothing measures it or reads inside it (FCL-010, D-129).
+    @Test func placeholderPackagesAndFoldersAreLeftOutFCL010() async throws {
+        try root.file("Documents/Cloud.rtfd/TXT.rtf", size: 1_000)
+        try root.file("Documents/Cloud Folder/inside.pdf", size: 1_000)
+        try root.file("Pictures/Cloud.photoslibrary/database", size: 1_000)
+        try root.file("go/pkg/mod/cache/blob", size: 1_000)
+        try root.file("Documents/local.pdf", size: 1_000)
+        let evicted: Set<String> = ["Cloud.rtfd", "Cloud Folder", "Cloud.photoslibrary", "mod"]
+        let read = Mutex<[String]>([])
+
+        let result = try await scan(
+            scanner { url in
+                read.withLock { $0.append(url.lastPathComponent) }
+                var values = EntryValues.read(url)
+                if evicted.contains(url.lastPathComponent) { values?.isPlaceholder = true }
+                return values
+            })
+
+        #expect(Set(result.items.keys) == ["Documents/local.pdf"])
+        // The walk never looked inside the evicted folders.
+        #expect(read.withLock { !$0.contains("inside.pdf") && !$0.contains("TXT.rtf") && !$0.contains("cache") })
+    }
+
+    /// A downloaded file that iCloud keeps stays listed and is marked synced (FCL-010, FCL-012, D-129).
+    @Test func downloadedSyncedFilesAreListedAndMarkedFCL010() async throws {
+        try root.file("Documents/synced.pdf", size: 1_000)
+        try root.file("Documents/local.pdf", size: 1_000)
+        try root.file("Documents/Synced.rtfd/TXT.rtf", size: 1_000)
+
+        let result = try await scan(
+            scanner { url in
+                var values = EntryValues.read(url)
+                if url.lastPathComponent.hasPrefix("Synced") || url.lastPathComponent.hasPrefix("synced") {
+                    values?.isSynced = true
+                }
+                return values
+            })
+
+        #expect(try #require(result.items["Documents/synced.pdf"]).isSynced)
+        #expect(try #require(result.items["Documents/Synced.rtfd"]).isSynced)
+        #expect(try #require(result.items["Documents/local.pdf"]).isSynced == false)
+    }
+
     @Test func entryValuesReadAFileFromDisk() throws {
         let file = try root.file("Documents/a.bin", size: 8_000, modified: Date(timeIntervalSince1970: 1_000_000))
         let values = try #require(EntryValues.read(file))
-        #expect(values.isRegularFile && !values.isDirectory && !values.isPlaceholder)
+        #expect(values.isRegularFile && !values.isDirectory && !values.isPlaceholder && !values.isSynced)
         #expect(values.allocatedSize >= 8_000)
         #expect(values.modified == Date(timeIntervalSince1970: 1_000_000))
         #expect(EntryValues.read(try root.url("Documents/missing")) == nil)
