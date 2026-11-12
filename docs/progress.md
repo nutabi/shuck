@@ -556,8 +556,8 @@ Tasks:
   - [x] The single-instance check runs in a release build too (#178, SAF-018, D-166).
   - [ ] Owner decision first, then the fix: what Homebrew Cleanup reports as removed, since it counts the whole
     download cache and `brew cleanup` removes only part of it (#184, DEV-R09, D-128).
-  - [ ] Owner decision first, then the fix: `brew cleanup` is hidden only when its download cache is excluded, not
-    when other folders it cleans are (#176, SET-001, D-149).
+  - [x] `brew cleanup` is hidden when any folder it cleans is excluded, not only its download cache (#176, SET-001,
+    D-149, D-183).
   - Left-overs from M1 and M2 that no task owned (D-178):
   - [ ] Large result lists (NFR-PERF-001, M2-T01): at 200,000 rows a click on a column header sorts every row on the
     main actor (2 s by size, 6 s by name), and the selection footer reads every row on each selection change (166 ms

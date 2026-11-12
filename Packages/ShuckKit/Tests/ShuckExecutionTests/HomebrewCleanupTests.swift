@@ -98,3 +98,23 @@ struct HomebrewCleanupTests {
         #expect(item.toolOutput == "Error: Permission denied @ apply2files")
     }
 }
+
+/// SET-001, SAF-008, D-150: `brew cleanup` is re-checked against every folder it changes just before it runs.
+extension HomebrewCleanupTests {
+    @Test(arguments: ["opt/homebrew/Cellar", "opt/homebrew/Caskroom/app", "opt/homebrew", "Library/Logs/Homebrew"])
+    func brewCleanupIsSkippedWhenAFolderItCleansIsExcludedAfterThePlanSET001SAF008(excluded: String) async throws {
+        try root.tool("opt/homebrew/bin/brew", .reportsInvocation)
+        try root.file("\(cache)/downloads/x", size: 5000)
+        try root.file("\(cellar)/git/2.46.0/bin/git", size: 5000)
+        try root.file("opt/homebrew/Caskroom/app/1.0/app", size: 5000)
+        try root.file("Library/Logs/Homebrew/log", size: 5000)
+        let plan = try Plan(subTool: DeveloperJunk(), items: await scanned(), pathGuard: pathGuard)
+        let folder = try root.url(excluded)
+        let excluding = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [folder]))
+
+        let report = try await PlanExecutor(root: root, pathGuard: excluding).run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.userExclusion(folder.path))])
+        #expect(!root.aFakeToolRan)
+    }
+}
