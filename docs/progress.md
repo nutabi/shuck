@@ -554,8 +554,8 @@ Tasks:
   - [x] Changing the project folders during a Developer Junk scan leaves rows that make the plan fail: the model drops
     rows from an older project-folder revision (#177, SET-003, D-154).
   - [x] The single-instance check runs in a release build too (#178, SAF-018, D-166).
-  - [ ] Owner decision first, then the fix: what Homebrew Cleanup reports as removed, since it counts the whole
-    download cache and `brew cleanup` removes only part of it (#184, DEV-R09, D-128).
+  - [x] Homebrew Cleanup reports what it removed, measured on the download cache after the run, not the whole
+    cache (#184, DEV-R09, D-128, D-184). Still open: the item is preselected again at the same estimate.
   - [x] `brew cleanup` is hidden when any folder it cleans is excluded, not only its download cache (#176, SET-001,
     D-149, D-183).
   - Left-overs from M1 and M2 that no task owned (D-178):

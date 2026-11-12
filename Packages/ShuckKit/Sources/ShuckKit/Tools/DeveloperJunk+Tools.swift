@@ -8,6 +8,18 @@ extension DeveloperJunk {
         ItemCategory(id: "packages", name: LocalizedStringResource("Package managers", bundle: #bundle))
     }
 
+    /// The folder a tool rule's scan sizes its item from, which a run measures before and after the command to report
+    /// what it removed (DEV-003, R-07, D-184): the cache of npm, pip and Homebrew. `nil` for any other rule, whose
+    /// size is not a folder.
+    public static func measuredFolder(ruleID: String, home: URL) -> URL? {
+        switch ruleID {
+        case "DEV-R07": npmCache(home: home)
+        case "DEV-R08": pipCache(home: home)
+        case "DEV-R09": homebrewCache(home: home)
+        default: nil
+        }
+    }
+
     /// The folders an item of the tool rule `ruleID` is sized from or changes, which an exclusion can cover: the rule's
     /// cache folder, for unavailable simulators the folder that holds the simulators, and for Homebrew's cleanup every
     /// folder `brew cleanup` prunes (D-149, D-183). An exclusion on, inside or holding any of them hides the item.

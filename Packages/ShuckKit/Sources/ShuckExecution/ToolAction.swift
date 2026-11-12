@@ -14,15 +14,26 @@ package struct ToolAction: Sendable {
         self.runner = runner
     }
 
-    /// Runs `command` for an item that re-validation has passed.
-    package func act(command: ToolCommand) async -> Acted<ItemOutcome.SkipReason> {
+    /// Runs `command` for an item that re-validation has passed. If the item has a `folder` it is sized from, Shuck
+    /// measures the folder just before the command and again after it ends with exit 0, and reports the difference,
+    /// at least 0, as what was removed (DEV-003, D-184). No output of the tool is read to get it (R-07). When either
+    /// measurement fails or the run is stopped, there is no measurement and the scan's estimate stands.
+    package func act(command: ToolCommand, measuring folder: URL? = nil) async -> Acted<ItemOutcome.SkipReason> {
         let executable: URL
         switch runner.locate(command) {
         case .success(let url): executable = url
         case .failure(let unavailable): return Acted(.skipped(.toolUnavailable(unavailable)))
         }
+        let before = folder.flatMap(Self.measure)
         let run = await runner.run(command, at: executable)
-        return Self.acted(run, command: command)
+        let acted = Self.acted(run, command: command)
+        guard let before, case .exited(0) = run.ending, let after = folder.flatMap(Self.measure) else { return acted }
+        return Acted(acted.result, detail: acted.detail, bytes: max(0, before - after))
+    }
+
+    /// The allocated size of `folder`, or `nil` if it cannot be measured now or the run is stopped meanwhile.
+    private static func measure(_ folder: URL) -> Int64? {
+        ItemSnapshot.read(folder, while: { !Task.isCancelled })?.allocatedSize
     }
 
     /// Said when Shuck stops a tool: only its own process is signalled, not the processes it started (SAF-014).
