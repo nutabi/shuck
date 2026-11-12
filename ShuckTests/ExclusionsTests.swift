@@ -159,10 +159,10 @@ final class ExclusionsTests {
         let drop = model.protect(with: protection(excluding: [excluded]))
 
         // The guard has the new list before the rows are gone.
-        #expect(throws: PlanError.self) { try model.confirmRebuildable(subTool) }
+        await #expect(throws: PlanError.self) { try await model.confirmRebuildable(subTool) }
         await drop.value
         #expect(results.items.compactMap(\.url) == [helpers.url("a")])
-        #expect(try model.confirmRebuildable(subTool)?.plan.items.map(\.url) == [helpers.url("a")])
+        #expect(try await model.confirmRebuildable(subTool)?.plan.items.map(\.url) == [helpers.url("a")])
         guard case .scanned(let summary) = model.state(of: subTool.id) else { return }
         #expect(summary.itemCount == 1)
 

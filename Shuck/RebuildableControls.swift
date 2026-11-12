@@ -65,6 +65,9 @@ struct RebuildableFooter: View {
     /// cannot run anything.
     var moveToTrash: (() -> Void)?
 
+    /// Whether the model is building a plan, which disables both buttons so a second click cannot start another.
+    private var isPlanning: Bool { action?.model.isPlanning ?? false }
+
     var body: some View {
         let rebuildable = results.selectedItems(in: .rebuildable)
         let yourData = results.selectedItems(in: .yourData)
@@ -90,7 +93,7 @@ struct RebuildableFooter: View {
                     )
                 }
                 Button("Move to Trash…") { moveToTrash() }
-                    .disabled(yourData.isEmpty)
+                    .disabled(yourData.isEmpty || isPlanning)
                     .help("Review the selected items of your data before moving them to the Trash.")
                 Divider().frame(height: 16)
             }
@@ -103,7 +106,7 @@ struct RebuildableFooter: View {
             }
             if let action {
                 Button("Delete…") { action.review() }
-                    .disabled(rebuildable.isEmpty)
+                    .disabled(rebuildable.isEmpty || isPlanning)
                     .help(help)
             }
         }

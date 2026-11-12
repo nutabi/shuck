@@ -92,9 +92,9 @@ struct YourDataItemsTests {
         let results = try #require(model.results(of: subTool.id) as? ScanResults)
         results.selection.insert(mine.target)
 
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
         // Every URL is offered to the review, as a caller that did not filter would; only "Your data" enters its plan.
-        let review = try #require(try model.reviewMoveToTrash(subTool, urls: results.items.compactMap(\.url)))
+        let review = try #require(try await model.reviewMoveToTrash(subTool, urls: results.items.compactMap(\.url)))
 
         #expect(confirmation.plan.items.allSatisfy { $0.tier == .rebuildable && $0.method == .delete })
         #expect(confirmation.plan.items.count == 2)
@@ -108,7 +108,7 @@ struct YourDataItemsTests {
         let results = try #require(model.results(of: subTool.id) as? ScanResults)
         results.selection.insert(mine.target)
         let review = try #require(
-            try model.reviewMoveToTrash(subTool, urls: results.selectedItems(in: .yourData).compactMap(\.url)))
+            try await model.reviewMoveToTrash(subTool, urls: results.selectedItems(in: .yourData).compactMap(\.url)))
 
         await review.start()?.value
 

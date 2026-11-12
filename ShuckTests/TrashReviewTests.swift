@@ -69,7 +69,7 @@ struct TrashReviewTests {
         let model = await scannedModel(runPlan: run(trashing: []))
         let selection = [url("Movies/clip.mov"), url("go/pkg/mod"), url("Movies/big.mov"), url("Documents/note.txt")]
 
-        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: selection))
+        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: selection))
 
         // The note is too small for Large Files, and the Go module cache is read-only (FCL-011).
         #expect(review.plan.tool == .largeFiles)
@@ -86,16 +86,16 @@ struct TrashReviewTests {
         #expect(rows.filter(\.isSynced).map(\.name) == ["clip.mov"])
 
         let both = try #require(
-            try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+            try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
         #expect(both.synced == [url("Movies/clip.mov")])
-        let one = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+        let one = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
         #expect(one.synced.isEmpty)
     }
 
     @Test func movedItemsLeaveBothListsAndTheEstimatesFCL006SAF011() async throws {
         let model = await scannedModel(runPlan: run(trashing: ["big.mov"]))
         let review = try #require(
-            try model.reviewMoveToTrash(oldFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+            try await model.reviewMoveToTrash(oldFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
 
         await review.start()?.value
 
@@ -121,7 +121,7 @@ struct TrashReviewTests {
     @Test func aTrashRunMeasuresTheChangeInFreeSpaceAgainstNothingSAF013() async throws {
         let readings = FreeSpaceReadings([10_000_000_000, 10_000_000_000 - 2_000])
         let model = await scannedModel(runPlan: run(trashing: ["big.mov"]), readFreeSpace: readings.read)
-        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
 
         await review.start()?.value
 
@@ -134,7 +134,7 @@ struct TrashReviewTests {
     @Test func aReviewRunsOnce() async throws {
         let calls = Mutex(0)
         let model = await scannedModel(runPlan: run(trashing: []) { calls.withLock { $0 += 1 } })
-        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
 
         let first = review.start()
         #expect(review.phase == .running)
@@ -147,7 +147,7 @@ struct TrashReviewTests {
     @Test func withoutAHistoryLogNothingMovesSAF005() async throws {
         let failure = HistoryError.cannotOpen("/StubHome/Library/Application Support/me.nutabi.shuck", errno: EACCES)
         let model = await scannedModel { (_: Plan) async throws(HistoryError) -> RunReport in throw failure }
-        let review = try #require(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
 
         await review.start()?.value
 
@@ -163,7 +163,7 @@ struct TrashReviewTests {
                 run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .skipped(.cancelled)) })
         }
         let review = try #require(
-            try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+            try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
 
         let task = review.start()
         review.stop()
@@ -181,7 +181,7 @@ struct TrashReviewTests {
     @Test func aModelWithoutARunOffersNoReview() async throws {
         let model = FileCleanupModel(subTools: [largeFiles], context: context)
         #expect(!model.canRun)
-        #expect(try model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
+        #expect(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
     }
 
     /// SAF-011: the summary says why an item was not moved, in the words History uses for the same code (D-90).

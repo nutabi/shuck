@@ -86,6 +86,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Shuck no longer freezes for a moment when you click Move to Trash or Delete with thousands of items selected. The
+  review opens as soon as Shuck has checked every item.
 - Developer Junk and Caches & Logs say "Not accessible" when macOS keeps Shuck out of a folder they would list,
   instead of leaving it out without a word. Developer Junk's page now shows the note, as Caches & Logs' does.
 - Move to Trash's review, Quick Look and Show in Finder now follow the folder order shown in grouped results.

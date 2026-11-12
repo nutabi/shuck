@@ -53,6 +53,8 @@ final class FileCleanupModel {
     private var exclusionRevision = 0
     /// How many times the project folders have changed, so only the newest change removes rows.
     private var projectRevision = 0
+    /// Whether a plan is being built off the main actor. A second review waits for it (NFR-PERF-001).
+    private(set) var isPlanning = false
     private let personalFilesScan: PersonalFilesScan
     /// Moves a plan's items to the Trash, or `nil` in tests and previews, which then cannot move anything.
     private let runPlan: RunPlan?
@@ -144,6 +146,7 @@ final class FileCleanupModel {
     /// sub-tool stopped, with an empty list.
     @discardableResult
     func scan(_ subTool: any SubTool) -> Task<Void, Never>? {
+        let subTool = self.subTool(subTool.id) ?? subTool
         guard canScan(subTool) else { return nil }
         if subTool is any PersonalFilesSubTool { return scanPersonalFiles() }
         let id = subTool.id
@@ -302,6 +305,7 @@ final class FileCleanupModel {
     /// The items `subTool` acts on for the rows at `urls`, in that order. Read-only rows and rows the sub-tool no longer
     /// lists are left out (FCL-011).
     func scanItems(_ subTool: any SubTool, urls: [URL]) -> [ScanItem] {
+        let subTool = self.subTool(subTool.id) ?? subTool
         guard let subTool = subTool as? any PersonalFilesSubTool else {
             return scanResults[subTool.id]?.items(at: urls) ?? []
         }
@@ -312,15 +316,18 @@ final class FileCleanupModel {
     var canRun: Bool { runPlan != nil }
 
     /// The summary confirmation for deleting the selected "Rebuildable" items of `subTool` (SAF-003), or `nil` if the
-    /// model cannot run anything. Only that tier is in the plan: "Your data" items need the itemized Trash review
-    /// (SAF-002). Every item passes the path guard now, and again just before it is deleted (SAF-007, SAF-008). When
-    /// the run ends, the deleted items leave the list.
+    /// model cannot run anything or is already building a plan. Only that tier is in the plan: "Your data" items need
+    /// the itemized Trash review (SAF-002). Every item passes the path guard now, and again just before it is deleted
+    /// (SAF-007, SAF-008). When the run ends, the deleted items leave the list. The plan is built off the main actor
+    /// (NFR-PERF-001), with the model's own copy of the sub-tool (R-17).
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
-    func confirmRebuildable(_ subTool: any SubTool) throws(PlanError) -> SummaryConfirmation? {
-        guard let runPlan, let results = scanResults[subTool.id] else { return nil }
-        let plan = try Plan(
-            subTool: subTool, items: results.selectedItems(in: .rebuildable),
-            pathGuard: PathGuard(configuration: context.protection))
+    func confirmRebuildable(_ subTool: any SubTool) async throws(PlanError) -> SummaryConfirmation? {
+        let subTool = self.subTool(subTool.id) ?? subTool
+        guard !isPlanning, let runPlan, let results = scanResults[subTool.id] else { return nil }
+        isPlanning = true
+        defer { isPlanning = false }
+        let plan = try await Self.plan(
+            subTool, items: results.selectedItems(in: .rebuildable), protection: context.protection)
         return SummaryConfirmation(
             plan: plan, threshold: OversizeThreshold(usedSpace: readUsedSpace()), runPlan: runPlan,
             readFreeSpace: readFreeSpace
@@ -330,21 +337,34 @@ final class FileCleanupModel {
         }
     }
 
-    /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot run anything. Every
-    /// item passes the path guard now, and again just before it moves (SAF-007, SAF-008). The review knows which items
-    /// iCloud syncs, so it can warn about them (D-129). When the run ends, the moved items leave every list. Only
-    /// "Your data" items are in the plan: a run never mixes tiers, and the others have their own confirmation (D-147).
+    /// A review of moving the rows at `urls` to the Trash (SAF-002), or `nil` if the model cannot run anything or is
+    /// already building a plan. Every item passes the path guard now, and again just before it moves (SAF-007,
+    /// SAF-008). The review knows which items iCloud syncs, so it can warn about them (D-129). When the run ends, the
+    /// moved items leave every list. Only "Your data" items are in the plan: a run never mixes tiers, and the others
+    /// have their own confirmation (D-147). The plan is built off the main actor (NFR-PERF-001), with the model's own
+    /// copy of the sub-tool (R-17).
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
-    func reviewMoveToTrash(_ subTool: any SubTool, urls: [URL]) throws(PlanError) -> TrashReview? {
-        guard let runPlan else { return nil }
-        let plan = try Plan(
-            subTool: subTool, items: scanItems(subTool, urls: urls).filter { $0.tier == .yourData },
-            pathGuard: PathGuard(configuration: context.protection))
+    func reviewMoveToTrash(_ subTool: any SubTool, urls: [URL]) async throws(PlanError) -> TrashReview? {
+        let subTool = self.subTool(subTool.id) ?? subTool
+        guard !isPlanning, let runPlan else { return nil }
+        isPlanning = true
+        defer { isPlanning = false }
+        let plan = try await Self.plan(
+            subTool, items: scanItems(subTool, urls: urls).filter { $0.tier == .yourData },
+            protection: context.protection)
         let synced = Set(plan.items.compactMap(\.url).filter { personalFiles.items[$0]?.isSynced == true })
         return TrashReview(plan: plan, synced: synced, runPlan: runPlan, readFreeSpace: readFreeSpace) {
             [weak self] report in
             self?.remove(report.trashedURLs)
         }
+    }
+
+    /// The plan for `items`, built off the main actor: each item costs several file-system reads (NFR-PERF-001).
+    @concurrent
+    private nonisolated static func plan(
+        _ subTool: any SubTool, items: [ScanItem], protection: PathGuardConfiguration
+    ) async throws(PlanError) -> Plan {
+        try Plan(subTool: subTool, items: items, pathGuard: PathGuard(configuration: protection))
     }
 
     /// Removes items that are gone, such as those a run moved to the Trash, from the shared state and from every list,

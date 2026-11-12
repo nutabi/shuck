@@ -73,7 +73,7 @@ struct SummaryConfirmationTests {
             ],
             runPlan: run(deleting: []))
 
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         #expect(confirmation.categoryTotals.map(\.id) == ["xcode", "simulators"])
         #expect(confirmation.categoryTotals.map(\.count) == [2, 1])
@@ -95,7 +95,7 @@ struct SummaryConfirmationTests {
             ],
             runPlan: run(deleting: []))
 
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         #expect(confirmation.plan.items.map(\.url) == [url("selected")])
     }
@@ -104,7 +104,7 @@ struct SummaryConfirmationTests {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode), item("b", size: 3_000, category: xcode)],
             runPlan: run(deleting: ["a"]))
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         await confirmation.start()?.value
 
@@ -136,14 +136,14 @@ struct SummaryConfirmationTests {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode), try toolItem(["clean"], estimate: 5_000)],
             runPlan: run(deleting: []))
-        let mixed = try #require(try model.confirmRebuildable(subTool))
+        let mixed = try #require(try await model.confirmRebuildable(subTool))
         #expect(mixed.runsTools)
         #expect(mixed.totalBytes == 6_000)
         #expect(mixed.categoryTotals.map(\.count) == [2])
 
         let (other, otherTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: []))
-        #expect(try #require(try other.confirmRebuildable(otherTool)).runsTools == false)
+        #expect(try #require(try await other.confirmRebuildable(otherTool)).runsTools == false)
     }
 
     /// SAF-011: a command that ran leaves the list like a deleted item; one that did not run stays.
@@ -158,7 +158,7 @@ struct SummaryConfirmationTests {
                             item: item, result: index == 0 ? .done(nil) : .skipped(.toolUnavailable(.notAnExecutable)))
                     })
             })
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         await confirmation.start()?.value
 
@@ -190,7 +190,7 @@ struct SummaryConfirmationTests {
                     })
             },
             readFreeSpace: readings.read)
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
         #expect(confirmation.freeSpace == nil)
 
         await confirmation.start()?.value
@@ -211,7 +211,7 @@ struct SummaryConfirmationTests {
                 RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .done(nil)) })
             },
             readFreeSpace: readings.read)
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         await confirmation.start()?.value
 
@@ -226,7 +226,7 @@ struct SummaryConfirmationTests {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: ["a"]),
             readFreeSpace: readings.read)
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         await confirmation.start()?.value
 
@@ -245,7 +245,7 @@ struct SummaryConfirmationTests {
                 return RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .done(nil)) })
             },
             readUsedSpace: { 100_000 })
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         #expect(confirmation.threshold?.bytes == 25_000)
         #expect(confirmation.oversized.map(\.url) == [url("huge")])
@@ -264,7 +264,7 @@ struct SummaryConfirmationTests {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 25_000, category: xcode)], runPlan: run(deleting: ["a"]),
             readUsedSpace: { 100_000 })
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         #expect(confirmation.oversized.isEmpty)
         #expect(!confirmation.needsSecondConfirmation)
@@ -276,7 +276,7 @@ struct SummaryConfirmationTests {
     @Test func anUnknownUsedSpaceNeedsNoSecondConfirmation() async throws {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000_000, category: xcode)], runPlan: run(deleting: ["a"]))
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         #expect(confirmation.threshold == nil)
         #expect(!confirmation.needsSecondConfirmation)
@@ -285,7 +285,7 @@ struct SummaryConfirmationTests {
     @Test func aConfirmationRunsOnce() async throws {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: ["a"]))
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         let first = confirmation.start()
         #expect(confirmation.phase == .running)
@@ -299,7 +299,7 @@ struct SummaryConfirmationTests {
         let (model, subTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)],
             runPlan: { (_: Plan) async throws(HistoryError) -> RunReport in throw failure })
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         await confirmation.start()?.value
 
@@ -315,7 +315,7 @@ struct SummaryConfirmationTests {
                 return RunReport(
                     run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .skipped(.cancelled)) })
             })
-        let confirmation = try #require(try model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool))
 
         let task = confirmation.start()
         confirmation.stop()
@@ -338,7 +338,7 @@ struct SummaryConfirmationTests {
             ],
             runPlan: run(deleting: []))
 
-        #expect(throws: PlanError.self) { try model.confirmRebuildable(subTool) }
+        await #expect(throws: PlanError.self) { try await model.confirmRebuildable(subTool) }
     }
 
     /// Tests and previews give the model no run, so nothing in them can delete a file.
@@ -346,7 +346,7 @@ struct SummaryConfirmationTests {
         let (model, subTool) = await scannedModel(items: [item("a", size: 1_000, category: xcode)])
 
         #expect(!model.canRun)
-        #expect(try model.confirmRebuildable(subTool) == nil)
+        #expect(try await model.confirmRebuildable(subTool) == nil)
     }
 
     @Test func aSkippedOrFailedDeleteReadsLikeHistorySAF011() {

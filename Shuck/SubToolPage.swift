@@ -177,12 +177,19 @@ struct ConfirmRebuildable {
 
     /// Opens the confirmation for the selection. Nothing is deleted until the user confirms in it (SAF-003).
     func review() {
-        do throws(PlanError) {
-            confirmation.wrappedValue = try model.confirmRebuildable(subTool)
-        } catch {
-            // Private: the error names the item the plan stopped at (NFR-SEC-006).
-            Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
-            refusal.wrappedValue = error
+        let model = model
+        let subTool = subTool
+        let confirmation = confirmation
+        let refusal = refusal
+        // The plan is built off the main actor; the sheet opens when it is ready (NFR-PERF-001).
+        Task {
+            do throws(PlanError) {
+                confirmation.wrappedValue = try await model.confirmRebuildable(subTool)
+            } catch {
+                // Private: the error names the item the plan stopped at (NFR-SEC-006).
+                Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")
+                refusal.wrappedValue = error
+            }
         }
     }
 }
