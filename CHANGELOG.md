@@ -26,7 +26,8 @@ All notable changes to Shuck are listed here. The format follows
   snapshots, APFS clones, a tool's estimate, or other apps using space at the same time.
 - Developer Junk now lists Xcode's DerivedData, one row for each project. Projects that Xcode has not built for 30 days
   or whose project is no longer on your Mac start selected, and nothing can be selected while Xcode is running. You can
-  look and choose.
+  look and choose. Each row says that the project's Swift package checkouts go too, and that Xcode needs an internet
+  connection to download them again.
 - Developer Junk also lists Xcode's device support files, one row for each version of each platform. Every version
   except the newest of its platform starts selected, because Xcode copies the files again when you connect a device.
 - Developer Junk also lists the iOS Simulator's caches, which start selected and are disabled while Xcode or Simulator

@@ -390,7 +390,10 @@ change and writes the documents. The other four are a second stack, in the order
 - [x] Scans report what they cannot measure (R-10, M2-F17, #118, D-159). Left over: a folder measured with an
   unreadable subfolder still shows a size that is too small, with no mark, and ONB-002's banner that lists the
   folders is M5.
-- [ ] String Catalog entries and a check for missing ones (R-09, M2-F17, #116), with DEV-R01's explanation.
+- [x] String Catalog entries and a check for missing ones (R-09, M2-F17, #116, D-161), with DEV-R01's explanation,
+  which now says that the project's Swift package checkouts go too. This closes M2-F17. Left over: the check's blind
+  spots, which its header lists (a bare literal passed to a parameter typed `LocalizedStringResource`, and raw
+  strings).
 - [x] Plans are built off the main actor (R-07, R-17, M2-F03, #62, D-160). This closes M2-F03 without the Instruments
   measurement: the review's probe measured 1.7 s for 5,000 files. Left over: no test shows that a second click
   while a plan is being built starts no second plan, since it depends on task scheduling; the buttons are disabled

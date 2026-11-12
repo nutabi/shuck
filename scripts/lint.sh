@@ -1,5 +1,6 @@
 #!/bin/bash
-# Lints all Swift code with swift-format (ENG-004, ENG-005).
+# Lints all Swift code with swift-format (ENG-004, ENG-005) and checks that user-facing strings have String Catalog
+# entries (NFR-L10N-001, scripts/strings-check.py).
 #
 # Usage: scripts/lint.sh          report problems and fail if there are any
 #        scripts/lint.sh --fix    rewrite files in place, then lint again
@@ -26,4 +27,5 @@ elif [[ $# -gt 0 ]]; then
 fi
 
 xcrun swift-format lint --strict --recursive --parallel "${paths[@]}"
+python3 -I scripts/strings-check.py || { echo "lint: user-facing strings are missing from a String Catalog (NFR-L10N-001)" >&2; exit 1; }
 echo "lint: OK"

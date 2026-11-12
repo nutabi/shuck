@@ -51,7 +51,10 @@ struct DeveloperJunkTests {
         #expect(items["GoneAndOld-\(hash)"]?.selection == .selected)
         #expect(reason(items["Gone-\(hash)"]) == "Its project is no longer on this Mac.")
         #expect(reason(items["Old-\(hash)"]) == "Not built for 30 days or more.")
-        #expect(reason(items["Live-\(hash)"]) == "Xcode builds this project again when you next need it.")
+        #expect(
+            reason(items["Live-\(hash)"])
+                == "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again."
+        )
         // Each row names its project's path, so two projects of one name differ (D-138).
         #expect(items["Live-\(hash)"]?.project?.path == project.path)
         #expect(items["Gone-\(hash)"]?.project?.path == gone.path)

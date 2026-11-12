@@ -31,7 +31,8 @@ Run commands from the repository root. When a task adds or changes a command, it
 | Build the app | `xcodebuild -workspace Shuck.xcworkspace -scheme Shuck -destination 'platform=macOS' build` | available |
 | Engine, app and UI tests, from `Shuck.xctestplan` | `xcodebuild -workspace Shuck.xcworkspace -scheme Shuck -destination 'platform=macOS' test` | available |
 | Engine tests only, built separately by SwiftPM | `swift test --package-path Packages/ShuckKit` | available |
-| Lint (`--fix` to reformat) | `scripts/lint.sh` | available |
+| Lint (`--fix` to reformat), with the String Catalog check | `scripts/lint.sh` | available |
+| User-facing strings without a String Catalog entry (NFR-L10N-001, D-161); `lint.sh` runs it | `scripts/strings-check.py` | available |
 | All tests and the coverage gate, as CI runs them (`--no-ui` skips UI tests; `--build-only` only builds) | `scripts/test.sh` | available |
 | Static checks (ENG-006) | `scripts/static-checks.sh` | available |
 | Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
@@ -93,6 +94,9 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
 - User-facing strings live in String Catalogs; no hard-coded UI strings (NFR-L10N-001). A command-line build does not
   add new keys to `Shuck/Localizable.xcstrings`; only a build in Xcode does. Without Xcode, add each new key by hand
   as an empty entry like the ones around it, with `%@` for an interpolated value and `%lld` for an integer.
+  `scripts/lint.sh` fails when a user-facing literal has no entry (`scripts/strings-check.py`, D-161). The check
+  knows a literal by the call it is passed to (`Text`, `Button`, `.help`, `LocalizedStringResource`, …) or by the type
+  of the declaration it is in; a literal it should leave alone gets `// not localized: <reason>` on its line.
 - Every control has a VoiceOver label and works from the keyboard. Never convey information by color alone (NFR-A11Y-001).
 - Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004). Only `ShuckExecution` may start one, tests included (D-82).
 - No network APIs (`URLSession`, Network framework, `NSURLConnection`, sockets) and no authorization or privilege APIs (NFR-SEC-001, ONB-003).
