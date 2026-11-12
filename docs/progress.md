@@ -439,6 +439,8 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
   environment's reviewer stays optional, and #125 is closed as not planned (D-173).
 - [x] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part, D-172).
   - [x] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`, #124, #125).
+- [x] M2-F25 A tool command is skipped when an exclusion added after planning covers its tool's folder (SET-001,
+  SAF-008, D-150).
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
