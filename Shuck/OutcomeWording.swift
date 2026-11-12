@@ -116,6 +116,8 @@ nonisolated enum OutcomeWording {
             ("Shuck isn't allowed to open its history log.", path)
         case .cannotOpen(let path, _):
             ("Shuck couldn't open its history log.", path)
+        case .locked(let path):
+            ("Another Shuck window is running a cleanup.", path)
         case .cannotWrite(let path, _):
             ("Shuck couldn't write to its history log.", path)
         case .cannotRead(let path, _):

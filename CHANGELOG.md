@@ -89,6 +89,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Opening Shuck while it is already open brings the open window to the front instead of starting a second copy, so
+  two copies can no longer clean up at the same time.
 - Deleting a very deeply nested folder, such as some node_modules folders, no longer stops part-way. A Restore whose
   move fails no longer leaves empty folders behind.
 - Stopping a cleanup at the moment a developer tool starts could make Shuck quit unexpectedly. It no longer does.
