@@ -54,6 +54,8 @@ public struct PlanExecutor: Sendable {
     /// Runs `plan` and returns one outcome per item, in plan order.
     public func run(_ plan: Plan) async -> RunReport {
         let loop = RunLoop(log: log, logger: Logger(tool: plan.tool))
+        // What a tool item's run measured, by item (D-184). The loop runs one step at a time.
+        var removed: [ItemTarget: Int64] = [:]
         let results = await loop.run(plan.items) { item in
             let logged = LoggedItem(
                 run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
@@ -61,10 +63,16 @@ public struct PlanExecutor: Sendable {
                 tier: item.tier, bytes: item.allocatedSize,
                 intentIdentity: item.method == .trash ? item.url.flatMap { FileIdentity.read($0) } : nil)
             return RunLoop.Step(logged: logged) {
-                await act(on: item, allowedRoots: plan.allowedRoots, requiresRule: plan.requiresRule)
+                let acted = await act(on: item, allowedRoots: plan.allowedRoots, requiresRule: plan.requiresRule)
+                removed[item.target] = acted.bytes
+                return acted
             }
         }
-        return RunReport(run: plan.run, outcomes: zip(plan.items, results).map { ItemOutcome(item: $0, result: $1) })
+        return RunReport(
+            run: plan.run,
+            outcomes: zip(plan.items, results).map {
+                ItemOutcome(item: $0, result: $1, removedBytes: removed[$0.target])
+            })
     }
 
     /// Re-validates the Tool `item`, which names no file, and runs its `command` (SAF-004, SAF-008, SAF-010).
@@ -81,7 +89,8 @@ public struct PlanExecutor: Sendable {
         if let excluded = excludedFolder(hiding: item) { return Acted(.skipped(.userExclusion(excluded))) }
         if Task.isCancelled { return Acted(.skipped(.cancelled)) }
         if runningApps.firstRunning(of: item.apps) != nil { return Acted(.skipped(.appRunning)) }
-        return await toolAction.act(command: command)
+        let folder = DeveloperJunk.measuredFolder(ruleID: match.rule.id, home: pathGuard.configuration.home)
+        return await toolAction.act(command: command, measuring: folder)
     }
 
     /// The user's exclusion that hides the tool `item`, if any: the scan's own check (`ScanContext.hides`) against the
@@ -240,10 +249,15 @@ public struct ItemOutcome: Equatable, Sendable {
 
     public let item: PlannedItem
     public let result: Result
+    /// For a Tool item, the bytes its folder lost during the run, measured before and after the command, when the
+    /// item has such a folder and both measurements worked; otherwise `nil`, and the item's size is an estimate
+    /// (DEV-003, D-184).
+    public let removedBytes: Int64?
 
-    public init(item: PlannedItem, result: Result) {
+    public init(item: PlannedItem, result: Result, removedBytes: Int64? = nil) {
         self.item = item
         self.result = result
+        self.removedBytes = removedBytes
     }
 }
 
