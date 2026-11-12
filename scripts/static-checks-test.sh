@@ -1,6 +1,7 @@
 #!/bin/bash
 # Self-test for scripts/static-checks.sh: every rule must fire on a violation and stay quiet on allowed code.
-# CI runs it next to the checks themselves, so a broken pattern cannot silently pass everything.
+# CI runs it next to the checks themselves, so a broken pattern cannot silently pass everything. Each fixture tree is a
+# git repository, since the checks read only the files git tracks; `stage` adds a tree's files before a run.
 
 set -euo pipefail
 checks="$(cd "$(dirname "$0")" && pwd)/static-checks.sh"
@@ -14,15 +15,38 @@ put() {
     printf '%s\n' "$2" >"$tree/$1"
 }
 
+# The Must SAF IDs, built from their numbers so that this script does not name them: it is a script, and the checks
+# count a script's IDs as named. ids_except [ID...] prints every ID but those given.
+ids_except() {
+    local n id out=""
+    for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 16 17 18; do
+        id="$(printf 'SAF-%03d' "$n")"
+        case " $* " in *" $id "*) continue ;; esac
+        out="$out$id "
+    done
+    echo "$out"
+}
+
+# new_tree NAME: an empty git repository whose test folder names every Must SAF ID (R-12), so only a case that changes
+# that fails the saf-tests check. autostage is on: expect_rule and expect_clean add the tree's files first.
 new_tree() {
     tree="$work/$1"
     mkdir -p "$tree"
+    git -C "$tree" init -q
+    autostage=1
+    put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except)"
+}
+
+# stage: add every file of the current tree to git's index, as a developer's `git add` does.
+stage() {
+    git -C "$tree" -c core.excludesFile=/dev/null add -A
 }
 
 # expect_rule RULE [REQUIREMENT]: the checks fail on the current tree and report RULE. REQUIREMENT names the
 # requirement the case tests, such as SAF-017 (NFR-QA-001).
 expect_rule() {
     local output label="[$1]${2:+ ($2)}"
+    if ((autostage)); then stage; fi
     if output="$("$checks" "$tree" 2>&1)"; then
         echo "FAIL: $label expected a failure in $(basename "$tree"), got none" >&2
         failed=1
@@ -35,9 +59,26 @@ expect_rule() {
     fi
 }
 
+# expect_output TEXT: the checks fail on the current tree and their output holds TEXT.
+expect_output() {
+    local output
+    if ((autostage)); then stage; fi
+    if output="$("$checks" "$tree" 2>&1)"; then
+        echo "FAIL: expected a failure in $(basename "$tree"), got none" >&2
+        failed=1
+    elif ! grep -qF -- "$1" <<<"$output"; then
+        echo "FAIL: '$1' not reported in $(basename "$tree"). Output was:" >&2
+        echo "$output" >&2
+        failed=1
+    else
+        echo "ok: '$1' reported in $(basename "$tree")"
+    fi
+}
+
 # expect_clean NAME: the checks pass on the current tree.
 expect_clean() {
     local output
+    if ((autostage)); then stage; fi
     if ! output="$("$checks" "$tree" 2>&1)"; then
         echo "FAIL: $1 expected to pass. Output was:" >&2
         echo "$output" >&2
@@ -139,11 +180,99 @@ new_tree resolved && put Shuck.xcodeproj/project.xcworkspace/xcshareddata/swiftp
     expect_rule packages
 new_tree claude && put docs/CLAUDE.md '# no' && expect_rule agents
 
+# More network APIs, and loaders given a remote URL (#123). A URL held in a variable is not caught, so there is no case.
+for call in 'import CFNetwork' 'import NetworkExtension' 'let status = getaddrinfo(host, nil, nil, &info)' \
+    'let result = connect(fd, address, length)' 'let result = Darwin.connect(fd, address, length)' \
+    'AsyncImage(url: image)' 'let data = try Data(contentsOf: URL(string: "https://example.com/a")!)' \
+    'let text = try String(contentsOf: URL(string: "http://example.com/a")!)' \
+    'for try await line in URL(string: "https://example.com/a")!.lines { use(line) }'; do
+    new_tree "network-$(tr -cd '[:alnum:]' <<<"${call:0:24}")" && put "$app" "$call" &&
+        expect_rule network NFR-SEC-001
+done
+# More file writes: the System framework's open that creates, and temporary files and folders (#123).
+for call in 'let fd = try FileDescriptor.open(path, .writeOnly, options: [.create], permissions: .ownerReadWrite)' \
+    'let fd = mkstemp(&template)' 'let fd = mkstemps(&template, 4)' 'let fd = mkostemp(&template, 0)' \
+    'let folder = mkdtemp(&template)' 'let fd = Darwin.mkstemp(&template)'; do
+    new_tree "file-write-$(tr -cd '[:alnum:]' <<<"${call:0:30}")" && put "$engine" "$call" &&
+        expect_rule file-write SAF-017
+done
+# More mutations: C's remove(path), and iCloud's evict and move (#123).
+for call in 'let result = remove(path)' 'let result = remove("/tmp/x")' 'let result = Darwin.remove(url.path)' \
+    'try FileManager.default.evictUbiquitousItem(at: url)' \
+    'try FileManager.default.setUbiquitous(true, itemAt: url, destinationURL: destination)'; do
+    new_tree "mutation-$(tr -cd '[:alnum:]' <<<"${call:0:30}")" && put "$engine" "$call" &&
+        expect_rule mutation SAF-017
+done
+for call in 'let task = try NSUserUnixTask(url: script)' 'let connection = NSXPCConnection(serviceName: name)'; do
+    new_tree "process-$(tr -cd '[:alnum:]' <<<"${call:0:30}")" && put "$app" "$call" && expect_rule process D-82
+done
+for call in '@_silgen_name("unlink") func unlinkByName(_ path: UnsafePointer<CChar>) -> Int32' \
+    'let handle = dlopen(nil, RTLD_NOW)' 'let symbol = dlsym(handle, "unlink")'; do
+    new_tree "native-call-$(tr -cd '[:alnum:]' <<<"${call:0:20}")" && put "$engine" "$call" &&
+        expect_rule native-call SAF-017
+done
+
+# Calls wrapped across lines, as swift-format writes them, are joined and reported (#123).
+new_tree wrapped-write && put "$engine" 'try data.write(
+    to: url)' && expect_rule file-write SAF-017
+new_tree wrapped-write-options && put "$engine" 'try data.write(
+    to: url,
+    options: .atomic
+)' && expect_rule file-write SAF-017
+new_tree wrapped-remove && put "$app" 'try FileManager.default.removeItem(
+    at: url)' && expect_rule mutation SAF-017
+new_tree wrapped-chain && put "$engine" 'try FileManager.default
+    .removeItem(at: url)' && expect_rule mutation SAF-017
+new_tree wrapped-handle && put "$engine" 'let handle = try FileHandle(
+    forWritingTo: url)' && expect_rule file-write SAF-017
+new_tree wrapped-loader && put "$app" 'let data = try Data(
+    contentsOf: URL(string: "https://example.com/a")!)' && expect_rule network NFR-SEC-001
+new_tree wrapped-comma && put "$engine" 'let (a, b) = (1,
+    unlink(path))' && expect_rule mutation SAF-017
+new_tree wrapped-create && put "$engine" 'let fd = try FileDescriptor.open(
+    path, .writeOnly,
+    options: [.create])' && expect_rule file-write SAF-017
+# The report names the line the call starts on, and a comment between the lines does not stop the join.
+new_tree wrapped-line-number && put "$engine" 'let first = 1
+// a comment
+try data.write(
+    // a comment inside the call
+    to: url)' &&
+    expect_output "Engine.swift:3: [file-write]"
+
+# Only the files git tracks are checked: a violating file that is not added leaves the checks passing (#122).
+new_tree untracked && put "$app" 'let ok = true' && stage && put Shuck/Untracked.swift 'let session = URLSession.shared' &&
+    autostage=0 expect_clean "an untracked violation"
+new_tree untracked-claude && put "$app" 'let ok = true' && stage && put .claude/worktrees/x/Shuck/Leftover.swift 'print("x")' &&
+    put .claude/worktrees/x/CLAUDE.md '# no' && autostage=0 expect_clean "an untracked CLAUDE.md"
+new_tree tracked-then-deleted && put "$app" 'let session = URLSession.shared' && stage && rm "$tree/$app" &&
+    autostage=0 expect_clean "a tracked file deleted from the working tree"
+
+# Every Must SAF requirement is named in a test or a script, as a whole ID (NFR-QA-001, D-133).
+new_tree saf-missing && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-018)" &&
+    expect_rule saf-tests NFR-QA-001
+new_tree saf-missing-first && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-001)" &&
+    expect_output "SAF-001: [saf-tests]"
+new_tree saf-longer-id && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt \
+    "$(ids_except SAF-001) $(printf 'SAF-%04d' 1)" && expect_rule saf-tests NFR-QA-001
+new_tree saf-in-checks-only && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-018)" &&
+    put scripts/static-checks.sh "$(ids_except)" && expect_rule saf-tests NFR-QA-001
+new_tree saf-in-source-only && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-018)" &&
+    put "$engine" "// $(ids_except)" && expect_rule saf-tests NFR-QA-001
+new_tree saf-spread && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-017 SAF-018)" &&
+    put scripts/other.sh "# $(ids_except | cut -d' ' -f1-16)" &&
+    put ShuckUITests/FlowTests.swift "// $(ids_except SAF-001 SAF-002 SAF-003 SAF-004 SAF-005 SAF-006 SAF-007 SAF-008 SAF-009 SAF-010 SAF-011 SAF-012 SAF-013 SAF-014 SAF-016)" &&
+    expect_clean "IDs spread over tests and scripts"
+
 new_tree allowed
 put "$execution" 'try FileManager.default.trashItem(at: url, resultingItemURL: &trashed)
 let arguments = ["bootout", target]
 guard renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 else { return }
 let process = Process()
+try data.write(
+    to: url)
+let removed = remove(path)
+let fd = mkstemp(&template)
 try SMAppService.agent(plistName: "agent.plist").unregister()
 let replacement = try FileManager.default.url(
     for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: target, create: true)'
@@ -163,6 +292,16 @@ NSWorkspace.shared.open(settingsURL)
 Link("Privacy settings", destination: settingsURL)
 let processName = ProcessInfo.processInfo.processName
 let n = items.remove(at: 0)
+remove(urls)
+mutating func remove(_ urls: some Sequence<URL>) {}
+let local = try Data(contentsOf: localURL)
+let text = try String(contentsOf: localURL, encoding: .utf8)
+for try await line in localURL.lines { use(line) }
+let documentation = URL(string: "https://developer.apple.com/documentation/foundation/filemanager")
+Link("Documentation", destination: URL(string: "https://developer.apple.com/documentation")!)
+try await socket.connect(to: peer)
+let task = connection.connect(host)
+let fd = try FileDescriptor.open(path, .readOnly)
 let home = URL.homeDirectory
 let downloads = URL.downloadsDirectory
 let trash = try FileManager.default.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: nil, create: false)'
