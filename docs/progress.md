@@ -433,7 +433,7 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
 - [x] M2-F18 Release scripts fail when a check fails (R-18, #66, #121, D-171). This closes M2-F18. Left over: the
   notarization path and the new `stapler` and `spctl` checks run first at the next release.
 - [x] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part, D-172).
-  - [ ] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`).
+  - [x] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`, #124, #125).
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
