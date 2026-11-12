@@ -31,8 +31,8 @@ struct SelectionMark: View {
     }
 }
 
-/// "Select All" and "Select None", next to a list's count. A row that cannot be chosen, such as a running app's, stays
-/// unselected (SAF-009).
+/// "Select All" (⌘A) and "Select None" (⇧⌘A), next to a list's count. A row that cannot be chosen, such as a running
+/// app's, stays unselected (SAF-009).
 struct SelectAllButtons: View {
     /// Whether nothing is selected, which disables Select None.
     let isEmpty: Bool
@@ -42,9 +42,12 @@ struct SelectAllButtons: View {
     let selectNone: () -> Void
 
     var body: some View {
+        // The standard shortcuts, so a keyboard user needs no pointer (NFR-A11Y-001).
         Button("Select All", action: selectAll)
+            .keyboardShortcut("a", modifiers: .command)
             .help(selectAllHelp)
         Button("Select None", action: selectNone)
+            .keyboardShortcut("a", modifiers: [.command, .shift])
             .disabled(isEmpty)
             .help("Deselect every item.")
     }

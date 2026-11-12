@@ -7,6 +7,10 @@ All notable changes to Shuck are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
+
 ### Fixed
 
 - A folder that Shuck will not remove for safety, such as one that holds a Photos library, is now shown locked with the

@@ -201,6 +201,25 @@ struct ProjectFoldersTests {
         #expect(!model.isPlanning)
     }
 
+    /// A second click while a plan is being built starts no second plan: of two calls that overlap, one builds the plan
+    /// and the other gets `nil` (R-07, M2-F20).
+    @Test func aSecondCallWhileAPlanIsBeingBuiltStartsNoSecondPlanR07() async throws {
+        let subTool = DeveloperJunk(projectFolders: [url("Developer")])
+        let model = FileCleanupModel(
+            subTools: [subTool], context: ScanContext(home: home), runPlan: YourDataItemsTests().runAll)
+        let results = try #require(model.results(of: .developerJunk) as? ScanResults)
+        results.apply(.item(try nodeItem("Developer/kept")))
+        results.selectAll()
+
+        // Both run on the main actor, so the second starts while the first waits for its plan.
+        let first = Task { try await model.confirmRebuildable(subTool) }
+        let second = Task { try await model.confirmRebuildable(subTool) }
+        let plans = [try await first.value, try await second.value].compactMap { $0 }
+
+        #expect(plans.count == 1)
+        #expect(!model.isPlanning)
+    }
+
     /// Both settings rebuild the model's context, so neither change may undo the other, in either order.
     @Test(arguments: [true, false])
     func exclusionsAndProjectFoldersBothSurviveInEitherOrderSET001SET003(exclusionsFirst: Bool) async throws {
