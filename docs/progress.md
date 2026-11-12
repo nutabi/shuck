@@ -246,9 +246,10 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Device support files: every version but the newest of each platform is selected (DEV-R02, D-118).
   - [x] CoreSimulator caches, and the guard refusing simulator device data and the other tool-managed stores
     (DEV-R04, DEV-007, D-119).
-  - [ ] Owner item (review of 2026-11-10): check on the owner's Mac whether `~/Library/Developer/CoreSimulator/Caches`
+  - [x] Owner item (review of 2026-11-10): check on the owner's Mac whether `~/Library/Developer/CoreSimulator/Caches`
     still exists under the current Xcode. DevCleaner's maintainer reports it gone on recent Xcode versions and advises
     against cleaning these caches (PRD S77). If it is gone or risky, the owner decides whether DEV-R04 stays.
+    The owner decided on 2026-11-12 that DEV-R04 stays, selected by default (D-177).
 - [x] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
   Two pull requests, a stack (D-62, D-76):
