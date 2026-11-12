@@ -68,6 +68,9 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Changed
 
+- When Shuck skips an item because it is in a folder you excluded in Settings, the run's summary and History now say
+  so, instead of "failed a safety check". This also applies to restoring an item into a folder you have since
+  excluded.
 - When you stop a developer tool, or Shuck stops one that runs too long, History now says that processes the tool
   started may still be running, since Shuck stops only the tool itself.
 - Move to Trash skips a file that another file replaced since the scan, such as an installer you downloaded again, and

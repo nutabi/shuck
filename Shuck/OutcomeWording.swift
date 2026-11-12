@@ -52,6 +52,7 @@ nonisolated enum OutcomeWording {
         case .modifiedSinceScan: return "Skipped: modified since the scan"
         case .appRunning: return "Skipped: its app was running"
         case .rejected: return "Skipped: failed a safety check"
+        case .userExclusion: return "Skipped: it is in a folder you excluded in Settings"
         case .cancelled:
             return isRestore ? "Skipped: stopped before it was restored" : "Skipped: stopped before it was acted on"
         case .historyUnavailable: return "Skipped: the history log stopped working"

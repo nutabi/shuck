@@ -264,7 +264,7 @@ struct RestoreExecutorTests {
     }
 
     /// SET-001: the guard answers a restore into an excluded folder as it answers one into any protected location,
-    /// so the item stays in the Trash. Restore keeps that answer (D-149); History shows it as a failed safety check.
+    /// so the item stays in the Trash. Restore keeps that answer (D-149) and logs it as the user's exclusion.
     @Test func neverRestoresIntoAFolderTheUserExcludedSET001SAF007() async throws {
         let original = try root.file("Documents/Keep/report.pdf", size: 100)
         let items = try await trashed([original])
@@ -274,9 +274,9 @@ struct RestoreExecutorTests {
 
         let results = await executor.run(items.map { RestoreRequest(item: $0) }).outcomes.map(\.result)
 
-        #expect(results == [.skipped(.rejected(.protectedLocation(original.path, protected: keep.path)))])
+        #expect(results == [.skipped(.userExclusion(keep.path))])
         #expect(!exists(original) && exists(items[0].trashedURL))
-        #expect(try restoreRecords().compactMap(\.detail) == ["rejected: protectedLocation \(keep.path)"])
+        #expect(try restoreRecords().compactMap(\.detail) == ["userExclusion: \(keep.path)"])
     }
 
     @Test func neverRestoresIntoAProtectedLocationSAF007() async throws {

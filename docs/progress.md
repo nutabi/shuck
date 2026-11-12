@@ -419,7 +419,7 @@ it and writes the documents.
   - [ ] Owner item: press ⌘Q during a long Move to Trash; the question appears, Stop and Quit finishes the item and
     quits, and History lists the run. Then try the close button during a run: a sheet is expected to block it
     (D-168).
-- [ ] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
+- [x] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other

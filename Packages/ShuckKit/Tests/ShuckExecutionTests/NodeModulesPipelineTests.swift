@@ -76,7 +76,7 @@ struct NodeModulesPipelineTests {
         let report = try await PlanExecutor(root: root, pathGuard: excluding).run(plan)
 
         #expect(report.outcomes.count == 1)
-        if case .skipped(.rejected) = report.outcomes[0].result {} else { Issue.record("not rejected by the guard") }
+        if case .skipped(.userExclusion) = report.outcomes[0].result {} else { Issue.record("not an exclusion skip") }
         #expect(FileManager.default.fileExists(atPath: project.appending(path: "node_modules").path))
     }
 

@@ -209,6 +209,8 @@ struct PlanExecutorTests {
         #expect(
             report.outcomes.map(\.result) == [.skipped(.rejected(.protectedLocation(trip.path, protected: moved.path)))]
         )
+        let details = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }.map(\.detail)
+        #expect(details == ["rejected: protectedLocation \(moved.path)"])
         #expect(exists(moved))
     }
 
@@ -222,7 +224,9 @@ struct PlanExecutorTests {
         let report = try await run(plan, with: try PlanExecutor(root: root, pathGuard: excluding))
 
         #expect(
-            report.outcomes.map(\.result) == [.skipped(.rejected(.protectedLocation(trip.path, protected: trip.path)))])
+            report.outcomes.map(\.result) == [.skipped(.userExclusion(trip.path))])
+        let details = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }.map(\.detail)
+        #expect(details == ["userExclusion: \(trip.path)"])
         #expect(exists(project) && !exists(trashFolder.appending(path: "Trip")))
     }
 

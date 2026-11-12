@@ -134,7 +134,7 @@ final class ExclusionsTests {
         environment.excludedFolders.add([keep])
         let report = try await environment.run(plan)
 
-        guard case .skipped(.rejected(.protectedLocation)) = try #require(report.outcomes.first?.result) else {
+        guard case .skipped(.userExclusion) = try #require(report.outcomes.first?.result) else {
             Issue.record("Not skipped by the guard: \(report.outcomes.map(\.result))")
             return
         }
