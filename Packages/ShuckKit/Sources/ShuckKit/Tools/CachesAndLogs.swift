@@ -39,6 +39,8 @@ public struct CachesAndLogs: SubTool {
         [Self.caches(home: home), Self.logs(home: home), Self.containers(home: home)]
     }
 
+    public var requiresRule: Bool { true }
+
     static func caches(home: URL) -> URL {
         home.appending(path: "Library/Caches", directoryHint: .isDirectory)
     }

@@ -89,9 +89,12 @@ public struct Plan: Sendable {
     /// The allowed roots of the plan's tool or sub-tool, used again when the executor re-validates (SAF-008).
     public let allowedRoots: [URL]
     public let items: [PlannedItem]
+    /// Whether the plan's sub-tool takes its items from rules, so every item needs one that accepts it (D-163).
+    public let requiresRule: Bool
 
     public init(
-        tool: ToolID, allowedRoots: [URL], items: [PlannedItem], pathGuard: PathGuard, run: UUID = UUID()
+        tool: ToolID, allowedRoots: [URL], items: [PlannedItem], pathGuard: PathGuard, run: UUID = UUID(),
+        requiresRule: Bool = false
     ) throws(PlanError) {
         for item in items {
             let subject = item.target.description
@@ -99,8 +102,10 @@ public struct Plan: Sendable {
                 throw .methodNotAllowed(subject, tier: item.tier, method: item.method)
             }
             guard item.selection.isSelectable else { throw .notSelectable(subject) }
-            // A Delete without a rule has no evidence that the item is safe to lose (D-132).
-            guard item.method != .delete || item.ruleMatch != nil else { throw .ruleRequired(subject) }
+            // A Delete, or any item of a rule-based sub-tool, needs a rule as evidence that it is safe (D-132, D-163).
+            guard (item.method != .delete && !requiresRule) || item.ruleMatch != nil else {
+                throw .ruleRequired(subject)
+            }
             if let match = item.ruleMatch,
                 !match.rule.accepts(item.target, tier: item.tier, method: item.method, scope: item.scope)
                     || (item.method == .delete && match.modified == nil)
@@ -125,6 +130,7 @@ public struct Plan: Sendable {
         self.tool = tool
         self.allowedRoots = allowedRoots
         self.items = items
+        self.requiresRule = requiresRule
     }
 }
 
@@ -141,7 +147,7 @@ extension Plan {
         try self.init(
             tool: subTool.id, allowedRoots: subTool.allowedRoots(home: pathGuard.configuration.home),
             items: items.map(PlannedItem.init),
-            pathGuard: pathGuard, run: run)
+            pathGuard: pathGuard, run: run, requiresRule: subTool.requiresRule)
     }
 }
 

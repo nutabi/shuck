@@ -172,11 +172,9 @@ struct DeveloperJunkPipelineTests {
             url: folder, snapshot: try #require(ItemSnapshot.read(folder)), tier: .yourData, method: .trash,
             reason: "Not a rule's target", source: .developerJunk, selection: .selected)
 
+        // Without a rule the plan refuses the item before the guard sees it (SAF-008, R-03).
         let error = #expect(throws: PlanError.self) { try self.plan([item]) }
-        guard case .rejected(_, .outsideAllowedRoots)? = error else {
-            Issue.record("Expected the path guard to refuse the folder, got \(String(describing: error))")
-            return
-        }
+        #expect(error == .ruleRequired(folder.path))
         #expect(FileManager.default.fileExists(atPath: other.path))
     }
 }

@@ -59,7 +59,9 @@ public struct PlanExecutor: Sendable {
                 run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
                 path: item.target.description,
                 tier: item.tier, bytes: item.allocatedSize)
-            return RunLoop.Step(logged: logged) { await act(on: item, allowedRoots: plan.allowedRoots) }
+            return RunLoop.Step(logged: logged) {
+                await act(on: item, allowedRoots: plan.allowedRoots, requiresRule: plan.requiresRule)
+            }
         }
         return RunReport(run: plan.run, outcomes: zip(plan.items, results).map { ItemOutcome(item: $0, result: $1) })
     }
@@ -80,7 +82,9 @@ public struct PlanExecutor: Sendable {
     }
 
     /// Re-validates `item` and hands it to the action for its method (SAF-004, SAF-008).
-    package func act(on item: PlannedItem, allowedRoots: [URL]) async -> Acted<ItemOutcome.SkipReason> {
+    package func act(on item: PlannedItem, allowedRoots: [URL], requiresRule: Bool = false) async -> Acted<
+        ItemOutcome.SkipReason
+    > {
         // `Plan` refuses such an item too; checking again keeps SAF-004 in the executor, next to the actions.
         guard item.tier.allows(item.method) else { return Acted(.skipped(.notAllowed(item.method))) }
         if case .command(let command) = item.target { return await actOnCommand(item, command) }
@@ -113,8 +117,8 @@ public struct PlanExecutor: Sendable {
                         return Acted(.skipped(.modifiedSinceScan))
                     }
                 }
-            } else if item.method == .delete {
-                // `Plan` refuses such an item too; checking again keeps D-132 next to the actions.
+            } else if item.method == .delete || requiresRule {
+                // `Plan` refuses such an item too; checking again keeps D-132 and D-163 next to the actions.
                 return Acted(.skipped(.ruleChanged))
             }
             // An item whose date the scan could not read is skipped too: nothing shows it is unchanged (D-132).
