@@ -700,10 +700,10 @@
     "Failed: the tool was ended by signal %lld" : {
 
     },
-    "Failed: the tool did not finish in %lld seconds, so Shuck stopped it" : {
+    "Failed: the tool did not finish in %lld seconds, so Shuck stopped it. Processes it started may still be running" : {
 
     },
-    "Stopped before the tool finished" : {
+    "Stopped before the tool finished. Processes it started may still be running" : {
 
     },
     "Up to %@" : {

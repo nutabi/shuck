@@ -66,6 +66,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Changed
 
+- When you stop a developer tool, or Shuck stops one that runs too long, History now says that processes the tool
+  started may still be running, since Shuck stops only the tool itself.
 - Move to Trash skips a file that another file replaced since the scan, such as an installer you downloaded again, and
   says so: "another file took its place since the scan".
 - Large Files and Old Files no longer list packages and folders that are only in iCloud and not downloaded to your Mac,
@@ -87,6 +89,7 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Stopping a cleanup at the moment a developer tool starts could make Shuck quit unexpectedly. It no longer does.
 - Shuck no longer freezes for a moment when you click Move to Trash or Delete with thousands of items selected. The
   review opens as soon as Shuck has checked every item.
 - Developer Junk and Caches & Logs say "Not accessible" when macOS keeps Shuck out of a folder they would list,
