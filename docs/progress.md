@@ -430,7 +430,8 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
   other proposals (every rule on every Swift file by default, a second local package, `.binaryTarget(`); a self-test
   case for each older alternative of each rule and a remote URL held in a variable (#123); a call wrapped over more
   than 15 lines is matched only in parts.
-- [ ] M2-F18 Release scripts fail when a check fails (R-18, #66, #121).
+- [x] M2-F18 Release scripts fail when a check fails (R-18, #66, #121, D-171). This closes M2-F18. Left over: the
+  notarization path and the new `stapler` and `spctl` checks run first at the next release.
 - [ ] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part).
   - [ ] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`).
 
@@ -470,7 +471,7 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
   (`InterruptedRunTests`, D-167), and the static check with stack 3 (D-170).
 - [ ] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
   ONB-002), and two History strings are missing from the String Catalog (NFR-L10N-001, #116, #118).
-- [ ] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before
+- [x] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before
   printing Apple's log, and `static-checks.sh` scans untracked folders such as `.claude/worktrees` (NFR-SEC-003,
   ENG-006, #121, #122).
 - [ ] M2-F19 The review of 2026-11-10 read `main` before M2-T06, M2-T09 and M2-T11 merged, so four of the requirements
