@@ -222,7 +222,7 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
     Left over: the page's Delete button came with M2-T06; the other rules and Caches & Logs'
     scan name their apps as they arrive (M2-T08, M2-T09, M2-T12).
   - Review of 2026-11-10 (DEV-R01): the rule's explanation says that deleting DerivedData also removes `SourcePackages`
-    (Swift package checkouts, which need the network to restore) and Xcode's compilation cache. Not done yet.
+    (Swift package checkouts, which need the network to restore) and Xcode's compilation cache. Done in M2-F26.
 - [x] M2-T06 Summary confirmation: per-category totals, the item list on demand, progress, Stop and a summary; History
   shows deletions as non-restorable (SAF-003, SAF-006, SAF-011, HIS-004). Starts with one run model (phase, start,
   Stop, report) and one sheet layout that Move to Trash, Restore and the summary confirmation each fill in, instead of
