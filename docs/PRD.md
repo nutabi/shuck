@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.9 — DEV-R05 and DEV-R06 targets as built (see Revision history) |
+| Version | 1.10 — the release workflow publishes the release (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -28,6 +28,7 @@
 | 1.7 | 2026-11-12 | SET-003 (developer project folders) is built in M2 as a minimal list with DEV-R06, not in M5 (D-154); a project's `node_modules` belongs to Developer Junk (D-152). |
 | 1.8 | 2026-11-12 | Section 8.5: a `trash` intent record carries the item's `identity` too, so History can find an item whose result record was never written in the Trash (HIS-001, D-162, D-167). |
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
+| 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 
 ## How to read this document
 
@@ -94,7 +95,7 @@ The MVP is done when all three are true:
 
 1. Every Must requirement in sections 8 to 10 is implemented and passes its acceptance check.
 2. The owner has used Shuck on their own Mac for 4 consecutive weeks with zero unintended deletions.
-3. A signed, notarized `v1.0.0` DMG is published through the draft-release flow (ENG-007).
+3. A signed, notarized `v1.0.0` DMG is published through the release workflow (ENG-007).
 
 There is no time-based deadline (D-15).
 
@@ -167,7 +168,7 @@ There is no time-based deadline (D-15).
 | Signing | Developer ID Application certificate (owner's paid Apple Developer Program membership) [S9]. | D-04 |
 | Notarization | Apple notary service via `notarytool`; ticket stapled to the DMG [S8][S63]. | D-04 |
 | Package | DMG (drag to Applications), built with Apple's `hdiutil`. No `.pkg` installer (see below). | D-19 |
-| Release channel | GitHub Releases on `nutabi/shuck`. CI creates a **draft** release; the owner publishes it. | D-17 |
+| Release channel | GitHub Releases on `nutabi/shuck`. The owner approves the release environment; CI then builds and **publishes** the release. | D-17, D-174 |
 | Updates | None in-app for the MVP. Users download a newer DMG and replace the app. | D-18 |
 | Network | None. The MVP makes no network connections. | D-18 |
 | Name | **Shuck**. Tagline: "Shuck — housekeeping for Mac". | D-21 |
@@ -615,7 +616,7 @@ shuck/
 | ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95); pull request template complete. | Must |
 | ENG-005 | **CI** (`ci.yml`) runs on every pull request, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. A `Code changes` job on Linux runs the static checks, their self-test and the changelog check for every change, and decides whether a change touches code (D-66, D-98). `Lint, build and test` runs only for code changes: `swift-format` lint, one build from `Shuck.xcworkspace`, and `Shuck.xctestplan` (engine tests with the coverage gate, app unit tests, UI tests) (D-111). A push to `main` only builds, to warm the compilation cache (D-111). | Must |
 | ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs; no `SMAppService` outside the Execution module except `openSystemSettingsLoginItems()` (D-134). | Must |
-| ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create --draft` with the DMG and checksum [S61]. **The owner reviews and publishes the draft** (D-17). | Must |
+| ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create` with the DMG and checksum [S61], which publishes the release. **The owner approves the `release` environment before the job reads any secret** (D-174, superseding D-17's draft step). | Must |
 | ENG-008 | Signing and notarization secrets are GitHub encrypted secrets, used only by the tag-triggered release workflow. They are never available to pull request workflows. | Must |
 | ENG-009 | Versions follow Semantic Versioning [S60]. Each milestone ends with a pre-release tag (section 13). | Must |
 | ENG-010 | `AGENTS.md` is the only agent-instruction file. Do not add `CLAUDE.md`: Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists [S28]. `AGENTS.md` is an open format read by many coding agents [S27]. | Must |

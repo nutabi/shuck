@@ -506,9 +506,9 @@ Exit criteria (PRD section 13):
 - [x] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
 - [x] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
-  Checked on 2026-11-12: each ID is named in engine tests of the Delete or Tool path (`SummaryConfirmationTests`,
-  `DeleteActionTests`, `ToolRunTests`, `RunningAppsTests`, `PlanTests`, `FreeSpaceTests` and the rule tests) and in
-  the UI workflows of Developer Junk and Caches & Logs.
+  Checked on 2026-11-12: each ID is named in tests of the Delete or Tool path: engine tests (`DeleteActionTests`,
+  `ToolRunTests`, `RunningAppsTests`, `PlanTests` and the rule tests), app tests (`SummaryConfirmationTests`,
+  `FreeSpaceTests`) and the UI workflows of Developer Junk and Caches & Logs.
 - [x] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
   README's status without a version number, so it no longer goes stale at each release (#67).
 - [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37). Before the tag, `build-dmg.sh` captures

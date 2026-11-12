@@ -27,11 +27,13 @@ the owner publishes.
 4. The **Release** workflow (`.github/workflows/release.yml`) checks the tag is on `main`, runs the static checks,
    writes the version's notes from `CHANGELOG.md` and fails if it has none (D-95), then runs `scripts/build-dmg.sh`:
    archive, sign with Developer ID, notarize and staple the app, build the DMG, sign, notarize and staple it, and write
-   a SHA-256 checksum. It creates a **draft** release with both files and the notes. Versions below 1.0.0 are marked as
-   pre-releases.
-5. Download the DMG from the draft, open it on your Mac, and check that Shuck launches without a Gatekeeper warning.
-   Check the notes, then **publish**. If a note needs fixing, fix `CHANGELOG.md` in a pull request too, so the two
-   stay the same.
+   a SHA-256 checksum. The job first waits for your approval in the `release` environment (**Review deployments** on
+   the run's page), before it reads any secret. Once the build passes, it **publishes** the release with both files
+   and the notes, with no further step (D-174). Versions below 1.0.0 are marked as pre-releases.
+5. Download the DMG from the release, open it on your Mac, and check that Shuck launches without a Gatekeeper warning.
+   If a note needs fixing, edit the release and fix `CHANGELOG.md` in a pull request too, so the two stay the same.
+   If the build itself is wrong, mark the release as a pre-release or delete it, and release the fix as the next
+   patch version.
 
 ## One-time setup
 
@@ -79,14 +81,14 @@ The same scripts run locally, with the Developer ID certificate in your login ke
    SHUCK_EXPECT_VERSION=0.0.1 scripts/build-dmg.sh
    ```
 
-3. Create the draft release yourself, with the notes from `CHANGELOG.md`:
+3. Publish the release yourself, with the notes from `CHANGELOG.md`:
 
    ```bash
    scripts/release-notes.sh 0.0.1 > build/release/notes.md
    ```
 
    ```bash
-   gh release create v0.0.1 --draft --verify-tag --prerelease --title "Shuck 0.0.1" --notes-file build/release/notes.md build/release/Shuck-0.0.1.dmg build/release/Shuck-0.0.1.dmg.sha256
+   gh release create v0.0.1 --verify-tag --prerelease --title "Shuck 0.0.1" --notes-file build/release/notes.md build/release/Shuck-0.0.1.dmg build/release/Shuck-0.0.1.dmg.sha256
    ```
 
 For a dry run without a certificate, `SHUCK_SIGN_IDENTITY=- scripts/build-dmg.sh --skip-notarization` signs ad hoc and

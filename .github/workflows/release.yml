@@ -1,6 +1,6 @@
-# Builds, signs and notarizes a release when a version tag is pushed, then creates a DRAFT GitHub release with the DMG
-# and its checksum (ENG-007), and the version's notes from CHANGELOG.md (D-95). The owner reviews and publishes the
-# draft (D-17). Setup: docs/releasing.md.
+# Builds, signs and notarizes a release when a version tag is pushed, then publishes a GitHub release with the DMG and
+# its checksum (ENG-007), and the version's notes from CHANGELOG.md (D-95). The owner's control is the release
+# environment's approval, before any secret is read (D-174). Setup: docs/releasing.md.
 name: Release
 
 on:
@@ -16,12 +16,12 @@ concurrency:
 
 jobs:
   release:
-    name: Build and draft release
+    name: Build and publish release
     runs-on: xcode-27
     timeout-minutes: 60
     # The signing secrets live in this environment, which only v* tags may use (ENG-008).
     environment: release
-    # Permissions are set per job, not per step. Only "Create the draft release" receives the token, through GH_TOKEN:
+    # Permissions are set per job, not per step. Only "Publish the release" receives the token, through GH_TOKEN:
     # checkout keeps no credentials, and no other step names github.token (#125).
     permissions:
       contents: write
@@ -80,7 +80,7 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: SHUCK_EXPECT_VERSION="${GITHUB_REF_NAME#v}" scripts/build-dmg.sh
 
-      - name: Create the draft release
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -88,7 +88,8 @@ jobs:
           # Milestone builds before 1.0.0 are pre-releases (ENG-009).
           prerelease=""
           if [[ "$version" == 0.* ]]; then prerelease="--prerelease"; fi
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag $prerelease \
+          # gh uploads the files to a draft first and publishes it only once they are all there.
+          gh release create "$GITHUB_REF_NAME" --verify-tag $prerelease \
             --title "Shuck $version" --notes-file "$RUNNER_TEMP/release-notes.md" \
             "build/release/Shuck-$version.dmg" "build/release/Shuck-$version.dmg.sha256"
 
