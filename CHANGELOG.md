@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Large Files and Old Files no longer freeze for seconds when you sort a very long list by a column, and selecting rows
+  stays quick however many files are listed.
 - A folder that Shuck will not remove for safety, such as one that holds a Photos library, is now shown locked with the
   reason in Large Files and Old Files, instead of making the whole move to the Trash fail.
 - Developer Junk rows no longer appear cut off after you scan again. Rows in Developer Junk and Caches & Logs also stay

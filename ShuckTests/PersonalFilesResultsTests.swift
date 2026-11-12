@@ -50,17 +50,23 @@ struct PersonalFilesResultsTests {
         #expect(names(results) == ["Setup.dmg", "notes.txt", "clip.mov"])
 
         results.sortOrder = [KeyPathComparator(\.name, comparator: .localizedStandard)]
+
+        await results.finishSorting()
         #expect(names(results) == ["clip.mov", "notes.txt", "Setup.dmg"])
 
         // A row without a date sorts as the oldest.
         results.sortOrder = [KeyPathComparator(\.sortDate)]
+        await results.finishSorting()
         #expect(names(results) == ["notes.txt", "clip.mov", "Setup.dmg"])
 
         results.sortOrder = [KeyPathComparator(\.folder, comparator: .localizedStandard)]
+
+        await results.finishSorting()
         #expect(names(results) == ["notes.txt", "Setup.dmg", "clip.mov"])
 
         // "Disk Image", "QuickTime movie", "text": the comparison ignores case.
         results.sortOrder = [KeyPathComparator(\.kind, comparator: .localizedStandard)]
+        await results.finishSorting()
         #expect(names(results) == ["Setup.dmg", "clip.mov", "notes.txt"])
     }
 
@@ -228,7 +234,7 @@ struct PersonalFilesResultsTests {
         }
     }
 
-    @Test func aSortOrderChangeSortsAgainAndLaterBatchesFollowIt() throws {
+    @Test func aSortOrderChangeSortsAgainAndLaterBatchesFollowIt() async throws {
         let bySize = [KeyPathComparator(\ResultRow.size)]
         let byName = [KeyPathComparator(\ResultRow.name, comparator: .localizedStandard)]
         let results = PersonalFilesResults(home: home, sortOrder: bySize)
@@ -236,6 +242,7 @@ struct PersonalFilesResultsTests {
         for (index, batch) in randomBatches(seed: 7).enumerated() {
             if index == 20 {
                 results.sortOrder = byName
+                await results.finishSorting()
                 expected.sort(using: byName)
                 try #require(results.rows == expected)
             }
@@ -260,7 +267,7 @@ struct PersonalFilesResultsTests {
         #expect(names(results) == ["a"])
     }
 
-    @Test func groupsFollowEveryChangeOfTheRowsLRG003() {
+    @Test func groupsFollowEveryChangeOfTheRowsLRG003() async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
         results.insert([row("Movies/a", size: 3_000), row("Movies/b", size: 1_000), row("Downloads/c", size: 2_000)])
         #expect(results.groups.map(\.topFolder) == ["Movies", "Downloads"])
@@ -270,6 +277,8 @@ struct PersonalFilesResultsTests {
         #expect(results.groups.map(\.topFolder) == ["Downloads", "Movies"])
 
         results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
+
+        await results.finishSorting()
         #expect(results.groups.last?.rows.map(\.name) == ["a", "b"])
 
         results.remove([home.appending(path: "Downloads/d")])
@@ -282,7 +291,7 @@ struct PersonalFilesResultsTests {
     /// FCL-012, LRG-003: preview, Finder and review follow visible folder sections, rather than interleaving files
     /// from different groups. A partial selection keeps that order and ignores URLs no longer listed.
     @Test(arguments: [true, false])
-    func selectedURLsFollowTheDisplayedOrderLRG003(grouped: Bool) {
+    func selectedURLsFollowTheDisplayedOrderLRG003(grouped: Bool) async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size, order: .reverse)])
         let holiday = row("Movies/Holiday.mov", size: 6_000)
         let installer = row("Downloads/Installer.dmg", size: 2_000)
@@ -299,6 +308,8 @@ struct PersonalFilesResultsTests {
         #expect(results.ordered([], grouped: grouped).isEmpty)
 
         results.sortOrder = [KeyPathComparator(\.size)]
+
+        await results.finishSorting()
         #expect(
             results.ordered(all, grouped: grouped)
                 == (grouped ? [clip.id, holiday.id, installer.id] : [clip.id, installer.id, holiday.id]))
@@ -306,6 +317,134 @@ struct PersonalFilesResultsTests {
         #expect(
             results.ordered(all, grouped: grouped)
                 == (grouped ? [holiday.id, installer.id] : [installer.id, holiday.id]))
+    }
+
+    // MARK: Sorting off the main actor and incremental totals (NFR-PERF-001)
+
+    func sizeRows() -> [ResultRow] {
+        [
+            row("Movies/b.mov", size: 3_000, modified: Date(timeIntervalSince1970: 3)),
+            row("Downloads/a.dmg", size: 1_000, modified: Date(timeIntervalSince1970: 9)),
+            row("Documents/c.txt", size: 2_000),
+        ]
+    }
+
+    @Test(arguments: [
+        ([KeyPathComparator(\ResultRow.size)], ["a.dmg", "c.txt", "b.mov"]),
+        ([KeyPathComparator(\ResultRow.size, order: .reverse)], ["b.mov", "c.txt", "a.dmg"]),
+        ([KeyPathComparator(\ResultRow.name, comparator: .localizedStandard)], ["a.dmg", "b.mov", "c.txt"]),
+        (
+            [KeyPathComparator(\ResultRow.name, comparator: .localizedStandard, order: .reverse)],
+            ["c.txt", "b.mov", "a.dmg"]
+        ),
+        ([KeyPathComparator(\ResultRow.sortDate)], ["c.txt", "b.mov", "a.dmg"]),
+        ([KeyPathComparator(\ResultRow.sortDate, order: .reverse)], ["a.dmg", "b.mov", "c.txt"]),
+        ([KeyPathComparator(\ResultRow.folder, comparator: .localizedStandard)], ["c.txt", "a.dmg", "b.mov"]),
+        ([KeyPathComparator(\ResultRow.kind, comparator: .localizedStandard)], ["a.dmg", "b.mov", "c.txt"]),
+    ])
+    func aSortOrderChangeSortsOffTheMainActorNFRPERF001(
+        order: [KeyPathComparator<ResultRow>], expected: [String]
+    ) async {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.id.path)])
+        results.insert(sizeRows())
+        results.sortOrder = order
+        await results.finishSorting()
+        #expect(names(results) == expected)
+    }
+
+    @Test func theTableKeepsThePreviousOrderUntilTheSortFinishesNFRPERF001() async {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
+        results.insert(sizeRows())
+        results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
+        #expect(names(results) == ["a.dmg", "c.txt", "b.mov"])
+        await results.finishSorting()
+        #expect(names(results) == ["b.mov", "c.txt", "a.dmg"])
+    }
+
+    @Test func aStaleSortNeverOverwritesANewerOneNFRPERF001() async {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
+        results.insert(sizeRows())
+        // Both sorts start before either finishes; only the second may land.
+        results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
+        results.sortOrder = [KeyPathComparator(\.name, comparator: .localizedStandard)]
+        await results.finishSorting()
+        #expect(names(results) == ["a.dmg", "b.mov", "c.txt"])
+        // Give a discarded sort time to land, if it wrongly would.
+        await Task.yield()
+        #expect(names(results) == ["a.dmg", "b.mov", "c.txt"])
+    }
+
+    @Test func rowsChangedWhileSortingJoinTheSortedListNFRPERF001() async {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
+        results.insert(sizeRows())
+        results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
+        // While the sort runs: a new row, a replaced row and a removed row.
+        results.insert([row("new.bin", size: 2_500), row("Downloads/a.dmg", size: 9_000)])
+        results.remove([home.appending(path: "Documents/c.txt")])
+        await results.finishSorting()
+        #expect(names(results) == ["a.dmg", "b.mov", "new.bin"])
+
+        results.removeAll()
+        results.sortOrder = [KeyPathComparator(\.size)]
+        results.removeAll()
+        await results.finishSorting()
+        #expect(results.rows.isEmpty)
+    }
+
+    /// The totals match a recount of every row (the old footer) after each step.
+    func expectTotalsMatchRecount(_ results: PersonalFilesResults, _ step: String) {
+        let rows = results.actionableSelection
+        #expect(results.actionableCount == rows.count, "\(step)")
+        #expect(results.selectedBytes == rows.reduce(0) { $0 + $1.size }, "\(step)")
+        #expect(
+            results.selectionIncludesReadOnly
+                == results.rows.contains { results.selection.contains($0.id) && $0.readOnly != nil }, "\(step)")
+    }
+
+    @Test func theTotalsFollowEverySelectionChangeNFRPERF001() async {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
+        await results.apply(
+            .files([
+                file("a", size: 1_000), file("b", size: 2_000), file("c", size: 4_000),
+                file("go/pkg", size: 8_000, readOnly: .managedBy(.developerJunk)),
+            ]))
+        let a = home.appending(path: "a")
+        let b = home.appending(path: "b")
+        let pkg = home.appending(path: "go/pkg")
+
+        results.selection = [a, b]
+        expectTotalsMatchRecount(results, "select two")
+        #expect(results.actionableCount == 2 && results.selectedBytes == 3_000)
+
+        results.selection.remove(a)
+        expectTotalsMatchRecount(results, "deselect one")
+        #expect(results.selectedBytes == 2_000)
+
+        results.selection.insert(pkg)
+        expectTotalsMatchRecount(results, "read-only")
+        #expect(results.readOnlyCount == 1 && results.selectedBytes == 2_000)
+
+        results.selectAll()
+        expectTotalsMatchRecount(results, "select all")
+        #expect(results.actionableCount == 3 && results.selectedBytes == 7_000)
+
+        // A file listed again with another size or read-only mark updates the totals.
+        await results.apply(.files([file("b", size: 500), file("c", size: 4_000, readOnly: .protected)]))
+        expectTotalsMatchRecount(results, "rescan")
+        #expect(results.actionableCount == 2 && results.selectedBytes == 1_500)
+
+        results.remove([a, pkg])
+        expectTotalsMatchRecount(results, "remove")
+        #expect(results.actionableCount == 1 && results.readOnlyCount == 1 && results.selectedBytes == 500)
+
+        results.selection = []
+        expectTotalsMatchRecount(results, "select none")
+        #expect(results.actionableCount == 0 && results.readOnlyCount == 0 && results.selectedBytes == 0)
+
+        results.selectAll()
+        results.removeAll()
+        expectTotalsMatchRecount(results, "new scan")
+        #expect(results.actionableCount == 0 && results.readOnlyCount == 0 && results.selectedBytes == 0)
     }
 }
 
@@ -322,4 +461,5 @@ struct SplitMix64: RandomNumberGenerator {
         z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
         return z ^ (z >> 31)
     }
+
 }
