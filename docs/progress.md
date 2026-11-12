@@ -553,7 +553,7 @@ Tasks:
   - [ ] Developer Junk rows are clipped after a rescan (#185).
   - [ ] Changing the project folders during a Developer Junk scan leaves rows that make the plan fail: the model drops
     rows from an older project-folder revision (#177, SET-003, D-154).
-  - [ ] The single-instance check runs in a release build too (#178, SAF-018, D-166).
+  - [x] The single-instance check runs in a release build too (#178, SAF-018, D-166).
   - [ ] Owner decision first, then the fix: what Homebrew Cleanup reports as removed, since it counts the whole
     download cache and `brew cleanup` removes only part of it (#184, DEV-R09, D-128).
   - [ ] Owner decision first, then the fix: `brew cleanup` is hidden only when its download cache is excluded, not
