@@ -512,23 +512,165 @@ Exit criteria (PRD section 13):
   `FreeSpaceTests`) and the UI workflows of Developer Junk and Caches & Logs.
 - [x] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
   README's status without a version number, so it no longer goes stale at each release (#67).
-- [ ] A `v0.2.0` tag produces a notarized, published pre-release once the owner approves the `release` environment
+- [x] A `v0.2.0` tag produces a notarized, published pre-release once the owner approves the `release` environment
   (D-36, D-37, D-174). Before the tag, `build-dmg.sh` captures
   `xcodebuild`'s build settings before parsing them, and stops with a message if the version comes out empty (#66).
+  Checked on 2026-11-12: the pre-release is published.
 
-## M3 to M6
+## M3 Applications (`v0.3.0`)
 
-Not broken down yet (PRD section 13). Notes from the review of 2026-11-10 for when each milestone is broken down:
+Goal: an uninstaller with leftovers found by confidence, running-app handling and LaunchAgent unloading, with Restore
+(PRD section 13). It is the first use of the launchctl runner (APP-011), which M4's Startup Items reuses (STA-005).
+This breakdown is an agent proposal, open for the owner's review (D-178). It is provisional: the PRD says to measure
+OQ-08 before M3 is broken down, and that measurement is still open, so M3-T04 and the order of the later tasks may
+change with it. Issue fixes sit in the task of the feature they touch; the other fixes and the left-overs from M1 and
+M2 that no task owned are in M3-T01.
 
-M3 Applications:
+Owner prerequisites, before the tasks that need them:
 
-- macOS's App Management permission (`kTCCServiceSystemPolicyAppBundles`, macOS 13+) gates changing other apps'
-  bundles, and other apps' containers prompt separately (PRD S78, R-16). App Store and package-installed apps are often
-  root-owned (APP-005).
-- [ ] Owner item: measure how many of the owner's own apps Shuck could remove, before M3 is broken down (OQ-08).
-- [ ] Owner decision: leftovers in Application Support and Group Containers can be the only copy of user data (notes,
-  vaults). APP-003 preselects High-confidence items; should these folders never be preselected? (OQ-07). APP-003 stays
-  as written until the owner decides.
+- [x] The `v0.2.0` tag exists and its pre-release is published (M2's last exit criterion), on 2026-11-12.
+- [ ] Owner item: measure how many of the owner's own apps Shuck could remove (OQ-08, R-16). It tells whether APP-005's
+  blocked uninstall is the common case. Needed before M3-T04.
+- [ ] Owner decision: whether leftovers in Application Support and Group Containers are ever preselected (OQ-07).
+  APP-003 stays as written until the owner decides. Needed before M3-T03 sets default selection.
+- [ ] Owner approval of Applications' allowed roots, a hard stop (D-170): `/Applications`, `~/Applications`, each
+  `~/Library` leftover folder APP-002 names, and `~/Library/LaunchAgents`. Needed before M3-T02 is implemented.
+- [ ] Owner approval of dependencies between items in one run, a change to the run loop and so to the safety layer
+  (D-170): a failed `bootout` skips that agent's plist (APP-011), and an app bundle that fails to move to the Trash
+  leaves its leftovers alone (APP-005). Needed before M3-T05's dependency pull request.
+- [ ] Owner approval of Restore re-enabling a restored LaunchAgent after the user confirms, a hard stop (D-170): it adds
+  a Launchctl enable action and changes Restore (APP-011, HIS-005, STA-005). Needed before M3-T05's re-enable pull
+  request.
+- [ ] Owner decision on a mismatch in the PRD: APP-011 and STA-005 check a "fixture agent in a test domain", but a test
+  cannot run the real `launchctl`, which would change the user's real launchd state (safety rule 4). Tests run a fake
+  `launchctl` through the runner inside the fixture root, as they run other fake tools, and the real `bootout` is an
+  owner check on the owner's Mac (see the exit criteria). The owner words the checks in the PRD.
+
+Tasks:
+
+- [ ] M3-T01 Fixes carried from M2, so the feature tasks start from a clean `main`. Independent pull requests, and one
+  outside any stack:
+  - [ ] Developer Junk rows are clipped after a rescan (#185).
+  - [ ] Changing the project folders during a Developer Junk scan leaves rows that make the plan fail: the model drops
+    rows from an older project-folder revision (#177, SET-003, D-154).
+  - [ ] The single-instance check runs in a release build too (#178, SAF-018, D-166).
+  - [ ] Owner decision first, then the fix: what Homebrew Cleanup reports as removed, since it counts the whole
+    download cache and `brew cleanup` removes only part of it (#184, DEV-R09, D-128).
+  - [ ] Owner decision first, then the fix: `brew cleanup` is hidden only when its download cache is excluded, not
+    when other folders it cleans are (#176, SET-001, D-149).
+  - Left-overs from M1 and M2 that no task owned (D-178):
+  - [ ] Large result lists (NFR-PERF-001, M2-T01): at 200,000 rows a click on a column header sorts every row on the
+    main actor (2 s by size, 6 s by name), and the selection footer reads every row on each selection change (166 ms
+    with 1,000 selected). Move the sort off the main actor and keep the footer's totals incrementally.
+  - [ ] Engine: one classifier for the `lstat` errors that `Restorability` and `ItemSnapshot` read in opposite
+    directions (M2-T01, D-93), and `ItemSnapshot.read` gets an enumerator error handler, so an unreadable subfolder
+    marks the size as incomplete instead of giving a too-small size with no mark (R-10, SAF-012). `matches` and `check`,
+    which Execution reads, keep their behavior.
+  - [ ] Engine tests that M2-T01 left (D-93, TD-18): a FIFO planted as the history log, stopping a scan while a batch
+    is applied off the main actor, an executor's records read back through History's wording, and the near-copy Large
+    Files and Old Files pipeline tests merged into one.
+  - [ ] Owner review first, since it changes what a plan accepts: a scan can list a folder the guard refuses, such as
+    one holding a Photos library, and that one row makes the whole plan refuse. The scanner marks such a folder as
+    not selectable, with the reason (M2-F10, SAF-007, SAF-011).
+  - [ ] App tests (M2-F20, R-07): a UI test for a DerivedData row's project path and for Select All and Select None,
+    a keyboard shortcut for them (NFR-A11Y-001), and a test that a second click while a plan is being built starts no
+    second plan.
+  - Left out on purpose: the run sheet's indeterminate progress (M2-T06). Showing a count means `PlanExecutor` reports
+    each item while it runs, which changes the run loop, a hard stop (D-170), for a cosmetic gain; it waits for a reason
+    to touch the run loop for the owner to approve.
+  - [ ] Standalone pull request, outside any stack, with no auto-merge, since it changes `scripts/` and `.github/`:
+    the owner reviews and merges it (D-170). `CHANGELOG.md`'s Unreleased section is checked at the tag (#180); the
+    Release configuration and the engine's macOS 26 build are built in CI before a tag (#126, NFR-COMP-001, D-06);
+    the String Catalog check also finds a bare literal passed to a `LocalizedStringResource` parameter and raw strings
+    (R-09, NFR-L10N-001, D-161); and the static checks take the proposals of #122 and #123 (R-18, ENG-006). #126 was an
+    M5 note (D-133, D-172); it moved here on the owner's instruction (D-178).
+- [ ] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
+  Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
+  - [ ] Applications' shape and the first part of the scanner. It records in `docs/decisions.md`, as an agent choice
+    open for review, whether Applications is a `SubTool` conformer or its own entry point through
+    `Plan(tool:allowedRoots:items:pathGuard:run:requiresRule:)`; `Plan(subTool:)`, `ExclusionsTests`,
+    `ToolRegistryTests` and `FileCleanupModel` assume sub-tools, so every later task depends on the choice. It then
+    builds on the choice: apps in `/Applications` and `~/Applications` (one level of subfolders) with name, bundle ID
+    and size, leaving out `/System/Applications`, apps protected by System Integrity Protection and Shuck itself. App
+    folders are inputs, so tests never read the real `/Applications`. Test support gets a fake app bundle with a real
+    `Info.plist`.
+  - [ ] The rest of the inventory: version and last opened, the exclusions (the scan hides what an exclusion covers or
+    holds, and joins `ExclusionsTests`, D-149), and the data APP-009 sorts by.
+  - [ ] Owner opt-in, which D-121 (3) left for the owner to ask for: a cache folder named after an app, such as
+    `Firefox`, is tied to its running app through the inventory's name-to-bundle-ID map, so it is disabled while the
+    app runs (SAF-009, CAC-003, D-121).
+- [ ] M3-T03 Engine: leftovers with confidence (APP-002 to APP-004, OQ-07, R-16). Two pull requests:
+  - [ ] Related user-level items by exact bundle ID, and Group Containers through the app groups in the app's
+    entitlements, each with a confidence and the reason for it. Only High items are selected, subject to the owner's
+    OQ-07 decision (APP-002, APP-003, R-05). The leftover roots are inputs, so fixtures never read the real `~/Library`.
+    Reading other apps' `Containers` can make macOS ask for permission, and each container prompts separately
+    (PRD S78, R-16): the scan treats a refusal as an unreadable folder and reports it (SAF-012), and the page says why
+    in M3-T08.
+  - [ ] Medium and Low matches by name, and system-wide items listed as "Needs admin" and never planned (APP-003,
+    APP-004).
+- [ ] M3-T04 Engine: removability (APP-005, R-16). Needs the OQ-08 measurement first. One pull request: it decides
+  whether the user can remove the bundle (root-owned, not writable, App Management permission missing) and gives the
+  reason. A check before the run may not see a missing permission, so M3-T05's dependency covers that case.
+- [ ] M3-T05 Execution: the launchctl runner (APP-011, STA-005, SAF-005, SAF-006, SAF-014, NFR-SEC-004, D-82). Only
+  `ShuckExecution` changes (and Restore's, in the re-enable pull request), in pull requests of their own:
+  - [ ] A tool finishing as Stop or a timeout fires can be reported as stopped (#179, SAF-014). The same pull request
+    adds the test for a tool that cannot be started at all, which M2-T10 left (a fake cannot fail `posix_spawn`
+    without a shell, so the test needs a seam in the runner).
+  - [ ] The tool runner starts commands with `posix_spawn` and `POSIX_SPAWN_SETPGROUP`, so Stop and a timeout signal
+    every process a tool started (#127, D-164). It was deferred to M5 (D-162, D-164) and moved here on the owner's
+    instruction (D-178). History stops saying that such processes may still be running.
+  - [ ] `LaunchctlRunner` and a Launchctl action for `bootout` in the `gui/<uid>` domain: an agent that is not loaded
+    is trashed directly, and the result is logged with the job label. It is shaped for STA-005's Disable, Enable and
+    Remove, which M4 adds. Agent choice, open for review: whether it reuses `ToolRunner`. Tests run a fake `launchctl`
+    through the runner inside the fixture root.
+  - [ ] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
+    agent's plist and a bundle that fails to move leaves its leftovers alone (APP-005, APP-011, SAF-011). The skip is
+    logged with its reason.
+  - [ ] Owner approval first, a hard stop, since it changes Restore: a Launchctl enable (bootstrap) action, and
+    Restore re-enabling a restored agent after the user confirms (APP-011, HIS-005, STA-005 Enable). History's
+    `Restorability` today says a `launchctl` item is "reversed by the opposite action", and no such action exists.
+- [ ] M3-T06 Engine: the uninstall (APP-007, APP-011, HIS-005, SAF-011, R-16). Two pull requests:
+  - [ ] The uninstall plan: the bundle, the selected leftovers and the agents in one run, `bootout` before the plist
+    moves, and the refusals from M3-T04. A refusal from macOS about another app's container is a skipped item with its
+    reason, not a failed run (PRD S78).
+  - [ ] The end-to-end fixture test through the run, History, Restore and the re-enable confirmation (HIS-005).
+- [ ] M3-T07 Quit a running app (APP-006, SAF-009). One pull request: "Quit <App>" with a normal request, continuing
+  only after the app has exited and never forcing it. Agent choice, open for review: `NSRunningApplication.terminate()`
+  sends a request and changes no file or launchd state, so it may live in the app target; the pull request records
+  where. The test uses a stubbed list of running apps.
+- [ ] M3-T08 App: the Applications page (APP-001, APP-004 to APP-007, APP-009, HIS-005, NFR-A11Y-001, NFR-L10N-001).
+  Four pull requests, all in the app target:
+  - [ ] The page and model for Applications, with the list (icon, name, version, size, last opened), sort and search
+    (APP-001, APP-009). It generalizes the page and model for a second tool: `FileCleanupModel.scan(_:)`,
+    `scanItems(_:urls:)` and `confirmRebuildable(_:)` take an `any SubTool` from the caller, and they take a tool ID
+    and look it up instead (R-17). The tool leaves `.planned(milestone: "M3")`, and `FirstLookUITests`, which asserts
+    the placeholder, and `ToolRegistryTests` change. A UI test launch argument sets the app folders, so UI tests
+    never read the real `/Applications`, and `AGENTS.md`'s UI test notes document it.
+  - [ ] The selected app's leftovers with confidence and reasons, "Needs admin" rows with Show in Finder, the blocked
+    reason, and the note that macOS may ask for permission to read other apps' containers (APP-002 to APP-005, R-16).
+  - [ ] The itemized review, Quit and the uninstall run (APP-006, APP-007).
+  - [ ] History showing the run and restoring it, with the re-enable confirmation (HIS-005), the UI workflow steps and
+    the changelog line.
+- [ ] M3-T09 Should and Could requirements, each its own pull request, done last:
+  - [ ] Package receipts (APP-008). Owner decision first: `pkgutil` can run only in `ShuckExecution` (D-82) and
+    `ShuckKit` cannot import it, so the scan needs an injected protocol, or the receipts are read without a
+    subprocess.
+  - [ ] The code-signing developer name (APP-010), which is Could.
+
+Exit criteria (PRD section 13):
+
+- [ ] The owner uninstalls an app with its leftovers on their own Mac and restores it from History.
+- [ ] Every Launchctl-path and Applications SAF requirement is tested, and each ID is named in a test (NFR-QA-001).
+- [ ] Owner check on the owner's Mac: a real `launchctl bootout` of a LaunchAgent that an uninstall removes, and the
+  re-enable after Restore, since a test cannot run the real `launchctl` (APP-011, HIS-005).
+- [ ] `MARKETING_VERSION` is 0.3.0, set in a pull request (`docs/releasing.md`, D-30).
+- [ ] A `v0.3.0` tag produces a notarized, published pre-release once the owner approves the `release` environment
+  (D-36, D-37, D-174).
+
+## M4 to M6
+
+Not broken down yet (PRD section 13). Notes from the review of 2026-11-10 for when each milestone is broken down. The
+notes for M3 Applications moved to its section above (OQ-07, OQ-08, R-16). #127 and #126 moved to M3 as well (D-178).
 
 M4 Startup Items:
 
@@ -549,8 +691,3 @@ M5 Overview, onboarding, settings, polish:
 - Docker (DEV-R10): never `--volumes` or `-a`; prefer `docker builder prune` (PRD S72); the host's `Docker.raw` does not
   shrink, so the measured change can be zero.
 - Finder's "Put Back" for items Shuck trashes is unverified on macOS 27; the UI says "Restore in Shuck" (HIS-006).
-- The security pass: start tool commands with `posix_spawn` and `POSIX_SPAWN_SETPGROUP`, so Stop and a timeout signal
-  every process a tool started, not only the tool itself (#127, D-164). Until then History says that they may still
-  be running.
-- Build the Release configuration in CI before a tag, at least for a pull request that changes the version, since
-  `scripts/test.sh` builds Debug only (#126).
