@@ -7,6 +7,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-12
+
 ### Added
 
 - Shuck asks before it quits while it is moving, deleting, cleaning up or restoring items. If you choose Stop and Quit,
@@ -167,7 +169,8 @@ All notable changes to Shuck are listed here. The format follows
 
 - The app window with its sidebar, signed and notarized. No tools yet.
 
-[Unreleased]: https://github.com/nutabi/shuck/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/nutabi/shuck/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/nutabi/shuck/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/nutabi/shuck/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/nutabi/shuck/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/nutabi/shuck/releases/tag/v0.0.1

@@ -246,9 +246,10 @@ M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-
   - [x] Device support files: every version but the newest of each platform is selected (DEV-R02, D-118).
   - [x] CoreSimulator caches, and the guard refusing simulator device data and the other tool-managed stores
     (DEV-R04, DEV-007, D-119).
-  - [ ] Owner item (review of 2026-11-10): check on the owner's Mac whether `~/Library/Developer/CoreSimulator/Caches`
+  - [x] Owner item (review of 2026-11-10): check on the owner's Mac whether `~/Library/Developer/CoreSimulator/Caches`
     still exists under the current Xcode. DevCleaner's maintainer reports it gone on recent Xcode versions and advises
     against cleaning these caches (PRD S77). If it is gone or risky, the owner decides whether DEV-R04 stays.
+    The owner decided on 2026-11-12 that DEV-R04 stays, selected by default (D-177).
 - [x] M2-T09 Caches & Logs: caches, logs and app container caches, grouped by app. Caches that Developer Junk's tools
   own are left out, including those whose rule comes later (CAC-001 to CAC-008, FCL-005, SAF-010).
   Two pull requests, a stack (D-62, D-76):
@@ -499,16 +500,20 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
 
 Exit criteria (PRD section 13):
 
-- [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
-  finds every tool run in History.
+- [x] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
+  finds every tool run in History. The owner confirmed it on 2026-11-12.
 - The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
   0.2.0 release items below.
 - [x] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
-- [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
+- [x] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
-- [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
+  Checked on 2026-11-12: each ID is named in tests of the Delete or Tool path: engine tests (`DeleteActionTests`,
+  `ToolRunTests`, `RunningAppsTests`, `PlanTests` and the rule tests), app tests (`SummaryConfirmationTests`,
+  `FreeSpaceTests`) and the UI workflows of Developer Junk and Caches & Logs.
+- [x] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
   README's status without a version number, so it no longer goes stale at each release (#67).
-- [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37). Before the tag, `build-dmg.sh` captures
+- [ ] A `v0.2.0` tag produces a notarized, published pre-release once the owner approves the `release` environment
+  (D-36, D-37, D-174). Before the tag, `build-dmg.sh` captures
   `xcodebuild`'s build settings before parsing them, and stops with a message if the version comes out empty (#66).
 
 ## M3 to M6

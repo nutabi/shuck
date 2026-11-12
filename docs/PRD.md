@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.9 — DEV-R05 and DEV-R06 targets as built (see Revision history) |
+| Version | 1.11 — DEV-004 records the tools' network check (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -28,6 +28,8 @@
 | 1.7 | 2026-11-12 | SET-003 (developer project folders) is built in M2 as a minimal list with DEV-R06, not in M5 (D-154); a project's `node_modules` belongs to Developer Junk (D-152). |
 | 1.8 | 2026-11-12 | Section 8.5: a `trash` intent record carries the item's `identity` too, so History can find an item whose result record was never written in the Trash (HIS-001, D-162, D-167). |
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
+| 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
+| 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
 
 ## How to read this document
 
@@ -94,7 +96,7 @@ The MVP is done when all three are true:
 
 1. Every Must requirement in sections 8 to 10 is implemented and passes its acceptance check.
 2. The owner has used Shuck on their own Mac for 4 consecutive weeks with zero unintended deletions.
-3. A signed, notarized `v1.0.0` DMG is published through the draft-release flow (ENG-007).
+3. A signed, notarized `v1.0.0` DMG is published through the release workflow (ENG-007).
 
 There is no time-based deadline (D-15).
 
@@ -167,7 +169,7 @@ There is no time-based deadline (D-15).
 | Signing | Developer ID Application certificate (owner's paid Apple Developer Program membership) [S9]. | D-04 |
 | Notarization | Apple notary service via `notarytool`; ticket stapled to the DMG [S8][S63]. | D-04 |
 | Package | DMG (drag to Applications), built with Apple's `hdiutil`. No `.pkg` installer (see below). | D-19 |
-| Release channel | GitHub Releases on `nutabi/shuck`. CI creates a **draft** release; the owner publishes it. | D-17 |
+| Release channel | GitHub Releases on `nutabi/shuck`. The owner approves the release environment; CI then builds and **publishes** the release. | D-17, D-174 |
 | Updates | None in-app for the MVP. Users download a newer DMG and replace the app. | D-18 |
 | Network | None. The MVP makes no network connections. | D-18 |
 | Name | **Shuck**. Tagline: "Shuck — housekeeping for Mac". | D-21 |
@@ -376,7 +378,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | DEV-001 | Cleanup rules are data, defined in the engine. Each rule has: ID, name, description, detection (tool path or folder exists), targets (paths inside allowed roots) or tool command, tier, staleness rule, explanation, documentation link. Adding a rule is one small pull request with fixture tests. | Must | Unit test: rules load and validate. |
 | DEV-002 | Only rules whose tool or data exists on this Mac are shown. For a tool, "the path exists" is not always enough: `/usr/bin/xcrun` exists on a Mac without Xcode and can raise the "install command line developer tools" prompt, so simctl needs another test; and npm or pip installed through nvm, asdf, mise, fnm, volta or pyenv is not on a minimal explicit `PATH`. How each tool is found is decided in M2-T11. | Must | Unit test with stubbed detection. |
 | DEV-003 | Each rule shows a size estimate before acting: the folder's allocated size, or the size the tool reports where available. | Must | Fixture test. |
-| DEV-004 | Tool commands run as the current user through `Process`, with an absolute executable path and an argument array (no shell), an explicit `PATH`, and a timeout (default 10 minutes). Output and exit code go to the history log. A tool command must not reach the network (NFR-SEC-001): every `brew` command sets `HOMEBREW_NO_AUTO_UPDATE=1` and `HOMEBREW_NO_ANALYTICS=1` [S54], and `npm` sets `NPM_CONFIG_UPDATE_NOTIFIER=false` and `NPM_CONFIG_OFFLINE=true` [S71]. Whether `brew cleanup`, `npm cache clean` and `pip cache purge` themselves use the network is undocumented: to verify in M2-T11. | Must | Unit test with a fake tool executable that prints its environment. |
+| DEV-004 | Tool commands run as the current user through `Process`, with an absolute executable path and an argument array (no shell), an explicit `PATH`, and a timeout (default 10 minutes). Output and exit code go to the history log. A tool command must not reach the network (NFR-SEC-001): every `brew` command sets `HOMEBREW_NO_AUTO_UPDATE=1` and `HOMEBREW_NO_ANALYTICS=1` [S54], `npm` sets `NPM_CONFIG_UPDATE_NOTIFIER=false` and `NPM_CONFIG_OFFLINE=true` [S71], and `pip` sets `PIP_DISABLE_PIP_VERSION_CHECK=1` and `PIP_NO_INPUT=1` (D-157). Their documentation does not say whether `brew cleanup`, `npm cache clean` and `pip cache purge` use the network; the owner checked on their Mac on 2026-11-12 that, run from Developer Junk, they open no network connection. | Must | Unit test with a fake tool executable that prints its environment. |
 | DEV-005 | Staleness default: 30 days since last modification (configurable, SET-002). Stale items are selected; others are listed but not selected. | Must | Fixture test with dated folders. |
 | DEV-006 | `node_modules` scanning is limited to the project folders configured in Settings (SET-003), with a depth limit. It never descends into `node_modules` itself, and takes only the top-most `node_modules` of a project. A `node_modules` is listed only with a lockfile next to it. A project is stale by the newest file among the project's own files (not `node_modules`, and not the folder's date). The item warns when the project uses `patch-package` or `file:` links, whose changes a reinstall does not restore. | Must | Fixture test: nested `node_modules`, a missing lockfile, a recently edited source file, a `file:` link. |
 | DEV-007 | Stores managed by a tool are never deleted directly: Docker's disk image, simulator device data, the Homebrew Cellar. | Must | Unit test: these paths are rejected by the guard. |
@@ -615,7 +617,7 @@ shuck/
 | ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95); pull request template complete. | Must |
 | ENG-005 | **CI** (`ci.yml`) runs on every pull request, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. A `Code changes` job on Linux runs the static checks, their self-test and the changelog check for every change, and decides whether a change touches code (D-66, D-98). `Lint, build and test` runs only for code changes: `swift-format` lint, one build from `Shuck.xcworkspace`, and `Shuck.xctestplan` (engine tests with the coverage gate, app unit tests, UI tests) (D-111). A push to `main` only builds, to warm the compilation cache (D-111). | Must |
 | ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs; no `SMAppService` outside the Execution module except `openSystemSettingsLoginItems()` (D-134). | Must |
-| ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create --draft` with the DMG and checksum [S61]. **The owner reviews and publishes the draft** (D-17). | Must |
+| ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create` with the DMG and checksum [S61], which publishes the release. **The owner approves the `release` environment before the job reads any secret** (D-174, superseding D-17's draft step). | Must |
 | ENG-008 | Signing and notarization secrets are GitHub encrypted secrets, used only by the tag-triggered release workflow. They are never available to pull request workflows. | Must |
 | ENG-009 | Versions follow Semantic Versioning [S60]. Each milestone ends with a pre-release tag (section 13). | Must |
 | ENG-010 | `AGENTS.md` is the only agent-instruction file. Do not add `CLAUDE.md`: Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists [S28]. `AGENTS.md` is an open format read by many coding agents [S27]. | Must |
