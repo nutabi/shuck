@@ -213,6 +213,10 @@ while IFS= read -r manifest; do
     if grep -nE '\.package\(' "$manifest" >/dev/null; then
         report "$manifest: [packages] package dependency; Shuck uses Apple frameworks only (NFR-SEC-002)"
     fi
+    # A binary target is a prebuilt framework that nobody reviews (#122).
+    if grep -nE '\.binaryTarget\(' "$manifest" >/dev/null; then
+        report "$manifest: [packages] binary target; Shuck builds all its code from source (NFR-SEC-002)"
+    fi
 done <<<"$(tracked_matching '(^|/)Package\.swift$')"
 
 while IFS= read -r project; do

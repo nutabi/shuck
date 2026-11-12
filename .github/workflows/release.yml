@@ -43,9 +43,12 @@ jobs:
       - name: Static checks
         run: scripts/static-checks.sh
 
-      # Before signing, so a version without notes in CHANGELOG.md fails fast (D-95).
+      # Before signing, so a version without notes in CHANGELOG.md fails fast (D-95), and so does a tagged commit whose
+      # Unreleased section still has entries, which no release's notes would show (#180).
       - name: Release notes
-        run: scripts/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/release-notes.md"
+        run: |
+          scripts/release-notes.sh --tag-ready
+          scripts/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/release-notes.md"
 
       - name: Import the Developer ID certificate
         env:

@@ -27,5 +27,6 @@ elif [[ $# -gt 0 ]]; then
 fi
 
 xcrun swift-format lint --strict --recursive --parallel "${paths[@]}"
+python3 -I scripts/strings-check.py --self-test || { echo "lint: the strings check fails its own examples" >&2; exit 1; }
 python3 -I scripts/strings-check.py || { echo "lint: user-facing strings are missing from a String Catalog (NFR-L10N-001)" >&2; exit 1; }
 echo "lint: OK"

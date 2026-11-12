@@ -20,6 +20,11 @@ In **Settings → Rules → Rulesets**, create a branch ruleset:
 
 The status check appears in the picker only after CI has run once, so push a first pull request before adding it.
 
+CI has a second job, **Engine on macOS 26**, which builds the engine package on a macOS 26 runner (NFR-COMP-001, D-06,
+#126). It is not required yet, because a macOS 26 runner is a different image from the one the required check uses. Add
+it to the required checks once it has passed on a few pull requests (D-133 planned this for M5). A pull request that
+changes only documentation skips it, like the required check.
+
 A pull request that changes only documentation skips **Lint, build and test**, and GitHub counts a skipped check as
 passed (D-66). The **Code changes** job that decides this is not a required check: if it fails, the full check runs.
 

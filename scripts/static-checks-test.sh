@@ -216,6 +216,59 @@ for call in '@_silgen_name("unlink") func unlinkByName(_ path: UnsafePointer<CCh
         expect_rule native-call SAF-017
 done
 
+# One case for each remaining alternative of each rule (#123), so a pattern edit that drops a name fails here.
+# each_case RULE REQUIREMENT FILE PREFIX TEMPLATE NAME...: one tree per NAME, whose file holds TEMPLATE with a % where
+# the name goes.
+each_case() {
+    local rule="$1" requirement="$2" file="$3" prefix="$4" template="$5" name
+    shift 5
+    for name in "$@"; do
+        new_tree "$prefix-$(tr -cd '[:alnum:]_' <<<"$name")" && put "$file" "${template//%/$name}" &&
+            expect_rule "$rule" "$requirement"
+    done
+}
+each_case network NFR-SEC-001 "$app" net 'let value = %' NSURLSession NSURLConnection URLSessionWebSocketTask \
+    NWConnection NWListener NWBrowser NWPathMonitor CFSocketCreate CFStreamCreatePairWithSocketToHost WKWebView
+each_case network NFR-SEC-001 "$engine" net-import 'import %' WebKit Network
+each_case network NFR-SEC-001 "$engine" net-call 'let fd = %(AF_INET, SOCK_STREAM, 0)' socket
+each_case network NFR-SEC-001 "$app" net-loader 'let value = try %(contentsOf: URL(string: "https://example.com/a")!)' \
+    Data NSData String NSString
+each_case shell NFR-SEC-004 "$engine" shell 'let path = "%"' /bin/bash /bin/zsh /bin/ksh /bin/csh /bin/tcsh /bin/dash \
+    /bin/sh /usr/bin/env
+each_case shell NFR-SEC-004 "$engine" shell-call 'let status = %("ls")' system popen
+each_case shell NFR-SEC-004 "$app" shell-type 'let script = %(source: text)' NSAppleScript
+new_tree shell-osascript && put "$engine" 'let tool = "osascript"' && expect_rule shell NFR-SEC-004
+each_case privilege ONB-003 "$app" priv 'let value = %' AuthorizationCreate AuthorizationExecuteWithPrivileges \
+    AuthorizationCopyRights AuthorizationMakeExternalForm AuthorizationRef SMJobBless kAuthorizationRightExecute
+each_case privilege ONB-003 "$engine" priv-call 'let result = %(0)' setuid seteuid setgid
+new_tree privilege-daemon && put "$app" 'let service = SMAppService.daemon(plistName: "a.plist")' &&
+    expect_rule privilege ONB-003
+new_tree privilege-sudo && put "$engine" 'let arguments = ["sudo", "rm"]' && expect_rule privilege ONB-003
+each_case mutation SAF-017 "$engine" mutation-name 'let result = %(path)' recycle moveItem replaceItem replaceItemAt \
+    unlink rmdir rename truncate
+new_tree mutation-remove-cstring && put "$engine" 'let result = remove(url.fileSystemRepresentation)' &&
+    expect_rule mutation SAF-017
+new_tree mutation-remove-cstring2 && put "$engine" 'let result = remove(cString)' && expect_rule mutation SAF-017
+each_case mutation SAF-017 "$engine" mutation-launchctl 'let arguments = ["%", target]' bootstrap kickstart load unload \
+    enable disable
+each_case permissions SAF-017 "$engine" perm 'let result = %(path, 0o600)' chmod lchmod fchmodat chown fchown lchown \
+    fchownat setAttributes
+each_case file-write SAF-017 "$engine" write-name 'let result = try manager.%(atPath: path)' createFile createDirectory \
+    createSymbolicLink linkItem copyItem
+each_case file-write SAF-017 "$engine" write-handle 'let handle = try FileHandle(%: url)' forWritingTo forUpdating
+each_case file-write SAF-017 "$engine" write-handle-path 'let handle = FileHandle(%: path)' forWritingAtPath \
+    forUpdatingAtPath
+each_case file-write SAF-017 "$engine" write-c 'let fd = %(path, 0o600)' fopen open creat mkdir
+each_case process D-82 "$app" proc 'let value = %' NSTask NSUserUnixTask NSXPCConnection
+each_case process D-82 "$engine" proc-call 'let result = %(&pid, path)' posix_spawnp fork vfork execv execve execvp \
+    execl execle execlp
+each_case real-home SAF-016 ShuckTests/SomeTests.swift home 'let value = %(0)' getpwuid getpwnam CFCopyHomeDirectoryURL
+each_case print NFR-OBS-001 "$app" print '%("x")' debugPrint dump NSLog
+
+# A binary target is a prebuilt framework nobody reviews (NFR-SEC-002, #122).
+new_tree binary-target && put Packages/ShuckKit/Package.swift 'targets: [.binaryTarget(name: "X", path: "X.xcframework")]' &&
+    expect_rule packages NFR-SEC-002
+
 # Calls wrapped across lines, as swift-format writes them, are joined and reported (#123).
 new_tree wrapped-write && put "$engine" 'try data.write(
     to: url)' && expect_rule file-write SAF-017
