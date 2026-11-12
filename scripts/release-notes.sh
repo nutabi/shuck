@@ -2,16 +2,19 @@
 # Prints a version's release notes: its section of CHANGELOG.md, then a link to the full changelog (D-95). The Release
 # workflow uses them for the GitHub release, so a version without a section, or without a link, fails the release.
 # With --check, it checks that every released version has notes and a link, and that Unreleased has a heading and a
-# link, so CI finds a broken changelog before a release does.
+# link, so CI finds a broken changelog before a release does. With --tag-ready, it also fails when "## [Unreleased]"
+# still holds entries: at a tagged commit they would be missing from every release's notes (#180). Releasing moves
+# them under the version's heading (docs/releasing.md); the Release workflow runs --tag-ready before it builds.
 #
 # Usage: scripts/release-notes.sh VERSION    for example scripts/release-notes.sh 0.1.1
 #        scripts/release-notes.sh --check
+#        scripts/release-notes.sh --tag-ready
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [[ $# -ne 1 ]]; then
-    echo "usage: scripts/release-notes.sh VERSION | --check" >&2
+    echo "usage: scripts/release-notes.sh VERSION | --check | --tag-ready" >&2
     exit 2
 fi
 
@@ -62,6 +65,20 @@ if [[ "$1" == --check ]]; then
         exit 1
     fi
     echo "release-notes: CHANGELOG.md OK"
+    exit 0
+fi
+
+if [[ "$1" == --tag-ready ]]; then
+    if ! grep -qxF '## [Unreleased]' CHANGELOG.md; then
+        echo "release-notes: CHANGELOG.md has no \"## [Unreleased]\" heading" >&2
+        exit 1
+    fi
+    if [[ -n "$(section Unreleased)" ]]; then
+        echo "release-notes: \"## [Unreleased]\" in CHANGELOG.md still has entries; move them under the version" >&2
+        echo "release-notes: being released before tagging (docs/releasing.md), or they miss its notes (#180)" >&2
+        exit 1
+    fi
+    echo "release-notes: Unreleased is empty"
     exit 0
 fi
 

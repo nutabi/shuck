@@ -25,7 +25,8 @@ the owner publishes.
    ```
 
 4. The **Release** workflow (`.github/workflows/release.yml`) checks the tag is on `main`, runs the static checks,
-   writes the version's notes from `CHANGELOG.md` and fails if it has none (D-95), then runs `scripts/build-dmg.sh`:
+   writes the version's notes from `CHANGELOG.md` and fails if it has none or if `## [Unreleased]` still has entries
+   (D-95, #180; `scripts/release-notes.sh --tag-ready` runs the second check), then runs `scripts/build-dmg.sh`:
    archive, sign with Developer ID, notarize and staple the app, build the DMG, sign, notarize and staple it, and write
    a SHA-256 checksum. The job first waits for your approval in the `release` environment (**Review deployments** on
    the run's page), before it reads any secret. Once the build passes, it **publishes** the release with both files

@@ -578,12 +578,14 @@ Tasks:
   - Left out on purpose: the run sheet's indeterminate progress (M2-T06). Showing a count means `PlanExecutor` reports
     each item while it runs, which changes the run loop, a hard stop (D-170), for a cosmetic gain; it waits for a reason
     to touch the run loop for the owner to approve.
-  - [ ] Standalone pull request, outside any stack, with no auto-merge, since it changes `scripts/` and `.github/`:
+  - [x] Standalone pull request, outside any stack, with no auto-merge, since it changes `scripts/` and `.github/`:
     the owner reviews and merges it (D-170). `CHANGELOG.md`'s Unreleased section is checked at the tag (#180); the
     Release configuration and the engine's macOS 26 build are built in CI before a tag (#126, NFR-COMP-001, D-06);
     the String Catalog check also finds a bare literal passed to a `LocalizedStringResource` parameter and raw strings
     (R-09, NFR-L10N-001, D-161); and the static checks take the proposals of #122 and #123 (R-18, ENG-006). #126 was an
-    M5 note (D-133, D-172); it moved here on the owner's instruction (D-178).
+    M5 note (D-133, D-172); it moved here on the owner's instruction (D-178). Built as D-180. Left for the owner: #122's
+    proposals to apply every rule to all non-test Swift files by default and to flag a second local package (D-170 did
+    not approve them), and making the `Engine on macOS 26` job a required check.
 - [ ] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
   Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
   - [ ] Applications' shape and the first part of the scanner. It records in `docs/decisions.md`, as an agent choice
