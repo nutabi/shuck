@@ -511,7 +511,8 @@ Exit criteria (PRD section 13):
   `FreeSpaceTests`) and the UI workflows of Developer Junk and Caches & Logs.
 - [x] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
   README's status without a version number, so it no longer goes stale at each release (#67).
-- [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37). Before the tag, `build-dmg.sh` captures
+- [ ] A `v0.2.0` tag produces a notarized, published pre-release once the owner approves the `release` environment
+  (D-36, D-37, D-174). Before the tag, `build-dmg.sh` captures
   `xcodebuild`'s build settings before parsing them, and stops with a message if the version comes out empty (#66).
 
 ## M3 to M6
