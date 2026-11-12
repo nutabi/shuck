@@ -223,4 +223,60 @@ struct ProjectFoldersTests {
         #expect(
             (model.subTool(.developerJunk) as? DeveloperJunk)?.projectFolders.map(\.path) == ["/StubHome/Developer"])
     }
+
+    /// A scan that started before the change leaves out the `node_modules` rows of a folder that is no longer a project
+    /// folder, since a plan for them would be refused as a whole (SET-003, D-154).
+    @Test func aDeveloperJunkScanInFlightLeavesOutRowsOfARemovedProjectFolderSET003() async throws {
+        let (stream, continuation) = AsyncStream.makeStream(of: ScanEvent.self)
+        let running = ManualDeveloperJunk(stream: stream)
+        let model = FileCleanupModel(
+            subTools: [running],
+            context: ScanContext(home: home, ownership: OwnershipMap(home: home, projectFolders: [url("Code")])))
+
+        let scan = try #require(model.scan(running))
+        let ownership = OwnershipMap(home: home).withProjectFolders([url("Developer")])
+        await model.useProjectFolders(DeveloperJunk(projectFolders: [url("Developer")]), ownership: ownership).value
+        continuation.yield(.item(try nodeItem("Code/old")))
+        continuation.yield(.item(try nodeItem("Developer/kept")))
+        continuation.finish()
+        await scan.value
+
+        let results = try #require(model.results(of: .developerJunk) as? ScanResults)
+        #expect(results.items.compactMap { $0.project?.lastPathComponent } == ["kept"])
+    }
+
+    /// The mirror case: a folder added during a personal-files scan takes its `node_modules` from Large Files
+    /// (FCL-005, SET-003).
+    @Test func aPersonalFilesScanInFlightLeavesOutFilesInANodeModulesDeveloperJunkNowOwnsSET003() async throws {
+        let (stream, continuation) = AsyncStream.makeStream(of: PersonalFilesEvent.self)
+        let largeFiles = LargeFiles(minimumSize: 1_000)
+        let model = FileCleanupModel(subTools: [largeFiles], context: ScanContext(home: home)) { _, _ in stream }
+        func file(_ path: String) -> PersonalFile {
+            PersonalFile(
+                url: url(path), snapshot: ItemSnapshot(kind: .file, allocatedSize: 5_000), modified: nil,
+                lastOpened: nil)
+        }
+
+        let scan = try #require(model.scan(largeFiles))
+        let ownership = OwnershipMap(home: home).withProjectFolders([url("Developer")])
+        await model.useProjectFolders(DeveloperJunk(projectFolders: [url("Developer")]), ownership: ownership).value
+        continuation.yield(.files([file("Developer/app/node_modules/dep/index.js"), file("Developer/app/main.js")]))
+        continuation.finish()
+        await scan.value
+
+        #expect(model.personalFiles.items.keys.map(\.lastPathComponent) == ["main.js"])
+        #expect(Set(model.personalFilesResults[largeFiles.id]?.rows.map(\.name) ?? []) == ["main.js"])
+    }
+}
+
+/// A Developer Junk whose scan reports what the test sends through its stream.
+private struct ManualDeveloperJunk: SubTool {
+    let info = ToolInfo(
+        id: .developerJunk, name: "Manual", summary: "Reports what a test sends.", symbolName: "testtube.2",
+        availability: .available)
+    let tiers: Set<Tier> = [.rebuildable]
+    let stream: AsyncStream<ScanEvent>
+
+    func allowedRoots(home: URL) -> [URL] { [] }
+    func scan(_ context: ScanContext) -> AsyncStream<ScanEvent> { stream }
 }

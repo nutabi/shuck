@@ -551,7 +551,7 @@ Tasks:
 - [ ] M3-T01 Fixes carried from M2, so the feature tasks start from a clean `main`. Independent pull requests, and one
   outside any stack:
   - [x] Developer Junk rows are clipped after a rescan (#185).
-  - [ ] Changing the project folders during a Developer Junk scan leaves rows that make the plan fail: the model drops
+  - [x] Changing the project folders during a Developer Junk scan leaves rows that make the plan fail: the model drops
     rows from an older project-folder revision (#177, SET-003, D-154).
   - [x] The single-instance check runs in a release build too (#178, SAF-018, D-166).
   - [ ] Owner decision first, then the fix: what Homebrew Cleanup reports as removed, since it counts the whole
