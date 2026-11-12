@@ -1,11 +1,11 @@
 import Foundation
 import os
 
-/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has ten,
-/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04), the stale
-/// `node_modules` of the user's project folders (DEV-R06) and, as commands
-/// of the tools that own the data, unavailable simulators (DEV-R03) the npm and pip caches and Homebrew's cleanup (DEV-R07 to
-/// DEV-R09), and one rule for "Your data": Xcode's archives (DEV-R05). The other rules arrive one at a time.
+/// "What can developer tools rebuild?": leftovers of developer tools, listed by rule (DEV-001). So far it has nine:
+/// Xcode's DerivedData (DEV-R01), its device support files (DEV-R02), the simulators' caches (DEV-R04) and the stale
+/// `node_modules` of the user's project folders (DEV-R06); as commands of the tools that own the data, unavailable
+/// simulators (DEV-R03), the npm and pip caches and Homebrew's cleanup (DEV-R07 to DEV-R09); and one rule for "Your
+/// data": Xcode's archives (DEV-R05). The other rules arrive one at a time.
 public struct DeveloperJunk: SubTool {
     /// Xcode's bundle ID, for the rule's running-app check (SAF-009, D-110).
     static let xcodeBundleID = "com.apple.dt.Xcode"
