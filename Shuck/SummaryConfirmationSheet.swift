@@ -151,7 +151,9 @@ struct SummaryConfirmationSheet: View {
     @ViewBuilder private func summary(_ report: RunReport) -> some View {
         let deleted = report.outcomes.filter { if case .done = $0.result { true } else { false } }
         let notDeleted = report.outcomes.filter { if case .done = $0.result { false } else { true } }
-        let bytes = deleted.reduce(0) { $0 + $1.item.allocatedSize }
+        // A tool item's folder is measured around its run, so its removal is no estimate (D-184).
+        let bytes = deleted.reduce(0) { $0 + ($1.removedBytes ?? $1.item.allocatedSize) }
+        let measured = !deleted.isEmpty && deleted.allSatisfy { $0.removedBytes != nil }
         if runsTools {
             if notDeleted.isEmpty {
                 Text("Cleaned up ^[\(deleted.count) item](inflect: true)")
@@ -160,7 +162,15 @@ struct SummaryConfirmationSheet: View {
                 Text("Cleaned up \(deleted.count) of ^[\(report.outcomes.count) item](inflect: true)")
                     .font(.title2.bold())
             }
-            if bytes > 0 {
+            if measured && bytes > 0 {
+                Text(
+                    "\(bytes, format: .byteCount(style: .file)) was removed from the tool's cache. It is not in the Trash."
+                )
+                .foregroundStyle(.secondary)
+            } else if measured {
+                Text("Nothing was removed from the tool's cache.")
+                    .foregroundStyle(.secondary)
+            } else if bytes > 0 {
                 Text("Up to \(bytes, format: .byteCount(style: .file)) was removed. It is not in the Trash.")
                     .foregroundStyle(.secondary)
             } else {

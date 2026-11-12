@@ -772,6 +772,12 @@
     "Up to %@ was removed. It is not in the Trash." : {
 
     },
+    "%@ was removed from the tool's cache. It is not in the Trash." : {
+
+    },
+    "Nothing was removed from the tool's cache." : {
+
+    },
     "What the tool removed is not in the Trash." : {
 
     },

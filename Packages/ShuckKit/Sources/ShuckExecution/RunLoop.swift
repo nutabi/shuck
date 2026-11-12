@@ -25,17 +25,20 @@ public protocol RunSkipReason: Equatable, Sendable {
 
 /// What an action did to an item, and what the result record adds to the intent record: where a trashed item went
 /// and its file identity (D-84). An action may also give the result record's `detail`, instead of the one the result
-/// would have: a tool's exit status and output (DEV-004).
+/// would have: a tool's exit status and output (DEV-004). It may also give the `bytes` the action measured, which the
+/// result record carries instead of the scan's estimate (D-184).
 package struct Acted<SkipReason: RunSkipReason>: Sendable {
     package let result: ActionResult<SkipReason>
     let trashedPath: String?
     let identity: FileIdentity?
     let detail: String?
+    package let bytes: Int64?
 
     package init(
         _ result: ActionResult<SkipReason>, trashedPath: String? = nil, identity: FileIdentity? = nil,
-        detail: String? = nil
+        detail: String? = nil, bytes: Int64? = nil
     ) {
+        self.bytes = bytes
         self.result = result
         self.trashedPath = trashedPath
         self.identity = identity
@@ -83,7 +86,8 @@ struct LoggedItem {
             }
         return .result(
             run: run, tool: tool, operation: operation, path: path, tier: tier, status: status,
-            trashedPath: acted.trashedPath ?? trashedPath, identity: acted.identity, bytes: bytes, detail: detail)
+            trashedPath: acted.trashedPath ?? trashedPath, identity: acted.identity, bytes: acted.bytes ?? bytes,
+            detail: detail)
     }
 }
 
