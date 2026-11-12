@@ -106,6 +106,9 @@
     "No caches or logs to clear" : {
 
     },
+    "Not accessible: macOS kept Shuck out of some folders, so they are not listed. Allow Full Disk Access for Shuck in System Settings, then scan again to include them." : {
+
+    },
     "Not accessible: macOS kept Shuck out of some folders, such as sandboxed apps' caches. Allow Full Disk Access for Shuck in System Settings, then scan again to list them." : {
 
     },

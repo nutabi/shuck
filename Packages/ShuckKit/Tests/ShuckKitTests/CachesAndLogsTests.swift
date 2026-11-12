@@ -277,6 +277,34 @@ struct CachesAndLogsTests {
         #expect(events.contains { if case .item = $0 { true } else { false } })
     }
 
+    @Test func aCacheShuckMayNotReadIsReportedNotListedSAF011SAF012() async throws {
+        try root.file("Library/Caches/com.example.Open/a.db", size: 10)
+        try root.folder("Library/Caches/com.example.Locked", permissions: 0o000)
+
+        let events = await events()
+
+        let denied = events.compactMap { event -> String? in
+            if case .notAccessible(let url) = event { url.lastPathComponent } else { nil }
+        }
+        let listed = events.compactMap { event -> String? in
+            if case .item(let item) = event { item.url?.lastPathComponent } else { nil }
+        }
+        #expect(denied == ["com.example.Locked"])
+        #expect(listed == ["com.example.Open"])
+    }
+
+    @Test func aCacheAnExclusionHidesIsNotReportedSAF011SAF012() async throws {
+        let locked = try root.folder("Library/Caches/com.example.Locked", permissions: 0o000)
+        let context = ScanContext(
+            home: root.url, ownership: OwnershipMap(home: root.url),
+            protection: root.pathGuardConfiguration(userExclusions: [locked]), runningApps: StubRunningApps([]))
+
+        var events: [ScanEvent] = []
+        for await event in CachesAndLogs(appNames: names).scan(context) { events.append(event) }
+
+        #expect(events.isEmpty)
+    }
+
     @Test func eachRuleValidatesAndDeletesOnlyWithinItsAreaCAC001CAC004() throws {
         for kind in CachesAndLogs.Kind.allCases {
             let rule = try CachesAndLogs.rule(kind, home: root.url)

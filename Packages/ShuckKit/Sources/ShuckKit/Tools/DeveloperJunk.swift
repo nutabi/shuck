@@ -235,11 +235,9 @@ public struct DeveloperJunk: SubTool {
         for folder in folders.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard !Task.isCancelled else { return }
             // A file or a link is not a project; and a folder another sub-tool owns is not ours (FCL-005).
-            guard context.ownership.owners(of: folder).contains(id), isAllowed(folder, context),
-                let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
-                values.isDirectory == true, values.isSymbolicLink != true,
-                let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
-                let modified = RuleMatch.modificationDate(at: folder)
+            guard context.ownership.owners(of: folder).contains(id), Self.isRealFolder(folder),
+                access(folder, context).admits(folder, emit),
+                let (snapshot, modified) = ScanAccess.measure(folder, emit)
             else { continue }
             let activity = FolderActivity.newest(in: folder, modified: modified)
             let workspace = DerivedDataProject.workspace(in: folder)
@@ -283,9 +281,9 @@ public struct DeveloperJunk: SubTool {
             let newest = DeviceSupportVersion.newest(among: folders.map(\.lastPathComponent))
             for folder in folders.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                 guard !Task.isCancelled else { return }
-                guard context.ownership.owners(of: folder).contains(id), isAllowed(folder, context),
-                    let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }),
-                    let modified = RuleMatch.modificationDate(at: folder)
+                guard context.ownership.owners(of: folder).contains(id),
+                    access(folder, context).admits(folder, emit),
+                    let (snapshot, modified) = ScanAccess.measure(folder, emit)
                 else { continue }
                 let name = folder.lastPathComponent
                 let versioned = DeviceSupportVersion.components(ofFolder: name) != nil
@@ -323,10 +321,9 @@ public struct DeveloperJunk: SubTool {
         for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard !Task.isCancelled else { return }
             // A link is not the cache itself, and an entry another sub-tool owns is not ours (FCL-005).
-            guard context.ownership.owners(of: entry).contains(id), isAllowed(entry, context),
+            guard context.ownership.owners(of: entry).contains(id),
                 (try? entry.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink != true,
-                let snapshot = ItemSnapshot.read(entry, while: { !Task.isCancelled }),
-                let modified = RuleMatch.modificationDate(at: entry)
+                access(entry, context).admits(entry, emit), let (snapshot, modified) = ScanAccess.measure(entry, emit)
             else { continue }
             do {
                 emit(
@@ -373,9 +370,8 @@ public struct DeveloperJunk: SubTool {
             for bundle in bundles.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                 guard !Task.isCancelled else { return }
                 guard bundle.lastPathComponent.hasSuffix(Self.archiveSuffix), Self.isRealFolder(bundle),
-                    context.ownership.owners(of: bundle).contains(id), isAllowed(bundle, context),
-                    let snapshot = ItemSnapshot.read(bundle, while: { !Task.isCancelled }),
-                    let modified = RuleMatch.modificationDate(at: bundle)
+                    context.ownership.owners(of: bundle).contains(id), access(bundle, context).admits(bundle, emit),
+                    let (snapshot, modified) = ScanAccess.measure(bundle, emit)
                 else { continue }
                 do {
                     emit(
@@ -392,10 +388,9 @@ public struct DeveloperJunk: SubTool {
 
     /// Whether the guard accepts `url` as a target of this sub-tool. It refuses anything inside a protected location or
     /// the user's exclusions, and any folder that contains one, so a scan hides it instead of listing a row a plan
-    /// would refuse (SET-001, SAF-007, D-149).
-    func isAllowed(_ url: URL, _ context: ScanContext) -> Bool {
-        (try? PathGuard(configuration: context.protection).validate(url, allowedRoots: allowedRoots(home: context.home)))
-            != nil
+    /// would refuse (SET-001, SAF-007, D-149). A folder Shuck may not read is told apart, to be reported (SAF-012).
+    func access(_ url: URL, _ context: ScanContext) -> ScanAccess {
+        ScanAccess(url, allowedRoots: allowedRoots(home: context.home), protection: context.protection)
     }
 
     static func isRealFolder(_ url: URL) -> Bool {

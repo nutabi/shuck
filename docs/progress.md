@@ -386,7 +386,9 @@ change and writes the documents. The other four are a second stack, in the order
     not run real tools (DEV-004, NFR-SEC-001).
 - [x] M2-F21 A stray `node_modules` in a project folder does not hide the projects below it (R-08, DEV-006,
   D-158).
-- [ ] Scans report what they cannot measure (R-10, M2-F17, #118).
+- [x] Scans report what they cannot measure (R-10, M2-F17, #118, D-159). Left over: a folder measured with an
+  unreadable subfolder still shows a size that is too small, with no mark, and ONB-002's banner that lists the
+  folders is M5.
 - [ ] String Catalog entries and a check for missing ones (R-09, M2-F17, #116), with DEV-R01's explanation.
 - [ ] Plans are built off the main actor (R-07, R-17, M2-F03, #62).
 
