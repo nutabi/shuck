@@ -426,7 +426,10 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
 `scripts/`, so the stack waits for the owner's go-ahead before it merges (D-170).
 
 - [x] M2-F18 Static checks: only tracked files, calls wrapped across lines, the APIs of #123, and every Must SAF
-  requirement named in a test or a script (R-12, R-18, #122, #123, D-170). This closes M2-F16.
+  requirement named in a test or a script (R-12, R-18, #122, #123, D-170). This closes M2-F16. Left over: #122's
+  other proposals (every rule on every Swift file by default, a second local package, `.binaryTarget(`); a self-test
+  case for each older alternative of each rule and a remote URL held in a variable (#123); a call wrapped over more
+  than 15 lines is matched only in parts.
 - [ ] M2-F18 Release scripts fail when a check fails (R-18, #66, #121).
 - [ ] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part).
   - [ ] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`).

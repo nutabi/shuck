@@ -16,13 +16,17 @@ put() {
 }
 
 # The Must SAF IDs, built from their numbers so that this script does not name them: it is a script, and the checks
-# count a script's IDs as named. ids_except [ID...] prints every ID but those given.
+# count a script's IDs as named. Cases name an ID by its number too: saf N prints it, and ids_except [N...] prints
+# every Must ID but those given.
+saf() {
+    printf 'SAF-%03d' "$1"
+}
+
 ids_except() {
-    local n id out=""
+    local n out=""
     for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 16 17 18; do
-        id="$(printf 'SAF-%03d' "$n")"
-        case " $* " in *" $id "*) continue ;; esac
-        out="$out$id "
+        case " $* " in *" $n "*) continue ;; esac
+        out="$out$(saf "$n") "
     done
     echo "$out"
 }
@@ -251,19 +255,18 @@ new_tree tracked-then-deleted && put "$app" 'let session = URLSession.shared' &&
     autostage=0 expect_clean "a tracked file deleted from the working tree"
 
 # Every Must SAF requirement is named in a test or a script, as a whole ID (NFR-QA-001, D-133).
-new_tree saf-missing && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-018)" &&
+new_tree saf-missing && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except 18)" &&
     expect_rule saf-tests NFR-QA-001
-new_tree saf-missing-first && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-001)" &&
-    expect_output "SAF-001: [saf-tests]"
+new_tree saf-missing-first && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except 1)" &&
+    expect_output "$(saf 1): [saf-tests]"
 new_tree saf-longer-id && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt \
-    "$(ids_except SAF-001) $(printf 'SAF-%04d' 1)" && expect_rule saf-tests NFR-QA-001
-new_tree saf-in-checks-only && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-018)" &&
+    "$(ids_except 1) $(printf 'SAF-%04d' 1)" && expect_rule saf-tests NFR-QA-001
+new_tree saf-in-checks-only && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except 18)" &&
     put scripts/static-checks.sh "$(ids_except)" && expect_rule saf-tests NFR-QA-001
-new_tree saf-in-source-only && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-018)" &&
+new_tree saf-in-source-only && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except 18)" &&
     put "$engine" "// $(ids_except)" && expect_rule saf-tests NFR-QA-001
-new_tree saf-spread && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except SAF-017 SAF-018)" &&
-    put scripts/other.sh "# $(ids_except | cut -d' ' -f1-16)" &&
-    put ShuckUITests/FlowTests.swift "// $(ids_except SAF-001 SAF-002 SAF-003 SAF-004 SAF-005 SAF-006 SAF-007 SAF-008 SAF-009 SAF-010 SAF-011 SAF-012 SAF-013 SAF-014 SAF-016)" &&
+new_tree saf-spread && put Packages/ShuckKit/Tests/ShuckKitTests/RequirementIds.txt "$(ids_except 17 18)" &&
+    put scripts/other.sh "# $(ids_except 18)" && put ShuckUITests/FlowTests.swift "// $(saf 18)" &&
     expect_clean "IDs spread over tests and scripts"
 
 new_tree allowed
