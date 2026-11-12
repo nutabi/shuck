@@ -432,6 +432,8 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
   than 15 lines is matched only in parts.
 - [x] M2-F18 Release scripts fail when a check fails (R-18, #66, #121, D-171). This closes M2-F18. Left over: the
   notarization path and the new `stapler` and `spctl` checks run first at the next release.
+- [x] M2-F18 `build-dmg.sh` reads the build settings for the archive's destination, so `xcodebuild` no longer warns
+  that several Macs match (the owner's run of 2026-11-12).
 - [x] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part, D-172).
   - [x] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`, #124, #125).
 

@@ -45,8 +45,10 @@ rm -rf "$out"
 mkdir -p "$out"
 
 # Capture the settings before parsing them: an awk that exits at the first match would give xcodebuild a SIGPIPE, which
-# pipefail turns into a silent failure (#66). xcodebuild's own messages stay visible.
-settings="$(xcodebuild -project Shuck.xcodeproj -scheme Shuck -configuration Release -showBuildSettings)" || {
+# pipefail turns into a silent failure (#66). xcodebuild's own messages stay visible. The destination is the archive's,
+# so xcodebuild does not warn that several Macs match.
+settings="$(xcodebuild -project Shuck.xcodeproj -scheme Shuck -configuration Release \
+    -destination 'generic/platform=macOS' -showBuildSettings)" || {
     echo "build-dmg: xcodebuild -showBuildSettings failed" >&2
     exit 1
 }
