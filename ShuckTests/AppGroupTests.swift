@@ -35,6 +35,18 @@ struct AppGroupTests {
         #expect(groups[1].items.map(\.allocatedSize) == [900, 100])
     }
 
+    @Test func whileScanningGroupsAndItemsKeepTheirArrivalOrderFCL012() {
+        let items = [
+            item("Caches/a", size: 100, app: "Notes"), item("Caches/b", size: 5_000, app: "Mail"),
+            item("Logs/a", size: 900, app: "Notes"),
+        ]
+
+        let scanning = AppGroup.groups(of: items, scanning: true)
+        #expect(scanning.map(\.name) == ["Notes", "Mail"])
+        #expect(scanning[0].items.map(\.allocatedSize) == [100, 900])
+        #expect(AppGroup.groups(of: items, scanning: false).map(\.name) == ["Mail", "Notes"])
+    }
+
     @Test func anItemWithoutAnAppNameIsGroupedUnderItsFileNameNotLeftOut() {
         let groups = AppGroup.groups(of: [item("Caches/loose.dat", size: 1, app: nil)])
         #expect(groups.map(\.name) == ["loose.dat"])

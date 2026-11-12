@@ -7,6 +7,11 @@ All notable changes to Shuck are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Developer Junk rows no longer appear cut off after you scan again. Rows in Developer Junk and Caches & Logs also stay
+  where they are while a scan runs, and the lists are sorted by size once the scan has finished.
+
 ## [0.2.0] - 2026-11-12
 
 ### Added

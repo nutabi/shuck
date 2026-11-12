@@ -76,9 +76,11 @@ struct DeveloperJunkView: View {
         }
     }
 
-    /// The rows of one tier, the biggest first, as Large Files lists its files.
+    /// The rows of one tier, the biggest first as Large Files lists its files. While the scan runs they stay in the
+    /// order they arrived, so no row moves under the list until the scan is over (``ScanOrder``).
     private func rows(in tier: Tier) -> [ScanItem] {
-        results.items.filter { $0.tier == tier }.sorted { $0.allocatedSize > $1.allocatedSize }
+        ScanOrder.ordered(
+            results.items.filter { $0.tier == tier }, scanning: model.state(of: subTool.id) == .scanning)
     }
 
     /// Whether the item is a project's `node_modules` (DEV-R06).
