@@ -15,10 +15,15 @@ public struct ItemSnapshot: Equatable, Sendable {
     public let kind: Kind
     /// Allocated size in bytes. For a folder, the total of everything inside it.
     public let allocatedSize: Int64
+    /// Whether everything inside a folder was measured. It is `false` when a subfolder could not be read, or an
+    /// item's size could not be, so ``allocatedSize`` is a lower bound (R-10, SAF-012). Always `true` for a file or a
+    /// symlink. ``matches(_:)`` ignores it, as it ignores everything but the kind and the size.
+    public let isComplete: Bool
 
-    public init(kind: Kind, allocatedSize: Int64) {
+    public init(kind: Kind, allocatedSize: Int64, isComplete: Bool = true) {
         self.kind = kind
         self.allocatedSize = allocatedSize
+        self.isComplete = isComplete
     }
 
     /// Measures the item at `url` without following symlinks. Returns `nil` if nothing is there, or if
@@ -34,13 +39,21 @@ public struct ItemSnapshot: Equatable, Sendable {
         }
         // The enumerator does not follow symlinks, so a link inside the folder counts as the link itself. Each item's
         // autoreleased objects are freed before the next, so measuring a large folder keeps memory flat (D-80).
+        // A subfolder that can't be listed is skipped by the enumerator. Its handler marks the size as incomplete
+        // instead of leaving a smaller size with no sign of it, and lets the enumeration go on (R-10, SAF-012).
         var total: Int64 = 0
-        let contents = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(keys))
+        var isComplete = true
+        let contents = FileManager.default.enumerator(
+            at: url, includingPropertiesForKeys: Array(keys),
+            errorHandler: { _, _ in
+                isComplete = false
+                return true
+            })
         while let size = autoreleasepool(invoking: { nextSize(contents, keys) }) {
             guard shouldContinue() else { return nil }
-            total += size
+            if let size { total += size } else { isComplete = false }
         }
-        return ItemSnapshot(kind: .folder, allocatedSize: total)
+        return ItemSnapshot(kind: .folder, allocatedSize: total, isComplete: isComplete)
     }
 
     /// What re-validation finds at an item's path (SAF-008, SAF-012).
@@ -68,14 +81,19 @@ public struct ItemSnapshot: Equatable, Sendable {
         return shouldContinue() ? .missing : .stopped
     }
 
+    /// Only a permission error is "not accessible"; any other error, even an unusual one, counts as missing.
     private static func failure(_ code: Int32) -> Check {
-        code == EPERM || code == EACCES ? .notAccessible : .missing
+        LstatFailure(errno: code) == .notAccessible ? .notAccessible : .missing
     }
 
-    /// The allocated size of the enumerator's next item, or `nil` when it has none left.
-    private static func nextSize(_ contents: FileManager.DirectoryEnumerator?, _ keys: Set<URLResourceKey>) -> Int64? {
+    /// The allocated size of the enumerator's next item: `.some(nil)` if its size can't be read, and `nil` when the
+    /// enumerator has no item left.
+    private static func nextSize(
+        _ contents: FileManager.DirectoryEnumerator?, _ keys: Set<URLResourceKey>
+    ) -> Int64?? {
         guard let child = contents?.nextObject() as? URL else { return nil }
-        return Int64((try? child.resourceValues(forKeys: keys))?.totalFileAllocatedSize ?? 0)
+        guard let values = try? child.resourceValues(forKeys: keys) else { return .some(nil) }
+        return .some(Int64(values.totalFileAllocatedSize ?? 0))
     }
 
     /// Whether `current` still matches this planned snapshot: the same kind, and a size within
