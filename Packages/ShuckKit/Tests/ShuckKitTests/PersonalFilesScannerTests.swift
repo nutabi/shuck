@@ -294,6 +294,34 @@ struct PersonalFilesScannerTests {
         #expect(result.items.count == 3)
     }
 
+    /// A package that holds a Photos library is refused by the guard (D-136). It is listed read-only, so no row is
+    /// selectable that a plan would refuse, and a plan of the other items succeeds (M2-F10, D-179).
+    @Test func aFolderHoldingAProtectedBundleIsReadOnlyAndThePlanStillWorksSAF007SAF011() async throws {
+        try root.file("Documents/Book.pages/Old.photoslibrary/database/Photos.sqlite", size: 8_000)
+        try root.file("Documents/Fine.pages/Data/page.bin", size: 8_000)
+        try root.file("Downloads/big.zip", size: 8_000)
+        let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
+
+        let result = try await scan(scanner())
+
+        #expect(result.items["Documents/Book.pages"]?.readOnly == .refused)
+        #expect(result.items["Documents/Fine.pages"]?.readOnly == nil)
+        #expect(result.items["Downloads/big.zip"]?.readOnly == nil)
+
+        let largeFiles = LargeFiles(minimumSize: 1_000)
+        let items = await items(from: largeFiles, context: context)
+        #expect(Set(items.compactMap(\.url).map(relative)) == ["Documents/Fine.pages", "Downloads/big.zip"])
+        let guardrail = PathGuard(configuration: root.pathGuardConfiguration())
+        _ = try Plan(subTool: largeFiles, items: items, pathGuard: guardrail)
+
+        // The guard stays authoritative: the refused folder still fails a plan if it arrives selected.
+        let refused = try root.url("Documents/Book.pages")
+        let forced = ScanItem(
+            url: refused, snapshot: try #require(ItemSnapshot.read(refused)), tier: .yourData, method: .trash,
+            reason: "Large", source: .largeFiles, modified: nil)
+        #expect(throws: PlanError.self) { try Plan(subTool: largeFiles, items: [forced], pathGuard: guardrail) }
+    }
+
     /// The path guard ignores case when it compares protected names (D-79), so the scan does too: otherwise it would
     /// list the files inside as selectable, and the guard would then refuse the plan.
     @Test func aProtectedNameInAnotherCaseIsOneReadOnlyItemSAF007() async throws {

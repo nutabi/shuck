@@ -274,7 +274,21 @@ public struct PersonalFilesScanner: Sendable {
             ? ItemSnapshot.read(url) { !Task.isCancelled }
             : ItemSnapshot(kind: .file, allocatedSize: values.allocatedSize)
         guard let snapshot else { return .skip }
-        return .item(file(url, snapshot, values, readOnly: readOnly))
+        return .item(file(url, snapshot, values, readOnly: readOnly ?? guardRefusal(of: url, values)))
+    }
+
+    /// ``ReadOnlyReason/refused`` if the path guard would refuse the folder `url`, which is measured as one item, such
+    /// as a package that holds a Photos library. The plan runs the same check, so a row it would refuse is listed
+    /// read-only instead of making a whole plan fail (SAF-007, SAF-011, D-179). The guard stays the authority: a row
+    /// that reaches a plan anyway is still refused there.
+    private func guardRefusal(of url: URL, _ values: EntryValues) -> ReadOnlyReason? {
+        guard values.isDirectory else { return nil }
+        do {
+            try PathGuard(configuration: context.protection).validate(url, allowedRoots: [context.home])
+            return nil
+        } catch {
+            return .refused
+        }
     }
 
     /// Whether an exclusion lies inside the folder `url`, which is measured as one item (SET-001).
