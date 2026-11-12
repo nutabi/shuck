@@ -559,9 +559,9 @@ Tasks:
   - [ ] Owner decision first, then the fix: `brew cleanup` is hidden only when its download cache is excluded, not
     when other folders it cleans are (#176, SET-001, D-149).
   - Left-overs from M1 and M2 that no task owned (D-178):
-  - [ ] Large result lists (NFR-PERF-001, M2-T01): at 200,000 rows a click on a column header sorts every row on the
+  - [x] Large result lists (NFR-PERF-001, M2-T01): at 200,000 rows a click on a column header sorts every row on the
     main actor (2 s by size, 6 s by name), and the selection footer reads every row on each selection change (166 ms
-    with 1,000 selected). Move the sort off the main actor and keep the footer's totals incrementally.
+    with 1,000 selected). Move the sort off the main actor and keep the footer's totals incrementally. Done as D-181.
   - [x] Engine: one classifier for the `lstat` errors that `Restorability` and `ItemSnapshot` read in opposite
     directions (M2-T01, D-93), and `ItemSnapshot.read` gets an enumerator error handler, so an unreadable subfolder
     marks the size as incomplete instead of giving a too-small size with no mark (R-10, SAF-012). `matches` and `check`,

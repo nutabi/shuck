@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Large Files and Old Files no longer freeze for seconds when you sort a very long list by a column, and selecting rows
+  stays quick however many files are listed.
 - Homebrew Cleanup, npm Cache and pip Cache in Developer Junk now report how much space their cache actually lost
   after the run, instead of the whole cache's size as an upper limit.
 - A folder that Shuck will not remove for safety, such as one that holds a Photos library, is now shown locked with the

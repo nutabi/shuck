@@ -113,7 +113,7 @@ struct PersonalFilesTable: View {
             if results.selection.isEmpty {
                 Text("No items selected")
             } else {
-                let count = results.actionableSelection.count
+                let count = results.actionableCount
                 Text(
                     "^[\(count) item](inflect: true) selected, \(results.selectedBytes, format: .byteCount(style: .file))"
                 )
@@ -133,7 +133,7 @@ struct PersonalFilesTable: View {
                 .disabled(results.selection.isEmpty)
             if moveToTrash != nil {
                 Button("Move to Trash…") { review(results.selection) }
-                    .disabled(results.actionableSelection.isEmpty || moveToTrash?.model.isPlanning == true)
+                    .disabled(results.actionableCount == 0 || moveToTrash?.model.isPlanning == true)
                     .keyboardShortcut(.delete, modifiers: .command)
                     .help("Review the selected items before moving them to the Trash.")
             }
