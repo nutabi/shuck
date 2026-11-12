@@ -20,8 +20,9 @@ root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$root"
 
 failures=0
-# Files in git's index. A tracked file deleted from the working tree is skipped where it is read.
-tracked="$(git -C "$root" ls-files --cached)"
+# Files in git's index, with paths as they are: git would quote one with non-ASCII letters, and the quoted name
+# names no file. A tracked file deleted from the working tree is skipped where it is read.
+tracked="$(git -C "$root" -c core.quotePath=false ls-files --cached)"
 swift_files="$(grep -E '\.swift$' <<<"$tracked" || true)"
 
 # The Must SAF requirements, each of which a test or a script must name (NFR-QA-001, D-133). SAF-015 is a Should.

@@ -241,6 +241,8 @@ try data.write(
     expect_output "Engine.swift:3: [file-write]"
 
 # Only the files git tracks are checked: a violating file that is not added leaves the checks passing (#122).
+# git quotes a path with non-ASCII letters unless told not to; such a file is still checked.
+new_tree non-ascii-path && put 'Shuck/Tệp.swift' 'let session = URLSession.shared' && expect_rule network
 new_tree untracked && put "$app" 'let ok = true' && stage && put Shuck/Untracked.swift 'let session = URLSession.shared' &&
     autostage=0 expect_clean "an untracked violation"
 new_tree untracked-claude && put "$app" 'let ok = true' && stage && put .claude/worktrees/x/Shuck/Leftover.swift 'print("x")' &&

@@ -373,7 +373,7 @@ fixes below and its own findings, and puts ten questions to the owner. No fix st
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
 Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, no hard stop;
-`docs/m2-review.md` has each one's scope). Stack 3 is not approved yet; stack 2 is below.
+`docs/m2-review.md` has each one's scope). Stack 2 and stack 3 are below.
 
 The first two merged as one GitHub stack (#152, #153), after a stop at the owner's request. The owner then said to go
 on, with Sonnet agents for the implementation and Haiku agents for research; the coordinating session reviews each
@@ -421,6 +421,16 @@ it and writes the documents.
     (D-168).
 - [x] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
 
+Stack 3 of the review's breakdown, approved by the owner on 2026-11-12 with the review's recommended answers to
+questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the order below. The first two change
+`scripts/`, so the stack waits for the owner's go-ahead before it merges (D-170).
+
+- [x] M2-F18 Static checks: only tracked files, calls wrapped across lines, the APIs of #123, and every Must SAF
+  requirement named in a test or a script (R-12, R-18, #122, #123, D-170). This closes M2-F16.
+- [ ] M2-F18 Release scripts fail when a check fails (R-18, #66, #121).
+- [ ] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part).
+  - [ ] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`).
+
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
   devices, and evicted placeholders are skipped for packages and folders too (FCL-010, FCL-012, SAF-002, D-129).
@@ -451,10 +461,10 @@ it and writes the documents.
   Execution change.
 - [x] M2-F15 Execution fixes: Delete holds one file descriptor per folder level, and a failed Restore leaves the parent
   folders it created behind (SAF-006, HIS-003, #119, #120). Execution change.
-- [ ] M2-F16 The two acceptance checks the PRD names (D-133): a test that stops a run between an intent and its result
+- [x] M2-F16 The two acceptance checks the PRD names (D-133): a test that stops a run between an intent and its result
   record and checks History and Restore (HIS-001), and a static check that every Must SAF requirement built so far is
   named in a test (NFR-QA-001). The interrupted-run test is done, with M2-F13's first pull request
-  (`InterruptedRunTests`, D-167); the static check is in stack 3.
+  (`InterruptedRunTests`, D-167), and the static check with stack 3 (D-170).
 - [ ] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
   ONB-002), and two History strings are missing from the String Catalog (NFR-L10N-001, #116, #118).
 - [ ] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before
