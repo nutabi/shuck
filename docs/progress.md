@@ -499,14 +499,17 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
 
 Exit criteria (PRD section 13):
 
-- [ ] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
-  finds every tool run in History.
+- [x] The owner reclaims space with a summary confirmation in Developer Junk and in Caches & Logs on their own Mac, and
+  finds every tool run in History. The owner confirmed it on 2026-11-12.
 - The other open review issues are part of roadmap tasks: #73 in M2-T06, #63 in M2-T11, and #66 and #67 in the
   0.2.0 release items below.
 - [x] User exclusions (SET-001) work in every tool and sub-tool, with a minimal list in Settings (M2-T14, D-135).
-- [ ] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
+- [x] Every Delete-path and Tool-path SAF requirement is tested: SAF-003, SAF-006, SAF-009, SAF-010, SAF-013 and
   SAF-015. SAF-004's warning for a "Your data" action that cannot be undone waits for Docker's rule (DEV-R10, M5).
-- [ ] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
+  Checked on 2026-11-12: each ID is named in engine tests of the Delete or Tool path (`SummaryConfirmationTests`,
+  `DeleteActionTests`, `ToolRunTests`, `RunningAppsTests`, `PlanTests`, `FreeSpaceTests` and the rule tests) and in
+  the UI workflows of Developer Junk and Caches & Logs.
+- [x] `MARKETING_VERSION` is 0.2.0, set in a pull request (`docs/releasing.md`, D-30). The same pull request words
   README's status without a version number, so it no longer goes stale at each release (#67).
 - [ ] A `v0.2.0` tag produces a notarized draft pre-release (D-36, D-37). Before the tag, `build-dmg.sh` captures
   `xcodebuild`'s build settings before parsing them, and stops with a message if the version comes out empty (#66).

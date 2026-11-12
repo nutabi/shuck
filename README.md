@@ -12,7 +12,7 @@ You review everything before Shuck acts. Personal files go to the Trash, and Shu
 
 ## Status
 
-Early development. Version 0.1.0 has two of File Cleanup's sub-tools, Large Files and Old Files. They list your largest files and those you haven't opened in a while, and move the files you choose to the Trash. History lists every run and puts items back. Developer Junk, Caches & Logs, Applications and Startup Items come next; see the [roadmap](docs/PRD.md#13-roadmap).
+Early development. The [latest release](https://github.com/nutabi/shuck/releases) has File Cleanup's four sub-tools. Large Files and Old Files list your largest files and those you haven't opened in a while, and move the files you choose to the Trash. Developer Junk and Caches & Logs list what apps and developer tools can rebuild, and delete it or clean it up with the tool's own command. History lists every run and puts trashed items back. Applications and Startup Items come next; see the [roadmap](docs/PRD.md#13-roadmap) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
