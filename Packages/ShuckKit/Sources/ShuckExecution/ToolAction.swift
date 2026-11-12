@@ -25,6 +25,9 @@ package struct ToolAction: Sendable {
         return Self.acted(run, command: command)
     }
 
+    /// Said when Shuck stops a tool: only its own process is signalled, not the processes it started (SAF-014).
+    private static let maybeRunning = "; processes the tool started may still be running"
+
     /// The outcome of `run`, and what its result record says: the end, and after "; output: " the tool's last output.
     static func acted(_ run: ToolRun, command: ToolCommand) -> Acted<ItemOutcome.SkipReason> {
         let output = run.output.map { "; output: " + (run.outputWasCut ? "…" : "") + $0 }
@@ -43,9 +46,11 @@ package struct ToolAction: Sendable {
         case .timedOut:
             let seconds = Int(command.timeout.rounded(.up))
             failure = ActionError(
-                domain: "ShuckToolTimeout", code: seconds, message: "no end within \(seconds) seconds; stopped")
+                domain: "ShuckToolTimeout", code: seconds,
+                message: "no end within \(seconds) seconds; stopped" + Self.maybeRunning)
         case .stopped:
-            failure = ActionError(domain: "ShuckToolStopped", code: Int(SIGTERM), message: "stopped by the user")
+            failure = ActionError(
+                domain: "ShuckToolStopped", code: Int(SIGTERM), message: "stopped by the user" + Self.maybeRunning)
         }
         return Acted(.failed(failure), detail: failure.logged + (output ?? ""))
     }

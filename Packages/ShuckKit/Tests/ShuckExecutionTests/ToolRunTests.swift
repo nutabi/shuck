@@ -122,11 +122,36 @@ struct ToolRunTests {
         #expect(
             report.outcomes.map(\.result) == [
                 .failed(
-                    ActionError(domain: "ShuckToolTimeout", code: 1, message: "no end within 1 seconds; stopped"))
+                    ActionError(
+                        domain: "ShuckToolTimeout", code: 1,
+                        message: "no end within 1 seconds; stopped; processes the tool started may still be running"))
             ])
         #expect(Date().timeIntervalSince(started) < 10)
         #expect(try results().first?.status == .failed)
         #expect(try results().first?.detail?.hasPrefix("ShuckToolTimeout 1: ") == true)
+    }
+
+    @Test func aStopBeforeTheToolHasLaunchedSignalsNothingAndEndsItAfterwardsSAF014() async throws {
+        let tool = try root.tool("tools/slow", .runsForever)
+        // The hook holds the run before the process starts, so the timeout passes in the window R-05 describes.
+        let held = ToolRunner(
+            executableRoots: [root.url], outputLimit: 2048, killGrace: .milliseconds(300),
+            beforeLaunch: { Thread.sleep(forTimeInterval: 1.5) })
+        let started = Date()
+        let report = try await run(plan([rule(tool, timeout: 0.3)]), runner: held)
+
+        guard case .failed(let error) = report.outcomes.first?.result else {
+            Issue.record("The tool was not stopped: \(report.outcomes.map(\.result))")
+            return
+        }
+        #expect(error.domain == "ShuckToolTimeout")
+        #expect(Date().timeIntervalSince(started) < 10)
+    }
+
+    @Test func aStoppedToolsRecordSaysItsOwnProcessesMayStillRunSAF014SAF006() async throws {
+        let tool = try root.tool("tools/slow", .runsForever)
+        _ = try await run(plan([rule(tool, timeout: 0.3)]), runner: quickGrace())
+        #expect(try results().first?.detail?.contains("processes the tool started may still be running") == true)
     }
 
     @Test func aToolThatIgnoresTheRequestToEndIsKilledDEV004() async throws {
@@ -157,7 +182,10 @@ struct ToolRunTests {
 
         #expect(
             report.outcomes.map(\.result) == [
-                .failed(ActionError(domain: "ShuckToolStopped", code: Int(SIGTERM), message: "stopped by the user")),
+                .failed(
+                    ActionError(
+                        domain: "ShuckToolStopped", code: Int(SIGTERM),
+                        message: "stopped by the user; processes the tool started may still be running")),
                 .skipped(.cancelled),
             ])
         // The stopped tool's records say what happened; the item after it never started, so it has none.

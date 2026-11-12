@@ -407,7 +407,7 @@ it and writes the documents.
 - [x] M2-F22 Every rule-based item needs its rule: a plan of Developer Junk or Caches & Logs refuses an item without
   a rule match, Trash included, the executor skips one, and a project folder that no longer resolves inside the home
   folder is no allowed root (R-03, R-16, SAF-007, SAF-008, D-163).
-- [ ] M2-F14 The tool runner never signals a process that has not launched, and History says that a stopped tool's
+- [x] M2-F14 The tool runner never signals a process that has not launched, and History says that a stopped tool's
   processes may still be running (R-05, R-13, #114, #127 in part).
 - [ ] M2-F15 Delete with one descriptor at a time, and Restore removes the folders it created when its move fails
   (R-11, #119, #120).
@@ -442,7 +442,7 @@ it and writes the documents.
 - [ ] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards
   Cmd-Q during a run. Write what a Restore needs before the move, or recover it at the next launch, and ask before
   quitting during a run (SAF-005, SAF-006, HIS-001, #115). Execution change.
-- [ ] M2-F14 `ToolRunner` can call `terminate()` on a process that has not launched yet (`ToolRunner.swift`, #114).
+- [x] M2-F14 `ToolRunner` can call `terminate()` on a process that has not launched yet (`ToolRunner.swift`, #114).
   Execution change.
 - [ ] M2-F15 Execution fixes: Delete holds one file descriptor per folder level, and a failed Restore leaves the parent
   folders it created behind (SAF-006, HIS-003, #119, #120). Execution change.

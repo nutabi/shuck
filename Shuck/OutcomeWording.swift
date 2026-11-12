@@ -87,8 +87,9 @@ nonisolated enum OutcomeWording {
         switch error.domain {
         case "ShuckToolExit": "Failed: the tool ended with status \(error.code)"
         case "ShuckToolSignal": "Failed: the tool was ended by signal \(error.code)"
-        case "ShuckToolTimeout": "Failed: the tool did not finish in \(error.code) seconds, so Shuck stopped it"
-        case "ShuckToolStopped": "Stopped before the tool finished"
+        case "ShuckToolTimeout":
+            "Failed: the tool did not finish in \(error.code) seconds, so Shuck stopped it. Processes it started may still be running"
+        case "ShuckToolStopped": "Stopped before the tool finished. Processes it started may still be running"
         default: "Failed: \(error.localizedDescription)"
         }
     }

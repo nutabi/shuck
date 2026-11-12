@@ -43,13 +43,18 @@ public struct ToolRunner: Sendable {
     let executableRoots: [URL]?
     let outputLimit: Int
     let killGrace: Duration
+    /// Runs between storing the process and starting it, so a test can stop a run in that window (R-05).
+    let beforeLaunch: (@Sendable () -> Void)?
 
     /// A runner that finds tools anywhere (`nil`), or only inside `executableRoots`, with symlinks resolved.
     public init(executableRoots: [URL]?) {
         self.init(executableRoots: executableRoots, outputLimit: 2048, killGrace: .seconds(5))
     }
 
-    package init(executableRoots: [URL]?, outputLimit: Int, killGrace: Duration) {
+    package init(
+        executableRoots: [URL]?, outputLimit: Int, killGrace: Duration, beforeLaunch: (@Sendable () -> Void)? = nil
+    ) {
+        self.beforeLaunch = beforeLaunch
         self.executableRoots = executableRoots
         self.outputLimit = outputLimit
         self.killGrace = killGrace
@@ -83,7 +88,7 @@ public struct ToolRunner: Sendable {
 
     /// Runs `command` at `executable`, which ``locate(_:)`` returned, and waits for the end.
     package func run(_ command: ToolCommand, at executable: URL) async -> ToolRun {
-        let execution = Execution(limit: outputLimit, grace: killGrace)
+        let execution = Execution(limit: outputLimit, grace: killGrace, beforeLaunch: beforeLaunch)
         let timer = Task {
             if (try? await Task.sleep(for: .seconds(command.timeout))) != nil { execution.stop(.timedOut) }
         }
@@ -101,6 +106,9 @@ public struct ToolRunner: Sendable {
 private final class Execution: @unchecked Sendable {
     private struct State {
         var process: Process?
+        /// Whether `run()` has returned, so the process exists and can be signalled. `terminate()` on a process that
+        /// has not launched raises an Objective-C exception (R-05).
+        var launched = false
         var stop: ToolRun.Ending?
         var finished = false
     }
@@ -108,6 +116,7 @@ private final class Execution: @unchecked Sendable {
     private let state = Mutex(State())
     private let limit: Int
     private let grace: Duration
+    private let beforeLaunch: (@Sendable () -> Void)?
     /// Output is read on this queue only, so its order is the order the process wrote it in.
     private let queue = DispatchQueue(label: "me.nutabi.shuck.tool-output")
     private let output = Mutex(Output())
@@ -117,18 +126,20 @@ private final class Execution: @unchecked Sendable {
         var cut = false
     }
 
-    init(limit: Int, grace: Duration) {
+    init(limit: Int, grace: Duration, beforeLaunch: (@Sendable () -> Void)?) {
         self.limit = limit
         self.grace = grace
+        self.beforeLaunch = beforeLaunch
     }
 
     /// Asks the process to end, for `reason`: SIGTERM now, SIGKILL after the grace period if it is still running. The
-    /// first reason stands. Nothing happens once the process has ended.
+    /// first reason stands. Nothing happens once the process has ended, and a process that has not launched is
+    /// not signalled: ``run(_:at:)`` ends it as soon as it has launched.
     func stop(_ reason: ToolRun.Ending) {
         let process: Process? = state.withLock { state in
             guard !state.finished, state.stop == nil else { return nil }
             state.stop = reason
-            return state.process
+            return state.launched ? state.process : nil
         }
         guard let process else { return }
         terminate(process)
@@ -194,6 +205,7 @@ private final class Execution: @unchecked Sendable {
                 continuation.resume(returning: .neverStarted)
                 return
             }
+            beforeLaunch?()
             do {
                 try process.run()
             } catch {
@@ -202,8 +214,11 @@ private final class Execution: @unchecked Sendable {
                 continuation.resume(returning: .launchFailed(ActionError(error)))
                 return
             }
-            // A stop that came between setting the state and starting the process had no process to end yet.
-            let early = state.withLock { $0.stop }
+            // A stop that came before the process launched signalled nothing, so it is ended now.
+            let early = state.withLock { state in
+                state.launched = true
+                return state.stop
+            }
             if early != nil { terminate(process) }
         }
 
