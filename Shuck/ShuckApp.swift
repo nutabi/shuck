@@ -4,6 +4,8 @@ import os
 
 @main
 struct ShuckApp: App {
+    /// Asks before quitting during a run (SAF-005, SAF-014).
+    @NSApplicationDelegateAdaptor(ShuckAppDelegate.self) private var appDelegate
     private let registry: ToolRegistry
     private let pages: SubToolPages
     /// Kept for the app's lifetime, so scan results survive switching between pages.

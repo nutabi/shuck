@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import ShuckExecution
 import ShuckKit
@@ -27,6 +28,12 @@ final class RunModel<Report: Equatable & Sendable> {
     private(set) var phase = RunPhase<Report>.waiting
     /// The run, once it has started.
     private(set) var task: Task<Void, Never>?
+    private let runs: ActiveRuns
+
+    /// - Parameter runs: Where the run is listed while it is under way, so quitting can ask first (SAF-005).
+    init(runs: ActiveRuns = .shared) {
+        self.runs = runs
+    }
 
     /// Starts `work`, or returns `nil` if the run has started before.
     /// - Parameters:
@@ -40,7 +47,10 @@ final class RunModel<Report: Equatable & Sendable> {
     ) -> Task<Void, Never>? {
         guard phase == .waiting else { return nil }
         phase = .running
+        let id = UUID()
+        let runs = runs
         let task = Task {
+            defer { runs.remove(id) }
             do throws(HistoryError) {
                 let report = try await work()
                 phase = .finished(report)
@@ -51,6 +61,7 @@ final class RunModel<Report: Equatable & Sendable> {
             }
         }
         self.task = task
+        runs.add(id, task)
         return task
     }
 
