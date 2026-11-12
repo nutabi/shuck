@@ -110,3 +110,35 @@ struct NpmCacheTests {
         #expect(item.toolOutput == "npm error code EACCES")
     }
 }
+
+/// SET-001, SAF-008, D-150: a tool command is re-checked against the user's exclusions just before it runs.
+extension NpmCacheTests {
+    @Test func aToolCommandIsSkippedWhenTheCacheFolderIsExcludedAfterThePlanSET001SAF008() async throws {
+        try root.tool("opt/homebrew/bin/npm", .reportsInvocation)
+        try root.file("\(cache)/content-v2/x", size: 5000)
+        let plan = try Plan(subTool: DeveloperJunk(), items: await scanned(), pathGuard: pathGuard)
+        let npmFolder = root.url.appending(path: ".npm")
+        let excluding = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [npmFolder]))
+
+        let report = try await PlanExecutor(root: root, pathGuard: excluding).run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.userExclusion(npmFolder.path))])
+        #expect(!root.aFakeToolRan)
+        let details = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }.map(
+            \.detail)
+        #expect(details == ["userExclusion: \(npmFolder.path)"])
+    }
+
+    @Test func anUnrelatedExclusionStillLetsTheToolRunSET001SAF008() async throws {
+        try root.tool("opt/homebrew/bin/npm", .reportsInvocation)
+        try root.file("\(cache)/content-v2/x", size: 5000)
+        let plan = try Plan(subTool: DeveloperJunk(), items: await scanned(), pathGuard: pathGuard)
+        let other = root.url.appending(path: "Pictures/Trip")
+        let excluding = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [other]))
+
+        let report = try await PlanExecutor(root: root, pathGuard: excluding).run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(root.aFakeToolRan)
+    }
+}

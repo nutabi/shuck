@@ -77,9 +77,30 @@ public struct PlanExecutor: Sendable {
             match.rule.detection.isAvailable,
             match.rule.accepts(item.target, tier: item.tier, method: item.method, scope: item.scope)
         else { return Acted(.skipped(.ruleChanged)) }
+        // A folder excluded since the plan was made: the scan hides such an item, and so does the run (SET-001, D-150).
+        if let excluded = excludedFolder(hiding: item) { return Acted(.skipped(.userExclusion(excluded))) }
         if Task.isCancelled { return Acted(.skipped(.cancelled)) }
         if runningApps.firstRunning(of: item.apps) != nil { return Acted(.skipped(.appRunning)) }
         return await toolAction.act(command: command)
+    }
+
+    /// The user's exclusion that hides the tool `item`, if any: the scan's own check (`ScanContext.hides`) against the
+    /// guard's current exclusions, tried one at a time to name the folder (SET-001, SAF-008, D-149, D-150).
+    private func excludedFolder(hiding item: PlannedItem) -> String? {
+        let configuration = pathGuard.configuration
+        // `ScanContext.hides` takes a `ScanItem`, so the command is rebuilt as one; the reason is never shown.
+        guard case .command(let command) = item.target, let rule = item.ruleMatch else { return nil }
+        let scanItem = ScanItem(
+            command: command, allocatedSize: item.allocatedSize, tier: item.tier,
+            reason: LocalizedStringResource(stringLiteral: ""), source: .developerJunk,  // not localized: never shown
+            category: item.category, selection: item.selection, ruleMatch: rule, apps: item.apps)
+        for exclusion in configuration.userExclusions {
+            let single = PathGuardConfiguration(
+                home: configuration.home, systemLocations: [], appBundle: configuration.home,
+                userExclusions: [exclusion])
+            if ScanContext(home: configuration.home, protection: single).hides(scanItem) { return exclusion.path }
+        }
+        return nil
     }
 
     /// Re-validates `item` and hands it to the action for its method (SAF-004, SAF-008).
