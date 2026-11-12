@@ -214,7 +214,7 @@
     "Xcode Archives" : {
 
     },
-    "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again." : {
+    "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again. Its compilation cache goes too, so the next build is slower." : {
 
     },
     "Xcode copies this again the next time you connect a device that runs this version." : {

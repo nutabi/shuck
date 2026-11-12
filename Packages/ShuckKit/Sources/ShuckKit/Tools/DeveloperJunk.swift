@@ -112,7 +112,7 @@ public struct DeveloperJunk: SubTool {
             detection: .folder(root), action: .paths([RulePath(root: root, pattern: "*")], method: .delete),
             tier: .rebuildable, selection: .modifiedAtLeast(days: staleDays),
             explanation: LocalizedStringResource(
-                "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again.",
+                "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again. Its compilation cache goes too, so the next build is slower.",
                 bundle: #bundle),
             documentation: documentation, apps: [xcodeBundleID])
     }

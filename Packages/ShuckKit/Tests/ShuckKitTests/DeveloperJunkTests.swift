@@ -53,8 +53,11 @@ struct DeveloperJunkTests {
         #expect(reason(items["Old-\(hash)"]) == "Not built for 30 days or more.")
         #expect(
             reason(items["Live-\(hash)"])
-                == "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again."
+                == "Xcode builds this project again when you next need it. Its Swift package checkouts go too, and Xcode needs an internet connection to download them again. Its compilation cache goes too, so the next build is slower."
         )
+        // DEV-R01 and DEV-005: the explanation names both the package checkouts and the compilation cache.
+        let explanation = reason(items["Live-\(hash)"])
+        #expect(explanation.contains("Swift package checkouts") && explanation.contains("compilation cache"))
         // Each row names its project's path, so two projects of one name differ (D-138).
         #expect(items["Live-\(hash)"]?.project?.path == project.path)
         #expect(items["Gone-\(hash)"]?.project?.path == gone.path)
