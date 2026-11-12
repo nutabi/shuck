@@ -49,6 +49,9 @@ public enum ReadOnlyReason: Equatable, Sendable {
     case managedBy(ToolID)
     /// A protected location the user may see, such as a Photos library (section 8.4).
     case protected
+    /// The path guard refuses the folder, for example because it holds a Photos library or Shuck cannot read it. The
+    /// plan would refuse it too, so it is listed but never selectable (SAF-007, SAF-011).
+    case refused
 }
 
 /// What the personal-files scan reports as it goes. Files come in batches, so a large home folder does not cost one

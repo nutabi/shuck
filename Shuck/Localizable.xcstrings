@@ -591,6 +591,9 @@
     "Read-only: Shuck never removes this item." : {
 
     },
+    "Read-only: this folder holds something Shuck never removes, or Shuck cannot read it." : {
+
+    },
     "Synced" : {
 
     },

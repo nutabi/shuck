@@ -285,6 +285,8 @@ private struct NameCell: View {
             return Text("Read-only: \(name) manages this item.")
         case .protected:
             return Text("Read-only: Shuck never removes this item.")
+        case .refused:
+            return Text("Read-only: this folder holds something Shuck never removes, or Shuck cannot read it.")
         }
     }
 }

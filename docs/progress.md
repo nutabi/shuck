@@ -569,7 +569,7 @@ Tasks:
   - [ ] Engine tests that M2-T01 left (D-93, TD-18): a FIFO planted as the history log, stopping a scan while a batch
     is applied off the main actor, an executor's records read back through History's wording, and the near-copy Large
     Files and Old Files pipeline tests merged into one.
-  - [ ] Owner review first, since it changes what a plan accepts: a scan can list a folder the guard refuses, such as
+  - [x] Owner review first, since it changes what a plan accepts: a scan can list a folder the guard refuses, such as
     one holding a Photos library, and that one row makes the whole plan refuse. The scanner marks such a folder as
     not selectable, with the reason (M2-F10, SAF-007, SAF-011).
   - [ ] App tests (M2-F20, R-07): a UI test for a DerivedData row's project path and for Select All and Select None,

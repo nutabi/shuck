@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- A folder that Shuck will not remove for safety, such as one that holds a Photos library, is now shown locked with the
+  reason in Large Files and Old Files, instead of making the whole move to the Trash fail.
 - Developer Junk rows no longer appear cut off after you scan again. Rows in Developer Junk and Caches & Logs also stay
   where they are while a scan runs, and the lists are sorted by size once the scan has finished.
 - Changing your project folders in Settings while Developer Junk is scanning no longer leaves node_modules rows from a
