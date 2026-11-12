@@ -22,7 +22,8 @@ struct CachesAndLogsView: View {
             scanHelp: Text("Look for caches and logs. Scanning never removes anything.")
         ) { actions in
             List {
-                ForEach(AppGroup.groups(of: results.items)) { group in
+                ForEach(AppGroup.groups(of: results.items, scanning: model.state(of: subTool.id) == .scanning)) {
+                    group in
                     Section {
                         ForEach(group.items) { item in
                             CacheRow(item: item, home: model.home, isSelected: isSelected(item))
