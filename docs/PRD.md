@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.7 — SET-003 in M2 (see Revision history) |
+| Version | 1.8 — identity in Trash intent records (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -26,6 +26,7 @@
 | 1.5 | 2026-11-10 | Review of 2026-11-10 (D-129 to D-135): synced files are listed, marked and warned about (FCL-010, FCL-012, SAF-002, OQ-06); Old Files uses the latest date it knows (OLD-002); the scan skips `.git` and other volumes (FCL-008); re-validation checks every item's modification date, and Delete needs a rule (SAF-008); the guard also refuses folders that contain a protected bundle or name (SAF-007, section 8.4); one running instance and a locked history log (SAF-018); Clear History (HIS-008, SET-007); user exclusions move to M2 (SET-001); acceptance checks name their milestone (D-133); `SMAppService` may open System Settings (STA-004, ENG-006, D-134). Brings the text in line with decisions D-43, D-62, D-65, D-66, D-70, D-75, D-111, D-115, D-119: protected locations, pull request size and template, CI, debug bundle ID, UI test wording, the history log's `detail` field, the repository layout. Adds tool-rule and Caches & Logs requirements from research (DEV-002, DEV-004, DEV-006, CAC-009, rule notes), new risks R-16 to R-18, open questions OQ-07 and OQ-08, and sources S71 to S78. |
 | 1.6 | 2026-11-11 | SAF-015's threshold is 25% of the space in use on the startup volume, since measuring the home folder means walking all of it (D-144). |
 | 1.7 | 2026-11-12 | SET-003 (developer project folders) is built in M2 as a minimal list with DEV-R06, not in M5 (D-154); a project's `node_modules` belongs to Developer Junk (D-152). |
+| 1.8 | 2026-11-12 | Section 8.5: a `trash` intent record carries the item's `identity` too, so History can find an item whose result record was never written in the Trash (HIS-001, D-162, D-167). |
 
 ## How to read this document
 
@@ -311,7 +312,7 @@ Protecting a folder also refuses its parents: a target that contains a protected
 | `op` | string | `trash`, `delete`, `tool`, `launchctl`, `restore` |
 | `path` | string | Original path; for `tool`, the quoted command (D-106, D-115) |
 | `trashedPath` | string, optional | From `resultingItemURL` [S42] |
-| `identity` | object, optional | Result records of `trash`: the trashed item's file identity, `{"volume": st_dev, "file": st_ino}`, read just before the move. Restore moves only an item whose file number still matches. Logs written by 0.1.0 do not have it (D-84). |
+| `identity` | object, optional | Intent and result records of `trash`: the item's file identity, `{"volume": st_dev, "file": st_ino}`, read just before the record is written. Restore moves only an item whose file number still matches. History finds an item whose intent has no result, after a quit or crash, among the Trash's direct entries by this identity (HIS-001, D-167). Logs written by 0.1.0 do not have it, and intent records have it since 0.2.0 (D-84). |
 | `bytes` | integer, optional | Allocated size estimate |
 | `tier` | string | `rebuildable` or `yourData` |
 | `status` | string, result only | `ok`, `skipped`, `failed` |

@@ -297,8 +297,10 @@ nonisolated struct AppEnvironment {
     @concurrent
     func loadHistory() async throws(HistoryError) -> HistoryModel.History {
         let contents = try HistoryLog.read(folder: historyFolder)
+        // The injected Trash, so a fixture root never reads the real one; an interrupted item is looked for in it.
         return HistoryModel.History(
-            runs: contents.runs().reversed(), unreadableLineCount: contents.unreadableLines.count)
+            runs: contents.runs(trashFolder: try? trash.folder).reversed(),
+            unreadableLineCount: contents.unreadableLines.count)
     }
 
     /// The fixture root after ``fixtureRootArgument`` in a debug build, or `nil` if there is none.
