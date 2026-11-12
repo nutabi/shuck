@@ -25,17 +25,28 @@ else
     credentials=(--keychain-profile "${NOTARY_KEYCHAIN_PROFILE:-shuck-notary}")
 fi
 
-result="$(mktemp)"
-trap 'rm -f "$result"' EXIT
-
 echo "notarize: submitting $(basename "$file")"
-xcrun notarytool submit "$file" "${credentials[@]}" --wait --output-format json >"$result"
-status="$(plutil -extract status raw -o - "$result")"
-id="$(plutil -extract id raw -o - "$result")"
+# set -e would stop at a failed submit before Apple's log is printed, so take the exit status by hand.
+submit_status=0
+output="$(xcrun notarytool submit "$file" "${credentials[@]}" --wait --output-format json)" || submit_status=$?
 
-if [[ "$status" != "Accepted" ]]; then
-    echo "notarize: $status (submission $id). Apple's log:" >&2
-    xcrun notarytool log "$id" "${credentials[@]}" >&2 || true
+# Reads a key of the JSON output; empty when the output is not JSON or lacks the key.
+field() {
+    plutil -extract "$1" raw -o - - <<<"$output" 2>/dev/null || true
+}
+status="$(field status)"
+id="$(field id)"
+
+if [[ $submit_status -ne 0 || "$status" != "Accepted" ]]; then
+    echo "notarize: failed (exit status $submit_status, status \"${status:-unknown}\", submission ${id:-unknown})" >&2
+    if [[ -z "$status" || -z "$id" ]]; then
+        echo "notarize: notarytool output:" >&2
+        echo "$output" >&2
+    fi
+    if [[ -n "$id" ]]; then
+        echo "notarize: Apple's log:" >&2
+        xcrun notarytool log "$id" "${credentials[@]}" >&2 || true
+    fi
     exit 1
 fi
 echo "notarize: accepted (submission $id)"

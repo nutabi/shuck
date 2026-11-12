@@ -44,8 +44,17 @@ out=build/release
 rm -rf "$out"
 mkdir -p "$out"
 
-version="$(xcodebuild -project Shuck.xcodeproj -scheme Shuck -configuration Release -showBuildSettings 2>/dev/null |
-    awk '$1 == "MARKETING_VERSION" { print $3; exit }')"
+# Capture the settings before parsing them: an awk that exits at the first match would give xcodebuild a SIGPIPE, which
+# pipefail turns into a silent failure (#66). xcodebuild's own messages stay visible.
+settings="$(xcodebuild -project Shuck.xcodeproj -scheme Shuck -configuration Release -showBuildSettings)" || {
+    echo "build-dmg: xcodebuild -showBuildSettings failed" >&2
+    exit 1
+}
+version="$(awk '$1 == "MARKETING_VERSION" { print $3; exit }' <<<"$settings")"
+if [[ -z "$version" ]]; then
+    echo "build-dmg: could not read MARKETING_VERSION from the build settings" >&2
+    exit 1
+fi
 if [[ -n "${SHUCK_EXPECT_VERSION:-}" && "$version" != "$SHUCK_EXPECT_VERSION" ]]; then
     echo "build-dmg: the app's version is $version but the tag says $SHUCK_EXPECT_VERSION." >&2
     echo "build-dmg: bump MARKETING_VERSION in a pull request before tagging (docs/releasing.md)." >&2
@@ -71,24 +80,48 @@ xcodebuild archive \
 app="$out/Shuck.app"
 ditto "$out/Shuck.xcarchive/Products/Applications/Shuck.app" "$app"
 
-# NFR-SEC-003: Hardened Runtime on, and no get-task-allow (which would let other processes attach a debugger).
+# NFR-SEC-003: every executable in the app has Hardened Runtime on and no get-task-allow (which would let other
+# processes attach a debugger). That is the main executable and any nested code: frameworks, helpers, XPC services and
+# plug-ins. A file counts as code when `file` calls it a Mach-O; symbolic links are skipped, so each file is checked once.
 codesign --verify --strict --deep "$app"
-# Capture before grepping: grep -q exits early, and pipefail would turn codesign's SIGPIPE into a failure.
-signature="$(codesign --display --verbose "$app" 2>&1)"
-entitlements="$(codesign --display --entitlements - --xml "$app" 2>/dev/null || true)"
-if ! grep -qE '^CodeDirectory .*flags=.*runtime' <<<"$signature"; then
-    echo "build-dmg: Hardened Runtime is off" >&2
+checked=0
+while IFS= read -r -d '' path; do
+    case "$(file -b "$path")" in
+        *Mach-O*) ;;
+        *) continue ;;
+    esac
+    name="${path#"$app"/}"
+    # Capture before grepping: grep -q exits early, and pipefail would turn codesign's SIGPIPE into a failure.
+    if ! signature="$(codesign --display --verbose "$path" 2>&1)"; then
+        echo "build-dmg: codesign cannot read the signature of $name" >&2
+        exit 1
+    fi
+    if ! entitlements="$(codesign --display --entitlements - --xml "$path" 2>&1)"; then
+        echo "build-dmg: codesign cannot read the entitlements of $name" >&2
+        exit 1
+    fi
+    if ! grep -qE '^CodeDirectory .*flags=.*runtime' <<<"$signature"; then
+        echo "build-dmg: Hardened Runtime is off for $name" >&2
+        exit 1
+    fi
+    if grep -q 'get-task-allow' <<<"$entitlements"; then
+        echo "build-dmg: $name has the get-task-allow entitlement" >&2
+        exit 1
+    fi
+    checked=$((checked + 1))
+done < <(find "$app" -type f -print0)
+if ((checked == 0)); then
+    echo "build-dmg: found no executable in $app to check" >&2
     exit 1
 fi
-if grep -q 'get-task-allow' <<<"$entitlements"; then
-    echo "build-dmg: the release build has the get-task-allow entitlement" >&2
-    exit 1
-fi
+echo "build-dmg: checked Hardened Runtime and get-task-allow on $checked executable(s)"
 
 if $notarize; then
     ditto -c -k --keepParent "$app" "$out/Shuck.zip"
     scripts/notarize.sh "$out/Shuck.zip"
     xcrun stapler staple "$app"
+    xcrun stapler validate "$app"
+    spctl --assess --type execute --verbose "$app"
     rm "$out/Shuck.zip"
 fi
 
@@ -104,6 +137,7 @@ codesign --sign "$identity" ${timestamp[@]+"${timestamp[@]}"} "$dmg"
 if $notarize; then
     scripts/notarize.sh "$dmg"
     xcrun stapler staple "$dmg"
+    xcrun stapler validate "$dmg"
     spctl --assess --type open --context context:primary-signature --verbose "$dmg"
 fi
 
