@@ -20,6 +20,8 @@ struct ShuckApp: App {
         let arguments = CommandLine.arguments
         // A UI test starts from default preferences (D-70). Only the debug build's own domain is ever cleared.
         let bundleID = Bundle.main.bundleIdentifier
+        // A second launch of this build hands over to the first one before anything is built (SAF-018).
+        SingleInstance.yieldToRunningInstance(arguments: arguments, bundleID: bundleID)
         if let domain = AppEnvironment.preferencesToClear(arguments: arguments, bundleID: bundleID) {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }

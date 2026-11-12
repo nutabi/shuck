@@ -267,4 +267,18 @@ struct HistoryLogTests {
         let error = #expect(throws: HistoryError.self) { try HistoryLog.read(folder: folder) }
         #expect(error == .cannotOpen(link.path, errno: ELOOP))
     }
+
+    @Test func aSecondLockIsRefusedWhileTheFirstIsHeldSAF018() async throws {
+        var first: HistoryLog? = try HistoryLog(folder: folder)
+        let error = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }
+        #expect(error == .locked(folder.appending(path: HistoryLog.fileName).path))
+
+        // Reading needs no lock.
+        #expect(try HistoryLog.read(folder: folder).records.isEmpty)
+
+        first = nil
+        let second = try HistoryLog(folder: folder)
+        try await second.append(intent)
+        #expect(first == nil)
+    }
 }

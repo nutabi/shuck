@@ -411,7 +411,9 @@ it and writes the documents.
   processes may still be running (R-05, R-13, #114, #127 in part).
 - [x] M2-F15 Delete with one descriptor at a time, and Restore removes the folders it created when its move fails
   (R-11, #119, #120).
-- [ ] M2-F12 One running instance, and a locked history log (R-06, SAF-018).
+- [x] M2-F12 One running instance, and a locked history log (R-06, SAF-018).
+  - [ ] Owner item: open the release build twice; the second launch brings the first window to the front and quits
+    (SAF-018's manual check, D-166).
 - [ ] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
 - [ ] M2-F13 Shuck asks before quitting during a run (R-04 step 3, #115).
 - [ ] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
@@ -437,7 +439,7 @@ it and writes the documents.
 - [x] M2-F11 Re-validation compares the modification date of every item, Trash or Delete, using the deep date for
   contents-only items, and a plan refuses a Delete item without a rule match (SAF-008, D-132). Safety and Execution
   change. Done as D-141.
-- [ ] M2-F12 One running instance: a second launch of the same build activates the first and quits, and the history log
+- [x] M2-F12 One running instance: a second launch of the same build activates the first and quits, and the history log
   is locked with `flock` while a run writes it (SAF-018, D-135).
 - [ ] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards
   Cmd-Q during a run. Write what a Restore needs before the move, or recover it at the next launch, and ask before

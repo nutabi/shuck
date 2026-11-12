@@ -79,6 +79,9 @@
     "Each of these is more than a quarter of the space in use on this Mac, %@: %@. Check that you meant to include them: Shuck can't put them back." : {
 
     },
+    "Another Shuck window is running a cleanup." : {
+
+    },
     "A tool's size is the most it may remove, so it can free less." : {
 
     },

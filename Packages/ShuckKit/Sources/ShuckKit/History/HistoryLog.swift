@@ -33,6 +33,11 @@ public actor HistoryLog {
         let fileURL = folder.appending(path: Self.fileName)
         let (handle, info) = try Self.openFile(fileURL, flags: O_RDWR | O_APPEND | O_CREAT)
         let descriptor = handle.fileDescriptor
+        // Held until the handle closes. `flock` locks per open file description, so a second handle in this process is
+        // refused too: a run holds one log at a time (SAF-018, D-135). Reading takes no lock.
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+            throw errno == EWOULDBLOCK ? .locked(fileURL.path) : .cannotOpen(fileURL.path, errno: errno)
+        }
         if info.st_mode & 0o777 != 0o600 {
             Self.logger.notice("Fixing the history log's permissions")
             guard fchmod(descriptor, 0o600) == 0 else { throw .cannotOpen(fileURL.path, errno: errno) }
@@ -195,6 +200,8 @@ public enum HistoryError: Error, Equatable {
     /// The data folder could not be created or its permissions fixed.
     case cannotPrepareFolder(String, String)
     case cannotOpen(String, errno: Int32)
+    /// Another run holds the log's lock, such as a second Shuck process (SAF-018).
+    case locked(String)
     case cannotWrite(String, String)
     case cannotRead(String, String)
 }
