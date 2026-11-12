@@ -142,6 +142,9 @@ struct HistoryTests {
         #expect(text("changed: file, 4096 bytes") == "Skipped: changed since the scan")
         #expect(text("changed: file, 4096 bytes", .restore) == "Skipped: changed since it was moved to the Trash")
         #expect(text("rejected: outsideAllowedRoots") == "Skipped: failed a safety check")
+        #expect(
+            text("userExclusion: /Users/someone/Documents/Keep")
+                == "Skipped: it is in a folder you excluded in Settings")  // SET-001
         #expect(text("unsupportedMethod: tool", .tool) == "Skipped: this version of Shuck can't do this")
         #expect(text("notAllowed: delete", .delete) == "Skipped: not allowed for this kind of item")
         #expect(text("originalTaken", .restore) == "Skipped: its original place is taken")

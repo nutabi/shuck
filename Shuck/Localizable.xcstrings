@@ -232,6 +232,9 @@
     "Skipped: failed a safety check" : {
 
     },
+    "Skipped: it is in a folder you excluded in Settings" : {
+
+    },
     "changed with launchctl" : {
 
     },

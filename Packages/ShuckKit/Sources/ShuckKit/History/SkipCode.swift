@@ -15,6 +15,9 @@ public enum SkipCode: String, CaseIterable, Sendable {
     case modifiedSinceScan
     case appRunning
     case rejected
+    /// The path is, is in, or holds a folder the user excluded in Settings (SET-001, D-149); logged after `rejected`
+    /// for a protected location, which an old log still shows.
+    case userExclusion
     case cancelled
     case historyUnavailable
     case unsupportedMethod

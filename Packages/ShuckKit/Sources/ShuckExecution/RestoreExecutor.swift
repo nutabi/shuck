@@ -70,7 +70,7 @@ public struct RestoreExecutor: Sendable {
         } catch .notReadable {
             return .skipped(.notAccessible)
         } catch {
-            return .skipped(.rejected(error))
+            return .skipped(pathGuard.restoreReason(for: error))
         }
         // Items are only ever taken from directly inside the Trash, never from elsewhere in the home folder.
         guard source.deletingLastPathComponent().pathComponents == ResolvedPath.realPath(trashFolder)?.pathComponents
@@ -147,6 +147,9 @@ public struct RestoreOutcome: Equatable, Sendable {
         case changed(ItemSnapshot)
         /// The path guard rejects the trashed path or the destination (SAF-007, SAF-008).
         case rejected(PathGuardError)
+        /// The path guard refuses the destination because it is in, holds or is a folder the user excluded in
+        /// Settings (SET-001, D-149). The associated value is the excluded path.
+        case userExclusion(String)
         /// The trashed path is not directly inside the Trash folder.
         case notInTrash
         /// Another item has the trashed item's name in the Trash: its file identity is not the logged one, so the trashed
@@ -165,6 +168,7 @@ public struct RestoreOutcome: Equatable, Sendable {
             case .notAccessible: .notAccessible
             case .changed: .changed
             case .rejected: .rejected
+            case .userExclusion: .userExclusion
             case .notInTrash: .notInTrash
             case .otherItem: .otherItem
             case .cancelled: .cancelled
@@ -177,6 +181,7 @@ public struct RestoreOutcome: Equatable, Sendable {
             switch self {
             case .changed(let current): code.logged(current.logged)
             case .rejected(let error): code.logged(error.logged)
+            case .userExclusion(let path): code.logged(path)
             default: code.logged()
             }
         }

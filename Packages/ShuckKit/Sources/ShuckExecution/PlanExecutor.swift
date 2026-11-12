@@ -100,7 +100,7 @@ public struct PlanExecutor: Sendable {
             // A folder Shuck may not read is reported as macOS's privacy protection hiding it (SAF-012).
             return Acted(.skipped(.notAccessible))
         } catch {
-            return Acted(.skipped(.rejected(error)))
+            return Acted(.skipped(pathGuard.reason(for: error)))
         }
         // Stop takes effect while a large folder is measured, not only before the next item (SAF-014).
         switch ItemSnapshot.check(target, while: { !Task.isCancelled }) {
@@ -169,6 +169,9 @@ public struct ItemOutcome: Equatable, Sendable {
         case appRunning
         /// The path guard rejects the item now (SAF-007, SAF-008).
         case rejected(PathGuardError)
+        /// The path guard refuses the item because it is in, holds or is a folder the user excluded in Settings
+        /// (SET-001, D-149). The associated value is the excluded path.
+        case userExclusion(String)
         /// The run was cancelled before this item, or while it was re-validated (SAF-014).
         case cancelled
         /// The history log could not be written, so the run stopped (SAF-005).
@@ -192,6 +195,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .modifiedSinceScan: .modifiedSinceScan
             case .appRunning: .appRunning
             case .rejected: .rejected
+            case .userExclusion: .userExclusion
             case .cancelled: .cancelled
             case .historyUnavailable: .historyUnavailable
             case .unsupportedMethod: .unsupportedMethod
@@ -205,6 +209,7 @@ public struct ItemOutcome: Equatable, Sendable {
             switch self {
             case .changed(let current): code.logged(current.logged)
             case .rejected(let error): code.logged(error.logged)
+            case .userExclusion(let path): code.logged(path)
             case .unsupportedMethod(let method), .notAllowed(let method): code.logged(method.rawValue)
             case .toolUnavailable(let unavailable): code.logged(unavailable.rawValue)
             default: code.logged()
