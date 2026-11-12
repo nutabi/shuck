@@ -199,6 +199,14 @@ If you are unsure whether a change could remove, move or hide user data, stop an
   - `CHANGELOG.md` has a line for each change users can notice.
   - The pull request description is complete.
 
+## Delegating to other agents
+
+Owner preference (2026-11-12): an agent that delegates picks the model by the work.
+
+- Haiku agents read code and read or write docs.
+- Sonnet agents write code.
+- A Fable advisor is consulted when a decision needs a stronger reviewer (D-146).
+
 ## Picking the next task
 
 - Take the first unchecked task in `docs/progress.md`, in roadmap order (PRD section 13), unless the owner assigns one.

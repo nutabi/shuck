@@ -122,6 +122,37 @@ struct PersonalFilesScanModelTests {
         #expect(model.scanIfNotScanned(oldFiles) == nil)
     }
 
+    /// A batch is applied off the main actor, so Stop can arrive while one is being merged in. The batch may still land,
+    /// but the finished scan empties every list and ends stopped, not scanned (SAF-014, NFR-PERF-001, D-93).
+    @Test func stoppingWhileABatchIsAppliedLeavesEmptyListsAndAStoppedStateSAF014() async {
+        let largeFiles = LargeFiles(minimumSize: 1_000)
+        let oldFiles = OldFiles(minimumSize: 1_000) { _ in nil }
+        let files = (0..<20).map { file("Movies/clip\($0).mov", size: 5_000) }
+        let model = FileCleanupModel(subTools: [largeFiles, oldFiles], context: context) { _, _ in
+            AsyncStream { continuation in
+                continuation.yield(.files(files))
+                // Never finishes, like a scan of a large home folder.
+            }
+        }
+
+        let scan = model.scan(largeFiles)
+        // The model keeps the batch's files as soon as it takes the batch, before it builds the lists' rows.
+        var waited = 0
+        while model.personalFiles.items.isEmpty && waited < 1_000 {
+            await Task.yield()
+            waited += 1
+        }
+        #expect(!model.personalFiles.items.isEmpty)
+        scan?.cancel()
+        await scan?.value
+
+        for id in [largeFiles.id, oldFiles.id] {
+            #expect(model.state(of: id) == .stopped)
+            #expect(model.results(of: id)?.isEmpty == true)
+        }
+        #expect(model.canScan(largeFiles))
+    }
+
     @Test func largeFilesListsTheLargestFirstLRG002() {
         let model = FileCleanupModel(subTools: [LargeFiles()], context: context)
         #expect(

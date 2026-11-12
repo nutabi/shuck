@@ -86,6 +86,18 @@ extension FixtureRoot {
         return target
     }
 
+    /// Creates a named pipe (FIFO) at `relativePath`, for tests of code that must refuse anything but a regular file.
+    ///
+    /// Opening one for reading blocks until something writes to it, so a test opens it only with `O_NONBLOCK`.
+    @discardableResult
+    public func fifo(_ relativePath: String) throws(FixtureError) -> URL {
+        let target = try newItem(relativePath)
+        guard mkfifo(target.path, 0o600) == 0 else {
+            throw .fileSystem("Cannot create a FIFO at \(relativePath): \(String(cString: strerror(errno)))")
+        }
+        return target
+    }
+
     /// Creates a hard link at `relativePath` to the existing file at `existingPath`, so both paths are one file
     /// (FCL-007).
     @discardableResult
