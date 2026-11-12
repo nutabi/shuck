@@ -53,7 +53,7 @@ package struct DeleteAction: PlanAction {
     /// Removes everything inside the folder `name` in `parent`, which `expected` describes, and keeps the folder.
     /// Returns the first error, if any.
     private static func empty(_ name: [CChar], in parent: Int32, expected: stat) -> Int32? {
-        withFolder(name, in: parent, expected: expected) { removeContents(of: $0, device: $1) }
+        withFolder(name, in: parent, expected: expected) { removeContents(of: &$0, device: $1) }
     }
 
     /// Removes the folder `name` in `parent`, which must be empty by now. Returns the error, if any.
@@ -62,44 +62,115 @@ package struct DeleteAction: PlanAction {
     }
 
     /// Opens the folder `name` in `parent` without following a symlink, checks that it is the folder `expected`
-    /// describes, and hands its descriptor and volume to `body`. Returns `body`'s error, or why the folder was not
-    /// opened: `ELOOP` if it was swapped for a symlink, `ESTALE` if for another folder.
+    /// describes, and hands its descriptor and volume to `body`, which may close it and open it again (it is -1 if
+    /// it was lost). Returns `body`'s error, or why the folder was not opened: `ELOOP` if it was swapped for a
+    /// symlink, `ESTALE` if for another folder.
     private static func withFolder(
-        _ name: [CChar], in parent: Int32, expected: stat, body: (Int32, dev_t) -> Int32?
+        _ name: [CChar], in parent: Int32, expected: stat, body: (inout Int32, dev_t) -> Int32?
     ) -> Int32? {
-        let folder = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        var folder = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
         guard folder >= 0 else { return errno }
-        defer { close(folder) }
+        defer { if folder >= 0 { close(folder) } }
         var opened = stat()
         guard fstat(folder, &opened) == 0 else { return errno }
         guard opened.st_dev == expected.st_dev, opened.st_ino == expected.st_ino else { return ESTALE }
-        return body(folder, opened.st_dev)
+        return body(&folder, opened.st_dev)
+    }
+
+    /// One folder being emptied: what is left to remove in it, and how it is told apart from another folder.
+    private struct Level {
+        var names: [[CChar]]
+        var next = 0
+        var error: Int32?
+        let name: [CChar]
+        let device: dev_t
+        let inode: ino_t
     }
 
     /// Removes everything inside the open `folder`, which is on `device`, and goes on past what it cannot remove.
     /// Returns the first error, if any. An entry that is already gone is not an error.
-    private static func removeContents(of folder: Int32, device: dev_t) -> Int32? {
+    ///
+    /// A deep tree must not need a descriptor, or a stack frame, per level (#119). So the folders being emptied are an
+    /// explicit list, and only the current one is open. Entering a subfolder closes `folder`. Leaving it opens the
+    /// folder again through the subfolder's `..`, which counts only if it is the same folder (device and inode) as
+    /// before. `folder` is -1 if that failed, and then the rest of the tree is left alone.
+    private static func removeContents(of folder: inout Int32, device: dev_t) -> Int32? {
+        var top = stat()
+        guard fstat(folder, &top) == 0 else { return errno }
         let (names, listingError) = entries(of: folder)
-        if let listingError { return listingError }
-        var firstError: Int32?
-        for name in names {
-            var info = stat()
-            guard fstatat(folder, name, &info, AT_SYMLINK_NOFOLLOW) == 0 else {
-                if errno != ENOENT { firstError = firstError ?? errno }
+        var levels = [Level(names: names, error: listingError, name: [], device: top.st_dev, inode: top.st_ino)]
+        while var level = levels.popLast() {
+            guard level.next < level.names.count else {
+                // This folder is done: go back up to its parent, and remove it there if nothing is left in it.
+                guard var parent = levels.popLast() else { return level.error }
+                let back = openat(folder, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+                let code = back < 0 ? errno : ESTALE
+                var again = stat()
+                let same =
+                    back >= 0 && fstat(back, &again) == 0 && again.st_dev == parent.device
+                    && again.st_ino == parent.inode
+                close(folder)
+                folder = back
+                guard same else {
+                    if back >= 0 { close(back) }
+                    folder = -1
+                    return level.error ?? parent.error ?? code
+                }
+                let error = level.error ?? removeEmptyFolder(level.name, in: folder)
+                parent.error = parent.error ?? error
+                levels.append(parent)
                 continue
             }
-            let error: Int32?
+            let name = level.names[level.next]
+            level.next += 1
+            var info = stat()
+            guard fstatat(folder, name, &info, AT_SYMLINK_NOFOLLOW) == 0 else {
+                if errno != ENOENT { level.error = level.error ?? errno }
+                levels.append(level)
+                continue
+            }
             if info.st_mode & S_IFMT != S_IFDIR {
-                error = unlinkat(folder, name, 0) == 0 || errno == ENOENT ? nil : errno
+                if unlinkat(folder, name, 0) != 0, errno != ENOENT { level.error = level.error ?? errno }
             } else if info.st_dev != device {
                 // A mount point: what is mounted there is not part of the target.
-                error = EXDEV
+                level.error = level.error ?? EXDEV
             } else {
-                error = empty(name, in: folder, expected: info) ?? removeEmptyFolder(name, in: folder)
+                let child = openat(folder, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+                var opened = stat()
+                if child < 0 {
+                    if errno != ENOENT { level.error = level.error ?? errno }
+                } else if fstat(child, &opened) != 0 || opened.st_dev != info.st_dev || opened.st_ino != info.st_ino {
+                    close(child)
+                    level.error = level.error ?? ESTALE
+                } else if let error = reopenError(from: child, expected: level) {
+                    // A folder whose `..` does not lead back, such as one Shuck may read but not search, is not
+                    // entered: the rest of the tree goes on without it, as when a folder cannot be opened.
+                    close(child)
+                    level.error = level.error ?? error
+                } else {
+                    close(folder)
+                    folder = child
+                    levels.append(level)
+                    let (inner, innerError) = entries(of: child)
+                    levels.append(
+                        Level(names: inner, error: innerError, name: name, device: info.st_dev, inode: info.st_ino))
+                    continue
+                }
             }
-            firstError = firstError ?? error
+            levels.append(level)
         }
-        return firstError
+        return nil
+    }
+
+    /// Why the open `child` could not lead back to the folder `expected` describes through its `..`, or `nil` if it
+    /// can. Checked before a folder is entered, so that leaving it again does not fail for a reason known in advance.
+    private static func reopenError(from child: Int32, expected: Level) -> Int32? {
+        let back = openat(child, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        guard back >= 0 else { return errno }
+        defer { close(back) }
+        var info = stat()
+        guard fstat(back, &info) == 0 else { return errno }
+        return info.st_dev == expected.device && info.st_ino == expected.inode ? nil : ESTALE
     }
 
     /// The names of the entries in the open `folder`, without `.` and `..`, or why they could not be listed. They are

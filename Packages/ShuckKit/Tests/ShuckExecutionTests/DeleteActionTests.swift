@@ -66,6 +66,45 @@ struct DeleteActionTests {
         #expect(entries.map(\.restorability) == [.permanent, .permanent])
     }
 
+    @Test func aTreeDeeperThanTheDescriptorLimitIsDeletedFullySAF006() async throws {
+        // 600 levels, more than the 256 descriptors a process has by default: one open per level would fail (#119).
+        let cache = try root.folder("Library/Caches/deep")
+        var current = open(cache.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        #expect(current >= 0)
+        for _ in 0..<600 {
+            #expect(mkdirat(current, "d", 0o755) == 0)
+            let next = openat(current, "d", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+            close(current)
+            current = next
+            #expect(current >= 0)
+            if current < 0 { return }
+        }
+        close(current)
+        let item = try planned(cache, scope: .contents)
+
+        let report = try await run([item])
+
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(exists(cache))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: cache.path).isEmpty)
+    }
+
+    @Test func aFolderThatCannotBeSearchedFailsTheItemButItsSiblingsGoSAF006() async throws {
+        // Readable but not searchable: its `..` cannot be opened, so it is not entered, and the walk goes on (D-165).
+        // Siblings on both sides of it in the listing's order, which on APFS follows a hash of the name.
+        let cache = try root.folder("Library/Caches/com.example.app")
+        let locked = try root.folder("Library/Caches/com.example.app/locked")
+        try root.file("Library/Caches/com.example.app/locked/2.db", size: 10)
+        for index in 0..<20 { try root.file("Library/Caches/com.example.app/folder\(index)/1.db", size: 10) }
+        #expect(chmod(locked.path, 0o600) == 0)
+        defer { chmod(locked.path, 0o755) }
+
+        let report = try await run([planned(cache, scope: .contents)])
+
+        #expect(report.outcomes.map(\.result) == [.failed(ActionError(errno: EACCES))])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: cache.path) == ["locked"])
+    }
+
     @Test func aFolderWhoseContentsAreDeletedIsKeptCAC004() async throws {
         let cache = try root.folder("Library/Caches/com.example.app")
         try root.file("Library/Caches/com.example.app/cache.db", size: 10_000)

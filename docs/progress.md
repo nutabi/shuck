@@ -409,7 +409,7 @@ it and writes the documents.
   folder is no allowed root (R-03, R-16, SAF-007, SAF-008, D-163).
 - [x] M2-F14 The tool runner never signals a process that has not launched, and History says that a stopped tool's
   processes may still be running (R-05, R-13, #114, #127 in part).
-- [ ] M2-F15 Delete with one descriptor at a time, and Restore removes the folders it created when its move fails
+- [x] M2-F15 Delete with one descriptor at a time, and Restore removes the folders it created when its move fails
   (R-11, #119, #120).
 - [ ] M2-F12 One running instance, and a locked history log (R-06, SAF-018).
 - [ ] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
@@ -444,7 +444,7 @@ it and writes the documents.
   quitting during a run (SAF-005, SAF-006, HIS-001, #115). Execution change.
 - [x] M2-F14 `ToolRunner` can call `terminate()` on a process that has not launched yet (`ToolRunner.swift`, #114).
   Execution change.
-- [ ] M2-F15 Execution fixes: Delete holds one file descriptor per folder level, and a failed Restore leaves the parent
+- [x] M2-F15 Execution fixes: Delete holds one file descriptor per folder level, and a failed Restore leaves the parent
   folders it created behind (SAF-006, HIS-003, #119, #120). Execution change.
 - [ ] M2-F16 The two acceptance checks the PRD names (D-133): a test that stops a run between an intent and its result
   record and checks History and Restore (HIS-001), and a static check that every Must SAF requirement built so far is

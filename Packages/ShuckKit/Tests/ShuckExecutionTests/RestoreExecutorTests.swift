@@ -83,6 +83,25 @@ struct RestoreExecutorTests {
         #expect(exists(file))
     }
 
+    @Test func aFailedMoveRemovesTheFoldersItCreatedAndKeepsOldOnesHIS003() async throws {
+        let file = try root.file("Projects/old.txt", size: 1_000)
+        let items = try await trashed([file])
+        let item = try #require(items.first)
+        // A name over the 255-byte limit: the folders are created, then the move fails.
+        let tooLong = try root.url("Projects/2024/Client/" + String(repeating: "n", count: 300))
+
+        let result = RestoreExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash)
+            .act(on: item, to: tooLong)
+
+        guard case .failed = result else {
+            Issue.record("expected a failure, got \(result)")
+            return
+        }
+        #expect(!exists(try root.url("Projects/2024")))
+        #expect(exists(try root.url("Projects")))
+        #expect(exists(item.trashedURL))
+    }
+
     @Test func neverOverwritesAnItemAtTheOriginalPathHIS003() async throws {
         let file = try root.file("Downloads/report.pdf", size: 1_000)
         let items = try await trashed([file])
