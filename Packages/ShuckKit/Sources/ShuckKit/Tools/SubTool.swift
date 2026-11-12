@@ -38,12 +38,16 @@ public protocol SubTool: Sendable {
     var tiers: Set<Tier> { get }
     /// The folders its items must be inside, given to the path guard with each check (SAF-007 (c), D-43).
     func allowedRoots(home: URL) -> [URL]
+    /// Whether every item must have a cleanup rule that accepts it, Trash included (SAF-004, SAF-008, D-163). True for
+    /// sub-tools whose items come from rules; false for the personal files, which no rule describes.
+    var requiresRule: Bool { get }
     /// Starts a scan. Items stream in until the stream finishes; cancelling the consuming task stops it (SAF-014).
     func scan(_ context: ScanContext) -> AsyncStream<ScanEvent>
 }
 
 extension SubTool {
     public var id: ToolID { info.id }
+    public var requiresRule: Bool { false }
 }
 
 /// A sub-tool listed in the registry before its milestone builds it. It finds nothing and has no allowed roots, so

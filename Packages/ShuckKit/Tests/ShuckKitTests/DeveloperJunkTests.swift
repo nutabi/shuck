@@ -159,6 +159,20 @@ struct DeveloperJunkTests {
         #expect(DeveloperJunk().projects(home: root.url).isEmpty)
     }
 
+    @Test func aProjectFolderKeepsItsRootUnlessItLeavesTheHomeFolderSAF007() throws {
+        let kept = try root.folder("Developer")
+        let outside = try FixtureRoot()
+        let elsewhere = try outside.folder("Projects")
+        let linked = try root.symlink("Code", to: elsewhere)
+        let junk = DeveloperJunk(projectFolders: [kept, linked])
+
+        #expect(junk.projects(home: root.url) == [kept, linked])
+        let roots = junk.allowedRoots(home: root.url)
+        #expect(roots.contains(kept))
+        #expect(!roots.contains(linked))
+        #expect(roots.contains { $0.lastPathComponent == "Archives" })
+    }
+
     private func notAccessible(excluding exclusions: [URL] = []) async -> (denied: [String], items: Set<String>) {
         let context = ScanContext(
             home: root.url, protection: root.pathGuardConfiguration(userExclusions: exclusions),

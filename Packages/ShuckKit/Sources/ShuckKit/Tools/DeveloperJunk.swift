@@ -55,7 +55,16 @@ public struct DeveloperJunk: SubTool {
     /// patterns allow: the rule's match, not the root, is what keeps a Delete to a `node_modules` (D-141, D-153).
     public func allowedRoots(home: URL) -> [URL] {
         [Self.derivedData(home: home)] + Self.deviceSupportFolders(home: home)
-            + [Self.simulatorCaches(home: home), Self.archives(home: home)] + projects(home: home)
+            + [Self.simulatorCaches(home: home), Self.archives(home: home)] + resolvedProjects(home: home)
+    }
+
+    public var requiresRule: Bool { true }
+
+    /// The project folders that still resolve strictly inside the resolved home folder. One replaced by a link to a
+    /// folder elsewhere is dropped, so a target in it cannot leave the home folder (SAF-007 (c), R-16).
+    private func resolvedProjects(home: URL) -> [URL] {
+        guard let resolvedHome = ResolvedPath(home)?.url else { return [] }
+        return projects(home: home).filter { ResolvedPath($0)?.url.isStrictlyInside(resolvedHome) == true }
     }
 
     static func archives(home: URL) -> URL {

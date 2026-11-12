@@ -373,7 +373,7 @@ fixes below and its own findings, and puts ten questions to the owner. No fix st
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
 Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, no hard stop;
-`docs/m2-review.md` has each one's scope). Stacks 2 and 3 are not approved yet.
+`docs/m2-review.md` has each one's scope). Stack 3 is not approved yet; stack 2 is below.
 
 The first two merged as one GitHub stack (#152, #153), after a stop at the owner's request. The owner then said to go
 on, with Sonnet agents for the implementation and Haiku agents for research; the coordinating session reviews each
@@ -398,6 +398,23 @@ change and writes the documents. The other four are a second stack, in the order
   measurement: the review's probe measured 1.7 s for 5,000 files. Left over: no test shows that a second click
   while a plan is being built starts no second plan, since it depends on task scheduling; the buttons are disabled
   meanwhile.
+
+Stack 2 of the review's breakdown, approved by the owner on 2026-11-12 with the review's recommended answers to
+questions 1, 3, 5 and 7 (D-162). Each change to Safety or Execution is a pull request of its own (D-62); the seven
+form one GitHub stack, in the order below. Sonnet agents implement each one, and the coordinating session reviews
+it and writes the documents.
+
+- [x] M2-F22 Every rule-based item needs its rule: a plan of Developer Junk or Caches & Logs refuses an item without
+  a rule match, Trash included, the executor skips one, and a project folder that no longer resolves inside the home
+  folder is no allowed root (R-03, R-16, SAF-007, SAF-008, D-163).
+- [ ] M2-F14 The tool runner never signals a process that has not launched, and History says that a stopped tool's
+  processes may still be running (R-05, R-13, #114, #127 in part).
+- [ ] M2-F15 Delete with one descriptor at a time, and Restore removes the folders it created when its move fails
+  (R-11, #119, #120).
+- [ ] M2-F12 One running instance, and a locked history log (R-06, SAF-018).
+- [ ] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
+- [ ] M2-F13 Shuck asks before quitting during a run (R-04 step 3, #115).
+- [ ] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
   "Synced" mark with text, the review sheet warns that moving the file to the Trash removes it from the user's other
