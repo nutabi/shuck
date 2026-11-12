@@ -84,7 +84,8 @@ struct PlanExecutorTests {
         }
         // The move into the Trash keeps each item's identity, which Restore checks (HIS-004).
         #expect(records.filter { $0.phase == .result }.map(\.identity) == identities)
-        #expect(records.filter { $0.phase == .intent }.allSatisfy { $0.identity == nil })
+        // The intent record has it too, so an item whose result is never written can be found in the Trash (HIS-001).
+        #expect(records.filter { $0.phase == .intent }.map(\.identity) == identities)
     }
 
     @Test func aNameAlreadyInTheTrashIsLoggedWithItsNewNameSAF005() async throws {

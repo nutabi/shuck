@@ -58,7 +58,8 @@ public struct PlanExecutor: Sendable {
             let logged = LoggedItem(
                 run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
                 path: item.target.description,
-                tier: item.tier, bytes: item.allocatedSize)
+                tier: item.tier, bytes: item.allocatedSize,
+                intentIdentity: item.method == .trash ? item.url.flatMap { FileIdentity.read($0) } : nil)
             return RunLoop.Step(logged: logged) {
                 await act(on: item, allowedRoots: plan.allowedRoots, requiresRule: plan.requiresRule)
             }

@@ -89,6 +89,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- If Shuck quits or crashes while it moves items to the Trash, History now finds the item that was being moved in the
+  Trash and lets you restore it. Before, it showed the item as interrupted, with no way to put it back.
 - Opening Shuck while it is already open brings the open window to the front instead of starting a second copy, so
   two copies can no longer clean up at the same time.
 - Deleting a very deeply nested folder, such as some node_modules folders, no longer stops part-way. A Restore whose

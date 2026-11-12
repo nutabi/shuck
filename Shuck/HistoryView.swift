@@ -177,7 +177,11 @@ struct HistoryView: View {
         case .failed(let detail):
             OutcomeWording.failed(detail: detail)
         case .interrupted:
-            "Interrupted before its outcome was recorded"
+            switch item.restorability {
+            case .restorable?: "Interrupted, found in the Trash"
+            case .notAccessible?: "Interrupted, not accessible"
+            default: "Interrupted before its outcome was recorded"
+            }
         }
     }
 }

@@ -414,7 +414,7 @@ it and writes the documents.
 - [x] M2-F12 One running instance, and a locked history log (R-06, SAF-018).
   - [ ] Owner item: open the release build twice; the second launch brings the first window to the front and quits
     (SAF-018's manual check, D-166).
-- [ ] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
+- [x] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
 - [ ] M2-F13 Shuck asks before quitting during a run (R-04 step 3, #115).
 - [ ] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
 
@@ -450,7 +450,8 @@ it and writes the documents.
   folders it created behind (SAF-006, HIS-003, #119, #120). Execution change.
 - [ ] M2-F16 The two acceptance checks the PRD names (D-133): a test that stops a run between an intent and its result
   record and checks History and Restore (HIS-001), and a static check that every Must SAF requirement built so far is
-  named in a test (NFR-QA-001).
+  named in a test (NFR-QA-001). The interrupted-run test is done, with M2-F13's first pull request
+  (`InterruptedRunTests`, D-167); the static check is in stack 3.
 - [ ] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
   ONB-002), and two History strings are missing from the String Catalog (NFR-L10N-001, #116, #118).
 - [ ] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before

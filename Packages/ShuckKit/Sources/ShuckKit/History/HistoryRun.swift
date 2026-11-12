@@ -90,7 +90,11 @@ extension HistoryLog.Contents {
     ///
     /// An item's result record closes the latest open intent record of its run with the same path. Both name the same
     /// path, for a restore too (D-52).
-    public func runs() -> [HistoryRun] {
+    ///
+    /// An intent record of a Trash item with no result, from a quit or crash, is shown as restorable when
+    /// `trashFolder`, the folder the Trash moves items into, holds the item (HIS-001, SAF-005): see
+    /// ``Restorability/interruptedTrash(_:in:)``. Without a `trashFolder`, such an item stays interrupted.
+    public func runs(trashFolder: URL? = nil) -> [HistoryRun] {
         // What Restore can undo, for each successful result that is not a restore, in log order.
         var undoable = entries().makeIterator()
         var nextEntry = undoable.next()
@@ -99,6 +103,8 @@ extension HistoryLog.Contents {
         var runs: [UUID: (first: HistoryRecord, items: [HistoryRun.Item])] = [:]
         // The open intent records of each run, by path: the index of their item.
         var open: [UUID: [String: Int]] = [:]
+        // The intent records still open, to look for their items in the Trash at the end.
+        var interrupted: [UUID: [Int: HistoryRecord]] = [:]
         for record in records {
             if runs[record.run] == nil {
                 order.append(record.run)
@@ -106,7 +112,11 @@ extension HistoryLog.Contents {
             }
             switch record.phase {
             case .intent:
-                open[record.run, default: [:]][record.path] = runs[record.run]?.items.count
+                let index = runs[record.run]?.items.count ?? 0
+                open[record.run, default: [:]][record.path] = index
+                if record.operation == .trash, record.identity != nil {
+                    interrupted[record.run, default: [:]][index] = record
+                }
                 runs[record.run]?.items.append(Self.item(record, outcome: .interrupted, restorability: nil))
             case .result:
                 var itemRestorability: Restorability?
@@ -118,8 +128,22 @@ extension HistoryLog.Contents {
                 let item = Self.item(record, outcome: Self.outcome(of: record), restorability: itemRestorability)
                 if let index = open[record.run]?.removeValue(forKey: record.path) {
                     runs[record.run]?.items[index] = item
+                    interrupted[record.run]?[index] = nil
                 } else {
                     runs[record.run]?.items.append(item)
+                }
+            }
+        }
+        if let trashFolder {
+            var trash = TrashListing(folder: trashFolder)
+            for (run, records) in interrupted {
+                for (index, record) in records {
+                    guard let item = runs[run]?.items[index],
+                        let restorability = Restorability.interruptedTrash(record, in: &trash)
+                    else { continue }
+                    runs[run]?.items[index] = HistoryRun.Item(
+                        operation: item.operation, path: item.path, trashedPath: item.trashedPath, bytes: item.bytes,
+                        tier: item.tier, outcome: item.outcome, restorability: restorability)
                 }
             }
         }

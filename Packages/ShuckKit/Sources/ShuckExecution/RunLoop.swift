@@ -64,10 +64,14 @@ struct LoggedItem {
     let bytes: Int64?
     /// For a restore, where the item comes from (D-52).
     var trashedPath: String? = nil
+    /// For a Trash item, the identity read just before the intent record is written, so that an item whose result
+    /// record is never written, after a quit or crash, can still be found in the Trash and restored (SAF-005, HIS-001).
+    var intentIdentity: FileIdentity? = nil
 
     var intent: HistoryRecord {
         .intent(
-            run: run, tool: tool, operation: operation, path: path, tier: tier, trashedPath: trashedPath, bytes: bytes)
+            run: run, tool: tool, operation: operation, path: path, tier: tier, trashedPath: trashedPath,
+            identity: intentIdentity, bytes: bytes)
     }
 
     func result<SkipReason>(_ acted: Acted<SkipReason>) -> HistoryRecord {

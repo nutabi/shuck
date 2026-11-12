@@ -148,3 +148,55 @@ extension HistoryLog.Contents {
         return .restorable(item)
     }
 }
+
+/// The entries directly inside the Trash folder, by file number, read once when History loads (HIS-001).
+struct TrashListing {
+    let folder: URL
+    private var entries: [UInt64: [URL]]?
+    private var unreadable = false
+
+    init(folder: URL) {
+        self.folder = folder
+    }
+
+    /// The only entry directly inside the folder with the file number of `identity`. `nil` if there is none or more
+    /// than one, such as hard links. Throws `true` if the folder cannot be listed because Shuck may not look.
+    mutating func entry(with identity: FileIdentity) -> (url: URL?, notAccessible: Bool) {
+        if entries == nil {
+            var found: [UInt64: [URL]] = [:]
+            do {
+                for url in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
+                    if let entry = FileIdentity.read(url) { found[entry.file, default: []].append(url) }
+                }
+            } catch let error as CocoaError where error.code == .fileReadNoPermission {
+                unreadable = true
+            } catch {
+                // A Trash that does not exist holds nothing.
+            }
+            entries = found
+        }
+        if unreadable { return (nil, true) }
+        let matches = entries?[identity.file] ?? []
+        return (matches.count == 1 ? matches[0] : nil, false)
+    }
+}
+
+extension Restorability {
+    /// What Restore can do for a Trash item that has an intent record and no result, because Shuck was quit or crashed
+    /// between the move and the result record (HIS-001, SAF-005, R-04). The result record is the only one that names
+    /// the trashed path, so the item is found by the identity its intent record logged: it is restorable when its
+    /// original path is gone and an entry directly inside the Trash has that identity. `nil` if it is not found, and
+    /// the item stays interrupted. ``notAccessible`` if Shuck may not list the Trash (SAF-012).
+    static func interruptedTrash(_ intent: HistoryRecord, in trash: inout TrashListing) -> Restorability? {
+        guard let identity = intent.identity, !ResolvedPath.itemExists(at: URL(filePath: intent.path)) else {
+            return nil
+        }
+        let found = trash.entry(with: identity)
+        if found.notAccessible { return .notAccessible }
+        guard let trashed = found.url else { return nil }
+        return .restorable(
+            TrashedItem(
+                run: intent.run, tool: intent.tool, tier: intent.tier, originalURL: URL(filePath: intent.path),
+                trashedURL: trashed, bytes: intent.bytes, identity: identity))
+    }
+}
