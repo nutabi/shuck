@@ -89,6 +89,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Deleting a very deeply nested folder, such as some node_modules folders, no longer stops part-way. A Restore whose
+  move fails no longer leaves empty folders behind.
 - Stopping a cleanup at the moment a developer tool starts could make Shuck quit unexpectedly. It no longer does.
 - Shuck no longer freezes for a moment when you click Move to Trash or Delete with thousands of items selected. The
   review opens as soon as Shuck has checked every item.

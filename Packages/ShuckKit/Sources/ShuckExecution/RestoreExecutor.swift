@@ -92,19 +92,33 @@ public struct RestoreExecutor: Sendable {
         if let bytes = item.bytes, !ItemSnapshot.sizeMatches(planned: bytes, current: current.allocatedSize) {
             return .skipped(.changed(current))
         }
+        // The folders this restore creates, so a failed move can take them away again (#120).
+        let folder = target.deletingLastPathComponent()
+        var created: [URL] = []
+        var missing = folder
+        while !FileManager.default.fileExists(atPath: missing.path), missing.pathComponents.count > 1 {
+            created.append(missing)
+            missing = missing.deletingLastPathComponent()
+        }
         do {
-            try FileManager.default.createDirectory(
-                at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         } catch {
+            Self.removeEmptyFolders(created)
             return .failed(ActionError(error))
         }
         // RENAME_EXCL fails instead of replacing an item that appeared at the destination since it was checked.
         guard renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 else {
             let code = errno
+            Self.removeEmptyFolders(created)
             if code == EEXIST { return .skipped(.originalTaken) }
             return .failed(ActionError(errno: code))
         }
         return .done(target)
+    }
+
+    /// Removes the folders in `folders`, deepest first, with `rmdir`, which removes only an empty folder.
+    private static func removeEmptyFolders(_ folders: [URL]) {
+        for folder in folders { _ = rmdir(folder.path) }
     }
 
     /// `original` with " (restored)" added before its extension, numbered from the second try:
