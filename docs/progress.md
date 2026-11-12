@@ -562,10 +562,11 @@ Tasks:
   - [ ] Large result lists (NFR-PERF-001, M2-T01): at 200,000 rows a click on a column header sorts every row on the
     main actor (2 s by size, 6 s by name), and the selection footer reads every row on each selection change (166 ms
     with 1,000 selected). Move the sort off the main actor and keep the footer's totals incrementally.
-  - [ ] Engine: one classifier for the `lstat` errors that `Restorability` and `ItemSnapshot` read in opposite
+  - [x] Engine: one classifier for the `lstat` errors that `Restorability` and `ItemSnapshot` read in opposite
     directions (M2-T01, D-93), and `ItemSnapshot.read` gets an enumerator error handler, so an unreadable subfolder
     marks the size as incomplete instead of giving a too-small size with no mark (R-10, SAF-012). `matches` and `check`,
-    which Execution reads, keep their behavior.
+    which Execution reads, keep their behavior. Done in the engine: `LstatFailure` and `ItemSnapshot.isComplete`
+    (D-182). Left: show a mark where a size is listed whose snapshot is incomplete.
   - [ ] Engine tests that M2-T01 left (D-93, TD-18): a FIFO planted as the history log, stopping a scan while a batch
     is applied off the main actor, an executor's records read back through History's wording, and the near-copy Large
     Files and Old Files pipeline tests merged into one.
