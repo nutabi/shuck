@@ -432,7 +432,7 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
   than 15 lines is matched only in parts.
 - [x] M2-F18 Release scripts fail when a check fails (R-18, #66, #121, D-171). This closes M2-F18. Left over: the
   notarization path and the new `stapler` and `spctl` checks run first at the next release.
-- [ ] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part).
+- [x] M2-F24 PRD rows, `AGENTS.md` rules and issue housekeeping (R-15, R-19, R-20, #124 and #125 in part, D-172).
   - [ ] Owner item: add `.github/CODEOWNERS` and the `v*` tag ruleset (`docs/repository-setup.md`).
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
@@ -469,18 +469,22 @@ questions 6, 8 and 9 (D-170). Three pull requests in one GitHub stack, in the or
   record and checks History and Restore (HIS-001), and a static check that every Must SAF requirement built so far is
   named in a test (NFR-QA-001). The interrupted-run test is done, with M2-F13's first pull request
   (`InterruptedRunTests`, D-167), and the static check with stack 3 (D-170).
-- [ ] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
-  ONB-002), and two History strings are missing from the String Catalog (NFR-L10N-001, #116, #118).
+- [x] M2-F17 Reports that go missing: unreadable folders vanish silently from Developer Junk scans (SAF-011, SAF-012,
+  ONB-002), and two History strings are missing from the String Catalog (NFR-L10N-001, #116, #118). Done in stack 1
+  (D-159, D-161).
 - [x] M2-F18 Scripts: `build-dmg.sh`'s `get-task-allow` check passes when `codesign` fails, `notarize.sh` aborts before
   printing Apple's log, and `static-checks.sh` scans untracked folders such as `.claude/worktrees` (NFR-SEC-003,
   ENG-006, #121, #122).
-- [ ] M2-F19 The review of 2026-11-10 read `main` before M2-T06, M2-T09 and M2-T11 merged, so four of the requirements
-  it added were written without their code. Check each against the code and fix the code or the PRD: `npm` and `pip`
-  run with no setting that stops update checks, where `brew` has them (DEV-004, D-126 to D-128); CAC-009 leaves an
-  unknown app's cache unselected, where D-120 selects any cache that is stale for 30 days; the confirmation's item list
-  shows each item's full path, so two DerivedData folders of one name differ (SAF-003, D-117); and `/usr/bin/xcrun`
-  exists without Xcode and can raise the install prompt, so finding it is not detection (DEV-002, D-124). Tools
-  installed through nvm, asdf, mise, fnm, volta or pyenv are not found (D-124): say so in the PRD or find them.
+- [x] M2-F19 The review of 2026-11-10 read `main` before M2-T06, M2-T09 and M2-T11 merged, so four of the requirements
+  it added were written without their code. Check each against the code and fix the code or the PRD: `npm` and `pip` run
+  with no setting that stops update checks, where `brew` has them (DEV-004, D-126 to D-128); CAC-009 leaves an unknown
+  app's cache unselected, where D-120 selects any cache that is stale for 30 days; the confirmation's item list shows
+  each item's full path, so two DerivedData folders of one name differ (SAF-003, D-117); and `/usr/bin/xcrun` exists
+  without Xcode and can raise the install prompt, so finding it is not detection (DEV-002, D-124). Tools installed
+  through nvm, asdf, mise, fnm, volta or pyenv are not found (D-124): say so in the PRD or find them. Done in stack 1:
+  npm and pip run offline and `simctl` needs Xcode (D-157), an unknown app's cache starts unselected (D-156), the
+  confirmation shows each item's folder from the home folder (SAF-003), and DEV-002 says that tools installed through
+  nvm and the like are not found.
 - [x] M2-F20 The owner's test of `main` on 2026-11-11: tool commands quote only the words that need it, a locked row
   names the running app ("Xcode is running"), a DerivedData row shows its project's path, and every sub-tool list has
   Select All and Select None (CAC-003, SAF-002, SAF-009, D-138). Left over: no UI test checks the project path or
@@ -533,3 +537,8 @@ M5 Overview, onboarding, settings, polish:
 - Docker (DEV-R10): never `--volumes` or `-a`; prefer `docker builder prune` (PRD S72); the host's `Docker.raw` does not
   shrink, so the measured change can be zero.
 - Finder's "Put Back" for items Shuck trashes is unverified on macOS 27; the UI says "Restore in Shuck" (HIS-006).
+- The security pass: start tool commands with `posix_spawn` and `POSIX_SPAWN_SETPGROUP`, so Stop and a timeout signal
+  every process a tool started, not only the tool itself (#127, D-164). Until then History says that they may still
+  be running.
+- Build the Release configuration in CI before a tag, at least for a pull request that changes the version, since
+  `scripts/test.sh` builds Debug only (#126).

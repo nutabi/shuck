@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.8 — identity in Trash intent records (see Revision history) |
+| Version | 1.9 — DEV-R05 and DEV-R06 targets as built (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -27,6 +27,7 @@
 | 1.6 | 2026-11-11 | SAF-015's threshold is 25% of the space in use on the startup volume, since measuring the home folder means walking all of it (D-144). |
 | 1.7 | 2026-11-12 | SET-003 (developer project folders) is built in M2 as a minimal list with DEV-R06, not in M5 (D-154); a project's `node_modules` belongs to Developer Junk (D-152). |
 | 1.8 | 2026-11-12 | Section 8.5: a `trash` intent record carries the item's `identity` too, so History can find an item whose result record was never written in the Trash (HIS-001, D-162, D-167). |
+| 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 
 ## How to read this document
 
@@ -391,8 +392,8 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | DEV-R02 Device support files | `~/Library/Developer/Xcode/*DeviceSupport/*` | Delete | Rebuildable | All except the newest version per platform | Must | [S3] |
 | DEV-R03 Unavailable simulators | `xcrun simctl delete unavailable` | Tool | Rebuildable | Yes | Must | `xcrun simctl help delete` |
 | DEV-R04 CoreSimulator caches | `~/Library/Developer/CoreSimulator/Caches/*` | Delete | Rebuildable | Yes | Must | — |
-| DEV-R05 Xcode Archives | `~/Library/Developer/Xcode/Archives/*` | Trash | Your data | Never. Apple: "You must retain the Xcode archive for each build of your app you distribute." | Must | [S50] |
-| DEV-R06 Stale `node_modules` | `<project folders>/**/node_modules` | Delete | Rebuildable | Project stale 30+ days (DEV-006) | Must | — |
+| DEV-R05 Xcode Archives | `~/Library/Developer/Xcode/Archives/*/*.xcarchive`, one item per archive (D-145) | Trash | Your data | Never. Apple: "You must retain the Xcode archive for each build of your app you distribute." | Must | [S50] |
+| DEV-R06 Stale `node_modules` | `<project folders>/**/node_modules`, in a project at most 4 levels below a project folder (D-153) | Delete | Rebuildable | Project stale 30+ days (DEV-006) | Must | — |
 | DEV-R07 npm cache | `npm cache clean --force` | Tool | Rebuildable | Yes | Must | [S53] |
 | DEV-R08 pip cache | `pip cache purge` | Tool | Rebuildable | Yes | Must | [S52] |
 | DEV-R09 Homebrew | `brew cleanup` | Tool | Rebuildable | Yes | Must | [S54] |
