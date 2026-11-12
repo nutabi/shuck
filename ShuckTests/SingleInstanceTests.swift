@@ -13,11 +13,21 @@ struct SingleInstanceTests {
         #expect(SingleInstance.instanceToActivate(running: [], current: 200, testLaunch: false) == nil)
     }
 
-    @Test func aFixtureRootLaunchAndATestHostAreTestLaunchesSAF018() {
+    @Test func aFixtureRootLaunchAndATestHostAreTestLaunchesInADebugBuildSAF018() {
         let fixture = [AppEnvironment.fixtureRootArgument, "/tmp/root"]
-        #expect(SingleInstance.isTestLaunch(arguments: fixture, environment: [:]))
-        #expect(SingleInstance.isTestLaunch(arguments: [], environment: ["XCTestConfigurationFilePath": "/x"]))
-        #expect(!SingleInstance.isTestLaunch(arguments: ["Shuck"], environment: [:]))
+        #expect(SingleInstance.isTestLaunch(arguments: fixture, environment: [:], debugBuild: true))
+        #expect(
+            SingleInstance.isTestLaunch(
+                arguments: [], environment: ["XCTestConfigurationFilePath": "/x"], debugBuild: true))
+        #expect(!SingleInstance.isTestLaunch(arguments: ["Shuck"], environment: [:], debugBuild: true))
+    }
+
+    @Test func aReleaseBuildIsNeverATestLaunchSAF018() {
+        let fixture = [AppEnvironment.fixtureRootArgument, "/tmp/root"]
+        #expect(!SingleInstance.isTestLaunch(arguments: fixture, environment: [:], debugBuild: false))
+        #expect(
+            !SingleInstance.isTestLaunch(
+                arguments: [], environment: ["XCTestConfigurationFilePath": "/x"], debugBuild: false))
     }
 
     @Test func aTestLaunchSkipsTheCheckSAF018() {
