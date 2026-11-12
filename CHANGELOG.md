@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Homebrew Cleanup in Developer Junk is now hidden when you exclude any folder it cleans, such as Homebrew's logs or
+  its Cellar and Caskroom folders, and not only its download cache.
 - Large Files and Old Files no longer freeze for seconds when you sort a very long list by a column, and selecting rows
   stays quick however many files are listed.
 - Homebrew Cleanup, npm Cache and pip Cache in Developer Junk now report how much space their cache actually lost

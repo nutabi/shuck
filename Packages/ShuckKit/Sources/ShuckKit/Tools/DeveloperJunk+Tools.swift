@@ -20,15 +20,17 @@ extension DeveloperJunk {
         }
     }
 
-    /// The folder an item of the tool rule `ruleID` is sized from, which an exclusion can cover: the rule's cache folder,
-    /// and for unavailable simulators the folder that holds the simulators (D-149). `nil` for any other rule.
-    static func toolFolder(ruleID: String, home: URL) -> URL? {
+    /// The folders an item of the tool rule `ruleID` is sized from or changes, which an exclusion can cover: the rule's
+    /// cache folder, for unavailable simulators the folder that holds the simulators, and for Homebrew's cleanup every
+    /// folder `brew cleanup` prunes (D-149, D-183). An exclusion on, inside or holding any of them hides the item.
+    /// Empty for any other rule. `executable` is the path of the rule's tool, from which Homebrew's prefix is taken.
+    static func toolFolders(ruleID: String, home: URL, executable: String?) -> [URL] {
         switch ruleID {
-        case "DEV-R03": simulatorDevices(home: home).deletingLastPathComponent()
-        case "DEV-R07": npmCache(home: home)
-        case "DEV-R08": pipCache(home: home)
-        case "DEV-R09": homebrewCache(home: home)
-        default: nil
+        case "DEV-R03": [simulatorDevices(home: home).deletingLastPathComponent()]
+        case "DEV-R07": [npmCache(home: home)]
+        case "DEV-R08": [pipCache(home: home)]
+        case "DEV-R09": homebrewCleanedFolders(home: home, executable: executable)
+        default: []
         }
     }
 
@@ -38,7 +40,11 @@ extension DeveloperJunk {
     func scanToolCache(_ rule: CleanupRule, folder: URL, _ context: ScanContext, _ emit: (ScanEvent) -> Void) {
         // A cache folder that is, or holds, an excluded folder is hidden, although the tool, not Shuck, cleans it
         // (SET-001, D-149).
-        guard !Task.isCancelled, !context.protection.overlapsUserExclusion(folder), rule.detection.isAvailable,
+        var executable: String?
+        if case .executable(let path) = rule.detection { executable = path }
+        let hidden = Self.toolFolders(ruleID: rule.id, home: context.home, executable: executable)
+        guard !Task.isCancelled, !hidden.contains(where: { context.protection.overlapsUserExclusion($0) }),
+            rule.detection.isAvailable,
             CleanupRule.Detection.folder(folder).isAvailable,
             let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled })
         else { return }
@@ -128,6 +134,22 @@ extension DeveloperJunk {
     /// `HOMEBREW_CACHE` says otherwise, which Shuck does not read (D-128).
     static func homebrewCache(home: URL) -> URL {
         home.appending(path: "Library/Caches/Homebrew", directoryHint: .isDirectory)
+    }
+
+    /// Every folder `brew cleanup` changes, which a user exclusion on, inside or holding any of them hides (SET-001,
+    /// SAF-010): the download cache, its logs, and Homebrew's prefix as a whole, since the command removes old versions
+    /// from the Cellar and Caskroom and also prunes broken links and stale lock files elsewhere in it (the `cleanup`
+    /// entry of Homebrew's manual). The prefix is the folder above the `bin` that holds the `brew` the rule runs,
+    /// taken from its path without resolving links, so the scan, the model and a run's re-validation agree. Without
+    /// the executable only the folders in `home` are returned.
+    static func homebrewCleanedFolders(home: URL, executable: String?) -> [URL] {
+        var folders = [
+            homebrewCache(home: home), home.appending(path: "Library/Logs/Homebrew", directoryHint: .isDirectory),
+        ]
+        if let executable, !executable.isEmpty {
+            folders.append(URL(filePath: executable).deletingLastPathComponent().deletingLastPathComponent())
+        }
+        return folders
     }
 
     /// What Homebrew's command runs with besides `PATH` and `HOME`: no analytics and no automatic update, so the command
