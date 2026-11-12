@@ -382,9 +382,9 @@ change and writes the documents. The other four are a second stack, in the order
 - [x] An unknown app's cache starts unselected (R-01, CAC-009, D-156): part of M2-F19.
 - [x] `npm` and `pip` stay off the network, and `simctl` needs Xcode (R-02, R-13, DEV-002, DEV-004, D-157): the
   rest of M2-F19's code items.
-  - [ ] Owner item: on the owner's Mac, check that `npm cache clean --force`, `pip cache purge` and `brew cleanup`,
+  - [x] Owner item: on the owner's Mac, check that `npm cache clean --force`, `pip cache purge` and `brew cleanup`,
     run from Developer Junk, open no network connection (for example with `nettop` or Little Snitch). An agent may
-    not run real tools (DEV-004, NFR-SEC-001).
+    not run real tools (DEV-004, NFR-SEC-001). Checked by the owner on 2026-11-12.
 - [x] M2-F21 A stray `node_modules` in a project folder does not hide the projects below it (R-08, DEV-006,
   D-158).
 - [x] Scans report what they cannot measure (R-10, M2-F17, #118, D-159). Left over: a folder measured with an
@@ -412,13 +412,13 @@ it and writes the documents.
 - [x] M2-F15 Delete with one descriptor at a time, and Restore removes the folders it created when its move fails
   (R-11, #119, #120).
 - [x] M2-F12 One running instance, and a locked history log (R-06, SAF-018).
-  - [ ] Owner item: open the release build twice; the second launch brings the first window to the front and quits
-    (SAF-018's manual check, D-166).
+  - [x] Owner item: open the release build twice; the second launch brings the first window to the front and quits
+    (SAF-018's manual check, D-166). Checked by the owner on 2026-11-12.
 - [x] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
 - [x] M2-F13 Shuck asks before quitting during a run (R-04 step 3, #115).
-  - [ ] Owner item: press ⌘Q during a long Move to Trash; the question appears, Stop and Quit finishes the item and
+  - [x] Owner item: press ⌘Q during a long Move to Trash; the question appears, Stop and Quit finishes the item and
     quits, and History lists the run. Then try the close button during a run: a sheet is expected to block it
-    (D-168).
+    (D-168). Checked by the owner on 2026-11-12.
 - [x] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
 
 Stack 3 of the review's breakdown, approved by the owner on 2026-11-12 with the review's recommended answers to
