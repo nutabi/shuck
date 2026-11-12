@@ -34,7 +34,7 @@ Run commands from the repository root. When a task adds or changes a command, it
 | Lint (`--fix` to reformat), with the String Catalog check | `scripts/lint.sh` | available |
 | User-facing strings without a String Catalog entry (NFR-L10N-001, D-161); `lint.sh` runs it | `scripts/strings-check.py` | available |
 | All tests and the coverage gate, as CI runs them (`--no-ui` skips UI tests; `--build-only` only builds) | `scripts/test.sh` | available |
-| Static checks (ENG-006) | `scripts/static-checks.sh` | available |
+| Static checks (ENG-006), on the files git tracks, including that every Must SAF requirement is named in a test | `scripts/static-checks.sh` | available |
 | Static checks self-test (after changing the checks) | `scripts/static-checks-test.sh` | available |
 | Whether a change touches code; CI skips lint, build and test if not (D-66) | `scripts/code-changed.sh BASE [HEAD]` | available |
 | Build, sign and notarize the release DMG (docs/releasing.md) | `scripts/build-dmg.sh` | available |

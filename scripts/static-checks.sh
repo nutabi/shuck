@@ -3,19 +3,33 @@
 # before committing.
 #
 # Usage: scripts/static-checks.sh [root]    root defaults to the repository; scripts/static-checks-test.sh passes a
-#                                           fixture tree
+#                                           fixture tree (a git repository)
 #
-# Each rule scans Swift code lines (whole-line comments are skipped) in the folders it covers. The checks are a safety
-# net, not a proof: review still matters, and a rule that blocks legitimate code should be discussed with the owner,
-# not worked around.
+# Each rule scans Swift code in the folders it covers, in the files git tracks (`git ls-files --cached`), so leftover
+# worktrees and build output are not checked (#122). Whole-line comments are skipped. A call wrapped over several lines,
+# as swift-format wraps `try data.write(` and `to: url)`, is joined into one logical line before matching, and a match
+# is reported at the line the call starts on (#123). A call is joined while its brackets are open, while its line ends
+# with a comma, and when the next line starts with `.`, up to 15 lines. One more check reads the tests: every Must SAF
+# requirement is named in a test or a script (NFR-QA-001, D-133).
+#
+# The checks are a safety net, not a proof: review still matters, and a rule that blocks legitimate code should be
+# discussed with the owner, not worked around.
 
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$root"
 
 failures=0
-swift_files="$(find . -name '*.swift' -not -path '*/.build/*' -not -path './build/*' -not -path './.git/*' |
-    sed 's|^\./||' | sort)"
+# Files in git's index, with paths as they are: git would quote one with non-ASCII letters, and the quoted name
+# names no file. A tracked file deleted from the working tree is skipped where it is read.
+tracked="$(git -C "$root" -c core.quotePath=false ls-files --cached)"
+swift_files="$(grep -E '\.swift$' <<<"$tracked" || true)"
+
+# The Must SAF requirements, each of which a test or a script must name (NFR-QA-001, D-133). SAF-015 is a Should.
+must_saf="SAF-001 SAF-002 SAF-003 SAF-004 SAF-005 SAF-006 SAF-007 SAF-008 SAF-009 SAF-010 SAF-011 SAF-012 SAF-013
+SAF-014 SAF-016 SAF-017 SAF-018"
+# Where a Must SAF ID counts as named: tests, test support and scripts. This script holds the list, so it does not count.
+saf_named_in='^(ShuckTests|ShuckUITests|Packages/ShuckKit/Tests|Packages/ShuckKit/Sources/ShuckKitTestSupport|scripts)/'
 
 # Code that ships in the app: the app target and the engine's library modules (not tests or test support).
 shipped='^(Shuck|Packages/ShuckKit/Sources/(ShuckKit|ShuckExecution))/'
@@ -31,25 +45,88 @@ report() {
     failures=$((failures + 1))
 }
 
-# scan RULE MESSAGE PATTERN INCLUDE [EXCLUDE]: report code lines matching PATTERN in Swift files whose path matches
-# INCLUDE and not EXCLUDE.
+# Joined copies of the Swift files: the same paths under a temporary folder, with the same number of lines. A comment
+# line is empty. A wrapped call is on the line it starts on, with its other lines empty, so a match reports the first
+# line's number. Bash 3.2 (macOS) and BSD awk must run this, so it uses nothing beyond POSIX awk.
+joined="$(mktemp -d)"
+trap 'rm -rf "$joined"' EXIT
+
+join_awk='
+function flush(   i) {
+    if (out == "") return
+    for (i = 1; i <= n; i++) print lines[i] > out
+    close(out)
+}
+FNR == 1 {
+    flush()
+    out = dir "/" FILENAME
+    n = 0; start = 0; depth = 0; trailing = 0
+}
+{
+    n = FNR
+    t = $0
+    sub(/^[ \t]+/, "", t)
+    if (t == "" || t ~ /^(\/\/|\*|\/\*)/) { lines[n] = ""; next }
+    code = $0
+    gsub(/"([^"\\]|\\.)*"/, "\"\"", code)
+    sub(/\/\/.*$/, "", code)
+    a = code; b = code; c = code; d = code
+    opened = gsub(/\(/, "", a) + gsub(/\[/, "", b) - gsub(/\)/, "", c) - gsub(/\]/, "", d)
+    if (start > 0 && n - start < 15 && (depth > 0 || trailing || t ~ /^\.[A-Za-z_]/)) {
+        lines[start] = lines[start] " " t
+        lines[n] = ""
+        depth += opened
+    } else {
+        start = n
+        lines[n] = $0
+        depth = opened
+    }
+    if (depth < 0) depth = 0
+    trailing = (code ~ /,[ \t]*$/)
+}
+END { flush() }'
+
+existing=()
+while IFS= read -r file; do
+    [[ -n "$file" && -f "$file" ]] || continue
+    existing+=("$file")
+    if [[ "$file" == */* ]]; then mkdir -p "$joined/${file%/*}"; fi
+    : >"$joined/$file"
+done <<<"$swift_files"
+if ((${#existing[@]} > 0)); then
+    awk -v dir="$joined" "$join_awk" "${existing[@]}"
+fi
+
+# scan RULE MESSAGE PATTERN INCLUDE [EXCLUDE]: report code matching PATTERN in Swift files whose path matches INCLUDE
+# and not EXCLUDE. The pattern is matched against logical lines, so it allows white space after a `(`.
 scan() {
     local rule="$1" message="$2" pattern="$3" include="$4" exclude="${5:-}"
-    local file hits hit
-    while IFS= read -r file; do
-        [[ -n "$file" && "$file" =~ $include ]] || continue
+    local file hit rest
+    local selected=()
+    for file in ${existing[@]+"${existing[@]}"}; do
+        [[ "$file" =~ $include ]] || continue
         if [[ -n "$exclude" && "$file" =~ $exclude ]]; then continue; fi
-        hits="$(grep -nE -- "$pattern" "$file" | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' || true)"
-        [[ -n "$hits" ]] || continue
-        while IFS= read -r hit; do
-            report "$file:${hit%%:*}: [$rule] $message"
-        done <<<"$hits"
-    done <<<"$swift_files"
+        selected+=("$file")
+    done
+    ((${#selected[@]} > 0)) || return 0
+    while IFS= read -r hit; do
+        [[ -n "$hit" ]] || continue
+        file="${hit%%:*}"
+        rest="${hit#*:}"
+        report "$file:${rest%%:*}: [$rule] $message"
+    done <<<"$(cd "$joined" && grep -nHE -- "$pattern" "${selected[@]}" || true)"
 }
 
-# NFR-SEC-001: no network APIs anywhere.
+# NFR-SEC-001: no network APIs anywhere. `connect(` counts as a bare C call, not as a method such as `.connect(`.
 scan network "network API; Shuck makes no network connections (NFR-SEC-001)" \
-    '\b(URLSession|NSURLSession|NSURLConnection|URLSessionWebSocketTask|NWConnection|NWListener|NWBrowser|NWPathMonitor|CFSocket[A-Za-z]*|CFStreamCreatePairWithSocket[A-Za-z]*|WKWebView)\b|^[[:space:]]*import[[:space:]]+(Network|WebKit)\b|\bsocket\(' \
+    '\b(URLSession|NSURLSession|NSURLConnection|URLSessionWebSocketTask|NWConnection|NWListener|NWBrowser|NWPathMonitor|CFSocket[A-Za-z]*|CFStreamCreatePairWithSocket[A-Za-z]*|WKWebView|AsyncImage)\b|^[[:space:]]*import[[:space:]]+(Network|WebKit|CFNetwork|NetworkExtension)\b|\b(socket|getaddrinfo)\(|(^|[^.[:alnum:]_]|\bDarwin\.)connect\(' \
+    '.'
+
+# NFR-SEC-001: a loader given a remote URL. The line must hold an `http://` or `https://` literal, so a URL held in a
+# variable is not caught; reading local files with these is fine. A rule's documentation link is a literal too, but it
+# is only ever shown or opened, never passed to a loader.
+scan network "loading a remote URL; Shuck makes no network connections (NFR-SEC-001)" \
+    '(\b(Data|NSData|String|NSString)\([[:space:]]*contentsOf:|\.lines\b).*https?://|https?://.*(\b(Data|NSData|String|NSString)\([[:space:]]*contentsOf:|\.lines\b)' \
     '.'
 
 # NFR-SEC-004: no shell execution in shipped code. Subprocesses use absolute paths and argument arrays (DEV-004).
@@ -64,10 +141,13 @@ scan privilege "authorization or privilege API; the MVP never asks for admin rig
 
 # SAF-017: only ShuckExecution may delete, move or modify files, or change launchd state. The C calls include their
 # `*at`, `_np` and `f*` variants. Flags, dates, attribute lists, extended attributes, resource values and Finder icons
-# change a file too. Any use of `SMAppService` counts, since its `register` and `unregister` change launchd state and
-# the call can sit on another line than the type's name.
+# change a file too, and so do iCloud's evict and move to the cloud. Any use of `SMAppService` counts, since its
+# `register` and `unregister` change launchd state and the call can sit on another line than the type's name. C's
+# `remove(` takes a path, so it counts only as a bare call (not a method such as `items.remove(at:)`) whose first
+# argument is a string literal or names a path; the app's own `remove(urls)` methods, which a pattern cannot tell
+# from it by name, do not count.
 scan mutation "file or launchd mutation outside ShuckExecution (SAF-017)" \
-    '\b(removeItem|trashItem|recycle|moveItem|replaceItem|replaceItemAt|unlink|unlinkat|rmdir|rename|renameat|renamex_np|renameatx_np|exchangedata|removefile|removefileat|truncate|ftruncate|copyfile|fcopyfile|clonefile|clonefileat|fclonefileat|chflags|lchflags|fchflags|utimes|lutimes|futimes|utimensat|futimens|setattrlist|fsetattrlist|setattrlistat|setxattr|fsetxattr|removexattr|fremovexattr|setResourceValue|setResourceValues|setIcon|SMLoginItemSetEnabled)\(|\bSMAppService\b|"(bootout|bootstrap|kickstart|load|unload|enable|disable)"' \
+    '\b(removeItem|trashItem|recycle|moveItem|replaceItem|replaceItemAt|unlink|unlinkat|rmdir|rename|renameat|renamex_np|renameatx_np|exchangedata|removefile|removefileat|truncate|ftruncate|copyfile|fcopyfile|clonefile|clonefileat|fclonefileat|chflags|lchflags|fchflags|utimes|lutimes|futimes|utimensat|futimens|setattrlist|fsetattrlist|setattrlistat|setxattr|fsetxattr|removexattr|fremovexattr|setResourceValue|setResourceValues|setIcon|SMLoginItemSetEnabled|evictUbiquitousItem|setUbiquitous)\(|(^|[^.[:alnum:]_]|\bDarwin\.)remove\(([[:space:]]*"|[^_)]*(path|Path|cString|fileSystemRepresentation))|\bSMAppService\b|"(bootout|bootstrap|kickstart|load|unload|enable|disable)"' \
     "$outside_execution"
 
 # SAF-017, NFR-SEC-005: permissions and ownership change only in ShuckExecution, and in History for Shuck's own data
@@ -80,18 +160,27 @@ scan permissions "permission or owner change outside ShuckExecution and History 
 # SAF-017: creating or writing files is allowed only in ShuckExecution and in History, which writes Shuck's own log.
 # The C calls count with or without a `Darwin.` prefix, but not as other types' methods, such as `NSWorkspace.open`.
 # `create: true` is how `FileManager.url(for:in:appropriateFor:create:)` creates a folder, such as an item replacement
-# folder; the label often sits on the call's second line. `NSWorkspace.duplicate` copies files.
+# folder; the label often sits on the call's second line. `NSWorkspace.duplicate` copies files. The System framework's
+# `FileDescriptor.open` creates a file when its options hold `.create`; `mkstemp` and `mkdtemp` and their variants
+# always create one.
 scan file-write "file creation or write outside ShuckExecution and History (SAF-017)" \
-    '\b(createFile|createDirectory|createSymbolicLink|linkItem|copyItem|OutputStream)\(|\.write\((to|toFile):|FileHandle\((forWritingTo|forWritingAtPath|forUpdating|forUpdatingAtPath)|\bcreate:[[:space:]]*true\b|\.duplicate\(|(^|[^.[:alnum:]_]|\bDarwin\.)(fopen|open|openat|creat|mkdir|mkdirat|mkfifo|mkfifoat|mknod|mknodat|symlink|symlinkat|link|linkat)\(' \
+    '\b(createFile|createDirectory|createSymbolicLink|linkItem|copyItem|OutputStream)\(|\.write\([[:space:]]*(to|toFile):|FileHandle\([[:space:]]*(forWritingTo|forWritingAtPath|forUpdating|forUpdatingAtPath)|\bcreate:[[:space:]]*true\b|\.duplicate\(|FileDescriptor\.open\(.*\.create\b|(^|[^.[:alnum:]_]|\bDarwin\.)(fopen|open|openat|creat|mkdir|mkdirat|mkfifo|mkfifoat|mknod|mknodat|symlink|symlinkat|link|linkat|mkstemp|mkstemps|mkostemp|mkostemps|mkdtemp)\(' \
     "$outside_execution" \
     '^Packages/ShuckKit/Sources/ShuckKit/History/'
 
 # D-82: only ShuckExecution may start a subprocess, so every tool command goes through its checks (DEV-004, SAF-010).
 # Any use of the `Process` type counts, so `let p: Process = .init()` does too; `ProcessInfo` is a different word.
+# `NSUserUnixTask` runs a script outside the sandbox, and `NSXPCConnection` hands work to another process.
 scan process "subprocess outside ShuckExecution (D-82)" \
-    '\bProcess\b|\bNSTask\b|\b(posix_spawn|posix_spawnp|fork|vfork|execv|execve|execvp|execl|execle|execlp)\(' \
+    '\bProcess\b|\bNSTask\b|\bNSUserUnixTask\b|\bNSXPCConnection\b|\b(posix_spawn|posix_spawnp|fork|vfork|execv|execve|execvp|execl|execle|execlp)\(' \
     '.' \
     "$execution"
+
+# SAF-017, D-82: `@_silgen_name` declares any C function, and `dlsym` and `dlopen` look one up by name, so each one
+# reaches calls the rules above search for by name. No code uses them.
+scan native-call "calling C by name (@_silgen_name, dlsym, dlopen) would bypass these checks (SAF-017, D-82)" \
+    '@_silgen_name|\b(dlsym|dlopen)\(' \
+    '.'
 
 # SAF-016, AGENTS.md safety rule 3: test code never names the real home folder; it uses the fixture root. A "~/" string
 # is fine, since nothing expands it unless asked. The user's folders count as the home folder: the search path domains
@@ -113,32 +202,52 @@ scan force-cast "forced cast (as!) in the engine" \
     '[[:space:]]as![[:space:]]' \
     '^Packages/ShuckKit/'
 
+# tracked_matching PATTERN [GREP OPTION]: the tracked files whose path matches PATTERN.
+tracked_matching() {
+    grep ${2:+"$2"} -E -- "$1" <<<"$tracked" || true
+}
+
 # NFR-SEC-002, D-29: no third-party packages. The only package is the local ShuckKit.
 while IFS= read -r manifest; do
-    [[ -n "$manifest" ]] || continue
+    [[ -f "$manifest" ]] || continue
     if grep -nE '\.package\(' "$manifest" >/dev/null; then
         report "$manifest: [packages] package dependency; Shuck uses Apple frameworks only (NFR-SEC-002)"
     fi
-done <<<"$(find . -name Package.swift -not -path '*/.build/*' -not -path './build/*' | sed 's|^\./||')"
+done <<<"$(tracked_matching '(^|/)Package\.swift$')"
 
 while IFS= read -r project; do
-    [[ -n "$project" ]] || continue
+    [[ -f "$project" ]] || continue
     if grep -nE '"kind"[[:space:]]*:[[:space:]]*"remote"|"url"[[:space:]]*:|XCRemoteSwiftPackageReference' "$project" >/dev/null; then
         report "$project: [packages] remote package reference; only the local ShuckKit package is allowed (NFR-SEC-002, D-29)"
     fi
-done <<<"$(find . \( -name project.xcproj -o -name project.pbxproj \) -not -path './build/*' | sed 's|^\./||')"
+done <<<"$(tracked_matching '(^|/)project\.(xcproj|pbxproj)$')"
 
 while IFS= read -r file; do
     [[ -n "$file" ]] || continue
     report "$file: [packages] third-party dependency manager file (NFR-SEC-002)"
-done <<<"$(find . \( -name Package.resolved -o -name Podfile -o -name Cartfile -o -name Cartfile.resolved \) \
-    -not -path '*/.build/*' -not -path './build/*' -not -path './.git/*' | sed 's|^\./||')"
+done <<<"$(tracked_matching '(^|/)(Package\.resolved|Podfile|Cartfile|Cartfile\.resolved)$')"
 
 # ENG-010: AGENTS.md is the only agent-instruction file.
 while IFS= read -r file; do
     [[ -n "$file" ]] || continue
     report "$file: [agents] use AGENTS.md only; do not add CLAUDE.md (ENG-010)"
-done <<<"$(find . -iname 'CLAUDE.md' -not -path './.git/*' -not -path '*/.build/*' | sed 's|^\./||')"
+done <<<"$(tracked_matching '(^|/)claude\.md$' -i)"
+
+# NFR-QA-001, D-133: every Must SAF requirement is named, as a whole ID, in a test or a script.
+named_files=()
+while IFS= read -r file; do
+    [[ -f "$file" && "$file" != scripts/static-checks.sh ]] || continue
+    named_files+=("$file")
+done <<<"$(tracked_matching "$saf_named_in")"
+named_ids=""
+if ((${#named_files[@]} > 0)); then
+    named_ids="$(grep -ohE 'SAF-[0-9]+' "${named_files[@]}" | sort -u || true)"
+fi
+for id in $must_saf; do
+    if ! grep -qx -- "$id" <<<"$named_ids"; then
+        report "$id: [saf-tests] named in no test or script; add a test that names it (NFR-QA-001, D-133)"
+    fi
+done
 
 if ((failures > 0)); then
     echo "static-checks: $failures problem(s)" >&2
