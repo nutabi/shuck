@@ -11,6 +11,9 @@ All notable changes to Shuck are listed here. The format follows
 
 - Developer Junk rows no longer appear cut off after you scan again. Rows in Developer Junk and Caches & Logs also stay
   where they are while a scan runs, and the lists are sorted by size once the scan has finished.
+- Changing your project folders in Settings while Developer Junk is scanning no longer leaves node_modules rows from a
+  folder you removed, which made Delete fail. Large Files and Old Files also skip the node_modules of a folder you add
+  during their scan.
 
 ## [0.2.0] - 2026-11-12
 

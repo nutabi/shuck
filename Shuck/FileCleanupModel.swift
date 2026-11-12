@@ -154,11 +154,18 @@ final class FileCleanupModel {
         list.removeAll()
         states[id] = .scanning
         let context = context
-        let revision = exclusionRevision
+        let (revision, projects) = (exclusionRevision, projectRevision)
         let task = Task {
             // Each event is one item. A sub-tool lists few enough of them for the main actor (NFR-PERF-001).
             for await event in await Self.start(subTool, context: context) {
-                if case .item(let item) = event, revision != exclusionRevision, self.context.hides(item) { continue }
+                if case .item(let item) = event {
+                    if revision != exclusionRevision, self.context.hides(item) { continue }
+                    // The scan keeps the project folders it started with, so a row from one that has since been
+                    // removed would make the plan fail (SET-003, D-154).
+                    if projects != projectRevision, Self.isOutsideProjects(item, ownership: self.context.ownership) {
+                        continue
+                    }
+                }
                 list.apply(event)
             }
             scans[id] = nil
@@ -207,12 +214,14 @@ final class FileCleanupModel {
         // Old Files needs last-opened dates. If several sub-tools did, the smallest minimum size would cover them all.
         let reader = personalSubTools.compactMap(\.lastOpenedReader).min { $0.minimumSize < $1.minimumSize }
         let events = personalFilesScan(context, reader)
-        let revision = exclusionRevision
+        let (revision, projects) = (exclusionRevision, projectRevision)
         let task = Task {
             // Each event is a batch of files, so the main actor takes a few thousand events for a large home folder.
             // Each list builds its rows off the main actor and merges them in (NFR-PERF-001).
             for await event in events {
-                await apply(event, hiding: revision != exclusionRevision)
+                await apply(
+                    event, hiding: revision != exclusionRevision, hidingProjectDependencies: projects != projectRevision
+                )
             }
             let finished = Date.now
             for id in ids {
@@ -258,7 +267,8 @@ final class FileCleanupModel {
     /// carries them as a value, replace the old ones (SET-003, D-154). Rows the new list leaves out go at once, without
     /// a rescan: Developer Junk's `node_modules` rows whose folder is no longer a project folder, and the personal files
     /// inside a `node_modules` that Developer Junk now owns. A folder that is added is scanned at the next scan. A scan
-    /// already running finishes with the list it started with.
+    /// already running keeps the list it started with, but leaves out the same rows as they arrive, so it never lists
+    /// a row the new list would have removed.
     ///
     /// The rows are found off the main actor (NFR-PERF-001). The returned task finishes when they are gone.
     @discardableResult
@@ -284,10 +294,15 @@ final class FileCleanupModel {
     private nonisolated static func outsideProjects(files: [URL], items: [ScanItem], ownership: OwnershipMap) async
         -> [URL]
     {
-        let gone = items.filter { $0.ruleMatch?.rule.id == "DEV-R06" }.compactMap(\.url).filter {
-            !ownership.isProjectDependencies($0)
-        }
+        let gone = items.filter { isOutsideProjects($0, ownership: ownership) }.compactMap(\.url)
         return files.filter(ownership.isProjectDependencies) + gone
+    }
+
+    /// Whether `item` is a `node_modules` row of Developer Junk (DEV-R06) that is not inside one of `ownership`'s
+    /// project folders.
+    private nonisolated static func isOutsideProjects(_ item: ScanItem, ownership: OwnershipMap) -> Bool {
+        guard item.ruleMatch?.rule.id == "DEV-R06", let url = item.url else { return false }
+        return !ownership.isProjectDependencies(url)
     }
 
     /// The files and tool commands among the listed ones that `context`'s exclusions hide.
@@ -423,9 +438,12 @@ final class FileCleanupModel {
     }
 
     /// Keeps only the files some sub-tool lists, so a home folder of a million files does not stay in memory.
-    /// - Parameter hiding: Whether the user's exclusions changed since the scan started, so the files the new list hides
-    ///   are left out too (SET-001).
-    private func apply(_ event: PersonalFilesEvent, hiding: Bool) async {
+    /// - Parameters:
+    ///   - hiding: Whether the user's exclusions changed since the scan started, so the files the new list hides are
+    ///     left out too (SET-001).
+    ///   - hidingProjectDependencies: Whether the project folders changed since the scan started, so the files inside a
+    ///     `node_modules` that Developer Junk now owns are left out (SET-003, FCL-005).
+    private func apply(_ event: PersonalFilesEvent, hiding: Bool, hidingProjectDependencies: Bool) async {
         guard case .files(let files) = event else {
             personalFiles.apply(event)
             return
@@ -433,6 +451,7 @@ final class FileCleanupModel {
         let subTools = personalSubTools
         let listed = files.filter { file in
             subTools.contains { $0.includes(file) } && !(hiding && context.hides(file.url))
+                && !(hidingProjectDependencies && context.ownership.isProjectDependencies(file.url))
         }
         guard !listed.isEmpty else { return }
         personalFiles.apply(.files(listed))
