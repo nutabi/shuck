@@ -123,6 +123,31 @@ struct NodeModulesTests {
         #expect(try await scan(projects: ["Code"]).keys.sorted() == ["Code"])
     }
 
+    /// What an `npm install` run in the wrong folder leaves in the project folder itself.
+    @Test func aStrayNodeModulesWithoutALockfileHidesNoProjectBelowItDEV006() async throws {
+        try root.file("Developer/node_modules/left-pad/index.js", size: 8)
+        try root.nodeProject("Developer/app", edited: longAgo)
+        try root.nodeProject("Developer/web/site", edited: longAgo)
+
+        let items = try await scan()
+
+        #expect(Set(items.keys) == ["Developer/app", "Developer/web/site"])
+    }
+
+    @Test func aStrayNodeModulesWithALockfileIsListedAndHidesNoProjectDEV006() async throws {
+        try root.file("Developer/node_modules/left-pad/index.js", size: 8)
+        try root.file("Developer/package-lock.json", size: 16, modified: longAgo)
+        try root.nodeProject("Developer/app", edited: longAgo)
+        try root.nodeProject("Developer/web/site", edited: longAgo)
+        // The walk never enters the project folder's own `node_modules`.
+        try root.nodeProject("Developer/node_modules/dep/inner", edited: longAgo)
+
+        let items = try await scan()
+
+        #expect(Set(items.keys) == ["Developer", "Developer/app", "Developer/web/site"])
+        #expect(items["Developer"]?.url?.path == (try root.url("Developer/node_modules")).path)
+    }
+
     @Test func aProjectRootLiesAtMostFourLevelsBelowTheProjectFolderDEV006() async throws {
         try root.nodeProject("Developer/a/b/c/d", edited: longAgo)
         try root.nodeProject("Developer/a/b/c/d/e/f", edited: longAgo)
