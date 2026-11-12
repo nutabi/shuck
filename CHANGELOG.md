@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Added
 
+- Shuck asks before it quits while it is moving, deleting, cleaning up or restoring items. If you choose Stop and Quit,
+  it finishes the item it is working on and records it in History before it quits.
 - Settings lists excluded folders. Add folders with the Add button and take them out with Remove. Shuck never lists,
   moves or deletes anything inside an excluded folder, or a folder that holds one, in any tool. Adding a folder hides
   its files from every list at once. A folder you remove is scanned again from the next scan on.

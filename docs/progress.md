@@ -415,7 +415,10 @@ it and writes the documents.
   - [ ] Owner item: open the release build twice; the second launch brings the first window to the front and quits
     (SAF-018's manual check, D-166).
 - [x] M2-F13 An interrupted Trash item can be restored (R-04 steps 1 and 2, R-12's interrupted-run test, #115).
-- [ ] M2-F13 Shuck asks before quitting during a run (R-04 step 3, #115).
+- [x] M2-F13 Shuck asks before quitting during a run (R-04 step 3, #115).
+  - [ ] Owner item: press ⌘Q during a long Move to Trash; the question appears, Stop and Quit finishes the item and
+    quits, and History lists the run. Then try the close button during a run: a sheet is expected to block it
+    (D-168).
 - [ ] M2-F23 A skip caused by an exclusion says so (R-14, SET-001).
 
 - [x] M2-F07 Synced files stay listed and are marked: the scan records `isUbiquitousItemKey`, the results show a
@@ -441,7 +444,7 @@ it and writes the documents.
   change. Done as D-141.
 - [x] M2-F12 One running instance: a second launch of the same build activates the first and quits, and the history log
   is locked with `flock` while a run writes it (SAF-018, D-135).
-- [ ] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards
+- [x] M2-F13 A crash or quit between a Trash move and its result record leaves the item unrestorable, and nothing guards
   Cmd-Q during a run. Write what a Restore needs before the move, or recover it at the next launch, and ask before
   quitting during a run (SAF-005, SAF-006, HIS-001, #115). Execution change.
 - [x] M2-F14 `ToolRunner` can call `terminate()` on a process that has not launched yet (`ToolRunner.swift`, #114).
