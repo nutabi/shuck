@@ -16,6 +16,9 @@ public enum FakeTool: Sendable {
     case runsForever
     /// Marks that it ran, ignores the request to end (SIGTERM) and never ends by itself, so only SIGKILL stops it.
     case ignoresTerminate
+    /// Removes the files at `paths`, relative to the root, as a tool that cleans its cache does, then ends with
+    /// `status`. It prints nothing, so a test cannot get what it removed from its output (R-07).
+    case removes(_ paths: [String], status: Int32 = 0)
 }
 
 extension FixtureRoot {
@@ -38,7 +41,7 @@ extension FixtureRoot {
     @discardableResult
     public func tool(_ relativePath: String, _ behavior: FakeTool) throws(FixtureError) -> URL {
         let target = try newItem(relativePath)
-        let script = "#!/bin/sh\n" + Self.body(of: behavior, marks: try url("Marks").path) + "\n"
+        let script = "#!/bin/sh\n" + Self.body(of: behavior, marks: try url("Marks").path, root: url) + "\n"
         guard
             FileManager.default.createFile(
                 atPath: target.path, contents: Data(script.utf8), attributes: [.posixPermissions: 0o755])
@@ -51,7 +54,7 @@ extension FixtureRoot {
         FileManager.default.fileExists(atPath: url.appending(path: "Marks/ran").path)
     }
 
-    private static func body(of behavior: FakeTool, marks: String) -> String {
+    private static func body(of behavior: FakeTool, marks: String, root: URL) -> String {
         switch behavior {
         case .exits(let status, let output):
             return (output.isEmpty ? "" : "printf '%s\\n' \(quoted(output))\n") + "exit \(status)"
@@ -72,6 +75,9 @@ extension FixtureRoot {
             return mark(marks) + "\nexec /bin/sleep 600"
         case .ignoresTerminate:
             return mark(marks) + "\ntrap '' TERM\nwhile :; do /bin/sleep 1; done"
+        case .removes(let paths, let status):
+            let targets = paths.map { quoted(root.appending(path: $0).path) }.joined(separator: " ")
+            return (paths.isEmpty ? "" : "/bin/rm -rf \(targets)\n") + "exit \(status)"
         }
     }
 
