@@ -40,8 +40,8 @@ Run commands from the repository root. When a task adds or changes a command, it
 | Build, sign and notarize the release DMG (docs/releasing.md) | `scripts/build-dmg.sh` | available |
 | Print a version's release notes from `CHANGELOG.md` (D-95) | `scripts/release-notes.sh VERSION` | available |
 | Check `CHANGELOG.md`'s form: every release has notes and a link (D-98) | `scripts/release-notes.sh --check` | available |
-| Check that `## [Unreleased]` is empty at a tagged commit (the Release workflow runs it, D-179) | `scripts/release-notes.sh --tag-ready` | available |
-| Build the Release configuration unsigned (`release`) or the engine package with SwiftPM (`engine`, on macOS 26 in CI), as CI does (#126, D-179) | `scripts/build-check.sh release` or `scripts/build-check.sh engine` | available |
+| Check that `## [Unreleased]` is empty at a tagged commit (the Release workflow runs it, D-180) | `scripts/release-notes.sh --tag-ready` | available |
+| Build the Release configuration unsigned (`release`) or the engine package with SwiftPM (`engine`, on macOS 26 in CI), as CI does (#126, D-180) | `scripts/build-check.sh release` or `scripts/build-check.sh engine` | available |
 | Notarize one file (called by `build-dmg.sh`) | `scripts/notarize.sh FILE` | available |
 
 ## Repository layout

@@ -583,7 +583,7 @@ Tasks:
     Release configuration and the engine's macOS 26 build are built in CI before a tag (#126, NFR-COMP-001, D-06);
     the String Catalog check also finds a bare literal passed to a `LocalizedStringResource` parameter and raw strings
     (R-09, NFR-L10N-001, D-161); and the static checks take the proposals of #122 and #123 (R-18, ENG-006). #126 was an
-    M5 note (D-133, D-172); it moved here on the owner's instruction (D-178). Built as D-179. Left for the owner: #122's
+    M5 note (D-133, D-172); it moved here on the owner's instruction (D-178). Built as D-180. Left for the owner: #122's
     proposals to apply every rule to all non-test Swift files by default and to flag a second local package (D-170 did
     not approve them), and making the `Engine on macOS 26` job a required check.
 - [ ] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
