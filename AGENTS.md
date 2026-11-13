@@ -13,7 +13,7 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
   requirement IDs.
 - macOS 27 or later, Apple Silicon only. The `ShuckKit` engine uses only macOS 26 APIs (D-06).
 - No network connections, telemetry, accounts or admin rights.
-- The owner is learning SwiftUI from the pull requests (G-5), so write for that reader.
+- Write pull requests and comments so a reader new to the code and to SwiftUI can follow them (G-5).
 
 ## Rules and decisions
 
@@ -60,32 +60,27 @@ Owner preference, 2026-11-13:
 
 - **Branches:** every change goes through a pull request. `main` takes only squash merges that pass CI and are up to
   date (ENG-001). Name the branch after the task in lowercase plus a slug: `m1-t02-path-guard`.
-- **Titles:** the pull request and every commit use `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`.
-- **Commit bodies:** say what changed and why, wrapped at 72 characters, and end with `Requirements: SAF-007, SAF-016`.
-  A commit with only part of a task lists what is left.
+- **The pull request is what lands.** `main` squash-merges each pull request, with its title as the commit title and
+  its description as the commit body. The title is `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`.
+  Commits on the branch need only a short title (D-200).
 - **Signed commits** (owner preference, 2026-11-13): every commit is signed, as the owner's git config does by
-  default. To update a branch, rebase locally and push with
-  `--force-with-lease`, or use `gh stack rebase`. Never use `gh pr update-branch` or GitHub's "Update branch" button,
-  which leave the commits unsigned.
+  default. To update a branch, rebase locally and push with `--force-with-lease`, or use `gh stack rebase`. Never use
+  `gh pr update-branch` or GitHub's "Update branch" button, which leave the commits unsigned.
 - **A single pull request** opens ready for review with auto-merge (squash) on. If CI fails, fix it on the branch
   (D-51). A change to Markdown files and `LICENSE` only skips `Lint, build and test`, which counts as passed (D-66).
 - **A stack** (D-76) uses the `gh stack` extension (`gh extension install github/gh-stack`): `gh stack init`,
   `gh stack add <branch>` and `gh stack submit --open`. Keep it linear with `gh stack rebase` and `gh stack push`,
-  never by merging. Don't turn on auto-merge for a stack. Once every pull request's CI passes, merge it with
-  `gh stack merge`. A stack merges bottom up, one squashed commit per pull request, and GitHub rebases the next pull
-  request onto `main` itself. The exception is a task
-  whose entry in `docs/progress.md` says the owner merges the stack (D-83).
+  never by merging. Turn on auto-merge (squash) on the top pull request: once CI passes, it merges the whole stack,
+  bottom up, one squashed commit per pull request (D-200).
 - Changes to `scripts/` and `.github/` follow the same rules as any other change (D-200).
 - **Changelog** (D-95): a change users can notice adds a plain-words line under `## [Unreleased]` in `CHANGELOG.md`,
   in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) section that fits. Refactors, tests and CI get no
   line. Never write release notes by hand.
-- **Description** (ENG-003): fill in every section of `.github/pull_request_template.md`. Call out every change to
-  Safety or Execution, and link Apple's documentation for each SwiftUI concept the change uses.
-- **Done** (ENG-004) means all of these:
-  - The project builds, and all tests pass locally and in CI.
-  - New behavior has tests, deletion paths have fixture tests, and SAF tests name their requirement ID (NFR-QA-001).
-  - `scripts/lint.sh` and `scripts/static-checks.sh` pass.
-  - `docs/progress.md` and `CHANGELOG.md` are updated, and the description is complete.
+- **Description** (ENG-003): the three sections of `.github/pull_request_template.md`, kept short: what changed and
+  why, ending with the requirement IDs; what to read first, including every change to Safety or Execution and each
+  advisor decision; and the test evidence.
+- **Done** (ENG-004): CI passes; new behavior has tests, deletion paths have fixture tests, and SAF tests name their
+  requirement ID (NFR-QA-001); `docs/progress.md` and `CHANGELOG.md` are updated.
 
 ## Commands
 
