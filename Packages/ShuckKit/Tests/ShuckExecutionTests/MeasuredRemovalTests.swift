@@ -42,6 +42,7 @@ struct MeasuredRemovalTests {
         try root.file("\(cache)/downloads/old", size: 80_000)
         let items = await scanned()
         let estimate = try #require(items.first).allocatedSize
+        #expect(estimate == 0, "Homebrew's item has no size before the run (D-194)")
         let before = try size(cache)
 
         let report = try await run(items)
@@ -49,7 +50,7 @@ struct MeasuredRemovalTests {
         let removed = try #require(report.outcomes.first?.removedBytes)
         #expect(report.outcomes.map(\.result) == [.done(nil)])
         #expect(removed == before - (try size(cache)))
-        #expect(removed >= 80_000 && removed < estimate)
+        #expect(removed >= 80_000 && removed < before)
         // The intent keeps the estimate; the result has the measured size, which History shows (SAF-005, SAF-006).
         let bytes = try recordedBytes()
         #expect(bytes.intent == estimate && bytes.result == removed)

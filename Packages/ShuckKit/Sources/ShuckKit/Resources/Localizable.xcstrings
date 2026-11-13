@@ -64,7 +64,7 @@
     "Homebrew Cleanup" : {
 
     },
-    "Homebrew's own command removes old versions and old downloads and keeps the current ones. The size is its download cache; old versions are not counted." : {
+    "Homebrew's own command removes old versions and old downloads and keeps the current ones. Shuck can't tell beforehand how much that is, so no size is shown. The summary after the run states what was removed." : {
 
     },
     "In an app group the app declares: %@" : {
