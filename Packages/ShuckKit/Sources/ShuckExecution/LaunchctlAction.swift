@@ -1,17 +1,23 @@
 import Foundation
 import ShuckKit
 
-/// What `launchctl` is asked to do to one job. Only `bootout` exists now; STA-005's Disable (bootout, then disable),
-/// Enable (enable, then bootstrap) and Remove (bootout, then Trash) add their cases in M4, each with its arguments in
-/// this one place. The words live here because only `ShuckExecution` may name them (SAF-017).
+/// What `launchctl` is asked to do to one job. `bootout` and `bootstrap` exist now; STA-005's Disable (bootout, then
+/// disable) and Enable (enable, then bootstrap) add `disable` and `enable` in M4, each with its arguments in this one
+/// place. The words live here because only `ShuckExecution` may name them (SAF-017).
 package enum LaunchctlOperation: Equatable, Sendable {
     /// Unloads the job from the user's GUI domain, which stops it if it runs (D-26).
     case bootout
+    /// Loads the job from its property list into the user's GUI domain, which undoes a `bootout`. It does not run
+    /// `enable`: `launchctl` says a disabled service cannot be loaded until it is enabled, so a job the user disabled
+    /// stays disabled and fails to load, as it should (APP-011, D-NEXT-reenable).
+    case bootstrap
 
-    /// The words of the subcommand and its target; `serviceTarget` is `gui/<uid>/<label>`.
-    func arguments(serviceTarget: String) -> [String] {
+    /// The words of the subcommand and its target. `domain` is `gui/<uid>`; `label` names the job and `plist` is its
+    /// property list.
+    func arguments(domain: String, label: String, plist: URL) -> [String] {
         switch self {
-        case .bootout: ["bootout", serviceTarget]
+        case .bootout: ["bootout", "\(domain)/\(label)"]
+        case .bootstrap: ["bootstrap", domain, plist.path]
         }
     }
 
@@ -19,6 +25,7 @@ package enum LaunchctlOperation: Equatable, Sendable {
     var name: String {
         switch self {
         case .bootout: "bootout"
+        case .bootstrap: "bootstrap"
         }
     }
 }
@@ -45,7 +52,8 @@ enum LaunchAgentLabel {
     }
 }
 
-/// Unloads a LaunchAgent: the action for Launchctl items (APP-011, STA-005, SAF-006, D-26).
+/// Unloads a LaunchAgent, or with ``LaunchctlOperation/bootstrap`` loads it: the action for Launchctl items and for
+/// Restore's re-enable (APP-011, HIS-005, STA-005, SAF-006, D-26).
 ///
 /// The item targets the agent's property list, so the path guard, the allowed roots and the snapshot and date checks
 /// apply to it as to any file. The job label is read from that property list just before acting, after re-validation,
@@ -56,7 +64,8 @@ enum LaunchAgentLabel {
 /// its output (R-07): 0 is loaded, ``notLoadedStatus`` is not loaded, anything else is a failure, as the answer is
 /// unknown. A job that is not loaded needs no `bootout`, so the item is done with nothing unloaded, and the plist's
 /// own Trash item moves it directly (APP-011). A loaded job gets `bootout`, and any status but 0 fails the item
-/// (SAF-011). Both run through ``ToolRunner``, the only code that starts a subprocess (D-82), so a runner confined to
+/// (SAF-011). `bootstrap` is the reverse: a job that is loaded already is done, and one that is not gets `bootstrap`.
+/// Both run through ``ToolRunner``, the only code that starts a subprocess (D-82), so a runner confined to
 /// a fixture root can never reach the real `launchctl` (SAF-016).
 package struct LaunchctlAction: PlanAction {
     /// The exit status of `launchctl print` for a job launchd does not know. Agent choice (D-197), from
@@ -93,18 +102,30 @@ package struct LaunchctlAction: PlanAction {
                 .failed(
                     ActionError(domain: "ShuckLaunchctl", code: 1, message: "the property list has no usable Label")))
         }
-        let serviceTarget = "gui/\(uid)/\(label)"
+        return await perform(label: label, plist: target)
+    }
+
+    /// Does ``operation`` to the job `label`, whose property list is `plist`, if its loaded state calls for it: a
+    /// loaded job is booted out, and a job that is not loaded is bootstrapped; in the other state the item is done
+    /// with nothing to do. The caller has validated `plist` and read `label` from it.
+    package func perform(label: String, plist: URL) async -> Acted<ItemOutcome.SkipReason> {
+        let domain = "gui/\(uid)"
+        let serviceTarget = "\(domain)/\(label)"
+        let loaded: Bool
         switch await run(["print", serviceTarget]) {
         case .ended(let acted): return acted
         case .ran(let ran, let command):
             switch ran.ending {
-            case .exited(0): break
-            case .exited(Self.notLoadedStatus): return Acted(.done(nil), detail: "not loaded: \(serviceTarget)")
-            // Whether the job is loaded is unknown, so nothing is unloaded and the item fails (SAF-011).
+            case .exited(0): loaded = true
+            case .exited(Self.notLoadedStatus): loaded = false
+            // Whether the job is loaded is unknown, so nothing is changed and the item fails (SAF-011).
             default: return Self.failed(ran, command: command, step: "print", target: serviceTarget)
             }
         }
-        switch await run(operation.arguments(serviceTarget: serviceTarget)) {
+        guard loaded == (operation == .bootout) else {
+            return Acted(.done(nil), detail: "\(loaded ? "already loaded" : "not loaded"): \(serviceTarget)")
+        }
+        switch await run(operation.arguments(domain: domain, label: label, plist: plist)) {
         case .ended(let acted): return acted
         case .ran(let ran, let command):
             if case .exited(0) = ran.ending {

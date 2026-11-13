@@ -65,6 +65,25 @@ struct HistoryRestoreTests {
         #expect(model.restore == nil)
     }
 
+    /// APP-011, HIS-005: no way the page starts a restore asks for a LaunchAgent to be loaded again; that needs the
+    /// user's confirmation, which M3-T08 adds. Without it the engine never calls `launchctl`.
+    @Test func noRestoreTheHistoryPageStartsReenablesAnAgentAPP011HIS005() async throws {
+        let calls = Calls()
+        let model = model(calls)
+        let agent = home.appending(path: "Library/LaunchAgents/com.example.helper.plist")
+
+        let automatic = try #require(model.restore([trashed(agent)]))
+        await automatic.run.task?.value
+        model.dismissRestore()
+        // The test bundle's own path is taken on disk, so this one waits for an answer.
+        let taken = try #require(model.restore([trashed(Bundle.main.bundleURL)]))
+        await taken.start(ifTaken: .keepBoth)?.value
+
+        let requests = calls.requests.withLock { $0 }
+        #expect(requests.count == 2)
+        #expect(requests.allSatisfy { $0.reenableAgentLabel == nil })
+    }
+
     /// HIS-003: when some original paths are taken, nothing moves until one answer, which applies to every item.
     @Test func takenPathsWaitForOneAnswerForAllOfThemHIS003() async throws {
         let calls = Calls()

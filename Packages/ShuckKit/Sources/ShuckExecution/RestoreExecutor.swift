@@ -18,27 +18,104 @@ public struct RestoreExecutor: Sendable {
     let pathGuard: PathGuard
     let log: HistoryLog
     let trash: any Trash
+    let loader: LaunchctlAction
 
-    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash) {
+    /// `toolRunner` runs `launchctl`, and only for a request whose `reenableAgentLabel` the user confirmed; it has no
+    /// default so that no caller gets a runner it did not choose (D-82).
+    public init(pathGuard: PathGuard, log: HistoryLog, trash: any Trash, toolRunner: ToolRunner) {
         self.pathGuard = pathGuard
         self.log = log
         self.trash = trash
+        self.loader = LaunchctlAction(runner: toolRunner, operation: .bootstrap)
+    }
+
+    /// One step of a run: restoring the item of a request, or then loading its LaunchAgent again (APP-011).
+    private enum Unit {
+        case restore(Int)
+        case reenable(Int)
+    }
+
+    /// Where a restored item went, for the re-enable that follows it.
+    private struct Restored {
+        let url: URL
+        let atOriginalPath: Bool
     }
 
     /// Restores `requests` and returns one outcome per request, in order.
+    ///
+    /// A request with a `reenableAgentLabel` gets a second item after its restore, with its own intent and result
+    /// records, logged by the job label as a Launchctl item (SAF-006, HIS-002). It acts only if that request's restore
+    /// was done in this run, and its failure never undoes or fails the restore (D-NEXT-reenable).
     public func run(_ requests: [RestoreRequest], run: UUID = UUID()) async -> RestoreReport {
         let loop = RunLoop(log: log, logger: Logger(tool: .history))
-        let results = await loop.run(requests) { request in
-            let item = request.item
-            // Chosen before the intent record, which names it, and after earlier items took their " (restored)" names.
-            let destination = destination(for: request)
-            let logged = LoggedItem(
-                run: run, tool: .history, operation: .restore, path: (destination ?? item.originalURL).path,
-                tier: item.tier, bytes: item.bytes, trashedPath: item.trashedURL.path)
-            return RunLoop.Step(logged: logged) { Acted(act(on: item, to: destination)) }
+        var units: [Unit] = []
+        for (index, request) in requests.enumerated() {
+            units.append(.restore(index))
+            if request.reenableAgentLabel != nil { units.append(.reenable(index)) }
         }
-        return RestoreReport(
-            run: run, outcomes: zip(requests, results).map { RestoreOutcome(request: $0, result: $1) })
+        var restored: [Int: Restored] = [:]
+        let results = await loop.run(units) { unit -> RunLoop.Step<RestoreOutcome.SkipReason> in
+            switch unit {
+            case .restore(let index):
+                let item = requests[index].item
+                // Chosen before the intent record, which names it, and after earlier items took their " (restored)"
+                // names.
+                let destination = destination(for: requests[index])
+                let logged = LoggedItem(
+                    run: run, tool: .history, operation: .restore, path: (destination ?? item.originalURL).path,
+                    tier: item.tier, bytes: item.bytes, trashedPath: item.trashedURL.path)
+                return RunLoop.Step(logged: logged) {
+                    let result = act(on: item, to: destination)
+                    if case .done(let url?) = result {
+                        restored[index] = Restored(url: url, atOriginalPath: destination == item.originalURL)
+                    }
+                    return Acted(result)
+                }
+            case .reenable(let index):
+                let request = requests[index]
+                let label = request.reenableAgentLabel ?? ""
+                let logged = LoggedItem(
+                    run: run, tool: .history, operation: .launchctl, path: label, tier: request.item.tier, bytes: nil)
+                return RunLoop.Step(logged: logged) {
+                    await reenable(request, label: label, restored: restored[index])
+                }
+            }
+        }
+        var outcomes: [RestoreOutcome] = []
+        for (unit, result) in zip(units, results) {
+            switch unit {
+            case .restore(let index): outcomes.append(RestoreOutcome(request: requests[index], result: result))
+            case .reenable: outcomes[outcomes.count - 1].reenable = result
+            }
+        }
+        return RestoreReport(run: run, outcomes: outcomes)
+    }
+
+    /// Loads the LaunchAgent `label` again, after its property list was restored (APP-011, HIS-005, SAF-008).
+    ///
+    /// It acts only if the property list is back at its original path, directly inside `~/Library/LaunchAgents`,
+    /// and the `Label` read from the restored file is `label`, the job the uninstall unloaded; a "Keep Both" copy or
+    /// a file that changed is never loaded. The path `launchctl` gets is the one the path guard returned.
+    private func reenable(
+        _ request: RestoreRequest, label: String, restored: Restored?
+    ) async -> Acted<RestoreOutcome.SkipReason> {
+        guard let restored else {
+            return Acted(.skipped(.dependencyNotDone(request.item.originalURL.path)))
+        }
+        let agents = pathGuard.configuration.home.appending(path: "Library/LaunchAgents")
+        guard restored.atOriginalPath, request.item.tier.allows(.launchctl),
+            restored.url.deletingLastPathComponent().pathComponents == ResolvedPath.realPath(agents)?.pathComponents
+        else { return Acted(.skipped(.notTheUnloadedAgent("not at its original path in LaunchAgents"))) }
+        guard let current = LaunchAgentLabel.read(at: restored.url), current == label else {
+            return Acted(.skipped(.notTheUnloadedAgent("label differs from the unloaded job")))
+        }
+        let acted = await loader.perform(label: label, plist: restored.url)
+        switch acted.result {
+        case .done: return Acted(.done(nil), detail: acted.detail)
+        case .failed(let error): return Acted(.failed(error), detail: acted.detail)
+        case .skipped(.toolUnavailable(let unavailable)): return Acted(.skipped(.toolUnavailable(unavailable)))
+        case .skipped: return Acted(.skipped(.cancelled))
+        }
     }
 
     /// Where `request` should go, or `nil` when the original path is taken and the user chose to skip.
@@ -159,10 +236,21 @@ public struct RestoreOutcome: Equatable, Sendable {
         case cancelled
         /// The history log could not be written, so the run stopped (SAF-005).
         case historyUnavailable
+        /// A re-enable needs its property list restored in this run, and it was not; the associated value is the
+        /// property list's path (APP-011, D-198).
+        case dependencyNotDone(String)
+        /// A re-enable would load something other than the original agent; the associated value says why
+        /// (APP-011, HIS-005).
+        case notTheUnloadedAgent(String)
+        /// `launchctl` is not where tools may be found (DEV-002, D-114).
+        case toolUnavailable(ToolRunner.Unavailable)
 
         /// The reason's stable code, which the history log records (D-88).
         public var code: SkipCode {
             switch self {
+            case .dependencyNotDone: .dependencyNotDone
+            case .notTheUnloadedAgent: .notTheUnloadedAgent
+            case .toolUnavailable: .toolUnavailable
             case .originalTaken: .originalTaken
             case .missing: .missing
             case .notAccessible: .notAccessible
@@ -182,6 +270,9 @@ public struct RestoreOutcome: Equatable, Sendable {
             case .changed(let current): code.logged(current.logged)
             case .rejected(let error): code.logged(error.logged)
             case .userExclusion(let path): code.logged(path)
+            case .dependencyNotDone(let path): code.logged(path)
+            case .notTheUnloadedAgent(let why): code.logged(why)
+            case .toolUnavailable(let unavailable): code.logged(unavailable.rawValue)
             default: code.logged()
             }
         }
@@ -189,10 +280,14 @@ public struct RestoreOutcome: Equatable, Sendable {
 
     public let request: RestoreRequest
     public let result: Result
+    /// What happened to loading the LaunchAgent again, for a request with a `reenableAgentLabel`; `nil` otherwise.
+    /// Its own outcome: a skipped or failed re-enable leaves the restore as it was (APP-011).
+    public internal(set) var reenable: Result?
 
-    public init(request: RestoreRequest, result: Result) {
+    public init(request: RestoreRequest, result: Result, reenable: Result? = nil) {
         self.request = request
         self.result = result
+        self.reenable = reenable
     }
 }
 
