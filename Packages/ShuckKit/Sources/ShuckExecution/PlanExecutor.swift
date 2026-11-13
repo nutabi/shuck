@@ -29,14 +29,17 @@ public struct PlanExecutor: Sendable {
 
     /// An executor that moves Trash items to `trash`: ``SystemTrash`` in the app, a fake in tests, which must never reach
     /// the user's own Trash. It deletes Delete items permanently (SAF-006) and runs Tool items with `toolRunner`
-    /// (DEV-004); M3 adds Launchctl. `runningApps` and `toolRunner` have no default, so the app cannot leave out the
+    /// (DEV-004), and unloads Launchctl items' LaunchAgents with the same runner (APP-011). `runningApps` and `toolRunner` have no default, so the app cannot leave out the
     /// check just before acting (SAF-009) or let a test run a real tool (D-114).
     public init(
         pathGuard: PathGuard, log: HistoryLog, trash: any Trash, runningApps: any RunningApps, toolRunner: ToolRunner
     ) {
         self.init(
-            pathGuard: pathGuard, log: log, actions: [.trash: TrashAction(trash: trash), .delete: DeleteAction()],
-            runningApps: runningApps, toolAction: ToolAction(runner: toolRunner))
+            pathGuard: pathGuard, log: log,
+            actions: [
+                .trash: TrashAction(trash: trash), .delete: DeleteAction(),
+                .launchctl: LaunchctlAction(runner: toolRunner),
+            ], runningApps: runningApps, toolAction: ToolAction(runner: toolRunner))
     }
 
     /// An executor with `actions`, one per method it can act on. Tests pass actions of their own.
@@ -59,7 +62,8 @@ public struct PlanExecutor: Sendable {
         let results = await loop.run(plan.items) { item in
             let logged = LoggedItem(
                 run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
-                path: item.target.description,
+                // A Launchctl item is logged by its job label, not its property list's path (HIS-002, D-106).
+                path: item.method == .launchctl ? LaunchctlAction.loggedPath(for: item) : item.target.description,
                 tier: item.tier, bytes: item.allocatedSize,
                 intentIdentity: item.method == .trash ? item.url.flatMap { FileIdentity.read($0) } : nil)
             return RunLoop.Step(logged: logged) {
@@ -168,7 +172,7 @@ public struct PlanExecutor: Sendable {
 }
 
 /// What a run does to an item of one method, once the item has passed re-validation: ``TrashAction`` and
-/// ``DeleteAction`` now, and M3 adds Launchctl (TD-04). Tool items name no file, so ``ToolAction`` is not one.
+/// ``DeleteAction`` and ``LaunchctlAction`` (TD-04). Tool items name no file, so ``ToolAction`` is not one.
 package protocol PlanAction: Sendable {
     /// Acts on `item`, at `target`, the path the guard returned for it, and says what it did.
     func act(on item: PlannedItem, at target: URL) async -> Acted<ItemOutcome.SkipReason>

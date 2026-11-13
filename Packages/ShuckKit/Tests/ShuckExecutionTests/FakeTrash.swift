@@ -31,13 +31,13 @@ extension PlanExecutor {
         root: FixtureRoot, pathGuard: PathGuard, runningApps: any RunningApps = StubRunningApps(),
         toolRunner: ToolRunner? = nil, beforeMove: @escaping @Sendable (URL) throws -> Void = { _ in }
     ) throws {
+        let runner = toolRunner ?? ToolRunner(executableRoots: [root.url])
         self.init(
             pathGuard: pathGuard, log: try HistoryLog(folder: root.historyFolder),
             actions: [
                 .trash: TrashAction(trash: FakeTrash(folder: root.trashFolder, beforeMove: beforeMove)),
-                .delete: DeleteAction(),
-            ], runningApps: runningApps,
-            toolAction: ToolAction(runner: toolRunner ?? ToolRunner(executableRoots: [root.url])))
+                .delete: DeleteAction(), .launchctl: LaunchctlAction(runner: runner),
+            ], runningApps: runningApps, toolAction: ToolAction(runner: runner))
     }
 }
 

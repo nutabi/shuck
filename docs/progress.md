@@ -625,10 +625,10 @@ Tasks:
   - [x] The tool runner starts commands with `posix_spawn` and `POSIX_SPAWN_SETPGROUP`, so Stop and a timeout signal
     every process a tool started (#127, D-164). It was deferred to M5 (D-162, D-164) and moved here on the owner's
     instruction (D-178). History stops saying that such processes may still be running. Done as D-191.
-  - [ ] `LaunchctlRunner` and a Launchctl action for `bootout` in the `gui/<uid>` domain: an agent that is not loaded
+  - [x] `LaunchctlRunner` and a Launchctl action for `bootout` in the `gui/<uid>` domain: an agent that is not loaded
     is trashed directly, and the result is logged with the job label. It is shaped for STA-005's Disable, Enable and
     Remove, which M4 adds. Agent choice, open for review: whether it reuses `ToolRunner`. Tests run a fake `launchctl`
-    through the runner inside the fixture root.
+    through the runner inside the fixture root. Done as D-NEXT-launchctl.
   - [ ] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
     agent's plist and a bundle that fails to move leaves its leftovers alone (APP-005, APP-011, SAF-011). The skip is
     logged with its reason.
