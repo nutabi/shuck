@@ -643,7 +643,7 @@ Tasks:
     reason, not a failed run (PRD S78).
   - [ ] The end-to-end fixture test through the run, History, Restore and the re-enable confirmation (HIS-005).
 - [ ] M3-T07 Quit a running app (APP-006, SAF-009). One pull request: "Quit <App>" with a normal request, continuing
-  only after the app has exited and never forcing it. Agent choice, open for review: `NSRunningApplication.terminate()`
+  only after the app has exited and never forcing it. The advisor decides (D-200): `NSRunningApplication.terminate()`
   sends a request and changes no file or launchd state, so it may live in the app target; the pull request records
   where. The test uses a stubbed list of running apps.
 - [ ] M3-T08 App: the Applications page (APP-001, APP-004 to APP-007, APP-009, HIS-005, NFR-A11Y-001, NFR-L10N-001).
@@ -659,8 +659,8 @@ Tasks:
   - [ ] The itemized review, Quit and the uninstall run (APP-006, APP-007).
   - [ ] History showing the run and restoring it, with the re-enable confirmation (HIS-005), the UI workflow steps and
     the changelog line.
-- [ ] M3-T09 Should and Could requirements, each its own pull request, done last:
-  - [ ] Package receipts (APP-008). Owner decision first: `pkgutil` can run only in `ShuckExecution` (D-82) and
+- [ ] M3-T09 Should and Could requirements, each its own task and pull request, one at a time, done last:
+  - [ ] Package receipts (APP-008). Advisor's decision first (D-200): `pkgutil` can run only in `ShuckExecution` (D-82) and
     `ShuckKit` cannot import it, so the scan needs an injected protocol, or the receipts are read without a
     subprocess.
   - [ ] The code-signing developer name (APP-010), which is Could.

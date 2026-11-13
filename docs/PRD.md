@@ -30,7 +30,7 @@
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
-| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack (D-200). |
+| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/` (D-200). |
 
 ## How to read this document
 
@@ -641,6 +641,8 @@ shuck/
 8. How to pick the next task (`docs/progress.md`, in roadmap order) and how to record progress.
 9. The rule: do not add `CLAUDE.md` (ENG-010).
 10. How to add a sub-tool or a cleanup rule: registry entry, ownership map (FCL-005), fixture tests.
+
+Detail may live in a file under `docs/` that `AGENTS.md` links, which keeps `AGENTS.md` short (D-200).
 
 ## 13. Roadmap
 

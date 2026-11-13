@@ -24,9 +24,10 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
   file or `docs/`, in the same change.
 - **The Fable advisor decides** (owner preference, 2026-11-13, D-200). Anything the PRD leaves open goes to the
   advisor, as does a conflict between the code and the PRD. So do changes to the path guard, the safety layer, the
-  static checks, a sub-tool's allowed roots or a dependency. The agent follows the advisor's decision and records it
-  as one short row in `docs/decisions.md`: ID, date, decision, why, and the alternatives rejected. It updates the PRD
-  to match. Nothing waits for the owner's review.
+  static checks, a sub-tool's allowed roots or a dependency, and any change that could remove, move or hide user data
+  beyond what the PRD says. When unsure whether a change could, stop and ask the advisor. The agent follows the
+  advisor's decision and records it as one short row in `docs/decisions.md`: ID, date, decision, why, and the
+  alternatives rejected. It updates the PRD to match. Nothing waits for the owner's review.
 - Worker agents never edit `docs/decisions.md`. They report each decision to the orchestrating agent, and where their
   own files must name one, they write a placeholder such as `D-NEXT-sort`. The orchestrating agent numbers the
   decisions, replaces the placeholders and adds the rows in one commit on the top pull request.
@@ -35,8 +36,9 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
 
 Owner preference, 2026-11-13:
 
-- Take the first unchecked task in `docs/progress.md` unless the owner names one. Milestones run in order. If the next
-  milestone has no task breakdown, propose one to the owner before starting.
+- Take the first unchecked task in `docs/progress.md` unless the owner names one. Milestones run in order, and one
+  starts only when the previous one meets its exit criteria. If the next milestone has no task breakdown, propose one
+  to the owner before starting.
 - The agent the owner prompts orchestrates and delegates:
   - Haiku agents read code and read or write docs.
   - Sonnet agents write code. They run in parallel when their pieces touch different files and none needs another's
@@ -61,14 +63,17 @@ Owner preference, 2026-11-13:
 - **Titles:** the pull request and every commit use `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`.
 - **Commit bodies:** say what changed and why, wrapped at 72 characters, and end with `Requirements: SAF-007, SAF-016`.
   A commit with only part of a task lists what is left.
-- **Signed commits** (owner preference, 2026-11-13): to update a branch, rebase locally and push with
+- **Signed commits** (owner preference, 2026-11-13): every commit is signed, as the owner's git config does by
+  default. To update a branch, rebase locally and push with
   `--force-with-lease`, or use `gh stack rebase`. Never use `gh pr update-branch` or GitHub's "Update branch" button,
   which leave the commits unsigned.
 - **A single pull request** opens ready for review with auto-merge (squash) on. If CI fails, fix it on the branch
   (D-51). A change to Markdown files and `LICENSE` only skips `Lint, build and test`, which counts as passed (D-66).
-- **A stack** (D-76) uses the `gh stack` extension: `gh stack init`, `gh stack add <branch>` and
-  `gh stack submit --open`. Keep it linear with `gh stack rebase` and `gh stack push`, never by merging. Don't turn on
-  auto-merge for a stack. Once every pull request's CI passes, merge it with `gh stack merge`. The exception is a task
+- **A stack** (D-76) uses the `gh stack` extension (`gh extension install github/gh-stack`): `gh stack init`,
+  `gh stack add <branch>` and `gh stack submit --open`. Keep it linear with `gh stack rebase` and `gh stack push`,
+  never by merging. Don't turn on auto-merge for a stack. Once every pull request's CI passes, merge it with
+  `gh stack merge`. A stack merges bottom up, one squashed commit per pull request, and GitHub rebases the next pull
+  request onto `main` itself. The exception is a task
   whose entry in `docs/progress.md` says the owner merges the stack (D-83).
 - Changes to `scripts/` and `.github/` follow the same rules as any other change (D-200).
 - **Changelog** (D-95): a change users can notice adds a plain-words line under `## [Unreleased]` in `CHANGELOG.md`,
@@ -127,7 +132,8 @@ Run from the repository root. A task that adds or changes a command updates this
 - `ShuckKit` has no force unwraps, `try!` or `as!`. Engine APIs throw typed errors (`throws(SomeError)`) whose cases
   callers can act on.
 - Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool (NFR-OBS-001):
-  `Logger(tool:)` in the engine and `Logger.app` in the app. Shared code logs under the tool it runs for. Mark paths
+  `Logger(tool:)` in the engine and `Logger.app` in the app. Shared code logs under the tool it runs for (a scan Large
+  Files and Old Files share, under File Cleanup), and the history log under `History`. Mark paths
   `privacy: .private` (NFR-SEC-006). Shipped code never uses `print`.
 - The main thread is never blocked for more than 250 ms (NFR-PERF-001).
 - User-facing strings live in String Catalogs (NFR-L10N-001). A command-line build doesn't add keys to
@@ -140,7 +146,8 @@ Run from the repository root. A task that adds or changes a command updates this
   process group of their own, D-191), with an absolute path, an argument array, an explicit environment and a timeout.
   Never use `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004).
 - No network APIs and no authorization or privilege APIs (NFR-SEC-001, ONB-003).
-- Code is `swift-format` clean: 4 spaces and 120-character lines. Run `scripts/lint.sh --fix` before committing.
+- Code is `swift-format` clean: 4 spaces and 120-character lines, and the engine's own `.swift-format` bans force
+  unwraps, `try!` and implicitly unwrapped optionals. Run `scripts/lint.sh --fix` before committing.
 
 ## Safety rules
 
@@ -150,11 +157,13 @@ log and may change the permissions of Shuck's own data folder and log (D-45). If
 advisor decides how the check changes; never just weaken it to get past.
 
 1. **Every mutation goes through the Execution layer.** Only `ShuckExecution` may delete, move, rename or modify user
-   files or launchd state (SAF-017).
+   files or launchd state (SAF-017). That excludes the app target, other engine modules and scripts.
 2. **The path guard is mandatory.** Every target passes the path guard (SAF-007) and the protected locations (PRD
-   section 8.4) when planned, and again just before acting (SAF-008). Never bypass or special-case it to make a test
-   pass. Tests may only configure it with the fixture root as home and without the `/private` prefix (D-41). Each item
-   keeps the modification date its scan read (`ScanItem.modified`, read with `ModificationDate`). Execution skips the
+   section 8.4) when planned, and again just before acting (SAF-008). Never bypass, weaken or special-case the guard,
+   not even to make a test pass; if a guard rule looks wrong, stop and ask the advisor. The only test difference is
+   D-41: tests configure it with the fixture root as home and without the `/private` prefix. Each item
+   keeps the modification date its scan read (`ScanItem.modified`, read with `ModificationDate` or
+   `RuleMatch.modificationDate(at:)`, the same `lstat` execution uses). Execution skips the
    item if that date changed or is missing (D-105, D-132). For an item whose scope is its contents, the date is the
    newest one inside. A Delete item needs a rule match, which execution checks again (D-141). Tests build such items
    with `FixtureRoot.planned(_:)`.
@@ -166,6 +175,11 @@ advisor decides how the check changes; never just weaken it to get past.
    by a tool (Docker, simulators, Homebrew, npm, pip) is cleaned only through that tool's documented command (SAF-010).
 6. **No silent failures.** Every operation is logged as an intent before it runs and as a result after (SAF-005,
    SAF-006), and every run ends with a per-item outcome (SAF-011).
+
+## Adding a sub-tool or a cleanup rule
+
+Follow the checklists in [docs/extending.md](docs/extending.md): the registry entry, the ownership map (FCL-005),
+exclusions (SET-001) and fixture tests.
 
 ## Dependencies and reuse
 
