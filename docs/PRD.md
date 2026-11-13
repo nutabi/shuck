@@ -250,7 +250,7 @@ There is no time-based deadline (D-15).
 | Tier | Contains | Review | Allowed methods | Selected by default |
 |---|---|---|---|---|
 | **Rebuildable** | Caches & Logs; Developer Junk (all rules except DEV-R05 and DEV-R10) | One summary confirmation per run showing categories and the total. The item list is available on demand. | Delete or Tool | Only items a rule marks safe, for example stale for 30+ days |
-| **Your data** | Large Files, Old Files, Applications, Startup Items; Developer Junk rules DEV-R05 (Xcode Archives) and DEV-R10 (Docker) | Full item list with explicit confirmation | Trash (restorable); Tool for tool-owned data (DEV-R10); Launchctl for user agents (STA-005, APP-011). Never Delete. | Personal files: never. App leftovers: exact bundle-ID matches only. |
+| **Your data** | Large Files, Old Files, Applications, Startup Items; Developer Junk rules DEV-R05 (Xcode Archives) and DEV-R10 (Docker) | Full item list with explicit confirmation | Trash (restorable); Tool for tool-owned data (DEV-R10); Launchctl for user agents (STA-005, APP-011). Never Delete. | Personal files: never. App leftovers: exact bundle-ID matches outside Application Support, Containers and Group Containers. |
 
 The tier belongs to each sub-tool or rule, not to the tool. File Cleanup contains both tiers, and a run never mixes sub-tools (FCL-002).
 
@@ -439,7 +439,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 |---|---|---|---|
 | APP-001 | List apps in `/Applications` and `~/Applications` (including one level of subfolders): icon, name, version, bundle ID, size, last opened. Exclude apps that are part of macOS (in `/System/Applications`, or not removable because of System Integrity Protection) and Shuck itself. | Must | Fixture app folder → expected list. |
 | APP-002 | For a selected app, find related user-level items by exact bundle ID in: `~/Library/Application Support`, `Caches`, `Containers`, `Group Containers` (matched through the app's declared app groups), `Preferences` (including `ByHost`), `Saved Application State`, `HTTPStorages`, `WebKit`, `Cookies`, `Logs`, `Application Scripts`, and `LaunchAgents` (plist label or program path inside the app bundle). | Must | Fixture Library tree → expected matches. |
-| APP-003 | Every related item gets a confidence level. **High:** exact bundle ID or declared app group. **Medium:** app or vendor name match in Application Support, Caches or Logs. **Low:** other heuristics. Only High items are selected by default. Medium and Low items show the reason for the match. | Must | Unit tests per level. |
+| APP-003 | Every related item gets a confidence level. **High:** exact bundle ID or declared app group. **Medium:** app or vendor name match in Application Support, Caches or Logs. **Low:** other heuristics. Only High items are selected by default, except those in Application Support, Containers and Group Containers (OQ-07). Medium and Low items show the reason for the match. | Must | Unit tests per level. |
 | APP-004 | Related items found in system-wide locations (`/Library/Application Support`, `LaunchAgents`, `LaunchDaemons`, `PrivilegedHelperTools`, `Preferences`) are listed as "Needs admin — not removable in this version", with "Show in Finder" (D-08). | Must | Fixture test. |
 | APP-005 | If the user cannot remove the app bundle itself (for example a root-owned app installed by a package, or because macOS's App Management permission is missing, R-16), the uninstall is blocked with the reason shown. Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
 | APP-006 | If the app is running, offer "Quit <App>" using a normal quit request (`NSRunningApplication.terminate()`). Continue only after the app has exited. Never force-quit. | Must | Integration test with a stubbed running-app list. |
@@ -727,7 +727,7 @@ Defaults are already in place; the owner can change them at any time.
 | OQ-04 | Docker tier | Resolved (D-24): Your data, never selected by default. |
 | OQ-05 | Progress tracking | Resolved: `docs/progress.md` is the task list; GitHub issues hold review findings (GitHub Issues for tasks possible later). |
 | OQ-06 | iCloud Drive and other synced files | iCloud Drive's own folders (`~/Library/Mobile Documents`, `~/Library/CloudStorage`): fully protected, not scanned. A downloaded file that a sync service keeps elsewhere in the home folder, such as Desktop and Documents under iCloud, is scanned, marked "Synced" and warned about at review (D-129). |
-| OQ-07 | Leftovers in Application Support and Group Containers can be the only copy of a user's data (notes, vaults). APP-003 preselects High-confidence items, which can include them. | Open for the owner: whether these folders should never be preselected. APP-003 is unchanged until the owner decides. |
+| OQ-07 | Leftovers in Application Support and Group Containers can be the only copy of a user's data (notes, vaults). APP-003 preselects High-confidence items, which can include them. | Decided (D-192): leftovers in Application Support, Containers and Group Containers are never preselected. |
 | OQ-08 | How many of the owner's own apps can Shuck remove (R-16)? | Open for the owner: measure before M3 is broken down. |
 
 ## Appendix A — Decision log (planning phase, 2026-11-01)
