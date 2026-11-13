@@ -1,7 +1,7 @@
 # One job, Check, runs on every pull request and is the only required check. The static checks and the changelog check
 # run for every change (D-98); lint, build and test run only when a change touches code (ENG-005, D-66). Cache warming
 # for main is in warm-cache.yml (D-111, #213). Each step runs a script from scripts/, so CI and local runs stay the
-# same (ENG-012). It was two jobs, one on Linux, until the owner folded them into one (owner decision, 2026-11-14).
+# same (ENG-012). Until 2026-11-14 it was two jobs, one of them on Linux (owner decision).
 name: CI
 
 on:
@@ -86,14 +86,14 @@ jobs:
 
       # Also after a test failure: the build is what the cache saves, and the fix's run reuses it.
       - name: Save the compilation cache
-        if: ${{ !cancelled() && steps.diff.outputs.code != 'false' && steps.cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && steps.diff.outputs.code == 'true' && steps.cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
           key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
 
       - name: Upload test results
-        if: ${{ failure() && steps.diff.outputs.code != 'false' }}
+        if: ${{ failure() && steps.diff.outputs.code == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results

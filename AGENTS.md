@@ -72,8 +72,8 @@ Owner preference, 2026-11-13:
   default. To update a branch, rebase locally and push with `--force-with-lease`, or use `gh stack rebase`. Never use
   `gh pr update-branch` or GitHub's "Update branch" button, which leave the commits unsigned.
 - **A single pull request** opens ready for review with auto-merge (squash) on. If CI fails, fix it on the branch
-  (D-51). A change to Markdown files and `LICENSE` only runs just the static and changelog checks of `Check`, which
-  still passes (D-66).
+  (D-51). For a change to Markdown files and `LICENSE` only, `Check` runs just its static and changelog checks and
+  passes (D-66).
 - **A stack** (D-76) uses the `gh stack` extension (`gh extension install github/gh-stack`): `gh stack init`,
   `gh stack add <branch>` and `gh stack submit --open`. Keep it linear with `gh stack rebase` and `gh stack push`,
   never by merging. Turn on auto-merge (squash) on the top pull request: once CI passes, it merges the whole stack,
