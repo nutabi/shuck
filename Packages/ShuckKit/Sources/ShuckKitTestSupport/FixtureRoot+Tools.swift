@@ -23,6 +23,10 @@ public enum FakeTool: Sendable {
     /// Removes the files at `paths`, relative to the root, as a tool that cleans its cache does, then ends with
     /// `status`. It prints nothing, so a test cannot get what it removed from its output (R-07).
     case removes(_ paths: [String], status: Int32 = 0)
+    /// A fake `launchctl`: records each call's arguments as one line in `Marks/launchctl` (``FixtureRoot/launchctlCalls``),
+    /// then ends with `printStatus` for `print` and `bootoutStatus` for `bootout`, and 64 for anything else. It prints
+    /// nothing, so a test cannot depend on output (R-07).
+    case launchctl(printStatus: Int32, bootoutStatus: Int32 = 0)
 }
 
 extension FixtureRoot {
@@ -56,6 +60,12 @@ extension FixtureRoot {
     /// Whether a ``FakeTool/reportsInvocation`` tool has run.
     public var aFakeToolRan: Bool {
         FileManager.default.fileExists(atPath: url.appending(path: "Marks/ran").path)
+    }
+
+    /// The arguments of each call a ``FakeTool/launchctl(printStatus:bootoutStatus:)`` tool got, one string per call.
+    public var launchctlCalls: [String] {
+        ((try? String(contentsOf: url.appending(path: "Marks/launchctl"), encoding: .utf8)) ?? "")
+            .split(separator: "\n").map(String.init)
     }
 
     /// The ID of the child a ``FakeTool/startsAChild(ignoringTerminate:)`` tool started, once it has recorded it.
@@ -92,6 +102,16 @@ extension FixtureRoot {
                 (\(ignoringTerminate ? "trap '' TERM; " : "")exec /bin/sleep 600) </dev/null >/dev/null 2>&1 &
                 printf '%s\\n' "$!" > \(quoted(marks + "/child.tmp")) && mv \(quoted(marks + "/child.tmp")) \(quoted(marks + "/child"))
                 wait
+                """
+        case .launchctl(let printStatus, let bootoutStatus):
+            return """
+                mkdir -p \(quoted(marks))
+                printf '%s\\n' "$*" >> \(quoted(marks + "/launchctl"))
+                case "$1" in
+                print) exit \(printStatus) ;;
+                bootout) exit \(bootoutStatus) ;;
+                *) exit 64 ;;
+                esac
                 """
         case .removes(let paths, let status):
             let targets = paths.map { quoted(root.appending(path: $0).path) }.joined(separator: " ")
