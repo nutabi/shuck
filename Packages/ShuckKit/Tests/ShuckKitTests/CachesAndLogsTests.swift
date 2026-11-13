@@ -9,10 +9,12 @@ struct CachesAndLogsTests {
     let root: FixtureRoot
     let longAgo = Date.now.addingTimeInterval(-40 * 86_400)
     let lastMonth = Date.now.addingTimeInterval(-10 * 86_400)
-    let names = StubAppNames([
-        "com.example.Notes": "Notes", "com.example.Mail": "Mail Pro", "com.example.Stale": "Stale",
-        "com.example.Recent": "Recent", "com.example.Busy": "Busy",
-    ])
+    let names = StubAppNames(
+        [
+            "com.example.Notes": "Notes", "com.example.Mail": "Mail Pro", "com.example.Stale": "Stale",
+            "com.example.Recent": "Recent", "com.example.Busy": "Busy",
+        ],
+        byName: ["Firefox": ["org.mozilla.firefox"], "Twin": ["com.example.twin-a", "com.example.twin-b"]])
 
     init() throws {
         root = try FixtureRoot()
@@ -117,6 +119,43 @@ struct CachesAndLogsTests {
         #expect(items["Library/Logs/com.example.Notes"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Caches/com.example.Notes"]?.apps == ["com.example.Notes"])
         #expect(items["Library/Caches/com.example.Mail"]?.selection == .selected)
+    }
+
+    @Test func aFolderNamedAfterARunningAppIsDisabledCAC003SAF009() async throws {
+        try cache("Firefox")
+        try cache("FIREFOX-not")
+        try root.file("Library/Logs/firefox/f.log", size: 10, modified: longAgo)
+        try root.file("Library/Caches/Firefox.log", size: 10, modified: longAgo)
+
+        let items = await items(running: ["org.mozilla.firefox"])
+
+        // The name compares without case; a loose file and another name stay untied (D-189).
+        #expect(items["Library/Caches/Firefox"]?.selection == .appIsRunning(nil))
+        #expect(items["Library/Caches/Firefox"]?.apps == ["org.mozilla.firefox"])
+        #expect(items["Library/Logs/firefox"]?.selection == .appIsRunning(nil))
+        #expect(items["Library/Caches/FIREFOX-not"]?.selection == .unselected)
+        #expect(items["Library/Caches/Firefox.log"]?.apps == [])
+    }
+
+    @Test func aFolderNamedAfterAnAppThatIsNotRunningStaysUnselectedCAC009() async throws {
+        try cache("Firefox")
+
+        let item = try #require(await items()["Library/Caches/Firefox"])
+
+        // A name alone never makes the owner known, so the tie only ever disables (CAC-009).
+        #expect(item.selection == .unselected)
+        #expect(
+            String(localized: item.reason) == "Shuck can't tell which app this belongs to, so it starts unselected.")
+        #expect(item.appName == "Firefox")
+    }
+
+    @Test func aNameTwoAppsShareIsTiedToBothCAC003() async throws {
+        try cache("Twin")
+
+        let items = await items(running: ["com.example.twin-b"])
+
+        #expect(items["Library/Caches/Twin"]?.apps == ["com.example.twin-a", "com.example.twin-b"])
+        #expect(items["Library/Caches/Twin"]?.selection == .appIsRunning(nil))
     }
 
     @Test func aCacheIsSelectedOnlyWhenNothingInItChangedForThirtyDaysCAC005() async throws {
@@ -346,5 +385,9 @@ struct CachesAndLogsTests {
         #expect(SystemAppNames().name(ofBundleID: "com.apple.finder") == "Finder")
         #expect(SystemAppNames().name(ofBundleID: "com.example.not-installed.app") == nil)
         #expect(StubAppNames(["COM.A.B": "AB"]).name(ofBundleID: "com.a.b") == "AB")
+        let byName = StubAppNames(byName: ["Fire Fox": ["a.b.c"], "fire fox": ["d.e.f"]])
+            .bundleIDsByName(home: root.url)
+        #expect(byName.bundleIDs(named: "FIRE FOX") == ["a.b.c", "d.e.f"])
+        #expect(byName.bundleIDs(named: "Other").isEmpty)
     }
 }

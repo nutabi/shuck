@@ -13,6 +13,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- In Caches & Logs, a cache or log folder named after an app, such as "Firefox", is now locked while that app is
+  running, as folders named by an app's identifier already were.
 - Homebrew Cleanup in Developer Junk is now hidden when you exclude any folder it cleans, such as Homebrew's logs or
   its Cellar and Caskroom folders, and not only its download cache.
 - Large Files and Old Files no longer freeze for seconds when you sort a very long list by a column, and selecting rows

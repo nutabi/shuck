@@ -11,7 +11,9 @@ struct CachesAndLogsPipelineTests {
     let pathGuard: PathGuard
     let longAgo = Date.now.addingTimeInterval(-40 * 86_400)
     /// The apps this Mac is taken to have: a cache whose app is unknown is never selected (CAC-009).
-    let names = StubAppNames(["com.example.Notes": "Notes", "com.example.Mail": "Mail", "com.example.Recent": "Recent"])
+    let names = StubAppNames(
+        ["com.example.Notes": "Notes", "com.example.Mail": "Mail", "com.example.Recent": "Recent"],
+        byName: ["Firefox": ["org.mozilla.firefox"]])
 
     init() throws {
         root = try FixtureRoot()
@@ -84,6 +86,19 @@ struct CachesAndLogsPipelineTests {
 
         let report = await
             (try PlanExecutor(root: root, pathGuard: pathGuard, runningApps: StubRunningApps(["com.example.notes"])))
+            .run(plan)
+
+        #expect(report.outcomes.map(\.result) == [.skipped(.appRunning)])
+        #expect(FileManager.default.fileExists(atPath: cache.appending(path: "data.db").path))
+    }
+
+    @Test func anAppStartingAfterTheScanSkipsTheCacheNamedAfterItSAF009() async throws {
+        let cache = try staleFolder("Library/Caches/Firefox")
+        // The cache starts unselected (CAC-009), and the user selects it in review.
+        let plan = try await plan(scanned())
+
+        let report = await
+            (try PlanExecutor(root: root, pathGuard: pathGuard, runningApps: StubRunningApps(["org.mozilla.firefox"])))
             .run(plan)
 
         #expect(report.outcomes.map(\.result) == [.skipped(.appRunning)])

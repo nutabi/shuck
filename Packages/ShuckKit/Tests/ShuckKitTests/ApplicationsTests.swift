@@ -139,6 +139,27 @@ struct ApplicationsTests {
         #expect(Set(await apps(protected: ["Safari.app"]).keys) == ["Applications/Notes.app"])
     }
 
+    @Test func bundleIDsByNameCoverEveryAppThatCanRunCAC003() throws {
+        try root.app(
+            "Applications/Firefox.app", bundleID: "org.mozilla.firefox", name: "Firefox Browser", displayName: "Fox")
+        try root.app("Applications/Utilities/Tool.app", bundleID: "com.example.Tool")
+        try root.app("System Apps/Safari.app", bundleID: "com.apple.Safari")
+        try root.app("System Apps/Tool.app", bundleID: "com.example.OtherTool")
+        try root.app("Applications/Nameless.app", bundleID: nil)
+        // An app SIP protects still runs, so the map leaves out none of them; it takes no exclusions either
+        // (D-189).
+        let applications = Applications(appFolders: appFolders, isSystemProtected: { _ in true })
+
+        let byName = applications.bundleIDsByName(home: root.url)
+
+        for name in ["firefox", "FIREFOX BROWSER", "Fox"] {
+            #expect(byName.bundleIDs(named: name) == ["org.mozilla.firefox"], "\(name)")
+        }
+        #expect(byName.bundleIDs(named: "Tool") == ["com.example.Tool", "com.example.OtherTool"])
+        #expect(byName.bundleIDs(named: "Safari") == ["com.apple.Safari"])
+        #expect(byName.bundleIDs(named: "Nameless").isEmpty)
+    }
+
     @Test func aFixtureAppHasNoRestrictedFlag() throws {
         #expect(!Applications.hasRestrictedFlag(try root.app("Applications/Notes.app", bundleID: "com.example.Notes")))
     }

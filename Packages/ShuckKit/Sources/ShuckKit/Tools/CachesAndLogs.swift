@@ -130,10 +130,12 @@ public struct CachesAndLogs: SubTool {
     public func scan(_ context: ScanContext) -> AsyncStream<ScanEvent> {
         AsyncStream { continuation in
             let task = Task {
-                scanEntries(in: Self.caches(home: context.home), folders: .cacheFolders, files: .cacheFiles, context) {
-                    continuation.yield($0)
-                }
-                scanEntries(in: Self.logs(home: context.home), folders: .logFolders, files: .logFiles, context) {
+                let byName = appNames.bundleIDsByName(home: context.home)
+                scanEntries(
+                    in: Self.caches(home: context.home), folders: .cacheFolders, files: .cacheFiles, byName, context
+                ) { continuation.yield($0) }
+                scanEntries(in: Self.logs(home: context.home), folders: .logFolders, files: .logFiles, byName, context)
+                {
                     continuation.yield($0)
                 }
                 scanContainers(context) { continuation.yield($0) }
@@ -145,8 +147,13 @@ public struct CachesAndLogs: SubTool {
 
     /// The folders and files directly inside Caches or Logs. A link is not an entry, and an entry whose owner is not
     /// this sub-tool, or that the guard would refuse, is left out (FCL-005, SAF-007).
+    ///
+    /// A folder named after an app rather than a bundle ID, such as `Firefox`, is tied to the apps `byName` gives for
+    /// it, so it is disabled while one of them runs (SAF-009, CAC-003). A name alone does not tell whose the folder
+    /// is, so the app stays unknown and the folder unselected (CAC-009, D-189).
     private func scanEntries(
-        in root: URL, folders: Kind, files: Kind, _ context: ScanContext, _ emit: (ScanEvent) -> Void
+        in root: URL, folders: Kind, files: Kind, _ byName: AppsByName, _ context: ScanContext,
+        _ emit: (ScanEvent) -> Void
     ) {
         guard let folderRule = try? Self.rule(folders, home: context.home), folderRule.detection.isAvailable,
             let fileRule = try? Self.rule(files, home: context.home)
@@ -172,7 +179,8 @@ public struct CachesAndLogs: SubTool {
                 let bundleID = Self.bundleID(ofFolder: name)
                 let appName = bundleID.flatMap(appNames.name(ofBundleID:))
                 emitItem(
-                    at: entry, rule: folderRule, bundleID: bundleID, group: appName ?? name,
+                    at: entry, rule: folderRule, bundleID: bundleID,
+                    namedApps: bundleID == nil ? byName.bundleIDs(named: name) : [], group: appName ?? name,
                     knownApp: appName != nil, context, emit)
             } else {
                 // A loose file names no app Shuck can look up.
@@ -240,8 +248,8 @@ public struct CachesAndLogs: SubTool {
     /// never selected by default: some apps keep state in Caches, and nothing says this entry is only a cache
     /// (CAC-009). A log is a log whoever wrote it, so its age alone decides (CAC-005).
     private func emitItem(
-        at url: URL, rule: CleanupRule, bundleID: String?, group: String, knownApp: Bool, _ context: ScanContext,
-        _ emit: (ScanEvent) -> Void
+        at url: URL, rule: CleanupRule, bundleID: String?, namedApps: Set<String> = [], group: String,
+        knownApp: Bool, _ context: ScanContext, _ emit: (ScanEvent) -> Void
     ) {
         guard case .paths(_, _, let scope) = rule.action else { return }
         if scope == .contents {
@@ -266,7 +274,8 @@ public struct CachesAndLogs: SubTool {
                         reason: Self.reason(
                             rule: rule, apple: apple, unknownApp: unknownApp,
                             stale: rule.selection.selects(modified: activity, now: now)),
-                        lastActivity: activity, unselected: apple || unknownApp, apps: bundleID.map { [$0] } ?? [],
+                        lastActivity: activity, unselected: apple || unknownApp,
+                        apps: bundleID.map { [$0] } ?? namedApps,
                         appName: group)))
         } catch {
             Self.logger.error("Skipped a cache or log: \(String(describing: error), privacy: .public)")
@@ -274,7 +283,7 @@ public struct CachesAndLogs: SubTool {
     }
 
     /// A folder named like an app's bundle ID, such as `com.example.Notes`: three or more dot-separated parts of
-    /// letters, digits, `-` and `_`. Other names, such as `Firefox` or `foo.log`, are not tied to an app that can run.
+    /// letters, digits, `-` and `_`. Other names, such as `Firefox` or `foo.log`, are looked up by app name instead.
     static func bundleID(ofFolder name: String) -> String? {
         let parts = name.split(separator: ".", omittingEmptySubsequences: false)
         let allowed = { (part: Substring) in
