@@ -604,7 +604,7 @@ shuck/
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
 ├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize, release notes
-└── .github/                   CI, CodeQL and release workflows, pull request template, issue forms
+└── .github/                   CI and release workflows, pull request template, issue forms
 ```
 
 ## 12. Engineering workflow
