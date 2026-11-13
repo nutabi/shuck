@@ -102,6 +102,8 @@ public struct Applications: Sendable {
     private let isSystemProtected: SystemProtected
     private let lastUsedDate: LastOpenedReader.LastUsedDate
     let appGroups: AppGroups
+    /// The system-wide `/Library`, searched for items that need admin rights (APP-004).
+    let systemLibrary: URL
 
     /// - Parameters:
     ///   - appFolders: The folders apps are listed from. `nil` uses ``appFolders(home:)``'s production folders; tests
@@ -110,15 +112,19 @@ public struct Applications: Sendable {
     ///     root can set the flag on a fixture.
     ///   - lastUsedDate: Reads when an app was last opened. Tests stub it, since Spotlight does not index a fixture.
     ///   - appGroups: Reads the app groups an app declares (APP-002). Tests stub it, since a fixture app is unsigned.
+    ///   - systemLibrary: The system-wide `/Library`. Tests pass a folder inside the fixture root, so they never read the
+    ///     real one (SAF-016).
     public init(
         appFolders: [URL]? = nil, isSystemProtected: @escaping SystemProtected = Self.hasRestrictedFlag,
         lastUsedDate: @escaping LastOpenedReader.LastUsedDate = LastOpenedReader.spotlightLastUsedDate,
-        appGroups: @escaping AppGroups = Self.declaredAppGroups(of:)
+        appGroups: @escaping AppGroups = Self.declaredAppGroups(of:),
+        systemLibrary: URL = URL(filePath: "/Library", directoryHint: .isDirectory)
     ) {
         customAppFolders = appFolders
         self.isSystemProtected = isSystemProtected
         self.lastUsedDate = lastUsedDate
         self.appGroups = appGroups
+        self.systemLibrary = systemLibrary
     }
 
     /// `/Applications` and `~/Applications`, or the folders the caller passed (APP-001).

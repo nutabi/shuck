@@ -21,6 +21,9 @@ public struct AppsByName: Sendable, Equatable {
             bundleIDsByName.map { ($0.key.lowercased(), $0.value) }, uniquingKeysWith: { $0.union($1) })
     }
 
+    /// The bundle ID of every app, whatever it is called.
+    public var allBundleIDs: Set<String> { bundleIDs.values.reduce(into: []) { $0.formUnion($1) } }
+
     /// The bundle IDs of the apps called `name`, empty if none is.
     public func bundleIDs(named name: String) -> Set<String> { bundleIDs[name.lowercased()] ?? [] }
 }

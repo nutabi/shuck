@@ -23,12 +23,15 @@ struct AppLeftoversTests {
     }
 
     /// What the scan reports for `app`, whose declared groups are `groups`.
-    private func find(_ app: InstalledApp, groups: [String] = []) async -> [ScanEvent] {
+    private func find(
+        _ app: InstalledApp, groups: [String] = [], installed: AppsByName = AppsByName()
+    ) async -> [ScanEvent] {
         let applications = Applications(
-            appFolders: [root.url.appending(path: "Applications")], appGroups: { _ in groups })
+            appFolders: [root.url.appending(path: "Applications")], appGroups: { _ in groups },
+            systemLibrary: root.url.appending(path: "SystemLibrary"))
         let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
         var events: [ScanEvent] = []
-        for await event in applications.leftovers(of: app, context) { events.append(event) }
+        for await event in applications.leftovers(of: app, among: installed, context) { events.append(event) }
         return events
     }
 
@@ -73,8 +76,8 @@ struct AppLeftoversTests {
 
     @Test func aSimilarNameIsNotMatchedR05() async throws {
         for path in [
-            "Library/Caches/com.example.NotesPro", "Library/Caches/\(id).old",
-            "Library/Caches/Notes", "Library/Preferences/\(id).plist.lockfile", "Library/Preferences/\(id)Pro.plist",
+            "Library/Caches/com.example.NotesPro", "Library/Caches/\(id)old",
+            "Library/Preferences/\(id).plist.lockfile", "Library/Preferences/\(id)Pro.plist",
             "Library/Preferences/ByHost/\(id).not-a-uuid.plist",
             "Library/Preferences/ByHost/\(id)Pro.\(UUID().uuidString).plist",
             "Library/Saved Application State/com.example.NotesPro.savedState",
@@ -211,5 +214,154 @@ struct AppLeftoversTests {
             pathGuard: PathGuard(configuration: root.pathGuardConfiguration()))
 
         #expect(planned.count == 3 && plan.items.count == 3)
+    }
+
+    // MARK: Medium and Low (APP-003)
+
+    @Test func anEntryNamedLikeTheAppOrItsMakerIsMediumAndUnselectedAPP003() async throws {
+        for path in [
+            "Library/Application Support/notes", "Library/Caches/Notes", "Library/Logs/EXAMPLE",
+            "Library/Caches/Other", "Library/Preferences/Notes", "Library/Containers/Notes",
+        ] {
+            try root.file("\(path)/data", size: 5)
+        }
+        let installed = AppsByName(["Notes": [id]])
+
+        let found = items(await find(try app(), installed: installed))
+
+        #expect(
+            Set(found.keys) == ["Library/Application Support/notes", "Library/Caches/Notes", "Library/Logs/EXAMPLE"])
+        for item in found.values {
+            #expect(item.confidence == .medium && item.selection == .unselected)
+            #expect(item.tier == .yourData && item.method == .trash)
+        }
+        let reasons = found.mapValues { String(localized: $0.reason) }
+        #expect(reasons["Library/Caches/Notes"] == "Named like the app: Notes")
+        #expect(reasons["Library/Logs/EXAMPLE"] == "Named like the app's maker: EXAMPLE")
+    }
+
+    @Test func aFolderAnotherInstalledAppGoesByIsNotOfferedR05() async throws {
+        // Two apps from one vendor: the vendor's folder belongs to neither.
+        let other = "com.example.Mail"
+        try root.file("Library/Application Support/example/data", size: 5)
+        try root.file("Library/Caches/Mail/data", size: 5)
+        try root.file("Library/Caches/Notes/data", size: 5)
+        let installed = AppsByName(["Notes": [id], "Mail": [other]])
+
+        let notesApp = try app()
+        let notes = items(await find(notesApp, installed: installed))
+
+        #expect(Set(notes.keys) == ["Library/Caches/Notes"])
+        let mailURL = try root.app("Applications/Mail.app", bundleID: other, size: 10)
+        let mail = InstalledApp(
+            url: mailURL, name: "Mail", bundleID: other,
+            snapshot: try #require(ItemSnapshot.read(mailURL, while: { true })),
+            modified: try #require(ModificationDate.read(at: mailURL)))
+        #expect(Set(items(await find(mail, installed: installed)).keys) == ["Library/Caches/Mail"])
+        // The vendor folder is offered once only one app of the vendor is installed.
+        let alone = items(await find(notesApp, installed: AppsByName(["Notes": [id]])))
+        #expect(alone["Library/Application Support/example"]?.confidence == .medium)
+        // Two apps called alike: the name is shared, so it is offered for neither.
+        let twins = AppsByName(["Notes": [id, "org.other.Notes"]])
+        #expect(items(await find(notesApp, installed: twins)).keys.contains("Library/Caches/Notes") == false)
+    }
+
+    @Test func aVendorNeverMatchesAppleOrAShortOrMissingOneAPP003() {
+        #expect(Applications.vendor(of: "com.Example.Notes") == "example")
+        #expect(Applications.vendor(of: "com.apple.dt.Xcode") == nil)
+        #expect(Applications.vendor(of: "io.ab.App") == nil)
+        #expect(Applications.vendor(of: "Notes.app") == nil)
+        #expect(Applications.vendor(of: "com.example") == nil)
+    }
+
+    @Test func anEntryStartingWithTheBundleIDAndADotIsLowAndUnselectedAPP003() async throws {
+        try root.file("Library/Caches/\(id).ShipIt/data", size: 5)
+        try root.file("Library/Logs/\(id).helper.log", size: 5)
+        try root.file("Library/Caches/\(id).Pro.Updater/data", size: 5)
+        try root.file("Library/Caches/\(id)x/data", size: 5)
+        let installed = AppsByName(["Notes": [id], "Notes Pro": ["\(id).Pro"]])
+
+        let found = items(await find(try app(), installed: installed))
+
+        // The one that starts with another installed app's bundle ID is that app's (R-05).
+        #expect(Set(found.keys) == ["Library/Caches/\(id).ShipIt", "Library/Logs/\(id).helper.log"])
+        for item in found.values {
+            #expect(item.confidence == .low && item.selection == .unselected)
+            #expect(String(localized: item.reason).hasPrefix("Starts with the app's bundle ID: "))
+        }
+    }
+
+    @Test func aLinkedEntryIsNotMatchedByNameAPP003() async throws {
+        let target = try root.file("Documents/real/data", size: 5)
+        try root.symlink("Library/Caches/Notes", to: target.deletingLastPathComponent())
+        #expect(items(await find(try app(), installed: AppsByName(["Notes": [id]]))).isEmpty)
+    }
+
+    // MARK: Needs admin (APP-004)
+
+    @Test func systemWideItemsAreListedAsNeedingAdminAndNeverPlannedAPP004SAF007() async throws {
+        let app = try app()
+        let inside = "\(app.url.path)/Contents/MacOS/helper"
+        try root.file("SystemLibrary/Application Support/\(id)/data", size: 5)
+        try root.file("SystemLibrary/Preferences/\(id).plist", size: 5)
+        try root.file("SystemLibrary/PrivilegedHelperTools/\(id).helper", size: 5)
+        try root.file("SystemLibrary/PrivilegedHelperTools/com.example.NotesPro.helper", size: 5)
+        try plist("SystemLibrary/LaunchAgents/a.plist", ["Label": "\(id).agent"])
+        try plist("SystemLibrary/LaunchDaemons/b.plist", ["Label": "other", "Program": inside])
+        try plist("SystemLibrary/LaunchDaemons/c.plist", ["Label": "com.example.NotesPro"])
+
+        let found = items(await find(app))
+
+        let expected: Set = [
+            "SystemLibrary/Application Support/\(id)", "SystemLibrary/Preferences/\(id).plist",
+            "SystemLibrary/PrivilegedHelperTools/\(id).helper", "SystemLibrary/LaunchAgents/a.plist",
+            "SystemLibrary/LaunchDaemons/b.plist",
+        ]
+        #expect(Set(found.keys) == expected)
+        for item in found.values {
+            let reason = item.selection.disabledReason.map { String(localized: $0) }
+            #expect(reason == "Needs admin — not removable in this version")
+            #expect(item.snapshot != nil && item.modified != nil && item.confidence == .high)
+        }
+
+        let item = try #require(found["SystemLibrary/Preferences/\(id).plist"])
+        let applications = Applications(appFolders: [root.url.appending(path: "Applications")])
+        let pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
+        func plan(_ selection: ItemSelection) throws -> Plan {
+            let planned = PlannedItem(
+                url: try #require(item.url), tier: .yourData, method: .trash, snapshot: try #require(item.snapshot),
+                modified: item.modified, selection: selection)
+            return try Plan(
+                tool: applications.id, allowedRoots: applications.allowedRoots(home: root.url), items: [planned],
+                pathGuard: pathGuard)
+        }
+        // Disabled, and even if a caller selects it, outside the allowed roots.
+        #expect(throws: PlanError.self) { try plan(item.selection) }
+        #expect(throws: PlanError.self) { try plan(.selected) }
+    }
+
+    @Test func aSystemWideFolderMacOSRefusesIsReportedSAF012() async throws {
+        try root.file("SystemLibrary/Application Support/\(id)/data", size: 5)
+        let locked = try root.folder("SystemLibrary/LaunchDaemons", permissions: 0o000)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+
+        let events = await find(try app())
+
+        let denied = events.compactMap { event in
+            if case .notAccessible(let url) = event { url.path } else { nil }
+        }
+        #expect(denied == [locked.path])
+        #expect(Set(items(events).keys) == ["SystemLibrary/Application Support/\(id)"])
+    }
+
+    // MARK: Launch agent plists
+
+    @Test func aPlistThatIsNotARegularFileIsSkippedWithoutBeingReadAPP002() async throws {
+        try root.fifo("Library/LaunchAgents/pipe.plist")
+        try plist("Library/LaunchAgents/real.plist", ["Label": id])
+
+        let found = items(await find(try app()))
+
+        #expect(Set(found.keys) == ["Library/LaunchAgents/real.plist"])
     }
 }
