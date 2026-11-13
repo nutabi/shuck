@@ -527,7 +527,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | NFR-SEC-005 | Shuck's data folder is 0700 and its files are 0600. | Must | Unit test. |
 | NFR-SEC-006 | `Logger` messages mark paths and file names as private [S68]. | Must | Code review checklist. |
 | NFR-A11Y-001 | Every control has a VoiceOver label. Full keyboard navigation. Respects Increase Contrast, Reduce Motion and Reduce Transparency. No information conveyed by color alone [S58]. | Must | Accessibility Inspector audit in M5. |
-| NFR-L10N-001 | English UI. All user-facing strings live in String Catalogs so localization (L-12) needs no code changes. | Must | Static check: no hard-coded UI strings and no stale String Catalog keys. Built in M5, with the localization and compatibility pass (D-133). |
+| NFR-L10N-001 | English UI. All user-facing strings live in String Catalogs so localization (L-12) needs no code changes. | Must | Static check: no hard-coded UI strings and no stale String Catalog keys. Built in M5, with the localization pass (D-133). |
 | NFR-COMP-001 | App: macOS 27 or later, arm64. Engine package deployment target: macOS 26 (D-06). | Must | Every pull request builds the engine with SwiftPM, which compiles it for macOS 26, in the required check (#213). Building with Xcode 26 waits for L-02. |
 | NFR-OBS-001 | Diagnostics use `Logger` with subsystem `me.nutabi.shuck` and one category per tool and sub-tool [S68]. | Must | Code review. |
 | NFR-QA-001 | Engine line coverage of at least 80%. Every SAF requirement has at least one test that references its ID. | Must | CI coverage report; grep for SAF IDs in tests. Built in M2 (D-133): a static check that every Must SAF requirement built so far is named in a test. |
