@@ -174,7 +174,11 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 ## Pull requests and commits
 
-- **One pull request = one roadmap task** (ENG-002). Aim for about 200 changed lines of production code. When a task needs more, split it into several pull requests that are each small and reviewable on their own, for example engine first and then UI, or the Execution change before the code that uses it (D-62). Plan the split at the start of the task and say in each pull request what the next one adds.
+- **One task = one pull request, or one stack** (ENG-002, owner preference 2026-11-13). A task is a roadmap task or a
+  fix the owner asks for. Aim for about 200 changed lines of production code per pull request. When a task needs more,
+  split it into several pull requests that are each small and reviewable on their own, for example engine first and
+  then UI, or the Execution change before the code that uses it (D-62), and make them one stack. A task of one pull
+  request needs no stack. Plan the split at the start of the task and say in each pull request what the next one adds.
 - **Titles:** the pull request title and every commit title use `[<task ID>] <deliverable>`, for example `[M1-T02] PathGuard`. `main` is squash-merged, so the pull request title becomes the commit title on `main`.
 - **Commit bodies:** a blank line after the title, then text wrapped at 72 characters explaining what changed and why. End with the requirement IDs, for example `Requirements: SAF-007, SAF-016`.
 - **Partial tasks:** a commit that delivers only part of a task keeps the task ID in its title. Its body lists what is left, for example `Still to do for M0-T03: Swift 6 language mode and the sidebar placeholder window.`
@@ -186,7 +190,10 @@ If you are unsure whether a change could remove, move or hide user data, stop an
   `--force-with-lease`, never with `gh pr update-branch` or GitHub's "Update branch" button: GitHub rewrites the
   commits on its servers and leaves them unsigned. `gh stack rebase` rebases locally, so it is fine.
 - **Stacked pull requests** (D-76): when a pull request needs another one that is still open, make them a GitHub stack with the `gh stack` extension (`gh extension install github/gh-stack`). `gh stack init` adopts or creates the branches, bottom to top; `gh stack add <branch>` adds a layer on top; `gh stack submit --open` pushes the branches and creates the pull requests, ready for review, and the stack. Keep the stack linear with `gh stack rebase`, then `gh stack push`, never by merging. A stack merges from the bottom up, one squashed commit per pull request: merging a pull request also merges every one below it, and GitHub then rebases the next one onto `main` itself. After a merge, `gh stack sync --prune` updates the local branches. The agent merges the stack itself with `gh stack merge` once the CI of every pull request has passed, and does not wait for the owner (D-146). It does not turn on auto-merge for a stack. A stack with a pull request that changes `scripts/` or `.github/` waits for the owner's go-ahead (D-170). The exception is a task whose entry in `docs/progress.md` says the owner merges its stack in one go (D-83): leave that stack open for the owner.
-- **One stack at a time:** an agent keeps only one pull request stack in progress. It starts the next task's stack only after the previous one has merged, so the stacks do not conflict with each other.
+- **One open change at a time** (owner preference, 2026-11-13): an agent has at most one task open: one pull request
+  or one stack. It never opens two pull requests that are not in the same stack, so one merging first never leaves the
+  other with conflicts. It starts the next task only after the previous one has merged. Something found along the way
+  goes into the open stack if it belongs to the task, and otherwise waits, as a note to the owner, until it has merged.
 - **Clean up after a merge** (owner preference, 2026-11-12): once a task's pull requests have merged, the agent removes the local worktrees and branches it used (`git worktree remove`, `git branch -D`, including an agent's `worktree-agent-*` branches) and prunes its stack with `gh stack sync --prune`.
 - **Pull request description** (ENG-003, without its Screenshots section: D-65). Fill in every section of `.github/pull_request_template.md`:
   - **Summary.**
@@ -208,13 +215,16 @@ If you are unsure whether a change could remove, move or hide user data, stop an
 
 ## Delegating to other agents
 
-Owner preference (2026-11-12): an agent that delegates picks the model by the work.
+Owner preference (2026-11-12, updated 2026-11-13): for every task or fix, the agent the owner prompts orchestrates
+and delegates the work, picking the model by the work.
 
 - Haiku agents read code and read or write docs.
-- Sonnet agents write code.
+- Sonnet agents write code, in parallel when their pieces touch different files and none needs another's code;
+  otherwise one after another. Each works in its own worktree, and the orchestrating agent puts their work into the
+  task's one pull request or one stack.
 - A Fable advisor is consulted when a decision needs a stronger reviewer (D-146).
 
-Decisions from several workers (owner preference, 2026-11-12), so parallel pull requests never fight over
+Decisions from several workers (owner preference, 2026-11-12), so parallel workers never fight over
 `docs/decisions.md`:
 
 - A worker agent never edits `docs/decisions.md`. Its final report gives each decision it made: the decision, the
@@ -223,8 +233,7 @@ Decisions from several workers (owner preference, 2026-11-12), so parallel pull 
   like `D-NEXT-sort`.
 - The orchestrating agent gives each decision the next free ID and replaces the placeholders before it pushes a branch.
 - When every worker of the batch is done, the orchestrating agent adds all the batch's decisions to
-  `docs/decisions.md` in one commit on the top pull request: the top of the stack, or for independent pull requests the
-  last one to merge.
+  `docs/decisions.md` in one commit on the top pull request of the stack, or on the task's only pull request.
 
 ## Picking the next task
 
