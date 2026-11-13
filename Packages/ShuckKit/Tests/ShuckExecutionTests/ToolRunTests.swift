@@ -125,7 +125,7 @@ struct ToolRunTests {
                 .failed(
                     ActionError(
                         domain: "ShuckToolTimeout", code: 1,
-                        message: "no end within 1 seconds; stopped; processes the tool started may still be running"))
+                        message: "no end within 1 seconds; stopped"))
             ])
         #expect(Date().timeIntervalSince(started) < 10)
         #expect(try results().first?.status == .failed)
@@ -149,10 +149,70 @@ struct ToolRunTests {
         #expect(Date().timeIntervalSince(started) < 10)
     }
 
-    @Test func aStoppedToolsRecordSaysItsOwnProcessesMayStillRunSAF014SAF006() async throws {
-        let tool = try root.tool("tools/slow", .runsForever)
-        _ = try await run(plan([rule(tool, timeout: 0.3)]), runner: quickGrace())
-        #expect(try results().first?.detail?.contains("processes the tool started may still be running") == true)
+    /// Whether the process `id` is gone. A process that ended and is waiting to be reaped is gone too: nothing runs.
+    private func gone(_ id: pid_t, within seconds: Double = 5) async throws -> Bool {
+        for _ in 0..<Int(seconds * 20) {
+            if kill(id, 0) != 0 && errno == ESRCH { return true }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        return false
+    }
+
+    private func awaitChild() async throws -> pid_t {
+        for _ in 0..<200 {
+            if let child = root.fakeToolChild { return child }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        throw FixtureError.fileSystem("The tool did not record its child")
+    }
+
+    @Test func aTimeoutEndsTheProcessesTheToolStartedSAF014() async throws {
+        let tool = try root.tool("tools/parent", .startsAChild())
+        let report = try await run(plan([rule(tool, timeout: 2)]), runner: quickGrace())
+
+        guard case .failed(let error) = report.outcomes.first?.result else {
+            Issue.record("The tool was not stopped: \(report.outcomes.map(\.result))")
+            return
+        }
+        #expect(error.domain == "ShuckToolTimeout")
+        let child = try #require(root.fakeToolChild)
+        #expect(try await gone(child))
+        // The record no longer says that processes may still be running.
+        #expect(try results().first?.detail?.contains("may still be running") == false)
+    }
+
+    @Test func aStopEndsTheProcessesTheToolStartedSAF014() async throws {
+        let tool = try root.tool("tools/parent", .startsAChild())
+        let executor = try PlanExecutor(root: root, pathGuard: pathGuard, toolRunner: quickGrace())
+        let plan = try plan([rule(tool)])
+
+        let running = Task { await executor.run(plan) }
+        let child = try await awaitChild()
+        #expect(kill(child, 0) == 0)
+        running.cancel()
+        let report = await running.value
+
+        guard case .failed(let error) = report.outcomes.first?.result else {
+            Issue.record("The tool was not stopped: \(report.outcomes.map(\.result))")
+            return
+        }
+        #expect(error.domain == "ShuckToolStopped")
+        #expect(try await gone(child))
+    }
+
+    @Test func aProcessTheToolStartedThatIgnoresTheRequestToEndIsKilledSAF014() async throws {
+        // The script ends at SIGTERM, but its child ignores it: only SIGKILL to the group ends the child.
+        let tool = try root.tool("tools/parent", .startsAChild(ignoringTerminate: true))
+        let executor = try PlanExecutor(root: root, pathGuard: pathGuard, toolRunner: quickGrace())
+        let plan = try plan([rule(tool)])
+
+        let running = Task { await executor.run(plan) }
+        let child = try await awaitChild()
+        running.cancel()
+        _ = await running.value
+
+        // The run ends only when the group is empty, so the child is gone when it returns.
+        #expect(try await gone(child, within: 1))
     }
 
     @Test func aStopThatComesAfterTheToolHasExitedKeepsItsOwnEndingSAF014SAF006() async throws {
@@ -227,7 +287,7 @@ struct ToolRunTests {
                 .failed(
                     ActionError(
                         domain: "ShuckToolStopped", code: Int(SIGTERM),
-                        message: "stopped by the user; processes the tool started may still be running")),
+                        message: "stopped by the user")),
                 .skipped(.cancelled),
             ])
         // The stopped tool's records say what happened; the item after it never started, so it has none.

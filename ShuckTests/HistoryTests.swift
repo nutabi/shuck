@@ -228,11 +228,11 @@ struct HistoryTests {
         #expect(text("ShuckToolSignal", 9) == "Failed: the tool was ended by signal 9")
         #expect(
             text("ShuckToolTimeout", 600)
-                == "Failed: the tool did not finish in 600 seconds, so Shuck stopped it. Processes it started may still be running"
+                == "Failed: the tool did not finish in 600 seconds, so Shuck stopped it"
         )
         #expect(
             text("ShuckToolStopped", 15)
-                == "Stopped before the tool finished. Processes it started may still be running")
+                == "Stopped before the tool finished")
     }
 
     /// The sheets and the History page word a reason the same, from its code (D-90).

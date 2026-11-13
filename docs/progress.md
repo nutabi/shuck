@@ -621,9 +621,9 @@ Tasks:
   - [x] A tool finishing as Stop or a timeout fires can be reported as stopped (#179, SAF-014). The same pull request
     adds the test for a tool that cannot be started at all, which M2-T10 left. No seam was needed: an empty executable
     file passes the lookup and macOS refuses to start it (ENOEXEC). Done as D-188.
-  - [ ] The tool runner starts commands with `posix_spawn` and `POSIX_SPAWN_SETPGROUP`, so Stop and a timeout signal
+  - [x] The tool runner starts commands with `posix_spawn` and `POSIX_SPAWN_SETPGROUP`, so Stop and a timeout signal
     every process a tool started (#127, D-164). It was deferred to M5 (D-162, D-164) and moved here on the owner's
-    instruction (D-178). History stops saying that such processes may still be running.
+    instruction (D-178). History stops saying that such processes may still be running. Done as D-191.
   - [ ] `LaunchctlRunner` and a Launchctl action for `bootout` in the `gui/<uid>` domain: an agent that is not loaded
     is trashed directly, and the result is logged with the job label. It is shaped for STA-005's Disable, Enable and
     Remove, which M4 adds. Agent choice, open for review: whether it reuses `ToolRunner`. Tests run a fake `launchctl`

@@ -100,7 +100,7 @@ The app target is thin and links the local ShuckKit package. All scanning, plann
   knows a literal by the call it is passed to (`Text`, `Button`, `.help`, `LocalizedStringResource`, …) or by the type
   of the declaration it is in; a literal it should leave alone gets `// not localized: <reason>` on its line.
 - Every control has a VoiceOver label and works from the keyboard. Never convey information by color alone (NFR-A11Y-001).
-- Subprocesses run through `Process` with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004). Only `ShuckExecution` may start one, tests included (D-82).
+- Subprocesses run through `posix_spawn` in a process group of their own (`ToolRunner`, D-191), with an absolute executable path, an argument array, an explicit environment and a timeout. Never `/bin/sh -c`, `system()` or `popen` (DEV-004, NFR-SEC-004). Only `ShuckExecution` may start one, tests included (D-82).
 - No network APIs (`URLSession`, Network framework, `NSURLConnection`, sockets) and no authorization or privilege APIs (NFR-SEC-001, ONB-003).
 - Code is `swift-format` clean: 4-space indentation and 120-character lines (`.swift-format`). `Packages/ShuckKit/.swift-format` adds the engine-only rules against force unwraps, `try!` and implicitly unwrapped optionals. Run `scripts/lint.sh --fix` before committing.
 

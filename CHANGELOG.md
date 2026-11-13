@@ -13,6 +13,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Stopping a developer tool cleanup, or a cleanup that runs too long, now also stops the processes the tool started,
+  and Shuck no longer warns that they may still be running.
 - In Caches & Logs, a cache or log folder named after an app, such as "Firefox", is now locked while that app is
   running, as folders named by an app's identifier already were.
 - Homebrew Cleanup in Developer Junk is now hidden when you exclude any folder it cleans, such as Homebrew's logs or
