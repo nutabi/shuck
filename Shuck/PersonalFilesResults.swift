@@ -289,6 +289,9 @@ nonisolated struct ResultRow: Identifiable, Equatable {
     let kind: String
     /// Allocated size in bytes (SAF-013).
     let size: Int64
+    /// `false` when a folder inside could not be read, so `size` is a lower bound and the table reads "At least"
+    /// (SAF-012, D-NEXT-partial-size). Display only: sorting, selection and sums use `size` as it is.
+    let isComplete: Bool
     /// The date the Date column shows: the modified date, or the last-opened date (OLD-002).
     let date: Date?
     /// Which date the last-opened column shows, when it is not the date the file was last opened: the modified or the
@@ -308,6 +311,7 @@ nonisolated struct ResultRow: Identifiable, Equatable {
         topFolder = Self.topFolder(of: file.url, home: home)
         kind = Self.kind(of: file.url, snapshot: file.snapshot)
         size = file.snapshot.allocatedSize
+        isComplete = file.snapshot.isComplete
         switch dateColumn {
         case .modified:
             date = file.modified

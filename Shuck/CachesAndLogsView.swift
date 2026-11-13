@@ -127,8 +127,7 @@ private struct CacheRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text(item.allocatedSize, format: .byteCount(style: .file))
-                .monospacedDigit()
+            SizeText(target: item.target, bytes: item.allocatedSize, snapshot: item.snapshot)
         }
     }
 

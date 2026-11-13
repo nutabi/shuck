@@ -199,7 +199,7 @@ private struct ProjectRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            SizeText(target: item.target, bytes: item.allocatedSize)
+            SizeText(target: item.target, bytes: item.allocatedSize, snapshot: item.snapshot)
                 .fixedSize()
         }
     }

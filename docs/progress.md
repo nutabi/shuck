@@ -567,7 +567,7 @@ Tasks:
     directions (M2-T01, D-93), and `ItemSnapshot.read` gets an enumerator error handler, so an unreadable subfolder
     marks the size as incomplete instead of giving a too-small size with no mark (R-10, SAF-012). `matches` and `check`,
     which Execution reads, keep their behavior. Done in the engine: `LstatFailure` and `ItemSnapshot.isComplete`
-    (D-182). Left: show a mark where a size is listed whose snapshot is incomplete.
+    (D-182). Done as D-NEXT-partial-size, except History and totals.
   - [x] Engine tests that M2-T01 left (D-93, TD-18): a FIFO planted as the history log, stopping a scan while a batch
     is applied off the main actor, an executor's records read back through History's wording, and the near-copy Large
     Files and Old Files pipeline tests merged into one.
