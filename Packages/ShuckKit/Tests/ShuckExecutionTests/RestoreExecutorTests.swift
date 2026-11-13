@@ -11,12 +11,15 @@ struct RestoreExecutorTests {
     let pathGuard: PathGuard
     let logFolder: URL
     let trash: FakeTrash
+    /// Finds tools only inside the fixture root (SAF-016); no test here starts the real `launchctl`.
+    let toolRunner: ToolRunner
 
     init() throws {
         root = try FixtureRoot()
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
         logFolder = root.historyFolder
         trash = FakeTrash(folder: root.trashFolder)
+        toolRunner = ToolRunner(executableRoots: [root.url])
     }
 
     /// Trashes `urls` with the Trash executor and returns them as the history log now lists them.
@@ -38,7 +41,8 @@ struct RestoreExecutorTests {
     }
 
     private func restore(_ requests: [RestoreRequest]) async throws -> [RestoreOutcome.Result] {
-        let executor = RestoreExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash)
+        let executor = RestoreExecutor(
+            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash, toolRunner: toolRunner)
         return await executor.run(requests).outcomes.map(\.result)
     }
 
@@ -90,8 +94,10 @@ struct RestoreExecutorTests {
         // A name over the 255-byte limit: the folders are created, then the move fails.
         let tooLong = try root.url("Projects/2024/Client/" + String(repeating: "n", count: 300))
 
-        let result = RestoreExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash)
-            .act(on: item, to: tooLong)
+        let result = RestoreExecutor(
+            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash, toolRunner: toolRunner
+        )
+        .act(on: item, to: tooLong)
 
         guard case .failed = result else {
             Issue.record("expected a failure, got \(result)")
@@ -270,7 +276,8 @@ struct RestoreExecutorTests {
         let items = try await trashed([original])
         let keep = try root.url("Documents/Keep")
         let excluding = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [keep]))
-        let executor = RestoreExecutor(pathGuard: excluding, log: try HistoryLog(folder: logFolder), trash: trash)
+        let executor = RestoreExecutor(
+            pathGuard: excluding, log: try HistoryLog(folder: logFolder), trash: trash, toolRunner: toolRunner)
 
         let results = await executor.run(items.map { RestoreRequest(item: $0) }).outcomes.map(\.result)
 
@@ -301,7 +308,8 @@ struct RestoreExecutorTests {
     @Test func cancellingStopsBeforeTheNextItemSAF014() async throws {
         let files = try (1...3).map { try root.file("Downloads/file\($0).bin", size: 10) }
         let items = try await trashed(files)
-        let executor = RestoreExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash)
+        let executor = RestoreExecutor(
+            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash, toolRunner: toolRunner)
 
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
@@ -320,7 +328,8 @@ struct RestoreExecutorTests {
         let package = try root.folder("Documents/Old.pages")
         try root.file("Documents/Old.pages/Index.zip", size: 8_000)
         let item = try #require(try await trashed([package]).first)
-        let executor = RestoreExecutor(pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash)
+        let executor = RestoreExecutor(
+            pathGuard: pathGuard, log: try HistoryLog(folder: logFolder), trash: trash, toolRunner: toolRunner)
 
         // The task is cancelled when re-validation starts, as when the user clicks Stop while it measures the folder.
         let result = await Task {

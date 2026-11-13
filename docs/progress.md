@@ -539,9 +539,9 @@ Owner prerequisites, before the tasks that need them:
 - [x] Owner approval of dependencies between items in one run, a change to the run loop and so to the safety layer
   (D-170): a failed `bootout` skips that agent's plist (APP-011), and an app bundle that fails to move to the Trash
   leaves its leftovers alone (APP-005). Needed before M3-T05's dependency pull request. Approved on 2026-11-13 (D-190).
-- [ ] Owner approval of Restore re-enabling a restored LaunchAgent after the user confirms, a hard stop (D-170): it adds
+- [x] Owner approval of Restore re-enabling a restored LaunchAgent after the user confirms, a hard stop (D-170): it adds
   a Launchctl enable action and changes Restore (APP-011, HIS-005, STA-005). Needed before M3-T05's re-enable pull
-  request.
+  request. Approved on 2026-11-13 (D-190).
 - [ ] Owner decision on a mismatch in the PRD: APP-011 and STA-005 check a "fixture agent in a test domain", but a test
   cannot run the real `launchctl`, which would change the user's real launchd state (safety rule 4). Tests run a fake
   `launchctl` through the runner inside the fixture root, as they run other fake tools, and the real `bootout` is an
@@ -617,7 +617,7 @@ Tasks:
 - [ ] M3-T04 Engine: removability (APP-005, R-16). Needs the OQ-08 measurement first. One pull request: it decides
   whether the user can remove the bundle (root-owned, not writable, App Management permission missing) and gives the
   reason. A check before the run may not see a missing permission, so M3-T05's dependency covers that case.
-- [ ] M3-T05 Execution: the launchctl runner (APP-011, STA-005, SAF-005, SAF-006, SAF-014, NFR-SEC-004, D-82). Only
+- [x] M3-T05 Execution: the launchctl runner (APP-011, STA-005, SAF-005, SAF-006, SAF-014, NFR-SEC-004, D-82). Only
   `ShuckExecution` changes (and Restore's, in the re-enable pull request), in pull requests of their own:
   - [x] A tool finishing as Stop or a timeout fires can be reported as stopped (#179, SAF-014). The same pull request
     adds the test for a tool that cannot be started at all, which M2-T10 left. No seam was needed: an empty executable
@@ -632,9 +632,11 @@ Tasks:
   - [x] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
     agent's plist and a bundle that fails to move leaves its leftovers alone (APP-005, APP-011, SAF-011). The skip is
     logged with its reason. Done as D-198.
-  - [ ] Owner approval first, a hard stop, since it changes Restore: a Launchctl enable (bootstrap) action, and
+  - [x] Owner approval first, a hard stop, since it changes Restore: a Launchctl enable (bootstrap) action, and
     Restore re-enabling a restored agent after the user confirms (APP-011, HIS-005, STA-005 Enable). History's
     `Restorability` today says a `launchctl` item is "reversed by the opposite action", and no such action exists.
+    Done as D-199. Restore only moves a file unless a request carries the confirmed job label; the
+    confirmation dialog is M3-T08.
 - [ ] M3-T06 Engine: the uninstall (APP-007, APP-011, HIS-005, SAF-011, R-16). Two pull requests:
   - [ ] The uninstall plan: the bundle, the selected leftovers and the agents in one run, `bootout` before the plist
     moves, and the refusals from M3-T04. A refusal from macOS about another app's container is a skipped item with its

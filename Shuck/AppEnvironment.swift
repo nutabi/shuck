@@ -291,7 +291,8 @@ nonisolated struct AppEnvironment {
     func restore(_ requests: [RestoreRequest]) async throws(HistoryError) -> RestoreReport {
         let log = try HistoryLog(folder: historyFolder)
         let executor = RestoreExecutor(
-            pathGuard: PathGuard(configuration: makeProtection(excludedFolders.folders)), log: log, trash: trash)
+            pathGuard: PathGuard(configuration: makeProtection(excludedFolders.folders)), log: log, trash: trash,
+            toolRunner: toolRunner)
         return await executor.run(requests)
     }
 

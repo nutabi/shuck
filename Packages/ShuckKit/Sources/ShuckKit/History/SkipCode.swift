@@ -28,6 +28,9 @@ public enum SkipCode: String, CaseIterable, Sendable {
     case otherItem
     /// The item needs an earlier item of the run to be done, and it was not (APP-005, APP-011, D-198).
     case dependencyNotDone
+    /// A restored property list is not the original LaunchAgent the user confirmed loading again: it is not at its
+    /// original path in `~/Library/LaunchAgents`, or its label is not the unloaded job's (APP-011, HIS-005).
+    case notTheUnloadedAgent
 
     /// The code a logged detail starts with, or `nil` if this version does not know it.
     public init?(detail: String) {

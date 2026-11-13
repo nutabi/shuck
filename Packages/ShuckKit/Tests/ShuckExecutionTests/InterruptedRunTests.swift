@@ -34,7 +34,8 @@ struct InterruptedRunTests {
     private func restoreExecutor() throws -> RestoreExecutor {
         RestoreExecutor(
             pathGuard: pathGuard, log: try HistoryLog(folder: root.historyFolder),
-            trash: FakeTrash(folder: root.trashFolder))
+            trash: FakeTrash(folder: root.trashFolder),
+            toolRunner: ToolRunner(executableRoots: [root.url]))
     }
 
     @Test func anInterruptedTrashItemIsRestorableAndRestoreSendsItBackHIS001SAF005() async throws {

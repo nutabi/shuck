@@ -51,7 +51,8 @@ struct XcodeArchivesPipelineTests {
 
         let restore = RestoreExecutor(
             pathGuard: pathGuard, log: try HistoryLog(folder: root.historyFolder),
-            trash: FakeTrash(folder: root.trashFolder))
+            trash: FakeTrash(folder: root.trashFolder),
+            toolRunner: ToolRunner(executableRoots: [root.url]))
         let restored = await restore.run([RestoreRequest(item: trashed)])
 
         #expect(restored.outcomes.count == 1)

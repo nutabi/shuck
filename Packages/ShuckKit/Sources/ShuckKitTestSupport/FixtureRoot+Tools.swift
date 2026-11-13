@@ -24,9 +24,10 @@ public enum FakeTool: Sendable {
     /// `status`. It prints nothing, so a test cannot get what it removed from its output (R-07).
     case removes(_ paths: [String], status: Int32 = 0)
     /// A fake `launchctl`: records each call's arguments as one line in `Marks/launchctl` (``FixtureRoot/launchctlCalls``),
-    /// then ends with `printStatus` for `print` and `bootoutStatus` for `bootout`, and 64 for anything else. It prints
+    /// then ends with `printStatus` for `print`, `bootoutStatus` for `bootout` and `bootstrapStatus` for `bootstrap`,
+    /// and 64 for anything else. It prints
     /// nothing, so a test cannot depend on output (R-07).
-    case launchctl(printStatus: Int32, bootoutStatus: Int32 = 0)
+    case launchctl(printStatus: Int32, bootoutStatus: Int32 = 0, bootstrapStatus: Int32 = 0)
 }
 
 extension FixtureRoot {
@@ -62,7 +63,8 @@ extension FixtureRoot {
         FileManager.default.fileExists(atPath: url.appending(path: "Marks/ran").path)
     }
 
-    /// The arguments of each call a ``FakeTool/launchctl(printStatus:bootoutStatus:)`` tool got, one string per call.
+    /// The arguments of each call a ``FakeTool/launchctl(printStatus:bootoutStatus:bootstrapStatus:)`` tool got, one
+    /// string per call.
     public var launchctlCalls: [String] {
         ((try? String(contentsOf: url.appending(path: "Marks/launchctl"), encoding: .utf8)) ?? "")
             .split(separator: "\n").map(String.init)
@@ -103,13 +105,14 @@ extension FixtureRoot {
                 printf '%s\\n' "$!" > \(quoted(marks + "/child.tmp")) && mv \(quoted(marks + "/child.tmp")) \(quoted(marks + "/child"))
                 wait
                 """
-        case .launchctl(let printStatus, let bootoutStatus):
+        case .launchctl(let printStatus, let bootoutStatus, let bootstrapStatus):
             return """
                 mkdir -p \(quoted(marks))
                 printf '%s\\n' "$*" >> \(quoted(marks + "/launchctl"))
                 case "$1" in
                 print) exit \(printStatus) ;;
                 bootout) exit \(bootoutStatus) ;;
+                bootstrap) exit \(bootstrapStatus) ;;
                 *) exit 64 ;;
                 esac
                 """
