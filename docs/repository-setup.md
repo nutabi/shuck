@@ -12,7 +12,7 @@ In **Settings → Rules → Rulesets**, create a branch ruleset:
 | Enforcement status | Active |
 | Target branches | Default branch |
 | Restrict deletions | On |
-| Require a pull request before merging | On. Required approvals: 0 (the owner is the only reviewer and cannot approve their own pull request). |
+| Require a pull request before merging | On. Required approvals: 0 (no one reviews pull requests, and GitHub doesn't let the owner approve their own, D-200). |
 | Allowed merge methods | Squash only |
 | Require status checks to pass | On. Add the check **Lint, build and test** (from `.github/workflows/ci.yml`). Turn on "Require branches to be up to date before merging". |
 | Block force pushes | On |
@@ -34,20 +34,38 @@ In **Settings → General → Pull Requests**:
 - Turn on **Automatically delete head branches**.
 - Turn on **Allow auto-merge**. Pull requests get auto-merge when they open and merge once the required check passes (D-51).
 
-## Code owners for the CI gate (#124)
+## No code owners
 
-`scripts/` and `.github/` decide what CI checks, so a pull request that changes them could change the rules it is
-judged by. `AGENTS.md` says such a pull request never auto-merges and that an agent does not merge it on its own
-(D-170). The owner also adds `.github/CODEOWNERS` in a pull request of their own, so GitHub names them on every such
-pull request:
+Changes to `scripts/` and `.github/` follow the same rules as any other change and merge once CI passes (D-200), so
+the repository has no `.github/CODEOWNERS`. Leave "Require review from Code Owners" off in the `main` ruleset.
 
-```text
-/scripts/ @nutabi
-/.github/ @nutabi
-```
+## Issues: types, forms and labels
 
-Leave "Require review from Code Owners" off in the `main` ruleset: agents open pull requests from the owner's account,
-and GitHub does not let the author approve their own pull request, so the rule would block them.
+An issue's kind is its **issue type**: Bug, Feature or Task, GitHub's built-in types. Labels say only what a type
+can't. The forms in `.github/ISSUE_TEMPLATE/` set the type; blank issues are off, and security reports go to private
+vulnerability reporting. An agent that files an issue with `gh issue create` sets them itself:
+`gh issue create --type Bug --label area/file-cleanup`.
+
+| Label | Color | Meaning | Added by, removed by |
+|---|---|---|---|
+| `area/file-cleanup` | `1d76db` | Large Files, Old Files, Developer Junk, Caches & Logs | The agent that triages the issue |
+| `area/applications` | `1d76db` | The uninstaller and its leftovers | The agent that triages the issue |
+| `area/startup-items` | `1d76db` | Login items, LaunchAgents and launchd | The agent that triages the issue |
+| `area/history` | `1d76db` | History and Restore | The agent that triages the issue |
+| `area/settings` | `1d76db` | The Settings window, exclusions and project folders | The agent that triages the issue |
+| `area/app` | `1d76db` | The window, sidebar, Overview, onboarding and menus | The agent that triages the issue |
+| `area/safety` | `1d76db` | The path guard, execution, the history log's records and the static checks | The agent that triages the issue |
+| `area/ci` | `1d76db` | `scripts/`, workflows and releases | The agent that triages the issue |
+| `area/docs` | `1d76db` | `README.md`, `AGENTS.md`, `docs/` and the changelog | The agent that triages the issue |
+| `data-risk` | `b60205` | Shuck could remove, move or hide user data it shouldn't; fixed before any other task | Added in triage; stays as a record |
+
+- **Triage:** an issue with no `area/` label is untriaged (`gh issue list --search "no:label"`). Before picking the
+  next task, an agent triages each one: it checks the type, adds one `area/` label (two at most), and adds
+  `data-risk` where it applies.
+- **Closing:** close with a reason, not a label: `gh issue close N --reason completed`, `"not planned"` or `duplicate`.
+- Milestones (M3, M4, …) say when; no label repeats them.
+- Shuck has one developer and takes no outside contributions, so there are no contributor labels such as
+  `good first issue` or `help wanted`.
 
 ## Release tags (#125)
 

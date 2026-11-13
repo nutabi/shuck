@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.11 — DEV-004 records the tools' network check (see Revision history) |
+| Version | 1.12 — ENG-002: one task is one pull request or one stack (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -30,19 +30,20 @@
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
+| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms. Section 1, G-5, R-17 and the priorities: the advisor decides instead of the owner reviewing (D-200). |
 
 ## How to read this document
 
 - **Audience.** The project owner (human reviewer) and AI coding agents from any vendor.
 - **Normative language.** MUST, MUST NOT, SHOULD and MAY are used as defined in RFC 2119 [S64].
-- **Priorities.** Must = required for MVP exit. Should = in the MVP unless it puts the exit criteria at risk; the owner decides. Could = post-MVP candidate.
+- **Priorities.** Must = required for MVP exit. Should = in the MVP unless it puts the exit criteria at risk; the advisor decides (D-200). Could = post-MVP candidate.
 - **Requirement IDs.** Format `<AREA>-<NNN>`, for example `SAF-007` or `APP-003`. IDs are stable: never renumber or reuse an ID. To drop a requirement, mark it "Withdrawn".
 - **Prefixes.** `SAF` safety. `FCL` File Cleanup tool, with sub-tools `LRG` Large Files, `OLD` Old Files, `DEV` Developer Junk and `CAC` Caches & Logs. `APP` Applications. `STA` Startup Items. `HIS` History & Restore. `OVR` Overview. `ONB` Onboarding. `SET` Settings. `NFR-*` non-functional. `ENG` engineering workflow. The `LOF` prefix from v1.0 is retired and must not be reused.
 - **Tools and sub-tools.** A *tool* is a top-level entry in the sidebar. A *sub-tool* is an independent unit inside a tool, with its own scan, results, review and action (section 9.1).
-- **Decisions.** `D-NN` refers to the decision log: D-01 to D-29 in Appendix A, D-30 onwards in `docs/decisions.md`. `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
+- **Decisions.** `D-NN` refers to the decision log: D-01 to D-29 in Appendix A, D-30 to D-200 in `docs/archive/decisions.md`, which is frozen. Later decisions are in the pull requests that made them (ENG-011). `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
 - **Sources.** `[S12]` refers to entry S12 in Appendix C.
 - **For AI agents.** Read sections 2, 6, 8 and 12 before any task. Reference requirement IDs in every pull request. All file deletion goes through the safety layer described in section 8; no other code path may delete, move or modify user files.
-- **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The owner decides and records the outcome in `docs/decisions.md`.
+- **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The advisor decides, and the pull request records the outcome (D-200).
 
 ## 1. Summary
 
@@ -54,7 +55,7 @@ Shuck is a free, open-source (GPL-3.0-or-later), native macOS app that keeps a M
 
 Every action goes through a review-first safety model with an in-app restore log.
 
-Shuck is built first for its owner's daily use and as a portfolio piece. AI coding agents implement it in small pull requests, and the owner reviews every change. The MVP targets macOS 27 on Apple Silicon, runs fully offline, needs no admin rights, and ships as a signed, notarized DMG.
+Shuck is built first for its owner's daily use and as a portfolio piece. AI coding agents implement it in small pull requests, and a stronger reviewer model, the advisor, makes the decisions the owner used to review (D-200). The MVP targets macOS 27 on Apple Silicon, runs fully offline, needs no admin rights, and ships as a signed, notarized DMG.
 
 ## 2. Goals, non-goals and success
 
@@ -66,7 +67,7 @@ Shuck is built first for its owner's daily use and as a portfolio piece. AI codi
 | G-2 | **Portfolio quality.** Clear architecture, tests, CI/CD and documentation that show engineering skill. |
 | G-3 | **Safety.** No unintended data loss, ever. |
 | G-4 | **Independence.** No third-party code dependencies, no network use, no accounts. |
-| G-5 | **Learning.** The owner learns SwiftUI by reviewing pull requests that explain the SwiftUI concepts they use. |
+| G-5 | **Learning.** The owner learns SwiftUI from the code: pull requests and comments are written for a reader new to SwiftUI (D-200). |
 
 ### 2.2 Non-goals for the MVP
 
@@ -586,8 +587,7 @@ shuck/
 ├── CHANGELOG.md               changes users see, per release; each release's notes (D-95)
 ├── docs/
 │   ├── PRD.md                 this document
-│   ├── decisions.md           decisions made after the planning phase (D-30 onwards)
-│   ├── m1-review.md           tech-debt review at the end of M1
+│   ├── archive/               finished work, frozen: decisions D-30 to D-200, the M1 and M2 reviews
 │   ├── progress.md            milestone and task checklist
 │   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
@@ -604,7 +604,7 @@ shuck/
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
 ├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize, release notes
-└── .github/                   CI, CodeQL and release workflows, pull request template
+└── .github/                   CI, CodeQL and release workflows, pull request template, issue forms
 ```
 
 ## 12. Engineering workflow
@@ -612,16 +612,16 @@ shuck/
 | ID | Requirement | Priority |
 |---|---|---|
 | ENG-001 | `main` is protected: pull request required, CI must pass, no force-push, squash merge [S65]. | Must |
-| ENG-002 | One pull request = one roadmap task, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code. A task that needs more is split into several pull requests, each small and reviewable on its own (for example engine first, then UI); the split is planned at the start, and each pull request says what the next adds (D-62). Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
-| ENG-003 | The pull request template has these sections: Summary · Requirement IDs · **How to review this** (risky areas, files to read first) · **SwiftUI concepts used** (learning notes with Apple documentation links) · Test evidence · Checklist (tests added, no new dependencies, no network APIs, docs updated). There is no Screenshots section (D-65). | Must |
-| ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95); pull request template complete. | Must |
+| ENG-002 | One task = one pull request, or one stack of pull requests, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code per pull request. A task that needs more is split into a stack of pull requests, each small and reviewable on its own (for example engine first, then UI); the split is planned at the start, and each pull request says what the next adds (D-62). An agent never has two open pull requests outside one stack (D-200). Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
+| ENG-003 | The pull request template has these sections: Summary (ending with the requirement IDs) · **How to review this** (files to read first, changes to Safety or Execution, decisions made) · Test evidence. The description becomes the squash commit's body on `main`. There is no Screenshots section (D-65), and since D-200 no SwiftUI concepts section or checklist, which CI covers. | Must |
+| ENG-004 | **Definition of done** for a task: CI passes (build, tests, `swift-format`, static checks, changelog form); new behavior has tests (deletion paths use fixture tests); `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95). | Must |
 | ENG-005 | **CI** (`ci.yml`) runs on every pull request, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. A `Code changes` job on Linux runs the static checks, their self-test and the changelog check for every change, and decides whether a change touches code (D-66, D-98). `Lint, build and test` runs only for code changes: `swift-format` lint, one build from `Shuck.xcworkspace`, and `Shuck.xctestplan` (engine tests with the coverage gate, app unit tests, UI tests) (D-111). A push to `main` only builds, to warm the compilation cache (D-111). | Must |
 | ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs; no `SMAppService` outside the Execution module except `openSystemSettingsLoginItems()` (D-134). | Must |
 | ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create` with the DMG and checksum [S61], which publishes the release. **The owner approves the `release` environment before the job reads any secret** (D-174, superseding D-17's draft step). | Must |
 | ENG-008 | Signing and notarization secrets are GitHub encrypted secrets, used only by the tag-triggered release workflow. They are never available to pull request workflows. | Must |
 | ENG-009 | Versions follow Semantic Versioning [S60]. Each milestone ends with a pre-release tag (section 13). | Must |
 | ENG-010 | `AGENTS.md` is the only agent-instruction file. Do not add `CLAUDE.md`: Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists [S28]. `AGENTS.md` is an open format read by many coding agents [S27]. | Must |
-| ENG-011 | Decisions after the planning phase go in `docs/decisions.md` with ID, date, decision, rationale and rejected alternatives. | Must |
+| ENG-011 | Decisions after the planning phase go in the description of the pull request that makes them, with rationale and rejected alternatives; it becomes the commit on `main`. D-30 to D-200 are in `docs/archive/decisions.md`, which is frozen (D-200). | Must |
 | ENG-012 | Local scripts mirror CI and release (lint, test, static checks, build-dmg, notarize), so the owner can release without CI if needed. | Should |
 
 **`AGENTS.md` must contain**
@@ -640,6 +640,8 @@ shuck/
 8. How to pick the next task (`docs/progress.md`, in roadmap order) and how to record progress.
 9. The rule: do not add `CLAUDE.md` (ENG-010).
 10. How to add a sub-tool or a cleanup rule: registry entry, ownership map (FCL-005), fixture tests.
+
+Detail may live in a file under `docs/` that `AGENTS.md` links, which keeps `AGENTS.md` short (D-200).
 
 ## 13. Roadmap
 
@@ -706,13 +708,13 @@ M2 to M6 are broken into tasks when each milestone starts. The breakdown is reco
 | R-08 | Cleaning caches of running apps causes misbehavior | App glitches | Skip running apps' caches (CAC-003). |
 | R-09 | Copyright on AI-generated code may be limited. US Copyright Office (Jan 2025): prompts alone don't make you the author of the output; human selection, arrangement and edits can be protected [S41]. | GPL is weaker over AI-written parts | Accepted (D-20). Document the owner's human contributions in pull requests. |
 | R-10 | "Shuck" has only been web-searched, not trademark-cleared | Rename after release | Trademark search in M6, before v1.0. |
-| R-11 | Scope creep with no deadline | MVP never ships | Exit criteria (section 2.4); backlog (7.2); changes through `docs/decisions.md`. |
+| R-11 | Scope creep with no deadline | MVP never ships | Exit criteria (section 2.4); backlog (7.2); changes recorded in their pull requests. |
 | R-12 | CI runner labels or images change (`xcode-27` uses a new label scheme) [S25] | Broken CI | Pin the label; local fallback scripts (ENG-012). Mitigated: `ci.yml` pins `xcode-27` and UI tests passed on it (D-31); the local scripts exist. |
 | R-13 | Leaked signing secrets | Malicious builds signed with the owner's identity | Tag-only release workflow (ENG-008); App Store Connect API key with the narrowest role that allows notarization; rotate on suspicion. |
 | R-14 | Testing on a single macOS version and a single Mac | Bugs on other setups | Fixture tests plus a clean CI runner; a virtual machine for macOS 26 later (L-02). |
 | R-15 | Sub-tools or tools overlap: the same file in Large Files and Old Files, a cache claimed by two sub-tools, or an app container's caches listed by both Caches & Logs and Applications | Double counting or double cleaning | Ownership map (FCL-005), shared personal-files state (FCL-006), de-duplicated totals (FCL-007), reclaimable totals for File Cleanup only (OVR-001), re-validation before acting (SAF-008). |
 | R-16 | macOS's App Management permission (`kTCCServiceSystemPolicyAppBundles`, macOS 13+) gates changing other apps' bundles, and other apps' containers prompt separately [S78]. App Store and package-installed apps are often root-owned. | An uninstall fails or is blocked for many apps | Check removability before offering an uninstall (APP-005); show the reason; the owner measures how many of their own apps are removable before M3 is broken down (OQ-08); a usage string for the permission (M5). |
-| R-17 | Reviewer fatigue: pull request stacks grow, and the owner reviews every change (G-5). | A defect in Safety or Execution is merged unseen | Small pull requests (D-62); changes to Safety and Execution in pull requests of their own; every pull request says where to look (ENG-003); periodic reviews of `main` like the one of 2026-11-10. |
+| R-17 | No human reviews each change: the advisor decides and pull requests merge once CI passes (D-200). | A defect in Safety or Execution is merged unseen | Small pull requests (D-62); changes to Safety and Execution in pull requests of their own; every pull request says where to look (ENG-003); periodic reviews of `main` like the one of 2026-11-10. |
 | R-18 | Old Files relies on Spotlight metadata (`kMDItemLastUsedDate`), which may be missing or stale. | A file in use looks old | Use the latest of the last-used, modification and added dates (OLD-002, D-130); nothing is selected by default (OLD-004). |
 
 ## 15. Open questions

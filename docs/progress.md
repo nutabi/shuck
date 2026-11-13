@@ -15,7 +15,7 @@ Goal: repository, project skeleton, CI/CD proven end to end.
 - [x] M0-T06 CI workflow; branch protection documented in `docs/repository-setup.md`
 - [x] M0-T07 Static-check script, wired into CI
 - [x] M0-T08 Release workflow, DMG and notarize scripts; secrets documented in `docs/releasing.md`
-- [x] M0-T09 Pull request template, `docs/progress.md`, `docs/decisions.md`
+- [x] M0-T09 Pull request template, `docs/progress.md`, `docs/archive/decisions.md`
 
 Exit criteria:
 
@@ -152,7 +152,7 @@ Process changes during M1:
 Goal: Developer Junk with its Must rules, and Caches & Logs, with permanent Delete and tool commands (PRD section 13).
 M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-82).
 
-- [x] M2-T01 M1 cleanup: the findings of `docs/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
+- [x] M2-T01 M1 cleanup: the findings of `docs/archive/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
   to Safety and Execution go in pull requests of their own. The nine form one GitHub stack, in the order below, with
   auto-merge off; the owner merges the whole stack in one go (D-83). A tenth pull request on top follows up the
   independent review of the stack (D-93).
@@ -369,12 +369,12 @@ Deferred (D-142): the open fixes below and M2-F03 wait until M2-T07 and M2-T12 t
 review of M2 then follows, in a session of its own, and decides how these fixes are done together with its own
 findings. They still come before the 0.2.0 release items.
 
-Review done on 2026-11-12: `docs/m2-review.md` (D-155). It proposes sixteen pull requests in three stacks for the open
+Review done on 2026-11-12: `docs/archive/m2-review.md` (D-155). It proposes sixteen pull requests in three stacks for the open
 fixes below and its own findings, and puts ten questions to the owner. No fix starts, and the open items below are
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
 Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, no hard stop;
-`docs/m2-review.md` has each one's scope). Stack 2 and stack 3 are below.
+`docs/archive/m2-review.md` has each one's scope). Stack 2 and stack 3 are below.
 
 The first two merged as one GitHub stack (#152, #153), after a stop at the owner's request. The owner then said to go
 on, with Sonnet agents for the implementation and Haiku agents for research; the coordinating session reviews each
@@ -521,7 +521,7 @@ Exit criteria (PRD section 13):
 
 Goal: an uninstaller with leftovers found by confidence, running-app handling and LaunchAgent unloading, with Restore
 (PRD section 13). It is the first use of the launchctl runner (APP-011), which M4's Startup Items reuses (STA-005).
-This breakdown is an agent proposal, open for the owner's review (D-178). It is provisional: the PRD says to measure
+This breakdown is an agent proposal (D-178). It is provisional: the PRD says to measure
 OQ-08 before M3 is broken down, and that measurement is still open, so M3-T04 and the order of the later tasks may
 change with it. Issue fixes sit in the task of the feature they touch; the other fixes and the left-overs from M1 and
 M2 that no task owned are in M3-T01.
@@ -542,7 +542,7 @@ Owner prerequisites, before the tasks that need them:
 - [x] Owner approval of Restore re-enabling a restored LaunchAgent after the user confirms, a hard stop (D-170): it adds
   a Launchctl enable action and changes Restore (APP-011, HIS-005, STA-005). Needed before M3-T05's re-enable pull
   request. Approved on 2026-11-13 (D-190).
-- [ ] Owner decision on a mismatch in the PRD: APP-011 and STA-005 check a "fixture agent in a test domain", but a test
+- [ ] The advisor's decision on a mismatch in the PRD (D-200): APP-011 and STA-005 check a "fixture agent in a test domain", but a test
   cannot run the real `launchctl`, which would change the user's real launchd state (safety rule 4). Tests run a fake
   `launchctl` through the runner inside the fixture root, as they run other fake tools, and the real `bootout` is an
   owner check on the owner's Mac (see the exit criteria). The owner words the checks in the PRD.
@@ -590,7 +590,7 @@ Tasks:
     not approve them), and making the `Engine on macOS 26` job a required check.
 - [x] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
   Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
-  - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/decisions.md`, as an agent choice
+  - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/archive/decisions.md`, as an agent choice
     open for review, whether Applications is a `SubTool` conformer or its own entry point through
     `Plan(tool:allowedRoots:items:pathGuard:run:requiresRule:)`; `Plan(subTool:)`, `ExclusionsTests`,
     `ToolRegistryTests` and `FileCleanupModel` assume sub-tools, so every later task depends on the choice. It then
@@ -643,7 +643,7 @@ Tasks:
     reason, not a failed run (PRD S78).
   - [ ] The end-to-end fixture test through the run, History, Restore and the re-enable confirmation (HIS-005).
 - [ ] M3-T07 Quit a running app (APP-006, SAF-009). One pull request: "Quit <App>" with a normal request, continuing
-  only after the app has exited and never forcing it. Agent choice, open for review: `NSRunningApplication.terminate()`
+  only after the app has exited and never forcing it. The advisor decides (D-200): `NSRunningApplication.terminate()`
   sends a request and changes no file or launchd state, so it may live in the app target; the pull request records
   where. The test uses a stubbed list of running apps.
 - [ ] M3-T08 App: the Applications page (APP-001, APP-004 to APP-007, APP-009, HIS-005, NFR-A11Y-001, NFR-L10N-001).
@@ -653,14 +653,14 @@ Tasks:
     `scanItems(_:urls:)` and `confirmRebuildable(_:)` take an `any SubTool` from the caller, and they take a tool ID
     and look it up instead (R-17). The tool leaves `.planned(milestone: "M3")`, and `FirstLookUITests`, which asserts
     the placeholder, and `ToolRegistryTests` change. A UI test launch argument sets the app folders, so UI tests
-    never read the real `/Applications`, and `AGENTS.md`'s UI test notes document it.
+    never read the real `/Applications`, and `docs/testing.md`'s UI test notes document it.
   - [ ] The selected app's leftovers with confidence and reasons, "Needs admin" rows with Show in Finder, the blocked
     reason, and the note that macOS may ask for permission to read other apps' containers (APP-002 to APP-005, R-16).
   - [ ] The itemized review, Quit and the uninstall run (APP-006, APP-007).
   - [ ] History showing the run and restoring it, with the re-enable confirmation (HIS-005), the UI workflow steps and
     the changelog line.
-- [ ] M3-T09 Should and Could requirements, each its own pull request, done last:
-  - [ ] Package receipts (APP-008). Owner decision first: `pkgutil` can run only in `ShuckExecution` (D-82) and
+- [ ] M3-T09 Should and Could requirements, each its own task and pull request, one at a time, done last:
+  - [ ] Package receipts (APP-008). Advisor's decision first (D-200): `pkgutil` can run only in `ShuckExecution` (D-82) and
     `ShuckKit` cannot import it, so the scan needs an injected protocol, or the receipts are read without a
     subprocess.
   - [ ] The code-signing developer name (APP-010), which is Could.

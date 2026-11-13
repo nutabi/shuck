@@ -353,7 +353,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
 
         // The UI test runner is sandboxed, so the fake tool it writes is quarantined and the app is not allowed to run it:
         // the run ends as a failure. This workflow checks what a user sees whatever the tool's exit; that a tool that
-        // succeeds is "done", with its output, is covered by the engine tests (AGENTS.md, UI tests).
+        // succeeds is "done", with its output, is covered by the engine tests (docs/testing.md, UI tests).
         step("Clean Up starts the run, and the summary says what happened (SAF-010, SAF-011)") {
             sheet.buttons["Clean Up"].click()
             XCTAssertTrue(text(sheet, startingWith: "Cleaned up").appears(within: 10), outline(of: app))
