@@ -122,7 +122,7 @@ jobs:
 
   engine-macos-26:
     # The engine uses only macOS 26 APIs (D-06, NFR-COMP-001). The check job's runner has macOS 27, so this builds the
-    # package on macOS 26, where CodeQL builds it after a merge (#126). It is not part of the required check yet: the
+    # package on macOS 26 (#126). It is not part of the required check yet: the
     # owner can add "Engine on macOS 26" to the branch protection (docs/repository-setup.md).
     name: Engine on macOS 26
     needs: changes

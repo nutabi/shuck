@@ -333,8 +333,8 @@ Process changes during M2:
 - [x] Release notes come from `CHANGELOG.md`, in the Keep a Changelog format, instead of GitHub's list of pull
   requests. Each pull request adds its user-facing changes under Unreleased (D-95).
 - [x] CodeQL scans the engine package and the workflows on every push to `main` that changes code (D-96).
-- [ ] CodeQL also scans the app target, once it can build the Xcode 27 project, or in M5's security pass at the latest
-  (D-96).
+- [x] CodeQL also scans the app target, once it can build the Xcode 27 project, or in M5's security pass at the latest
+  (D-96). Dropped: CodeQL was removed in M3 (#213).
 
 Fixes from the review of `main` at 380a07d (#55 to #73):
 
@@ -664,6 +664,14 @@ Tasks:
     `ShuckKit` cannot import it, so the scan needs an injected protocol, or the receipts are read without a
     subprocess.
   - [ ] The code-signing developer name (APP-010), which is Could.
+
+Process changes during M3:
+
+- [x] CodeQL is removed (#213, owner decision, 2026-11-14). It cannot trace a build on macOS 27 or Xcode 27, and it
+  does not support Swift 6.4, which every Xcode 27 ships, so it would have to stay on `macos-26` runners, which CI is
+  leaving. Code scanning comes back if CodeQL supports Xcode 27 and Swift 6.4.
+- [ ] The rest of #213: drop the `Engine on macOS 26` job, build the engine in **Lint, build and test**, and move cache
+  warming to its own workflow.
 
 Exit criteria (PRD section 13):
 

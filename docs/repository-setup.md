@@ -86,15 +86,15 @@ ruleset so only the owner can create one:
 
 In **Settings → Actions → General**:
 
-- **Actions permissions:** allow actions created by GitHub only. The workflows use only `actions/*` and
-  `github/codeql-action`, pinned to commit SHAs (D-34, D-96, D-111).
+- **Actions permissions:** allow actions created by GitHub only. The workflows use only `actions/*`, pinned to commit
+  SHAs (D-34, D-111).
 - **Workflow permissions:** read repository contents by default. The release workflow asks for write access itself.
 - **Fork pull request workflows:** require approval for all outside collaborators.
 
 ## Code scanning
 
-In **Settings → Code security → Code scanning**, default setup is off. CodeQL runs from
-`.github/workflows/codeql.yml` on `main` only (D-96), so it adds no check to pull requests. The only required check is
-**Lint, build and test**.
+In **Settings → Code security → Code scanning**, default setup is off, and no workflow runs CodeQL (#213). CodeQL
+cannot trace a build on macOS 27 or Xcode 27 and does not support Swift 6.4, which Xcode 27 ships. The only required
+check is **Lint, build and test**.
 
 Release secrets and the `release` environment are described in [releasing.md](releasing.md).
