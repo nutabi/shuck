@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.11 — DEV-004 records the tools' network check (see Revision history) |
+| Version | 1.12 — ENG-002: one task is one pull request or one stack (see Revision history) |
 | Date | 2026-11-11 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -30,6 +30,7 @@
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
+| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack (D-200). |
 
 ## How to read this document
 
@@ -612,7 +613,7 @@ shuck/
 | ID | Requirement | Priority |
 |---|---|---|
 | ENG-001 | `main` is protected: pull request required, CI must pass, no force-push, squash merge [S65]. | Must |
-| ENG-002 | One pull request = one roadmap task, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code. A task that needs more is split into several pull requests, each small and reviewable on its own (for example engine first, then UI); the split is planned at the start, and each pull request says what the next adds (D-62). Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
+| ENG-002 | One task = one pull request, or one stack of pull requests, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code per pull request. A task that needs more is split into a stack of pull requests, each small and reviewable on its own (for example engine first, then UI); the split is planned at the start, and each pull request says what the next adds (D-62). An agent never has two open pull requests outside one stack (D-200). Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
 | ENG-003 | The pull request template has these sections: Summary · Requirement IDs · **How to review this** (risky areas, files to read first) · **SwiftUI concepts used** (learning notes with Apple documentation links) · Test evidence · Checklist (tests added, no new dependencies, no network APIs, docs updated). There is no Screenshots section (D-65). | Must |
 | ENG-004 | **Definition of done** for a task: builds; all tests pass locally and in CI; new behavior has tests (deletion paths use fixture tests); `swift-format` clean; static checks pass; `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95); pull request template complete. | Must |
 | ENG-005 | **CI** (`ci.yml`) runs on every pull request, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. A `Code changes` job on Linux runs the static checks, their self-test and the changelog check for every change, and decides whether a change touches code (D-66, D-98). `Lint, build and test` runs only for code changes: `swift-format` lint, one build from `Shuck.xcworkspace`, and `Shuck.xctestplan` (engine tests with the coverage gate, app unit tests, UI tests) (D-111). A push to `main` only builds, to warm the compilation cache (D-111). | Must |

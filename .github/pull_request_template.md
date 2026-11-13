@@ -1,6 +1,6 @@
 <!--
 Title: [<task ID>] <deliverable>, for example "[M1-T02] PathGuard". It becomes the commit title on main.
-One pull request = one roadmap task, about 200 changed lines of production code (ENG-002).
+One task = one pull request, or one stack of them; about 200 changed lines of production code each (ENG-002).
 -->
 
 ## Summary
@@ -16,7 +16,7 @@ One pull request = one roadmap task, about 200 changed lines of production code 
 <!--
 - Files to read first, in order.
 - Risky areas, and why. Call out every change to Safety or Execution (ShuckExecution) explicitly.
-- Anything you were unsure about, or a decision recorded in docs/decisions.md.
+- Anything you were unsure about, and each decision the advisor made, recorded in docs/decisions.md.
 -->
 
 ## SwiftUI concepts used

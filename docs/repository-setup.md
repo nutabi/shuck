@@ -34,20 +34,10 @@ In **Settings → General → Pull Requests**:
 - Turn on **Automatically delete head branches**.
 - Turn on **Allow auto-merge**. Pull requests get auto-merge when they open and merge once the required check passes (D-51).
 
-## Code owners for the CI gate (#124)
+## No code owners
 
-`scripts/` and `.github/` decide what CI checks, so a pull request that changes them could change the rules it is
-judged by. `AGENTS.md` says such a pull request never auto-merges and that an agent does not merge it on its own
-(D-170). The owner also adds `.github/CODEOWNERS` in a pull request of their own, so GitHub names them on every such
-pull request:
-
-```text
-/scripts/ @nutabi
-/.github/ @nutabi
-```
-
-Leave "Require review from Code Owners" off in the `main` ruleset: agents open pull requests from the owner's account,
-and GitHub does not let the author approve their own pull request, so the rule would block them.
+Changes to `scripts/` and `.github/` follow the same rules as any other change and merge once CI passes (D-200), so
+the repository has no `.github/CODEOWNERS`. Leave "Require review from Code Owners" off in the `main` ruleset.
 
 ## Release tags (#125)
 
