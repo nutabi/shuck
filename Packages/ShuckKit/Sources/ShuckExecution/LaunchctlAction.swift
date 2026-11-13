@@ -9,7 +9,7 @@ package enum LaunchctlOperation: Equatable, Sendable {
     case bootout
     /// Loads the job from its property list into the user's GUI domain, which undoes a `bootout`. It does not run
     /// `enable`: `launchctl` says a disabled service cannot be loaded until it is enabled, so a job the user disabled
-    /// stays disabled and fails to load, as it should (APP-011, D-NEXT-reenable).
+    /// stays disabled and fails to load, as it should (APP-011, D-199).
     case bootstrap
 
     /// The words of the subcommand and its target. `domain` is `gui/<uid>`; `label` names the job and `plist` is its

@@ -45,7 +45,7 @@ public struct RestoreExecutor: Sendable {
     ///
     /// A request with a `reenableAgentLabel` gets a second item after its restore, with its own intent and result
     /// records, logged by the job label as a Launchctl item (SAF-006, HIS-002). It acts only if that request's restore
-    /// was done in this run, and its failure never undoes or fails the restore (D-NEXT-reenable).
+    /// was done in this run, and its failure never undoes or fails the restore (D-199).
     public func run(_ requests: [RestoreRequest], run: UUID = UUID()) async -> RestoreReport {
         let loop = RunLoop(log: log, logger: Logger(tool: .history))
         var units: [Unit] = []

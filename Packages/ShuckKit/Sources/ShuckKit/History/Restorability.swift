@@ -50,7 +50,7 @@ public struct RestoreRequest: Equatable, Sendable {
     public let ifTaken: IfTaken
     /// The job label of the LaunchAgent this item is the property list of, if the user confirmed loading it again
     /// after the restore (APP-011, HIS-005). The label is the one the uninstall's Launchctl record logged. `nil`, the
-    /// default, means no confirmation: Restore only moves the file and never touches launchd (D-NEXT-reenable).
+    /// default, means no confirmation: Restore only moves the file and never touches launchd (D-199).
     public let reenableAgentLabel: String?
 
     public init(item: TrashedItem, ifTaken: IfTaken = .skip, reenableAgentLabel: String? = nil) {

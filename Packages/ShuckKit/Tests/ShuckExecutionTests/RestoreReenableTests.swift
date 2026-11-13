@@ -63,7 +63,7 @@ struct RestoreReenableTests {
         #expect(outcome.result == .done(plist))
         #expect(outcome.reenable == .done(nil))
         #expect(FileManager.default.fileExists(atPath: plist.path))
-        // `bootstrap` only, never `enable`: the user's own disabled override is left alone (D-NEXT-reenable).
+        // `bootstrap` only, never `enable`: the user's own disabled override is left alone (D-199).
         #expect(root.launchctlCalls == ["print \(target)", "bootstrap gui/\(getuid()) \(plist.path)"])
 
         // Its own intent and result records, by job label (SAF-006, HIS-002).

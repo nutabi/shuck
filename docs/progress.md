@@ -635,7 +635,7 @@ Tasks:
   - [x] Owner approval first, a hard stop, since it changes Restore: a Launchctl enable (bootstrap) action, and
     Restore re-enabling a restored agent after the user confirms (APP-011, HIS-005, STA-005 Enable). History's
     `Restorability` today says a `launchctl` item is "reversed by the opposite action", and no such action exists.
-    Done as D-NEXT-reenable. Restore only moves a file unless a request carries the confirmed job label; the
+    Done as D-199. Restore only moves a file unless a request carries the confirmed job label; the
     confirmation dialog is M3-T08.
 - [ ] M3-T06 Engine: the uninstall (APP-007, APP-011, HIS-005, SAF-011, R-16). Two pull requests:
   - [ ] The uninstall plan: the bundle, the selected leftovers and the agents in one run, `bootout` before the plist
