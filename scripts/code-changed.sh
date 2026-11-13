@@ -1,6 +1,6 @@
 #!/bin/bash
 # Says whether a change touches code: prints "true" if any file that differs between two commits is not documentation,
-# and "false" otherwise. CI runs lint, build and test only when this prints "true" (D-66).
+# and "false" otherwise. CI's "Check" runs only its static and changelog checks when this prints "false" (D-66).
 #
 # Usage: scripts/code-changed.sh BASE [HEAD]    HEAD defaults to the checked-out commit
 #

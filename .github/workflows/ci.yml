@@ -1,6 +1,7 @@
-# Lint, build and test every pull request. The static checks and the changelog check run for every change, on Linux
-# (D-98); lint, build and test run only when a change touches code (ENG-005, D-66). Cache warming for main is in
-# warm-cache.yml (D-111, #213). Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
+# One job, Check, runs on every pull request and is the only required check. The static checks and the changelog check
+# run for every change (D-98); lint, build and test run only when a change touches code (ENG-005, D-66). Cache warming
+# for main is in warm-cache.yml (D-111, #213). Each step runs a script from scripts/, so CI and local runs stay the
+# same (ENG-012). Until 2026-11-14 it was two jobs, one of them on Linux (owner decision).
 name: CI
 
 on:
@@ -14,12 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Code changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      code: ${{ steps.diff.outputs.code }}
+  check:
+    # Branch protection requires this check by name (docs/repository-setup.md).
+    name: Check
+    runs-on: xcode-27
+    timeout-minutes: 45
     steps:
       # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,10 +27,8 @@ jobs:
           # A pull request checks out a merge commit whose first parent is the base branch.
           fetch-depth: 2
 
-      # The static checks and the changelog's form apply to documentation too, such as a CLAUDE.md (ENG-010) or a
-      # broken CHANGELOG.md (D-95), so they run here for every change (D-98). They use only bash, grep, sed and awk.
-      # They run before the comparison: if one fails, the job sets no output, so the full check runs and fails too,
-      # instead of being skipped (D-66).
+      # The static checks apply to documentation too, such as a CLAUDE.md (ENG-010) or a broken CHANGELOG.md (D-95), so
+      # they run for every change (D-98).
       - name: Static checks
         run: |
           scripts/static-checks-test.sh
@@ -39,33 +37,16 @@ jobs:
       - name: Changelog
         run: scripts/release-notes.sh --check
 
+      # A documentation-only change skips the steps below, and the check still passes (D-66). They run unless this step
+      # says "false", so a failed comparison can't skip them.
       - name: Compare with the base
         id: diff
         run: |
           code="$(scripts/code-changed.sh HEAD^1)"
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
-  check:
-    # Branch protection requires this check by name (docs/repository-setup.md). GitHub counts a skipped job as passed.
-    name: Lint, build and test
-    needs: changes
-    # Skipped only when the changes job says "false", so the check still runs if that job fails (D-66).
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    runs-on: xcode-27
-    timeout-minutes: 45
-    steps:
-      # The static checks and the changelog check ran in the changes job, so they are not run again here. If that job
-      # failed, this required check fails too, before spending any time on a build (D-98, D-111).
-      - name: Static and changelog checks passed
-        if: ${{ needs.changes.result != 'success' }}
-        run: |
-          echo "::error::The Code changes job failed: see its static checks and changelog check."
-          exit 1
-
-      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Toolchain
+        if: ${{ steps.diff.outputs.code != 'false' }}
         id: toolchain
         run: |
           xcodebuild -version
@@ -75,6 +56,7 @@ jobs:
       # Xcode's compilation cache, from this pull request's last run or from main (D-111). Its entries are keyed by
       # content, so a fresh checkout reuses them. A new Xcode starts a new cache.
       - name: Restore the compilation cache
+        if: ${{ steps.diff.outputs.code != 'false' }}
         id: cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -83,31 +65,35 @@ jobs:
           restore-keys: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-
 
       - name: Lint
+        if: ${{ steps.diff.outputs.code != 'false' }}
         run: scripts/lint.sh
 
       - name: Test
+        if: ${{ steps.diff.outputs.code != 'false' }}
         run: scripts/test.sh
 
       # The Release configuration, unsigned, so a break found only there shows in the pull request, not when a tag is
       # pushed (#126). It runs after the tests, so a test failure is reported first.
       - name: Build the Release configuration
+        if: ${{ steps.diff.outputs.code != 'false' }}
         run: scripts/build-check.sh release
 
       # The engine with SwiftPM, which compiles it for macOS 26 from Package.swift, so an unguarded macOS 27 API fails
       # here (NFR-COMP-001, D-06). Building with Xcode 26 waits until the app supports macOS 26 (L-02, #213).
       - name: Build the engine for macOS 26
+        if: ${{ steps.diff.outputs.code != 'false' }}
         run: scripts/build-check.sh engine
 
       # Also after a test failure: the build is what the cache saves, and the fix's run reuses it.
       - name: Save the compilation cache
-        if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && steps.diff.outputs.code == 'true' && steps.cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
           key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
 
       - name: Upload test results
-        if: failure()
+        if: ${{ failure() && steps.diff.outputs.code == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results

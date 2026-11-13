@@ -14,7 +14,7 @@ In **Settings → Rules → Rulesets**, create a branch ruleset:
 | Restrict deletions | On |
 | Require a pull request before merging | On. Required approvals: 0 (no one reviews pull requests, and GitHub doesn't let the owner approve their own, D-200). |
 | Allowed merge methods | Squash only |
-| Require status checks to pass | On. Add the check **Lint, build and test** (from `.github/workflows/ci.yml`). Turn on "Require branches to be up to date before merging". |
+| Require status checks to pass | On. Add the check **Check** (from `.github/workflows/ci.yml`). Turn on "Require branches to be up to date before merging". |
 | Block force pushes | On |
 | Bypass list | Empty, so the rules apply to the owner too |
 
@@ -24,8 +24,8 @@ The required check also builds the engine package with SwiftPM, which compiles i
 macOS 26 fails there (NFR-COMP-001, D-06). CI has no macOS 26 runner: building with Xcode 26 waits until the app
 supports macOS 26 (L-02, #213).
 
-A pull request that changes only documentation skips **Lint, build and test**, and GitHub counts a skipped check as
-passed (D-66). The **Code changes** job that decides this is not a required check: if it fails, the full check runs.
+**Check** is the only job on a pull request. It runs the static checks and the changelog check for every change. A pull
+request that changes only documentation skips its build and test steps, and **Check** still passes (D-66).
 
 Cache warming runs in its own workflow, `.github/workflows/warm-cache.yml`, on pushes to `main` that change code, so
 pull requests don't list it (D-111, #213).
@@ -97,6 +97,6 @@ In **Settings → Actions → General**:
 
 In **Settings → Code security → Code scanning**, default setup is off, and no workflow runs CodeQL (#213). CodeQL
 cannot trace a build on macOS 27 or Xcode 27 and does not support Swift 6.4, which Xcode 27 ships. The only required
-check is **Lint, build and test**.
+check is **Check**.
 
 Release secrets and the `release` environment are described in [releasing.md](releasing.md).
