@@ -1,7 +1,7 @@
 import Foundation
 
 /// An earlier item of the same plan that must have been done before an item acts: the item with this target and method
-/// (APP-005, APP-011, SAF-011, D-NEXT-deps).
+/// (APP-005, APP-011, SAF-011, D-198).
 ///
 /// Both are needed, since an agent's property list is the target of two items: its Launchctl `bootout` and its Trash.
 /// A dependency adds no power to a plan. The run only skips the dependent item, with its reason, if the one it names
@@ -43,7 +43,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
     public let modified: Date?
     /// The bundle IDs of the apps that use the item; the executor skips it while one of them runs (SAF-009).
     public let apps: Set<String>
-    /// The earlier item that must have been done for this one to act, or `nil` (D-NEXT-deps). If it was skipped,
+    /// The earlier item that must have been done for this one to act, or `nil` (D-198). If it was skipped,
     /// failed or never ran, this item is skipped and says so; the plan itself is unchanged.
     public let dependency: ItemDependency?
 
@@ -204,7 +204,7 @@ public enum PlanError: Error, Equatable {
     case ruleMismatch(String)
     /// The item is to be deleted permanently, but no cleanup rule matched it (SAF-008, D-132).
     case ruleRequired(String)
-    /// The item depends on an item that is not earlier in the plan: none, a later one, or itself (D-NEXT-deps).
+    /// The item depends on an item that is not earlier in the plan: none, a later one, or itself (D-198).
     case dependencyNotEarlier(String)
     /// The path guard rejected the item (SAF-007).
     case rejected(String, PathGuardError)

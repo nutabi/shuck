@@ -631,7 +631,7 @@ Tasks:
     through the runner inside the fixture root. Done as D-197.
   - [x] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
     agent's plist and a bundle that fails to move leaves its leftovers alone (APP-005, APP-011, SAF-011). The skip is
-    logged with its reason. Done as D-NEXT-deps.
+    logged with its reason. Done as D-198.
   - [ ] Owner approval first, a hard stop, since it changes Restore: a Launchctl enable (bootstrap) action, and
     Restore re-enabling a restored agent after the user confirms (APP-011, HIS-005, STA-005 Enable). History's
     `Restorability` today says a `launchctl` item is "reversed by the opposite action", and no such action exists.

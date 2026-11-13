@@ -60,7 +60,7 @@ public struct PlanExecutor: Sendable {
         // What a tool item's run measured, by item (D-184). The loop runs one step at a time.
         var removed: [ItemTarget: Int64] = [:]
         // The items already done, and the path each was logged by, so an item that depends on one can check it
-        // (D-NEXT-deps). An item that was skipped, failed or never ran is not in `done`.
+        // (D-198). An item that was skipped, failed or never ran is not in `done`.
         var done: Set<ItemDependency> = []
         var loggedPaths: [ItemDependency: String] = [:]
         let results = await loop.run(plan.items) { item in
@@ -74,7 +74,7 @@ public struct PlanExecutor: Sendable {
             loggedPaths[own] = logged.path
             return RunLoop.Step(logged: logged) {
                 // Decided first, before re-validation, as nothing is touched for an item that is skipped. The only
-                // thing a dependency can do is turn the action into this skip (D-NEXT-deps).
+                // thing a dependency can do is turn the action into this skip (D-198).
                 if let dependency = item.dependency, !done.contains(dependency) {
                     let needed = loggedPaths[dependency] ?? dependency.target.description
                     return Acted<ItemOutcome.SkipReason>(.skipped(.dependencyNotDone(needed)))
@@ -232,7 +232,7 @@ public struct ItemOutcome: Equatable, Sendable {
         case notAllowed(ActionMethod)
         /// The item needs an earlier item of the run, whose logged path this is, to be done, and it was not: a
         /// `bootout` that failed leaves its property list alone, and a bundle that stayed leaves its leftovers
-        /// (APP-005, APP-011, D-NEXT-deps).
+        /// (APP-005, APP-011, D-198).
         case dependencyNotDone(String)
 
         /// The reason's stable code, which the history log records (D-88).

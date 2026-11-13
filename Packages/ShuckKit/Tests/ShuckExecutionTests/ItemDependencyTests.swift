@@ -6,7 +6,7 @@ import Testing
 
 /// An item that depends on an earlier item of its run is skipped, with its reason, if that item was not done: a failed
 /// `bootout` leaves the agent's property list alone (APP-011), and a bundle that does not move leaves its leftovers
-/// (APP-005). A dependency only ever turns an action into that skip (SAF-005, SAF-006, SAF-011, D-NEXT-deps).
+/// (APP-005). A dependency only ever turns an action into that skip (SAF-005, SAF-006, SAF-011, D-198).
 struct ItemDependencyTests {
     let root: FixtureRoot
     let pathGuard: PathGuard
