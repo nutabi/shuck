@@ -226,4 +226,37 @@ struct ExclusionsTests {
             #expect(context.hides(url) == !after.contains(url), "\(url.lastPathComponent)")
         }
     }
+
+    /// An app's leftovers are found by Applications too, so a leftover inside or holding an exclusion is not listed
+    /// (APP-002, D-149).
+    @Test func leftoversListNoItemInsideOrHoldingAnExclusionSET001() async throws {
+        let id = "com.example.Notes"
+        let url = try root.app("Applications/Notes.app", bundleID: id)
+        let app = InstalledApp(
+            url: url, name: "Notes", bundleID: id, snapshot: try #require(ItemSnapshot.read(url, while: { true })),
+            modified: try #require(ModificationDate.read(at: url)))
+        try root.file("Library/Caches/\(id)/data", size: 5)
+        try root.file("Library/Application Support/\(id)/Documents/keep/data", size: 5)
+        try root.file("Library/Logs/\(id)/data", size: 5)
+        try root.file("Library/Group Containers/group.\(id)/data", size: 5)
+        let excluded = try [
+            "Library/Caches/\(id)/data", "Library/Application Support/\(id)/Documents/keep",
+            "Library/Group Containers",
+        ].map { try root.url($0) }
+        let applications = Applications(
+            appFolders: [try root.url("Applications")], appGroups: { _ in ["group.\(id)"] })
+
+        func scan(excluding exclusions: [URL]) async -> Set<String> {
+            let context = ScanContext(
+                home: root.url, protection: root.pathGuardConfiguration(userExclusions: exclusions))
+            var found: Set<String> = []
+            for await case .item(let item) in applications.leftovers(of: app, context) {
+                found.insert(item.url?.deletingLastPathComponent().lastPathComponent ?? "")
+            }
+            return found
+        }
+
+        #expect(await scan(excluding: []) == ["Caches", "Application Support", "Logs", "Group Containers"])
+        #expect(await scan(excluding: excluded) == ["Logs"])
+    }
 }

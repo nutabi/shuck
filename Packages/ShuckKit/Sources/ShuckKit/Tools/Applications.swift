@@ -78,6 +78,8 @@ public enum AppInventoryEvent: Equatable, Sendable {
 public struct Applications: Sendable {
     /// Whether an app is part of macOS, protected by System Integrity Protection, so it cannot be removed (APP-001).
     public typealias SystemProtected = @Sendable (URL) -> Bool
+    /// The app groups the app at a URL declares (APP-002).
+    public typealias AppGroups = @Sendable (URL) -> [String]
 
     /// The folders `~/Library` keeps an app's leftovers in, relative to the home folder (APP-002), and LaunchAgents,
     /// which holds the agents an uninstall unloads (APP-011). `Preferences` includes `ByHost`.
@@ -99,6 +101,7 @@ public struct Applications: Sendable {
     private let customAppFolders: [URL]?
     private let isSystemProtected: SystemProtected
     private let lastUsedDate: LastOpenedReader.LastUsedDate
+    let appGroups: AppGroups
 
     /// - Parameters:
     ///   - appFolders: The folders apps are listed from. `nil` uses ``appFolders(home:)``'s production folders; tests
@@ -106,13 +109,16 @@ public struct Applications: Sendable {
     ///   - isSystemProtected: Whether an app is protected by System Integrity Protection. Tests stub it, since only
     ///     root can set the flag on a fixture.
     ///   - lastUsedDate: Reads when an app was last opened. Tests stub it, since Spotlight does not index a fixture.
+    ///   - appGroups: Reads the app groups an app declares (APP-002). Tests stub it, since a fixture app is unsigned.
     public init(
         appFolders: [URL]? = nil, isSystemProtected: @escaping SystemProtected = Self.hasRestrictedFlag,
-        lastUsedDate: @escaping LastOpenedReader.LastUsedDate = LastOpenedReader.spotlightLastUsedDate
+        lastUsedDate: @escaping LastOpenedReader.LastUsedDate = LastOpenedReader.spotlightLastUsedDate,
+        appGroups: @escaping AppGroups = Self.declaredAppGroups(of:)
     ) {
         customAppFolders = appFolders
         self.isSystemProtected = isSystemProtected
         self.lastUsedDate = lastUsedDate
+        self.appGroups = appGroups
     }
 
     /// `/Applications` and `~/Applications`, or the folders the caller passed (APP-001).

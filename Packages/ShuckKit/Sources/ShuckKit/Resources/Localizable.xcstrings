@@ -22,6 +22,9 @@
     "App is running" : {
 
     },
+    "App leftovers" : {
+
+    },
     "App Logs" : {
 
     },
@@ -64,16 +67,28 @@
     "Homebrew's own command removes old versions and old downloads and keeps the current ones. The size is its download cache; old versions are not counted." : {
 
     },
+    "In an app group the app declares: %@" : {
+
+    },
     "Its project is no longer on this Mac." : {
 
     },
     "Large Files" : {
 
     },
+    "Launch agent named by the app's bundle ID" : {
+
+    },
+    "Launch agent that runs a program inside the app" : {
+
+    },
     "Log Files" : {
 
     },
     "Logs" : {
+
+    },
+    "Named by the app's bundle ID" : {
 
     },
     "Node.js projects" : {
