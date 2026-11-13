@@ -72,7 +72,8 @@ Owner preference, 2026-11-13:
   default. To update a branch, rebase locally and push with `--force-with-lease`, or use `gh stack rebase`. Never use
   `gh pr update-branch` or GitHub's "Update branch" button, which leave the commits unsigned.
 - **A single pull request** opens ready for review with auto-merge (squash) on. If CI fails, fix it on the branch
-  (D-51). A change to Markdown files and `LICENSE` only skips `Lint, build and test`, which counts as passed (D-66).
+  (D-51). A change to Markdown files and `LICENSE` only runs just the static and changelog checks of `Check`, which
+  still passes (D-66).
 - **A stack** (D-76) uses the `gh stack` extension (`gh extension install github/gh-stack`): `gh stack init`,
   `gh stack add <branch>` and `gh stack submit --open`. Keep it linear with `gh stack rebase` and `gh stack push`,
   never by merging. Turn on auto-merge (squash) on the top pull request: once CI passes, it merges the whole stack,
@@ -101,7 +102,7 @@ Run from the repository root. A task that adds or changes a command updates this
 | User-facing strings without a String Catalog entry (D-161; `--self-test`) | `scripts/strings-check.py` |
 | Static checks (ENG-006), including that every Must SAF requirement is named in a test | `scripts/static-checks.sh` |
 | Static checks self-test, after changing the checks | `scripts/static-checks-test.sh` |
-| Whether a change touches code; CI skips lint, build and test if not (D-66) | `scripts/code-changed.sh BASE [HEAD]` |
+| Whether a change touches code; CI's `Check` skips its build and test steps if not (D-66) | `scripts/code-changed.sh BASE [HEAD]` |
 | Release build unsigned, or the engine with SwiftPM, as CI does (D-180) | `scripts/build-check.sh release` or `engine` |
 | Build, sign and notarize the release DMG (`docs/releasing.md`) | `scripts/build-dmg.sh` |
 | Notarize one file (called by `build-dmg.sh`) | `scripts/notarize.sh FILE` |

@@ -673,6 +673,8 @@ Process changes during M3:
   leaving. Code scanning comes back if CodeQL supports Xcode 27 and Swift 6.4.
 - [x] The rest of #213: drop the `Engine on macOS 26` job, build the engine in **Lint, build and test**, and move cache
   warming to its own workflow.
+- [x] One CI job, **Check**, replaces **Code changes** and **Lint, build and test** (owner decision, 2026-11-14). A
+  documentation-only change runs only its static and changelog checks (D-66), and `main`'s ruleset requires **Check**.
 
 Exit criteria (PRD section 13):
 
