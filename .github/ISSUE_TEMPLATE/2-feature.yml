@@ -1,0 +1,54 @@
+name: "Feature request"
+description: "An idea to make Shuck better."
+type: "Feature"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your idea.
+
+        Shuck stays offline, never asks for admin rights and supports macOS 27+ on Apple Silicon, so ideas that need those won't fit.
+
+  - type: checkboxes
+    id: search
+    attributes:
+      label: "Search first"
+      options:
+        - label: "I searched the existing issues and this hasn't been reported."
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Where would it belong?"
+      options:
+        - "File Cleanup: Large Files"
+        - "File Cleanup: Old Files"
+        - "File Cleanup: Developer Junk"
+        - "File Cleanup: Caches & Logs"
+        - "Applications"
+        - "Startup Items"
+        - "History and Restore"
+        - "Settings"
+        - "Somewhere else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What problem would this solve?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: "What would you like Shuck to do?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Anything else you considered?"

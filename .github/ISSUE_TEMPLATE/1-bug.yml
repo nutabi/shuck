@@ -1,0 +1,99 @@
+name: "Bug report"
+description: "Something in Shuck doesn't work as it should."
+type: "Bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        Before you paste anything, please remove folder paths and file names. Shuck's own logs already hide them as `<private>`, so only remove them from text you copy yourself.
+
+  - type: checkboxes
+    id: search
+    attributes:
+      label: "Search first"
+      options:
+        - label: "I searched the existing issues and this hasn't been reported."
+          required: true
+
+  - type: dropdown
+    id: data
+    attributes:
+      label: "Did Shuck remove, move or hide something it shouldn't have?"
+      description: "If Yes, say whether History's Restore brought it back."
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Where did it happen?"
+      options:
+        - "File Cleanup: Large Files"
+        - "File Cleanup: Old Files"
+        - "File Cleanup: Developer Junk"
+        - "File Cleanup: Caches & Logs"
+        - "Applications"
+        - "Startup Items"
+        - "History and Restore"
+        - "Settings"
+        - "Somewhere else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: "What happened?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce"
+      placeholder: |
+        1. Open Shuck and go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "What did you expect?"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "Shuck version"
+      placeholder: "0.2.0"
+      description: "Shuck > About Shuck."
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: "macOS version"
+      placeholder: "27.1 (27B74)"
+      description: "Apple menu > About This Mac."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs (optional)"
+      description: |
+        To get Shuck's log of the last hour, run this in Terminal. The log hides file names and folder paths as
+        `<private>`: `/usr/bin/log show --last 1h --style compact --predicate 'subsystem == "me.nutabi.shuck"'`
+      render: shell

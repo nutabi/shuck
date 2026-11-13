@@ -50,7 +50,10 @@ Owner preference, 2026-11-13:
   request what the next one adds.
 - **One open change at a time.** Never have two open pull requests outside one stack, so a merge never leaves another
   pull request with conflicts. Start the next task only after the last one has merged. Something found along the way
-  goes into the open stack if it belongs to the task; otherwise it waits.
+  goes into the open stack if it belongs to the task; otherwise it becomes an issue.
+- **Issues** (`docs/repository-setup.md` has the types and labels): before picking the next task, triage the issues
+  with no label. An open `data-risk` bug goes before any other task. Something found along the way that doesn't belong
+  to the open task becomes an issue, with its type and `area/` label.
 - Tick the task in `docs/progress.md` in the same pull request (each pull request in a stack ticks its own sub-item,
   D-93), and add a line for anything left over.
 - After the merge, remove the worktrees and branches you used, including `worktree-agent-*` (`git worktree remove`,

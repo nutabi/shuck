@@ -30,7 +30,7 @@
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
-| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen (D-200). |
+| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms (D-200). |
 
 ## How to read this document
 
@@ -604,7 +604,7 @@ shuck/
 │   ├── Sources/ShuckKitTestSupport/   fixture-root harness and file factory
 │   └── Tests/
 ├── scripts/                   lint, test, static checks, code-change check, build-dmg, notarize, release notes
-└── .github/                   CI, CodeQL and release workflows, pull request template
+└── .github/                   CI, CodeQL and release workflows, pull request template, issue forms
 ```
 
 ## 12. Engineering workflow

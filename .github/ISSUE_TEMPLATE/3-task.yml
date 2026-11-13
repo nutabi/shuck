@@ -1,0 +1,56 @@
+name: "Task"
+description: "Planned work for maintainers: a roadmap task or a chore."
+type: "Task"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For maintainers and their agents.
+
+        One task becomes one pull request or one stack of pull requests. Set the milestone after creating the issue.
+
+  - type: input
+    id: task
+    attributes:
+      label: "Task ID (optional)"
+      placeholder: "M3-T04"
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: "Goal"
+    validations:
+      required: true
+
+  - type: input
+    id: requirements
+    attributes:
+      label: "Requirement IDs"
+      placeholder: "APP-005, SAF-007"
+
+  - type: textarea
+    id: done
+    attributes:
+      label: "Done when"
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - "File Cleanup"
+        - "Applications"
+        - "Startup Items"
+        - "History and Restore"
+        - "Settings"
+        - "App shell (window, sidebar, Overview, onboarding)"
+        - "Safety layer"
+        - "CI, scripts and release"
+        - "Docs"
+    validations:
+      required: true
