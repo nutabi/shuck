@@ -31,6 +31,7 @@
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
 | 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms. Section 1, G-5, R-17 and the priorities: the advisor decides instead of the owner reviewing (D-200). |
+| 1.13 | 2026-11-14 | Tasks, owner items and exit criteria live in GitHub issues and milestones; `docs/progress.md` is frozen in `docs/archive/` (OQ-05, ENG-004, section 12). |
 
 ## How to read this document
 
@@ -412,7 +413,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 
 - **DEV-R01.** Deleting DerivedData also removes `SourcePackages` (Swift package checkouts), which need the network to restore, and Xcode's compilation cache. The explanation says so.
 - **DEV-R03.** `xcrun simctl delete unavailable` is the only supported way to remove simulator devices. `simctl runtime delete` is reported to be undone at restart [S73], so Shuck does not offer it.
-- **DEV-R04.** DevCleaner's maintainer reports that `~/Library/Developer/CoreSimulator/Caches` is gone on recent Xcode versions and advises against cleaning these caches [S77]. To verify on the owner's Mac (`docs/progress.md`, M2-T08).
+- **DEV-R04.** DevCleaner's maintainer reports that `~/Library/Developer/CoreSimulator/Caches` is gone on recent Xcode versions and advises against cleaning these caches [S77]. To verify on the owner's Mac (`docs/archive/progress.md`, M2-T08).
 - **DEV-R06.** Shuck has no network (P-3), so the explanation says that restoring `node_modules` needs `npm install` and a connection.
 - **DEV-R10.** Never `--volumes` or `-a`. To decide in M5: prefer `docker builder prune` [S72] to `docker system prune`. Docker's disk image on the host does not shrink when space is freed inside it, so the measured change in free space can be zero (SAF-013).
 
@@ -517,7 +518,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | ID | Requirement | Priority | Acceptance check |
 |---|---|---|---|
 | NFR-PERF-001 | The main thread is never blocked for more than 250 ms; interactions respond within 100 ms. Apple: delays under 100 ms are "rarely noticeable", and its tools report hangs above 250 ms [S57]. | Must | Instruments "Hangs" trace during a full scan shows no hang over 250 ms. |
-| NFR-PERF-002 | Measure a home-folder scan baseline in M1. Target: under 2 minutes for about 1 million files on the owner's Mac. | Should | Recorded baseline in `docs/progress.md`. |
+| NFR-PERF-002 | Measure a home-folder scan baseline in M1. Target: under 2 minutes for about 1 million files on the owner's Mac. | Should | Recorded baseline in `docs/archive/progress.md`. |
 | NFR-PERF-003 | Peak memory during "Scan all" stays under 1 GB. | Should | Instruments measurement. |
 | NFR-REL-001 | The history log is crash-safe (HIS-001). | Must | See HIS-001. |
 | NFR-SEC-001 | No network APIs in the MVP. A CI static check fails on `URLSession`, the Network framework, `NSURLConnection` or socket APIs. | Must | CI check. |
@@ -588,7 +589,6 @@ shuck/
 ├── docs/
 │   ├── PRD.md                 this document
 │   ├── archive/               finished work, frozen: decisions D-30 to D-200, the M1 and M2 reviews
-│   ├── progress.md            milestone and task checklist
 │   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
 │   └── third-party.md         attribution for any reused rule data or code; created on first reuse
@@ -614,7 +614,7 @@ shuck/
 | ENG-001 | `main` is protected: pull request required, CI must pass, no force-push, squash merge [S65]. | Must |
 | ENG-002 | One task = one pull request, or one stack of pull requests, with the task ID in the title (for example `[M1-T02] PathGuard`). Target about 200 changed lines of production code per pull request. A task that needs more is split into a stack of pull requests, each small and reviewable on its own (for example engine first, then UI); the split is planned at the start, and each pull request says what the next adds (D-62). An agent never has two open pull requests outside one stack (D-200). Google's guidance: about 100 lines is "usually a reasonable size", 1,000 "usually too large" [S29]. | Must |
 | ENG-003 | The pull request template has these sections: Summary (ending with the requirement IDs) · **How to review this** (files to read first, changes to Safety or Execution, decisions made) · Test evidence. The description becomes the squash commit's body on `main`. There is no Screenshots section (D-65), and since D-200 no SwiftUI concepts section or checklist, which CI covers. | Must |
-| ENG-004 | **Definition of done** for a task: CI passes (build, tests, `swift-format`, static checks, changelog form); new behavior has tests (deletion paths use fixture tests); `docs/progress.md` updated; `CHANGELOG.md` has a line for each change users can notice (D-95). | Must |
+| ENG-004 | **Definition of done** for a task: CI passes (build, tests, `swift-format`, static checks, changelog form); new behavior has tests (deletion paths use fixture tests); the task's GitHub issue closed by the pull request; `CHANGELOG.md` has a line for each change users can notice (D-95). | Must |
 | ENG-005 | **CI** (`ci.yml`) runs one job, `Check`, on every pull request, on the `xcode-27` runner (macOS 27, Apple Silicon) [S25], which is free for public repositories [S26]. It runs the static checks, their self-test and the changelog check for every change (D-98). If the change touches code (D-66), it then runs `swift-format` lint, one build from `Shuck.xcworkspace`, `Shuck.xctestplan` (engine tests with the coverage gate, app unit tests, UI tests), the Release build, and the engine built with SwiftPM for macOS 26 (D-111, #213). It is the only required check. A push to `main` only builds, in `warm-cache.yml`, to warm the compilation cache (D-111). | Must |
 | ENG-006 | **Static checks** run the same script locally and in CI: no network APIs; no third-party package dependencies; no shell execution; no file-mutation APIs outside the Execution module; no authorization or privilege APIs; no `SMAppService` outside the Execution module except `openSystemSettingsLoginItems()` (D-134). | Must |
 | ENG-007 | **Release** (`release.yml`) runs on a tag `vX.Y.Z` pushed to `main`. Steps: Release archive → sign with Developer ID (certificate imported into a temporary keychain [S62]) → notarize the app with `notarytool` using an App Store Connect API key [S63] → staple → build the DMG with `hdiutil` → sign, notarize and staple the DMG → compute SHA-256 → `gh release create` with the DMG and checksum [S61], which publishes the release. **The owner approves the `release` environment before the job reads any secret** (D-174, superseding D-17's draft step). | Must |
@@ -637,7 +637,7 @@ shuck/
    - never touch the real home folder.
 6. Dependency policy (D-03) and the reuse policy (section 5).
 7. Pull request rules (ENG-002, ENG-003) and the definition of done (ENG-004).
-8. How to pick the next task (`docs/progress.md`, in roadmap order) and how to record progress.
+8. How to pick the next task (GitHub issues, by milestone and task ID) and how to record progress.
 9. The rule: do not add `CLAUDE.md` (ENG-010).
 10. How to add a sub-tool or a cleanup rule: registry entry, ownership map (FCL-005), fixture tests.
 
@@ -692,7 +692,7 @@ Milestones run in order and have no dates (D-15). Each one ends with a tagged pr
 | M1-T15 | UI smoke tests with the fixture root | NFR-QA-002, 003 |
 | M1-T16 | Performance baseline recorded | NFR-PERF-002 |
 
-M2 to M6 are broken into tasks when each milestone starts. The breakdown is recorded in `docs/progress.md`.
+M2 to M6 are broken into tasks when each milestone starts. Up to M3 the breakdown is in `docs/archive/progress.md`; from M3 on, each task is a GitHub issue in the milestone's GitHub milestone.
 
 ## 14. Risks
 
@@ -727,7 +727,7 @@ Defaults are already in place; the owner can change them at any time.
 | OQ-02 | Suggested developer project folders | Existing folders among `~/Developer`, `~/Projects`, `~/Code`, `~/src`, `~/repos` |
 | OQ-03 | Log age default | 7 days |
 | OQ-04 | Docker tier | Resolved (D-24): Your data, never selected by default. |
-| OQ-05 | Progress tracking | Resolved: `docs/progress.md` is the task list; GitHub issues hold review findings (GitHub Issues for tasks possible later). |
+| OQ-05 | Progress tracking | Resolved: GitHub issues and milestones are the task list from 2026-11-14 (owner decision); `docs/archive/progress.md` holds the list up to M3. |
 | OQ-06 | iCloud Drive and other synced files | iCloud Drive's own folders (`~/Library/Mobile Documents`, `~/Library/CloudStorage`): fully protected, not scanned. A downloaded file that a sync service keeps elsewhere in the home folder, such as Desktop and Documents under iCloud, is scanned, marked "Synced" and warned about at review (D-129). |
 | OQ-07 | Leftovers in Application Support and Group Containers can be the only copy of a user's data (notes, vaults). APP-003 preselects High-confidence items, which can include them. | Decided (D-192): leftovers in Application Support, Containers and Group Containers are never preselected. |
 | OQ-08 | How many of the owner's own apps can Shuck remove (R-16)? | Open for the owner: measure before M3 is broken down. |

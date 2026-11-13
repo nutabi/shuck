@@ -1,7 +1,9 @@
 # Progress
 
-The milestone and task checklist (PRD section 13). Each pull request ticks its task here. Milestones run in order;
-M2 to M6 are broken into tasks when each one starts.
+Frozen on 2026-11-14. This was the milestone and task checklist until M3. Tasks, owner items and exit criteria now live
+in GitHub issues, one milestone per roadmap milestone (`AGENTS.md`). The unchecked M3 items and the M4 and M5 notes
+below moved to issues #218 to #236, and bug #217 joined M3. It stays as the record of M0 to M3's work and measurements,
+which the PRD and `docs/archive/decisions.md` point at.
 
 ## M0 Foundations (`v0.0.1`)
 

@@ -65,7 +65,11 @@ vulnerability reporting. An agent that files an issue with `gh issue create` set
   next task, an agent triages each one: it checks the type, adds one `area/` label (two at most), and adds
   `data-risk` where it applies.
 - **Closing:** close with a reason, not a label: `gh issue close N --reason completed`, `"not planned"` or `duplicate`.
-- Milestones (M3, M4, …) say when; no label repeats them.
+- **Milestones and tasks:** each roadmap milestone is a GitHub milestone (M3 Applications, M4 Startup Items, …), and
+  no label repeats it. A roadmap task is a Task issue titled `[<task ID>] <deliverable>`, in its milestone. A task
+  that needs a stack is a parent issue with one sub-issue per pull request (`gh issue create --parent N`). An issue
+  that must wait for another is marked blocked by it (`gh issue edit N --add-blocked-by M`). An owner item, such as a
+  check on the owner's Mac, is assigned to the owner. Each milestone has one exit-criteria issue, closed last.
 - Shuck has one developer and takes no outside contributions, so there are no contributor labels such as
   `good first issue` or `help wanted`.
 

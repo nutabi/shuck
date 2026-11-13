@@ -21,7 +21,8 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
 
 - This file says how to work and `docs/PRD.md` what to build. Detail lives in `docs/`: [testing.md](docs/testing.md),
   [extending.md](docs/extending.md) and [scan-performance.md](docs/scan-performance.md). `docs/archive/` holds
-  finished work, such as the decisions D-30 to D-200 that `D-NN` references point at; it is frozen.
+  finished work, such as the decisions D-30 to D-200 that `D-NN` references point at and the task list up to M3
+  (`progress.md`); it is frozen.
 - An agent's memory is only a scratchpad. A rule, owner preference or tool quirk the next agent needs goes into this
   file or `docs/`, in the same change.
 - **The advisor decides** (owner preference, 2026-11-13, D-200). Anything the PRD leaves open goes to the
@@ -38,9 +39,12 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
 
 Owner preference, 2026-11-13:
 
-- Take the first unchecked task in `docs/progress.md` unless the owner names one. Milestones run in order, and one
-  starts only when the previous one meets its exit criteria. If the next milestone has no task breakdown, propose one
-  to the owner before starting.
+- Take the next task from GitHub issues unless the owner names one: in the earliest open milestone, the open issue
+  with the lowest number, since issues are filed in roadmap order, and the milestone's exit-criteria issue last. Skip
+  an issue blocked by an open issue, and an owner item, which is assigned to the owner. A parent issue is one stack;
+  work its sub-issues in order. Milestones run in order, and the next one starts only when the previous one's
+  exit-criteria issue is closed. If the next milestone has no task breakdown, propose one to the owner before
+  starting, then file each task as a Task issue in that milestone, in order, with a parent issue for a stack.
 - The agent the owner prompts orchestrates and delegates:
   - Haiku agents read code and read or write docs.
   - Sonnet agents write code. They run in parallel when their pieces touch different files and none needs another's
@@ -56,8 +60,9 @@ Owner preference, 2026-11-13:
 - **Issues** (`docs/repository-setup.md` has the types and labels): before picking the next task, triage the issues
   with no label. An open `data-risk` bug goes before any other task. Something found along the way that doesn't belong
   to the open task becomes an issue, with its type and `area/` label.
-- Tick the task in `docs/progress.md` in the same pull request (each pull request in a stack ticks its own sub-item,
-  D-93), and add a line for anything left over.
+- The pull request closes its issue: `Closes #N` in the description. Each pull request in a stack closes its own
+  sub-issue, and the last one closes the parent too. Anything left over becomes a new issue in the milestone it
+  belongs to.
 - After the merge, remove the worktrees and branches you used, including `worktree-agent-*` (`git worktree remove`,
   `git branch -D`, `gh stack sync --prune`).
 
@@ -86,7 +91,7 @@ Owner preference, 2026-11-13:
   why, ending with the requirement IDs; what to read first, including every change to Safety or Execution and each
   advisor decision; and the test evidence.
 - **Done** (ENG-004): CI passes; new behavior has tests, deletion paths have fixture tests, and SAF tests name their
-  requirement ID (NFR-QA-001); `docs/progress.md` and `CHANGELOG.md` are updated.
+  requirement ID (NFR-QA-001); the issue is closed by the pull request, and `CHANGELOG.md` is updated.
 
 ## Commands
 
@@ -120,7 +125,7 @@ Run from the repository root. A task that adds or changes a command updates this
     import it.
   - `ShuckKitTestSupport` holds the fixture-root harness, described in [docs/testing.md](docs/testing.md).
 - `ShuckTests/` and `ShuckUITests/` hold the app's unit and UI tests. `scripts/` holds the scripts in the table above.
-  `docs/` holds the PRD, decisions, `progress.md` and the detail docs.
+  `docs/` holds the PRD and the detail docs, and `docs/archive/` the frozen decisions and task list.
 
 ## Coding conventions
 

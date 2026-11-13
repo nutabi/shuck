@@ -2,7 +2,7 @@
 
 A personal-files scan that is not cancelled logs one line in the `FileCleanup` category, such as `Scanned 812345 entries in 74.2 seconds` (NFR-PERF-002, D-78). An entry is a file or folder the scan looked at. A package or a device backup counts as one entry, although measuring its size reads everything inside it.
 
-The measurements in `docs/progress.md` come from the owner's own home folder. Agents never scan a real home folder (safety rule 4), so an agent gives the owner these steps instead of running them:
+The measurements in `docs/archive/progress.md` come from the owner's own home folder. Agents never scan a real home folder (safety rule 4), so an agent gives the owner these steps instead of running them:
 
 1. Build the release app: `SHUCK_SIGN_IDENTITY=- scripts/build-dmg.sh --skip-notarization` writes `build/release/Shuck.app`. A debug build is not optimized, so its times say little.
 2. Open `build/release/Shuck.app` and click Large Files, which starts the scan. macOS asks once about each protected folder, such as Documents, and the scan waits for the answer. When the scan has finished, click Scan to run it again.
