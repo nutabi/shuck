@@ -416,8 +416,8 @@ public struct DeveloperJunk: SubTool {
         // The devices are no path the guard can validate: they are protected, and only `simctl` changes them. So the
         // exclusions are compared with the folder that holds them (SET-001, D-149).
         guard !Task.isCancelled,
-            Self.toolFolder(ruleID: "DEV-R03", home: context.home)
-                .map({ context.protection.overlapsUserExclusion($0) }) != true,
+            !Self.toolFolders(ruleID: "DEV-R03", home: context.home, executable: nil)
+                .contains(where: { context.protection.overlapsUserExclusion($0) }),
             let tools = ToolLocations(context), tools.hasSimctl, CleanupRule.Detection.folder(devices).isAvailable,
             let rule = try? Self.unavailableSimulatorsRule(tools), rule.detection.isAvailable
         else { return }

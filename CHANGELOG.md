@@ -9,6 +9,12 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Fixed
 
+- Homebrew Cleanup in Developer Junk is now hidden when you exclude any folder it cleans, such as Homebrew's logs or
+  its Cellar and Caskroom folders, and not only its download cache.
+- Large Files and Old Files no longer freeze for seconds when you sort a very long list by a column, and selecting rows
+  stays quick however many files are listed.
+- Homebrew Cleanup, npm Cache and pip Cache in Developer Junk now report how much space their cache actually lost
+  after the run, instead of the whole cache's size as an upper limit.
 - A folder that Shuck will not remove for safety, such as one that holds a Photos library, is now shown locked with the
   reason in Large Files and Old Files, instead of making the whole move to the Trash fail.
 - Developer Junk rows no longer appear cut off after you scan again. Rows in Developer Junk and Caches & Logs also stay

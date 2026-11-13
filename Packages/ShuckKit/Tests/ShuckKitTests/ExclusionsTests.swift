@@ -75,7 +75,10 @@ struct ExclusionsTests {
             try root.tool(tool, .exits(0))
         }
         try root.xcrun(.exits(0))
-        for folder in [".npm/_cacache", "Library/Caches/pip", "Library/Caches/Homebrew"] {
+        for folder in [
+            ".npm/_cacache", "Library/Caches/pip", "Library/Caches/Homebrew", "Library/Logs/Homebrew",
+            "opt/homebrew/Cellar/node/22.1.0/bin", "opt/homebrew/Caskroom/app/1.0",
+        ] {
             try root.file("\(folder)/f", size: 4096)
         }
         try root.file("Library/Developer/CoreSimulator/Devices/ABCD/data", size: 4096)
@@ -128,7 +131,11 @@ struct ExclusionsTests {
     @Test(
         arguments: [
             ("DEV-R07", ".npm/_cacache"), ("DEV-R07", ".npm"), ("DEV-R08", "Library/Caches/pip"),
-            ("DEV-R09", "Library/Caches/Homebrew"), ("DEV-R03", "Library/Developer/CoreSimulator/Devices/ABCD"),
+            ("DEV-R09", "Library/Caches/Homebrew"), ("DEV-R09", "Library/Logs/Homebrew"),
+            ("DEV-R09", "opt/homebrew/Cellar"), ("DEV-R09", "opt/homebrew/Cellar/node/22.1.0"),
+            ("DEV-R09", "opt/homebrew/Caskroom"), ("DEV-R09", "opt/homebrew/Caskroom/app"),
+            ("DEV-R09", "opt/homebrew"), ("DEV-R09", "opt"),
+            ("DEV-R03", "Library/Developer/CoreSimulator/Devices/ABCD"),
             ("DEV-R03", "Library/Developer/CoreSimulator"), ("DEV-R03", "Library/Developer"),
         ])
     func aToolRuleIsHiddenWhenItsFolderIsOrHoldsAnExclusionSET001(rule: String, exclusion: String) async throws {
@@ -143,7 +150,8 @@ struct ExclusionsTests {
         #expect(before == tools)
         #expect(!after.contains(rule))
         let hidden = ScanContext(
-            home: root.url, protection: root.pathGuardConfiguration(userExclusions: [try root.url(exclusion)]))
+            home: root.url, protection: root.pathGuardConfiguration(userExclusions: [try root.url(exclusion)]),
+            toolRoot: root.url)
         let items = await scan(excluding: [])
         for item in items {
             guard let id = item.ruleMatch?.rule.id, tools.contains(id) else { continue }
@@ -151,6 +159,16 @@ struct ExclusionsTests {
         }
         // A rule whose folder is elsewhere stays.
         #expect(after.contains(rule == "DEV-R07" ? "DEV-R09" : "DEV-R07"))
+    }
+
+    /// Only the prefix of the `brew` Shuck would run counts: an exclusion on the other candidate prefix hides nothing.
+    @Test func anotherHomebrewPrefixDoesNotHideBrewCleanupSET001() async throws {
+        try makeTools()
+        try root.file("usr/local/Cellar/old/f", size: 4096)
+        let other = try root.url("usr/local")
+
+        let after = await scan(excluding: [other]).compactMap { $0.ruleMatch?.rule.id }
+        #expect(after.contains("DEV-R09"))
     }
 
     /// An exclusion may be the home folder or a folder above it: then nothing is listed anywhere.

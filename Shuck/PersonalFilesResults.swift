@@ -14,12 +14,27 @@ final class PersonalFilesResults {
         didSet { groupsCache = nil }
     }
 
+    /// The order the user picked. Changing it sorts the rows off the main actor; the table keeps the previous order
+    /// until that sort has finished (NFR-PERF-001).
     var sortOrder: [KeyPathComparator<ResultRow>] {
-        didSet { rows.sort(using: sortOrder) }
+        didSet { startSort() }
     }
 
-    /// The rows the user selected. Nothing is selected until the user chooses (D-10).
-    var selection: Set<URL> = []
+    /// The rows the user selected. Nothing is selected until the user chooses (D-10). The totals below follow each
+    /// change by the rows that joined or left the selection, not by reading every row (NFR-PERF-001).
+    var selection: Set<URL> = [] {
+        didSet {
+            for id in oldValue.subtracting(selection) { account(id, sign: -1) }
+            for id in selection.subtracting(oldValue) { account(id, sign: 1) }
+        }
+    }
+
+    /// How many selected rows a cleanup can act on (FCL-011).
+    private(set) var actionableCount = 0
+    /// The allocated size of the actionable selection (SAF-013).
+    private(set) var selectedBytes: Int64 = 0
+    /// How many selected rows are read-only, which the total and any cleanup leave out.
+    private(set) var readOnlyCount = 0
 
     /// Selects every row. Read-only rows are selected too, as a click would, and still left out of a cleanup (FCL-011).
     func selectAll() {
@@ -32,8 +47,14 @@ final class PersonalFilesResults {
     /// The scanned home folder, shown as `~`.
     let home: URL
     private let includes: (PersonalFile) -> Bool
-    /// The ID of every row, so a batch finds a file listed again without reading every row.
-    @ObservationIgnored private var ids: Set<URL> = []
+    /// What the totals need of every row, by ID, so a batch finds a file listed again and a selection change finds its
+    /// rows without reading every row.
+    @ObservationIgnored private var facts: [URL: RowFacts] = [:]
+    @ObservationIgnored private var sortGeneration = 0
+    @ObservationIgnored private var sortTask: Task<Void, Never>?
+    /// While a sort runs: the IDs removed or replaced since its snapshot, and the rows added since.
+    @ObservationIgnored private var lateRemoved: Set<URL> = []
+    @ObservationIgnored private var lateRows: [ResultRow] = []
     /// ``groups``, until the rows change. Views don't observe it: they observe `rows`.
     @ObservationIgnored private var groupsCache: [ResultGroup]?
 
@@ -68,11 +89,73 @@ final class PersonalFilesResults {
     func insert(_ incoming: [ResultRow]) {
         guard !incoming.isEmpty else { return }
         let incomingIDs = Set(incoming.map(\.id))
-        if !ids.isDisjoint(with: incomingIDs) {
+        let replaces = incomingIDs.contains { facts[$0] != nil }
+        for id in incomingIDs { account(id, sign: -1, ifSelected: true) }
+        if replaces {
             rows.removeAll { incomingIDs.contains($0.id) }
         }
-        ids.formUnion(incomingIDs)
-        rows = Self.merge(incoming.sorted(using: sortOrder), into: rows, by: sortOrder)
+        for row in incoming {
+            facts[row.id] = RowFacts(size: row.size, isReadOnly: row.readOnly != nil)
+            account(row.id, sign: 1, ifSelected: true)
+        }
+        if sortTask == nil {
+            rows = Self.merge(incoming.sorted(using: sortOrder), into: rows, by: sortOrder)
+        } else {
+            // The running sort puts these rows in place when it ends.
+            lateRemoved.formUnion(incomingIDs)
+            lateRows.removeAll { incomingIDs.contains($0.id) }
+            lateRows += incoming
+            rows += incoming
+        }
+    }
+
+    /// Sorts the rows by ``sortOrder`` off the main actor. A sort that a newer one replaced is dropped when it ends, so
+    /// it never overwrites the newer order (NFR-PERF-001).
+    private func startSort() {
+        sortGeneration += 1
+        let generation = sortGeneration
+        sortTask?.cancel()
+        lateRemoved = []
+        lateRows = []
+        let snapshot = rows
+        let order = sortOrder
+        sortTask = Task {
+            let sorted = await Self.sorted(snapshot, by: order)
+            guard generation == sortGeneration else { return }
+            // Rows that came or went while sorting join the sorted ones, so the list ends up exact.
+            var result = sorted
+            if !lateRemoved.isEmpty {
+                result.removeAll { lateRemoved.contains($0.id) }
+                result = Self.merge(lateRows.sorted(using: order), into: result, by: order)
+            }
+            rows = result
+            lateRemoved = []
+            lateRows = []
+            sortTask = nil
+        }
+    }
+
+    /// Returns when the sort that is running has finished and its rows are in place.
+    func finishSorting() async {
+        while let task = sortTask { await task.value }
+    }
+
+    @concurrent
+    private nonisolated static func sorted(
+        _ rows: [ResultRow], by order: [KeyPathComparator<ResultRow>]
+    ) async -> [ResultRow] {
+        rows.sorted(using: order)
+    }
+
+    /// Adds `sign` times a row to the totals, if the user selected it.
+    private func account(_ id: URL, sign: Int, ifSelected: Bool = false) {
+        guard let row = facts[id], !ifSelected || selection.contains(id) else { return }
+        if row.isReadOnly {
+            readOnlyCount += sign
+        } else {
+            actionableCount += sign
+            selectedBytes += Int64(sign) * row.size
+        }
     }
 
     /// Builds the rows for `files` off the main actor (NFR-PERF-001).
@@ -127,15 +210,25 @@ final class PersonalFilesResults {
     func remove(_ urls: some Sequence<URL>) {
         let removed = Set(urls)
         rows.removeAll { removed.contains($0.id) }
-        ids.subtract(removed)
+        // The selection leaves first, while `facts` still knows the rows' sizes.
         selection.subtract(removed)
+        for id in removed { facts[id] = nil }
+        if sortTask != nil {
+            lateRemoved.formUnion(removed)
+            lateRows.removeAll { removed.contains($0.id) }
+        }
     }
 
     /// Empties the list before a new scan.
     func removeAll() {
+        sortGeneration += 1
+        sortTask?.cancel()
+        sortTask = nil
+        lateRemoved = []
+        lateRows = []
         rows = []
-        ids = []
         selection = []
+        facts = [:]
     }
 
     /// The rows grouped by top-level folder, largest group first. Each group keeps the table's sort (LRG-003).
@@ -160,20 +253,20 @@ final class PersonalFilesResults {
         return displayed.filter { urls.contains($0.id) }.map(\.id)
     }
 
-    /// The selected rows a cleanup can act on. Read-only rows are left out (FCL-011).
+    /// The selected rows a cleanup can act on. Read-only rows are left out (FCL-011). This reads every row, so the
+    /// footer uses the totals instead; a test checks them against this recount.
     var actionableSelection: [ResultRow] {
         rows.filter { selection.contains($0.id) && $0.readOnly == nil }
     }
 
-    /// The allocated size of the actionable selection (SAF-013).
-    var selectedBytes: Int64 {
-        actionableSelection.reduce(0) { $0 + $1.size }
-    }
-
     /// Whether the selection holds read-only rows, which the total and any cleanup leave out.
-    var selectionIncludesReadOnly: Bool {
-        rows.contains { selection.contains($0.id) && $0.readOnly != nil }
-    }
+    var selectionIncludesReadOnly: Bool { readOnlyCount > 0 }
+}
+
+/// What the selection's totals need to know of a row.
+private nonisolated struct RowFacts {
+    let size: Int64
+    let isReadOnly: Bool
 }
 
 /// Which date a results list shows (OLD-002).

@@ -12,7 +12,8 @@ typealias ReadUsedSpace = @Sendable () -> Int64?
 
 extension FreeSpaceChange {
     /// The change between two readings around `report`'s run, or `nil` if either reading is missing. The estimate is
-    /// what the run deleted and the estimates of the tools it ran to the end; what it moved to the Trash frees nothing
+    /// what the run deleted, the measured removal of the tools whose folder was measured and the estimates of the
+    /// others it ran to the end; what it moved to the Trash frees nothing
     /// yet.
     nonisolated init?(before: Int64?, after: Int64?, report: RunReport) {
         guard let before, let after else { return nil }
@@ -23,6 +24,8 @@ extension FreeSpaceChange {
             guard case .done = outcome.result else { continue }
             switch outcome.item.method {
             case .delete: deleted += outcome.item.allocatedSize
+            // A tool whose folder was measured before and after the run removed what the difference says (D-184).
+            case .tool where outcome.removedBytes != nil: deleted += outcome.removedBytes ?? 0
             // A tool without an estimate has a size of zero: "Size not known" (D-125).
             case .tool where outcome.item.allocatedSize == 0: toolSizeUnknown = true
             case .tool: toolEstimate = (toolEstimate ?? 0) + outcome.item.allocatedSize
