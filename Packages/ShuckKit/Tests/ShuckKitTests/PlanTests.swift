@@ -45,6 +45,46 @@ struct PlanTests {
     }
 
     /// A Delete without a rule has no evidence that the item is safe to lose (D-132).
+    // MARK: - Dependencies (APP-005, APP-011, SAF-011)
+
+    @Test func aPlanAcceptsADependencyOnAnEarlierItemAPP005() throws {
+        let bundle = try root.folder("Applications/Fixture.app")
+        let cache = try root.folder("Library/Caches/com.example.fixture")
+        let first = try root.planned(bundle, tier: .yourData, method: .trash)
+        let second = try root.planned(cache, tier: .yourData, method: .trash, dependency: ItemDependency(first))
+        let plan = try Plan(
+            tool: .applications, allowedRoots: [root.url], items: [first, second], pathGuard: pathGuard)
+        #expect(plan.items == [first, second])
+    }
+
+    @Test func aPlanRefusesADependencyOnALaterUnknownOrTheSameItemAPP005() throws {
+        let bundle = try root.folder("Applications/Fixture.app")
+        let cache = try root.folder("Library/Caches/com.example.fixture")
+        let other = try root.folder("Library/Caches/com.example.other")
+        let first = try root.planned(bundle, tier: .yourData, method: .trash)
+        let second = try root.planned(cache, tier: .yourData, method: .trash)
+
+        func refused(_ items: [PlannedItem]) -> PlanError? {
+            #expect(throws: PlanError.self) {
+                try Plan(tool: .applications, allowedRoots: [root.url], items: items, pathGuard: pathGuard)
+            }
+        }
+        // On a later item.
+        let onLater = try root.planned(bundle, tier: .yourData, method: .trash, dependency: ItemDependency(second))
+        #expect(refused([onLater, second]) == .dependencyNotEarlier(bundle.path))
+        // On itself.
+        let onSelf = try root.planned(cache, tier: .yourData, method: .trash, dependency: ItemDependency(second))
+        #expect(refused([first, onSelf]) == .dependencyNotEarlier(cache.path))
+        // On an item that is not in the plan.
+        let unknown = ItemDependency(try root.planned(other, tier: .yourData, method: .trash))
+        let onUnknown = try root.planned(cache, tier: .yourData, method: .trash, dependency: unknown)
+        #expect(refused([first, onUnknown]) == .dependencyNotEarlier(cache.path))
+        // The same target with another method is another item.
+        let otherMethod = ItemDependency(target: first.target, method: .launchctl)
+        let onOtherMethod = try root.planned(cache, tier: .yourData, method: .trash, dependency: otherMethod)
+        #expect(refused([first, onOtherMethod]) == .dependencyNotEarlier(cache.path))
+    }
+
     @Test func aPlanRefusesADeleteItemWithoutARuleSAF008() throws {
         let cache = try root.file("Library/Caches/cache.db", size: 10)
         let item = PlannedItem(

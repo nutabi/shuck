@@ -60,6 +60,7 @@ nonisolated enum OutcomeWording {
         case .notAllowed: return "Skipped: not allowed for this kind of item"
         case .toolUnavailable: return "Skipped: its tool was not available"
         case .originalTaken: return "Skipped: its original place is taken"
+        case .dependencyNotDone: return "Skipped: an item it needs was not done"
         case .notInTrash: return "Skipped: not in the Trash"
         case .otherItem: return "Skipped: no longer in the Trash, and another item has its name"
         }

@@ -9,7 +9,7 @@ extension FixtureRoot {
     /// Tests that check what a run does with a changed item change it after calling this.
     public func planned(
         _ url: URL, tier: Tier = .rebuildable, method: ActionMethod = .delete, scope: ItemScope = .item,
-        identity: FileIdentity? = nil
+        identity: FileIdentity? = nil, dependency: ItemDependency? = nil
     ) throws(FixtureError) -> PlannedItem {
         let target = try requireInside(url)
         guard let snapshot = ItemSnapshot.read(target), let own = ModificationDate.read(at: target) else {
@@ -19,7 +19,7 @@ extension FixtureRoot {
         return PlannedItem(
             url: target, tier: tier, method: method, snapshot: snapshot,
             modified: ModificationDate.compared(at: target, scope: scope, own: own), scope: scope, identity: identity,
-            ruleMatch: rule.map { RuleMatch(rule: $0, modified: own) })
+            ruleMatch: rule.map { RuleMatch(rule: $0, modified: own) }, dependency: dependency)
     }
 
     /// A rebuildable Delete rule for `url`, detected by the fixture root itself. It matches every item in `url`'s

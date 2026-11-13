@@ -232,6 +232,9 @@
     "Skipped: failed a safety check" : {
 
     },
+    "Skipped: an item it needs was not done" : {
+
+    },
     "Skipped: it is in a folder you excluded in Settings" : {
 
     },
