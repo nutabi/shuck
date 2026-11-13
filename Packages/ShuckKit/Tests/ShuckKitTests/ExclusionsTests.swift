@@ -18,7 +18,9 @@ struct ExclusionsTests {
     private var registry: ToolRegistry {
         .standard(
             largeFiles: LargeFiles(minimumSize: 1 << 20), oldFiles: oldFiles,
-            developerJunk: DeveloperJunk(projectFolders: [root.url.appending(path: "Developer")]))
+            developerJunk: DeveloperJunk(projectFolders: [root.url.appending(path: "Developer")]),
+            // A fixed list, so the scan never reads the real `/Applications` (SAF-016).
+            cachesAndLogs: CachesAndLogs(appNames: StubAppNames()))
     }
 
     private var oldFiles: OldFiles {

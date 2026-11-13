@@ -135,23 +135,52 @@ public struct Applications: Sendable {
         AsyncStream { continuation in
             let task = Task {
                 let roots = allowedRoots(home: context.home)
-                for folder in appFolders(home: context.home) {
-                    for entry in entries(of: folder, { continuation.yield($0) }) {
-                        guard !Task.isCancelled else { break }
-                        if entry.pathExtension.lowercased() == "app" {
-                            app(at: entry, roots, context) { continuation.yield($0) }
-                        } else if Self.isPlainFolder(entry) {
-                            for child in entries(of: entry, { continuation.yield($0) })
-                            where child.pathExtension.lowercased() == "app" {
-                                guard !Task.isCancelled else { break }
-                                app(at: child, roots, context) { continuation.yield($0) }
-                            }
-                        }
-                    }
+                let report: (AppInventoryEvent) -> Void = { continuation.yield($0) }
+                forEachBundle(home: context.home, reporting: report) { url in
+                    app(at: url, roots, context, report)
                 }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// The bundle IDs of the apps in the app folders, by every name each goes by (CAC-003, D-189). It reads each
+    /// `Info.plist` and nothing else, and leaves out no app that can run: the map only ever disables a cache while its
+    /// app runs, so a wider map errs on the safe side. Exclusions, the guard and System Integrity Protection's flag
+    /// decide what the list shows, not which apps run.
+    public func bundleIDsByName(home: URL) -> AppsByName {
+        var byName: [String: Set<String>] = [:]
+        forEachBundle(home: home) { url in
+            let info = Self.infoDictionary(of: url)
+            guard let bundleID = info["CFBundleIdentifier"] as? String, !bundleID.isEmpty else { return }
+            let names =
+                ["CFBundleDisplayName", "CFBundleName"].compactMap { info[$0] as? String }
+                + [url.deletingPathExtension().lastPathComponent]
+            for name in names where !name.isEmpty {
+                byName[name.lowercased(), default: []].insert(bundleID)
+            }
+        }
+        return AppsByName(byName)
+    }
+
+    /// Calls `body` with each `.app` directly inside an app folder or inside one of its subfolders, one level down
+    /// (APP-001), until the task is cancelled. `emit` hears of a folder the walk cannot read.
+    private func forEachBundle(
+        home: URL, reporting emit: (AppInventoryEvent) -> Void = { _ in }, _ body: (URL) -> Void
+    ) {
+        for folder in appFolders(home: home) {
+            for entry in entries(of: folder, emit) {
+                guard !Task.isCancelled else { return }
+                if entry.pathExtension.lowercased() == "app" {
+                    body(entry)
+                } else if Self.isPlainFolder(entry) {
+                    for child in entries(of: entry, emit) where child.pathExtension.lowercased() == "app" {
+                        guard !Task.isCancelled else { return }
+                        body(child)
+                    }
+                }
+            }
         }
     }
 

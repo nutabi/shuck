@@ -588,7 +588,7 @@ Tasks:
     M5 note (D-133, D-172); it moved here on the owner's instruction (D-178). Built as D-180. Left for the owner: #122's
     proposals to apply every rule to all non-test Swift files by default and to flag a second local package (D-170 did
     not approve them), and making the `Engine on macOS 26` job a required check.
-- [ ] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
+- [x] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
   Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
   - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/decisions.md`, as an agent choice
     open for review, whether Applications is a `SubTool` conformer or its own entry point through
@@ -600,9 +600,10 @@ Tasks:
     `Info.plist`.
   - [x] The rest of the inventory (D-187): version and last opened, the exclusions (the scan hides what an exclusion covers or
     holds, and joins `ExclusionsTests`, D-149), and the data APP-009 sorts by.
-  - [ ] Owner opt-in, which D-121 (3) left for the owner to ask for: a cache folder named after an app, such as
+  - [x] Owner opt-in, which D-121 (3) left for the owner to ask for: a cache folder named after an app, such as
     `Firefox`, is tied to its running app through the inventory's name-to-bundle-ID map, so it is disabled while the
-    app runs (SAF-009, CAC-003, D-121).
+    app runs (SAF-009, CAC-003, D-121). The owner asked for it on 2026-11-13; done as D-189. Left: a vendor folder
+    such as `Google` or `Mozilla` matches no app name.
 - [ ] M3-T03 Engine: leftovers with confidence (APP-002 to APP-004, OQ-07, R-16). Two pull requests:
   - [ ] Related user-level items by exact bundle ID, and Group Containers through the app groups in the app's
     entitlements, each with a confidence and the reason for it. Only High items are selected, subject to the owner's

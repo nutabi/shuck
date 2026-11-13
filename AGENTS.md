@@ -125,7 +125,10 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 - A fixture root has no installed apps, and Caches & Logs never preselects a cache whose app it cannot name
   (CAC-009). A workflow that needs a cache to start selected launches with `launch(installedApps:)`, whose bundle IDs
   the app treats as installed apps named by their ID; other names are still looked up on the Mac, as TextEdit is
-  (D-156).
+  (D-156). Its map of app names is empty, so no UI test can show a folder named after an app, such as `Firefox`,
+  disabled while the app runs; engine tests cover that (D-189).
+- An engine test that scans Caches & Logs passes `CachesAndLogs(appNames: StubAppNames(…))`. The default
+  `SystemAppNames` reads the real `/Applications` during a scan to tie folders named after apps (D-189, SAF-016).
 - A fixture file was added to its folder when the test made it, so the app's fixture-root mode reads no added dates
   and Old Files judges fixture files by their last-opened and modified dates only (D-140). No UI test can show the
   "Added" reason or label; unit tests cover them.

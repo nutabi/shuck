@@ -93,6 +93,9 @@ nonisolated struct AppEnvironment {
         func name(ofBundleID bundleID: String) -> String? {
             installed.contains(bundleID.lowercased()) ? bundleID : SystemAppNames().name(ofBundleID: bundleID)
         }
+
+        /// None: a fixture root never reads the real `/Applications` (SAF-016, D-186).
+        func bundleIDsByName(home: URL) -> AppsByName { AppsByName() }
     }
 
     /// Reads the stored value for a key, if any.
