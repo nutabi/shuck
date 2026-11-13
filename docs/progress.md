@@ -521,7 +521,7 @@ Exit criteria (PRD section 13):
 
 Goal: an uninstaller with leftovers found by confidence, running-app handling and LaunchAgent unloading, with Restore
 (PRD section 13). It is the first use of the launchctl runner (APP-011), which M4's Startup Items reuses (STA-005).
-This breakdown is an agent proposal, open for the owner's review (D-178). It is provisional: the PRD says to measure
+This breakdown is an agent proposal (D-178). It is provisional: the PRD says to measure
 OQ-08 before M3 is broken down, and that measurement is still open, so M3-T04 and the order of the later tasks may
 change with it. Issue fixes sit in the task of the feature they touch; the other fixes and the left-overs from M1 and
 M2 that no task owned are in M3-T01.
@@ -542,7 +542,7 @@ Owner prerequisites, before the tasks that need them:
 - [x] Owner approval of Restore re-enabling a restored LaunchAgent after the user confirms, a hard stop (D-170): it adds
   a Launchctl enable action and changes Restore (APP-011, HIS-005, STA-005). Needed before M3-T05's re-enable pull
   request. Approved on 2026-11-13 (D-190).
-- [ ] Owner decision on a mismatch in the PRD: APP-011 and STA-005 check a "fixture agent in a test domain", but a test
+- [ ] The advisor's decision on a mismatch in the PRD (D-200): APP-011 and STA-005 check a "fixture agent in a test domain", but a test
   cannot run the real `launchctl`, which would change the user's real launchd state (safety rule 4). Tests run a fake
   `launchctl` through the runner inside the fixture root, as they run other fake tools, and the real `bootout` is an
   owner check on the owner's Mac (see the exit criteria). The owner words the checks in the PRD.
@@ -653,7 +653,7 @@ Tasks:
     `scanItems(_:urls:)` and `confirmRebuildable(_:)` take an `any SubTool` from the caller, and they take a tool ID
     and look it up instead (R-17). The tool leaves `.planned(milestone: "M3")`, and `FirstLookUITests`, which asserts
     the placeholder, and `ToolRegistryTests` change. A UI test launch argument sets the app folders, so UI tests
-    never read the real `/Applications`, and `AGENTS.md`'s UI test notes document it.
+    never read the real `/Applications`, and `docs/testing.md`'s UI test notes document it.
   - [ ] The selected app's leftovers with confidence and reasons, "Needs admin" rows with Show in Finder, the blocked
     reason, and the note that macOS may ask for permission to read other apps' containers (APP-002 to APP-005, R-16).
   - [ ] The itemized review, Quit and the uninstall run (APP-006, APP-007).

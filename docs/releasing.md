@@ -1,7 +1,7 @@
 # Releasing
 
-How a signed, notarized Shuck DMG gets from a tag to a GitHub release (ENG-007 to ENG-009, D-17). CI does the work;
-the owner publishes.
+How a signed, notarized Shuck DMG gets from a tag to a GitHub release (ENG-007 to ENG-009, D-17). CI does the work and
+publishes the release once the owner approves the `release` environment (D-174).
 
 ## Cutting a release
 

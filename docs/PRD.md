@@ -30,13 +30,13 @@
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
-| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms (D-200). |
+| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms. Section 1, G-5, R-17 and the priorities: the advisor decides instead of the owner reviewing (D-200). |
 
 ## How to read this document
 
 - **Audience.** The project owner (human reviewer) and AI coding agents from any vendor.
 - **Normative language.** MUST, MUST NOT, SHOULD and MAY are used as defined in RFC 2119 [S64].
-- **Priorities.** Must = required for MVP exit. Should = in the MVP unless it puts the exit criteria at risk; the owner decides. Could = post-MVP candidate.
+- **Priorities.** Must = required for MVP exit. Should = in the MVP unless it puts the exit criteria at risk; the Fable advisor decides (D-200). Could = post-MVP candidate.
 - **Requirement IDs.** Format `<AREA>-<NNN>`, for example `SAF-007` or `APP-003`. IDs are stable: never renumber or reuse an ID. To drop a requirement, mark it "Withdrawn".
 - **Prefixes.** `SAF` safety. `FCL` File Cleanup tool, with sub-tools `LRG` Large Files, `OLD` Old Files, `DEV` Developer Junk and `CAC` Caches & Logs. `APP` Applications. `STA` Startup Items. `HIS` History & Restore. `OVR` Overview. `ONB` Onboarding. `SET` Settings. `NFR-*` non-functional. `ENG` engineering workflow. The `LOF` prefix from v1.0 is retired and must not be reused.
 - **Tools and sub-tools.** A *tool* is a top-level entry in the sidebar. A *sub-tool* is an independent unit inside a tool, with its own scan, results, review and action (section 9.1).
@@ -55,7 +55,7 @@ Shuck is a free, open-source (GPL-3.0-or-later), native macOS app that keeps a M
 
 Every action goes through a review-first safety model with an in-app restore log.
 
-Shuck is built first for its owner's daily use and as a portfolio piece. AI coding agents implement it in small pull requests, and the owner reviews every change. The MVP targets macOS 27 on Apple Silicon, runs fully offline, needs no admin rights, and ships as a signed, notarized DMG.
+Shuck is built first for its owner's daily use and as a portfolio piece. AI coding agents implement it in small pull requests, and a stronger reviewer model, the Fable advisor, makes the decisions the owner used to review (D-200). The MVP targets macOS 27 on Apple Silicon, runs fully offline, needs no admin rights, and ships as a signed, notarized DMG.
 
 ## 2. Goals, non-goals and success
 
@@ -67,7 +67,7 @@ Shuck is built first for its owner's daily use and as a portfolio piece. AI codi
 | G-2 | **Portfolio quality.** Clear architecture, tests, CI/CD and documentation that show engineering skill. |
 | G-3 | **Safety.** No unintended data loss, ever. |
 | G-4 | **Independence.** No third-party code dependencies, no network use, no accounts. |
-| G-5 | **Learning.** The owner learns SwiftUI by reviewing pull requests that explain the SwiftUI concepts they use. |
+| G-5 | **Learning.** The owner learns SwiftUI from the code: pull requests and comments are written for a reader new to SwiftUI (D-200). |
 
 ### 2.2 Non-goals for the MVP
 
@@ -714,7 +714,7 @@ M2 to M6 are broken into tasks when each milestone starts. The breakdown is reco
 | R-14 | Testing on a single macOS version and a single Mac | Bugs on other setups | Fixture tests plus a clean CI runner; a virtual machine for macOS 26 later (L-02). |
 | R-15 | Sub-tools or tools overlap: the same file in Large Files and Old Files, a cache claimed by two sub-tools, or an app container's caches listed by both Caches & Logs and Applications | Double counting or double cleaning | Ownership map (FCL-005), shared personal-files state (FCL-006), de-duplicated totals (FCL-007), reclaimable totals for File Cleanup only (OVR-001), re-validation before acting (SAF-008). |
 | R-16 | macOS's App Management permission (`kTCCServiceSystemPolicyAppBundles`, macOS 13+) gates changing other apps' bundles, and other apps' containers prompt separately [S78]. App Store and package-installed apps are often root-owned. | An uninstall fails or is blocked for many apps | Check removability before offering an uninstall (APP-005); show the reason; the owner measures how many of their own apps are removable before M3 is broken down (OQ-08); a usage string for the permission (M5). |
-| R-17 | Reviewer fatigue: pull request stacks grow, and the owner reviews every change (G-5). | A defect in Safety or Execution is merged unseen | Small pull requests (D-62); changes to Safety and Execution in pull requests of their own; every pull request says where to look (ENG-003); periodic reviews of `main` like the one of 2026-11-10. |
+| R-17 | No human reviews each change: the advisor decides and pull requests merge once CI passes (D-200). | A defect in Safety or Execution is merged unseen | Small pull requests (D-62); changes to Safety and Execution in pull requests of their own; every pull request says where to look (ENG-003); periodic reviews of `main` like the one of 2026-11-10. |
 | R-18 | Old Files relies on Spotlight metadata (`kMDItemLastUsedDate`), which may be missing or stale. | A file in use looks old | Use the latest of the last-used, modification and added dates (OLD-002, D-130); nothing is selected by default (OLD-004). |
 
 ## 15. Open questions

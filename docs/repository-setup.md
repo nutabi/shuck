@@ -12,7 +12,7 @@ In **Settings → Rules → Rulesets**, create a branch ruleset:
 | Enforcement status | Active |
 | Target branches | Default branch |
 | Restrict deletions | On |
-| Require a pull request before merging | On. Required approvals: 0 (the owner is the only reviewer and cannot approve their own pull request). |
+| Require a pull request before merging | On. Required approvals: 0 (no one reviews pull requests, and GitHub doesn't let the owner approve their own, D-200). |
 | Allowed merge methods | Squash only |
 | Require status checks to pass | On. Add the check **Lint, build and test** (from `.github/workflows/ci.yml`). Turn on "Require branches to be up to date before merging". |
 | Block force pushes | On |
