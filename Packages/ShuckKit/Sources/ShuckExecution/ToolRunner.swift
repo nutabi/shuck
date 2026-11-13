@@ -35,7 +35,7 @@ package struct ToolRun: Equatable, Sendable {
 /// The process leads a process group of its own, and what the tool starts in turn joins that group. The process runs
 /// until it ends, its timeout passes or the calling task is cancelled. Then the whole group gets SIGTERM, and SIGKILL
 /// if any of it is still there after ``killGrace``, so a stopped tool leaves nothing it started running (SAF-014,
-/// D-NEXT-pgroup). A process that makes a group of its own, as a daemon does, is out of reach. What the tool writes is
+/// D-191). A process that makes a group of its own, as a daemon does, is out of reach. What the tool writes is
 /// kept to the last ``outputLimit`` bytes, so a chatty tool cannot fill the history log or memory.
 ///
 /// `executableRoots` is `nil` in the release build, where a tool is wherever it is installed. In a UI test's fixture
