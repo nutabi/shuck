@@ -1,0 +1,84 @@
+# A pull request can restore caches saved by its own runs and by main's, but not other pull requests'. This workflow
+# saves main's after each push that changes code, so a new pull request's first run starts warm (D-111). It moved out
+# of ci.yml so pull requests don't show it as skipped (#213). It builds what the check builds, with the same settings,
+# and runs nothing.
+name: Warm the compilation cache
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warm-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Code changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      # No static checks here: every pull request already ran them, up to date with main.
+      - name: Compare with the base
+        id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BEFORE"
+          code="$(scripts/code-changed.sh "$BEFORE")"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+  warm:
+    name: Warm the compilation cache
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Toolchain
+        id: toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          echo "xcode=$(xcodebuild -version | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the compilation cache
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
+          restore-keys: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-
+
+      # Each save keeps what it restored, and Xcode has no size limit for this cache, so it only grows. Past 2 GB, this
+      # build starts over and saves a cache of one build (about 300 MB).
+      - name: Start over when the cache is large
+        run: |
+          cache=build/DerivedData/CompilationCache.noindex
+          if [[ -d "$cache" ]] && (( $(du -sk "$cache" | cut -f1) > 2 * 1024 * 1024 )); then
+            du -sh "$cache"
+            rm -rf "$cache"
+          fi
+
+      - name: Build for testing
+        run: scripts/test.sh --build-only
+
+      - name: Save the compilation cache
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}

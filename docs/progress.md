@@ -587,7 +587,8 @@ Tasks:
     (R-09, NFR-L10N-001, D-161); and the static checks take the proposals of #122 and #123 (R-18, ENG-006). #126 was an
     M5 note (D-133, D-172); it moved here on the owner's instruction (D-178). Built as D-180. Left for the owner: #122's
     proposals to apply every rule to all non-test Swift files by default and to flag a second local package (D-170 did
-    not approve them), and making the `Engine on macOS 26` job a required check.
+    not approve them). The `Engine on macOS 26` job was dropped instead; the required check builds the engine for
+    macOS 26 (#213).
 - [x] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
   Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
   - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/archive/decisions.md`, as an agent choice
@@ -670,7 +671,7 @@ Process changes during M3:
 - [x] CodeQL is removed (#213, owner decision, 2026-11-14). It cannot trace a build on macOS 27 or Xcode 27, and it
   does not support Swift 6.4, which every Xcode 27 ships, so it would have to stay on `macos-26` runners, which CI is
   leaving. Code scanning comes back if CodeQL supports Xcode 27 and Swift 6.4.
-- [ ] The rest of #213: drop the `Engine on macOS 26` job, build the engine in **Lint, build and test**, and move cache
+- [x] The rest of #213: drop the `Engine on macOS 26` job, build the engine in **Lint, build and test**, and move cache
   warming to its own workflow.
 
 Exit criteria (PRD section 13):
@@ -699,8 +700,8 @@ M5 Overview, onboarding, settings, polish:
 - Drag and drop into Settings' list of excluded folders, which SET-001 names; M2-T14 built the folder picker (D-151).
 - Clear History: "Clear History…" in Settings, which says that Restore is lost for the cleared runs (HIS-008, SET-007,
   D-135).
-- The localization and compatibility pass builds two checks (D-133): hard-coded UI strings and stale String Catalog
-  keys (NFR-L10N-001), and the engine's macOS 26 build as a required check (NFR-COMP-001, D-06).
+- The localization pass builds the check for hard-coded UI strings and stale String Catalog keys (NFR-L10N-001, D-133).
+  The engine's macOS 26 build is already in the required check (#213).
 - Info.plist usage strings are optional but recommended, and none are set today: `NSDesktopFolderUsageDescription`,
   `NSDocumentsFolderUsageDescription`, `NSDownloadsFolderUsageDescription`, and later `NSAppBundlesUsageDescription`
   and `NSAppDataUsageDescription` (ONB).

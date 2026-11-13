@@ -1,13 +1,10 @@
-# Lint, build and test every pull request that changes code (ENG-005, D-66). The static checks and the changelog check
-# run for every change, on Linux (D-98). A push to main that changes code only builds, to keep the compilation cache
-# warm for pull requests: main is not tested again, because every pull request is tested up to date with main (D-111).
-# Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
+# Lint, build and test every pull request. The static checks and the changelog check run for every change, on Linux
+# (D-98); lint, build and test run only when a change touches code (ENG-005, D-66). Cache warming for main is in
+# warm-cache.yml (D-111, #213). Each step runs a script from scripts/, so CI and local runs stay the same (ENG-012).
 name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -44,16 +41,8 @@ jobs:
 
       - name: Compare with the base
         id: diff
-        env:
-          BEFORE: ${{ github.event.before }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
-            base=HEAD^1
-          else
-            base="$BEFORE"
-            git fetch --no-tags --depth=1 origin "$base"
-          fi
-          code="$(scripts/code-changed.sh "$base")"
+          code="$(scripts/code-changed.sh HEAD^1)"
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
   check:
@@ -61,7 +50,7 @@ jobs:
     name: Lint, build and test
     needs: changes
     # Skipped only when the changes job says "false", so the check still runs if that job fails (D-66).
-    if: ${{ github.event_name == 'pull_request' && !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
@@ -104,6 +93,11 @@ jobs:
       - name: Build the Release configuration
         run: scripts/build-check.sh release
 
+      # The engine with SwiftPM, which compiles it for macOS 26 from Package.swift, so an unguarded macOS 27 API fails
+      # here (NFR-COMP-001, D-06). Building with Xcode 26 waits until the app supports macOS 26 (L-02, #213).
+      - name: Build the engine for macOS 26
+        run: scripts/build-check.sh engine
+
       # Also after a test failure: the build is what the cache saves, and the fix's run reuses it.
       - name: Save the compilation cache
         if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' }}
@@ -119,67 +113,3 @@ jobs:
           name: test-results
           path: build/DerivedData/Logs/Test/*.xcresult
           retention-days: 14
-
-  engine-macos-26:
-    # The engine uses only macOS 26 APIs (D-06, NFR-COMP-001). The check job's runner has macOS 27, so this builds the
-    # package on macOS 26 (#126). It is not part of the required check yet: the
-    # owner can add "Engine on macOS 26" to the branch protection (docs/repository-setup.md).
-    name: Engine on macOS 26
-    needs: changes
-    if: ${{ github.event_name == 'pull_request' && !cancelled() && needs.changes.outputs.code != 'false' }}
-    runs-on: macos-26
-    timeout-minutes: 30
-    steps:
-      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Build the engine
-        run: scripts/build-check.sh engine
-
-  warm-cache:
-    # A pull request can restore caches saved by its own runs and by main's, but not by other pull requests'. This job
-    # saves main's, so a new pull request's first run starts warm (D-111). It builds what the check builds, with the
-    # same settings, and runs nothing.
-    name: Warm the compilation cache
-    needs: changes
-    if: ${{ github.event_name == 'push' && needs.changes.outputs.code == 'true' }}
-    runs-on: xcode-27
-    timeout-minutes: 45
-    steps:
-      # Actions are pinned to full commit SHAs (supply-chain risk, R-13).
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Toolchain
-        id: toolchain
-        run: |
-          xcodebuild -version
-          swift --version
-          echo "xcode=$(xcodebuild -version | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore the compilation cache
-        id: cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: build/DerivedData/CompilationCache.noindex
-          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
-          restore-keys: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-
-
-      # Each save keeps what it restored, and Xcode has no size limit for this cache, so it only grows. Past 2 GB, this
-      # build starts over and saves a cache of one build (about 300 MB).
-      - name: Start over when the cache is large
-        run: |
-          cache=build/DerivedData/CompilationCache.noindex
-          if [[ -d "$cache" ]] && (( $(du -sk "$cache" | cut -f1) > 2 * 1024 * 1024 )); then
-            du -sh "$cache"
-            rm -rf "$cache"
-          fi
-
-      - name: Build for testing
-        run: scripts/test.sh --build-only
-
-      - name: Save the compilation cache
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: build/DerivedData/CompilationCache.noindex
-          key: compilation-cache-v1-${{ steps.toolchain.outputs.xcode }}-${{ github.sha }}
