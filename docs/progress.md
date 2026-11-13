@@ -628,7 +628,7 @@ Tasks:
   - [x] `LaunchctlRunner` and a Launchctl action for `bootout` in the `gui/<uid>` domain: an agent that is not loaded
     is trashed directly, and the result is logged with the job label. It is shaped for STA-005's Disable, Enable and
     Remove, which M4 adds. Agent choice, open for review: whether it reuses `ToolRunner`. Tests run a fake `launchctl`
-    through the runner inside the fixture root. Done as D-NEXT-launchctl.
+    through the runner inside the fixture root. Done as D-197.
   - [ ] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
     agent's plist and a bundle that fails to move leaves its leftovers alone (APP-005, APP-011, SAF-011). The skip is
     logged with its reason.

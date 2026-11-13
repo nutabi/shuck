@@ -59,7 +59,7 @@ enum LaunchAgentLabel {
 /// (SAF-011). Both run through ``ToolRunner``, the only code that starts a subprocess (D-82), so a runner confined to
 /// a fixture root can never reach the real `launchctl` (SAF-016).
 package struct LaunchctlAction: PlanAction {
-    /// The exit status of `launchctl print` for a job launchd does not know. Agent choice (D-NEXT-launchctl), from
+    /// The exit status of `launchctl print` for a job launchd does not know. Agent choice (D-197), from
     /// how `launchctl print gui/<uid>/<missing>` behaves; the owner checks it on a real Mac. It is the only place
     /// that maps a status to "not loaded".
     package static let notLoadedStatus: Int32 = 113
@@ -82,7 +82,7 @@ package struct LaunchctlAction: PlanAction {
     /// The text the history log records as the item's path: the job label read from its property list, as HIS-002
     /// says, or the property list's path when it has none, so the intent is still recorded. Read before the intent
     /// record is written, so it is only the log's name for the item; ``act(on:at:)`` reads the label again, after
-    /// re-validation, and uses that one (D-NEXT-launchctl).
+    /// re-validation, and uses that one (D-197).
     static func loggedPath(for item: PlannedItem) -> String {
         item.url.flatMap { LaunchAgentLabel.read(at: $0) } ?? item.target.description
     }
