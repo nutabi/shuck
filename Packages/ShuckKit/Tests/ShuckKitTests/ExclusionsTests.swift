@@ -239,9 +239,11 @@ struct ExclusionsTests {
         try root.file("Library/Application Support/\(id)/Documents/keep/data", size: 5)
         try root.file("Library/Logs/\(id)/data", size: 5)
         try root.file("Library/Group Containers/group.\(id)/data", size: 5)
+        try root.file("Library/Caches/Notes/data", size: 5)
+        try root.file("Library/Application Support/Notes/data", size: 5)
         let excluded = try [
             "Library/Caches/\(id)/data", "Library/Application Support/\(id)/Documents/keep",
-            "Library/Group Containers",
+            "Library/Group Containers", "Library/Caches/Notes", "Library/Application Support/Notes",
         ].map { try root.url($0) }
         let applications = Applications(
             appFolders: [try root.url("Applications")], appGroups: { _ in ["group.\(id)"] })
@@ -250,13 +252,16 @@ struct ExclusionsTests {
             let context = ScanContext(
                 home: root.url, protection: root.pathGuardConfiguration(userExclusions: exclusions))
             var found: Set<String> = []
-            for await case .item(let item) in applications.leftovers(of: app, context) {
+            for await case .item(let item) in applications.leftovers(
+                of: app, among: AppsByName(["Notes": [id]]), context)
+            {
                 found.insert(item.url?.deletingLastPathComponent().lastPathComponent ?? "")
+                if item.confidence == .medium { found.insert("medium") }
             }
             return found
         }
 
-        #expect(await scan(excluding: []) == ["Caches", "Application Support", "Logs", "Group Containers"])
+        #expect(await scan(excluding: []) == ["Caches", "Application Support", "Logs", "Group Containers", "medium"])
         #expect(await scan(excluding: excluded) == ["Logs"])
     }
 }

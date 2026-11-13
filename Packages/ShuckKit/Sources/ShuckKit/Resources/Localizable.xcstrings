@@ -61,6 +61,9 @@
     "File Cleanup" : {
 
     },
+    "Helper tool named by the app's bundle ID" : {
+
+    },
     "Homebrew Cleanup" : {
 
     },
@@ -89,6 +92,15 @@
 
     },
     "Named by the app's bundle ID" : {
+
+    },
+    "Named like the app's maker: %@" : {
+
+    },
+    "Named like the app: %@" : {
+
+    },
+    "Needs admin — not removable in this version" : {
 
     },
     "Node.js projects" : {
@@ -158,6 +170,9 @@
 
     },
     "Stale node_modules" : {
+
+    },
+    "Starts with the app's bundle ID: %@" : {
 
     },
     "Startup Items" : {
