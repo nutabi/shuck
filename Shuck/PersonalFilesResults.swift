@@ -290,7 +290,7 @@ nonisolated struct ResultRow: Identifiable, Equatable {
     /// Allocated size in bytes (SAF-013).
     let size: Int64
     /// `false` when a folder inside could not be read, so `size` is a lower bound and the table reads "At least"
-    /// (SAF-012, D-NEXT-partial-size). Display only: sorting, selection and sums use `size` as it is.
+    /// (SAF-012, D-195). Display only: sorting, selection and sums use `size` as it is.
     let isComplete: Bool
     /// The date the Date column shows: the modified date, or the last-opened date (OLD-002).
     let date: Date?

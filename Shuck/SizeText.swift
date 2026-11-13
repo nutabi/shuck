@@ -7,7 +7,7 @@ import SwiftUI
 /// The estimate comes from measuring the tool's cache folder. It is never read from the tool's output (R-07).
 ///
 /// A folder whose size could not be measured fully, because a folder inside it could not be read, reads "At least"
-/// instead: the number is a lower bound (SAF-012, D-NEXT-partial-size). That is display only. It changes nothing a plan
+/// instead: the number is a lower bound (SAF-012, D-195). That is display only. It changes nothing a plan
 /// accepts, what is selected or what a run does.
 struct SizeText: View {
     let target: ItemTarget

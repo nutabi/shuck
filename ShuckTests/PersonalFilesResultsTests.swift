@@ -448,7 +448,7 @@ struct PersonalFilesResultsTests {
     }
 }
 
-/// A size that could not be measured fully reads "At least" (SAF-012, NFR-A11Y-001, D-NEXT-partial-size).
+/// A size that could not be measured fully reads "At least" (SAF-012, NFR-A11Y-001, D-195).
 @MainActor
 struct PartialSizeTests {
     let home = URL(filePath: "/StubHome", directoryHint: .isDirectory)
