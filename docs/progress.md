@@ -549,7 +549,7 @@ Owner prerequisites, before the tasks that need them:
 
 Tasks:
 
-- [ ] M3-T01 Fixes carried from M2, so the feature tasks start from a clean `main`. Independent pull requests, and one
+- [x] M3-T01 Fixes carried from M2, so the feature tasks start from a clean `main`. Independent pull requests, and one
   outside any stack:
   - [x] Developer Junk rows are clipped after a rescan (#185).
   - [x] Changing the project folders during a Developer Junk scan leaves rows that make the plan fail: the model drops
