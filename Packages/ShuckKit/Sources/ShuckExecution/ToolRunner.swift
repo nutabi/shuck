@@ -45,6 +45,9 @@ public struct ToolRunner: Sendable {
     let killGrace: Duration
     /// Runs between storing the process and starting it, so a test can stop a run in that window (R-05).
     let beforeLaunch: (@Sendable () -> Void)?
+    /// Runs when the process has ended, before the run notes that it has, so a test can stop a run in that window
+    /// (#179).
+    let afterExit: (@Sendable () -> Void)?
 
     /// A runner that finds tools anywhere (`nil`), or only inside `executableRoots`, with symlinks resolved.
     public init(executableRoots: [URL]?) {
@@ -52,9 +55,11 @@ public struct ToolRunner: Sendable {
     }
 
     package init(
-        executableRoots: [URL]?, outputLimit: Int, killGrace: Duration, beforeLaunch: (@Sendable () -> Void)? = nil
+        executableRoots: [URL]?, outputLimit: Int, killGrace: Duration, beforeLaunch: (@Sendable () -> Void)? = nil,
+        afterExit: (@Sendable () -> Void)? = nil
     ) {
         self.beforeLaunch = beforeLaunch
+        self.afterExit = afterExit
         self.executableRoots = executableRoots
         self.outputLimit = outputLimit
         self.killGrace = killGrace
@@ -88,7 +93,8 @@ public struct ToolRunner: Sendable {
 
     /// Runs `command` at `executable`, which ``locate(_:)`` returned, and waits for the end.
     package func run(_ command: ToolCommand, at executable: URL) async -> ToolRun {
-        let execution = Execution(limit: outputLimit, grace: killGrace, beforeLaunch: beforeLaunch)
+        let execution = Execution(
+            limit: outputLimit, grace: killGrace, beforeLaunch: beforeLaunch, afterExit: afterExit)
         let timer = Task {
             if (try? await Task.sleep(for: .seconds(command.timeout))) != nil { execution.stop(.timedOut) }
         }
@@ -110,6 +116,9 @@ private final class Execution: @unchecked Sendable {
         /// has not launched raises an Objective-C exception (R-05).
         var launched = false
         var stop: ToolRun.Ending?
+        /// Whether Shuck signalled the process while it was still running. Only then does ``stop`` say how it ended: a
+        /// process that had already exited when the stop came ended by itself (#179).
+        var signalled = false
         var finished = false
     }
 
@@ -117,6 +126,7 @@ private final class Execution: @unchecked Sendable {
     private let limit: Int
     private let grace: Duration
     private let beforeLaunch: (@Sendable () -> Void)?
+    private let afterExit: (@Sendable () -> Void)?
     /// Output is read on this queue only, so its order is the order the process wrote it in.
     private let queue = DispatchQueue(label: "me.nutabi.shuck.tool-output")
     private let output = Mutex(Output())
@@ -126,15 +136,17 @@ private final class Execution: @unchecked Sendable {
         var cut = false
     }
 
-    init(limit: Int, grace: Duration, beforeLaunch: (@Sendable () -> Void)?) {
+    init(limit: Int, grace: Duration, beforeLaunch: (@Sendable () -> Void)?, afterExit: (@Sendable () -> Void)?) {
         self.limit = limit
         self.grace = grace
         self.beforeLaunch = beforeLaunch
+        self.afterExit = afterExit
     }
 
     /// Asks the process to end, for `reason`: SIGTERM now, SIGKILL after the grace period if it is still running. The
     /// first reason stands. Nothing happens once the process has ended, and a process that has not launched is
-    /// not signalled: ``run(_:at:)`` ends it as soon as it has launched.
+    /// not signalled: ``run(_:at:)`` ends it as soon as it has launched. A process that has already exited is not
+    /// signalled either, and `reason` then does not replace its own ending (#179).
     func stop(_ reason: ToolRun.Ending) {
         let process: Process? = state.withLock { state in
             guard !state.finished, state.stop == nil else { return nil }
@@ -145,8 +157,16 @@ private final class Execution: @unchecked Sendable {
         terminate(process)
     }
 
+    /// Sends SIGTERM to `process` if it has not exited yet, and notes that it did. A process that has exited, even if
+    /// `Process` has not noticed yet, is left alone, so its own exit status stands (#179).
     private func terminate(_ process: Process) {
-        process.terminate()
+        let sent = state.withLock { state in
+            guard !state.finished, !Self.hasExited(process.processIdentifier) else { return false }
+            state.signalled = true
+            process.terminate()
+            return true
+        }
+        guard sent else { return }
         let grace = grace
         Task {
             try? await Task.sleep(for: grace)
@@ -154,6 +174,18 @@ private final class Execution: @unchecked Sendable {
             state.withLock { state in
                 if !state.finished, process.isRunning { kill(process.processIdentifier, SIGKILL) }
             }
+        }
+    }
+
+    /// Whether the process `id` has exited, whether or not it has been reaped yet. `WNOWAIT` leaves it to `Process` to
+    /// reap, so its termination handler still gets the exit status.
+    private static func hasExited(_ id: pid_t) -> Bool {
+        var info = siginfo_t()
+        while true {
+            let result = waitid(P_PID, id_t(id), &info, WEXITED | WNOHANG | WNOWAIT)
+            if result == 0 { return info.si_pid != 0 }
+            // Not ours to wait for any more (`ECHILD`): `Process` has reaped it, so it has exited.
+            if errno != EINTR { return true }
         }
     }
 
@@ -177,9 +209,11 @@ private final class Execution: @unchecked Sendable {
 
         let ending: ToolRun.Ending = await withCheckedContinuation { continuation in
             process.terminationHandler = { [self] process in
+                afterExit?()
+                // A stop that signalled nothing found the process already ended, so its own ending stands (#179).
                 let requested = state.withLock { state in
                     state.finished = true
-                    return state.stop
+                    return state.signalled ? state.stop : nil
                 }
                 // Everything the process wrote is already in the pipe, so reading until it is empty gets all of it
                 // even when a process it started still holds the pipe open.
