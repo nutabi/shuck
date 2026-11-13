@@ -531,8 +531,8 @@ Owner prerequisites, before the tasks that need them:
 - [x] The `v0.2.0` tag exists and its pre-release is published (M2's last exit criterion), on 2026-11-12.
 - [ ] Owner item: measure how many of the owner's own apps Shuck could remove (OQ-08, R-16). It tells whether APP-005's
   blocked uninstall is the common case. Needed before M3-T04.
-- [ ] Owner decision: whether leftovers in Application Support and Group Containers are ever preselected (OQ-07).
-  APP-003 stays as written until the owner decides. Needed before M3-T03 sets default selection.
+- [x] Owner decision: whether leftovers in Application Support and Group Containers are ever preselected (OQ-07).
+  Decided as D-NEXT-oq07: those in Application Support, Containers and Group Containers are never preselected.
 - [x] Owner approval of Applications' allowed roots, a hard stop (D-170): `/Applications`, `~/Applications`, each
   `~/Library` leftover folder APP-002 names, and `~/Library/LaunchAgents`. Needed before M3-T02 is implemented.
   Approved on 2026-11-13 (D-185).
@@ -605,12 +605,12 @@ Tasks:
     app runs (SAF-009, CAC-003, D-121). The owner asked for it on 2026-11-13; done as D-189. Left: a vendor folder
     such as `Google` or `Mozilla` matches no app name.
 - [ ] M3-T03 Engine: leftovers with confidence (APP-002 to APP-004, OQ-07, R-16). Two pull requests:
-  - [ ] Related user-level items by exact bundle ID, and Group Containers through the app groups in the app's
+  - [x] Related user-level items by exact bundle ID, and Group Containers through the app groups in the app's
     entitlements, each with a confidence and the reason for it. Only High items are selected, subject to the owner's
     OQ-07 decision (APP-002, APP-003, R-05). The leftover roots are inputs, so fixtures never read the real `~/Library`.
     Reading other apps' `Containers` can make macOS ask for permission, and each container prompts separately
     (PRD S78, R-16): the scan treats a refusal as an unreadable folder and reports it (SAF-012), and the page says why
-    in M3-T08.
+    in M3-T08. Done as D-NEXT-leftovers. Left: the page shows the reasons and the not-accessible folders (M3-T08).
   - [ ] Medium and Low matches by name, and system-wide items listed as "Needs admin" and never planned (APP-003,
     APP-004).
 - [ ] M3-T04 Engine: removability (APP-005, R-16). Needs the OQ-08 measurement first. One pull request: it decides
