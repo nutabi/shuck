@@ -8,13 +8,14 @@ extension FixtureRoot {
     @discardableResult
     public func app(
         _ relativePath: String, bundleID: String?, name: String? = nil, displayName: String? = nil,
-        version: String? = nil, size: Int = 0
+        version: String? = nil, build: String? = nil, size: Int = 0
     ) throws(FixtureError) -> URL {
         let bundle = try folder(relativePath)
         let executable = bundle.deletingPathExtension().lastPathComponent
         let values: [String: String?] = [
             "CFBundlePackageType": "APPL", "CFBundleExecutable": executable, "CFBundleIdentifier": bundleID,
             "CFBundleName": name, "CFBundleDisplayName": displayName, "CFBundleShortVersionString": version,
+            "CFBundleVersion": build,
         ]
         let info = values.compactMapValues { $0 }
         let data = try Self.fileSystem {

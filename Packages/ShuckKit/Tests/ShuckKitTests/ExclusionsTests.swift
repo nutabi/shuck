@@ -192,4 +192,36 @@ struct ExclusionsTests {
         #expect(!hidden.contains { $0.url.map { overlap($0, kept) } == true })
         #expect(Set(after.compactMap(\.url)) == Set(before.compactMap(\.url)))
     }
+
+    /// Applications is a tool of its own, not in the registry's sub-tools, so the test above cannot see it (D-186).
+    @Test func applicationsListsNoAppInsideOrHoldingAnExclusionSET001() async throws {
+        try root.app("Applications/Excluded.app", bundleID: "com.example.Excluded")
+        try root.app("Applications/Holder.app", bundleID: "com.example.Holder")
+        try root.app("Applications/Utilities/Tool.app", bundleID: "com.example.Tool")
+        try root.app("Applications/Kept.app", bundleID: "com.example.Kept")
+        try root.app("Applications/Games/Chess.app", bundleID: "com.example.Chess")
+        let excluded = try [
+            "Applications/Excluded.app", "Applications/Holder.app/Contents/Resources", "Applications/Utilities",
+        ].map { try root.url($0) }
+        let applications = Applications(
+            appFolders: [try root.url("Applications")], isSystemProtected: { _ in false }, lastUsedDate: { _ in nil })
+
+        func scan(excluding exclusions: [URL]) async -> [URL] {
+            let context = ScanContext(
+                home: root.url, protection: root.pathGuardConfiguration(userExclusions: exclusions))
+            var urls: [URL] = []
+            for await case .app(let app) in applications.scan(context) { urls.append(app.url) }
+            return urls
+        }
+
+        let before = await scan(excluding: [])
+        let after = await scan(excluding: excluded)
+        #expect(before.count == 5)
+        #expect(Set(after.map(\.lastPathComponent)) == ["Kept.app", "Chess.app"])
+        // The page drops rows with `hides` when the user adds an exclusion, so it must agree with a rescan.
+        let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration(userExclusions: excluded))
+        for url in before {
+            #expect(context.hides(url) == !after.contains(url), "\(url.lastPathComponent)")
+        }
+    }
 }

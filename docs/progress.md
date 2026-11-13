@@ -598,7 +598,7 @@ Tasks:
     and size, leaving out `/System/Applications`, apps protected by System Integrity Protection and Shuck itself. App
     folders are inputs, so tests never read the real `/Applications`. Test support gets a fake app bundle with a real
     `Info.plist`.
-  - [ ] The rest of the inventory: version and last opened, the exclusions (the scan hides what an exclusion covers or
+  - [x] The rest of the inventory (D-187): version and last opened, the exclusions (the scan hides what an exclusion covers or
     holds, and joins `ExclusionsTests`, D-149), and the data APP-009 sorts by.
   - [ ] Owner opt-in, which D-121 (3) left for the owner to ask for: a cache folder named after an app, such as
     `Firefox`, is tied to its running app through the inventory's name-to-bundle-ID map, so it is disabled while the
