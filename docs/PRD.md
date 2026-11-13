@@ -36,14 +36,14 @@
 
 - **Audience.** The project owner (human reviewer) and AI coding agents from any vendor.
 - **Normative language.** MUST, MUST NOT, SHOULD and MAY are used as defined in RFC 2119 [S64].
-- **Priorities.** Must = required for MVP exit. Should = in the MVP unless it puts the exit criteria at risk; the Fable advisor decides (D-200). Could = post-MVP candidate.
+- **Priorities.** Must = required for MVP exit. Should = in the MVP unless it puts the exit criteria at risk; the advisor decides (D-200). Could = post-MVP candidate.
 - **Requirement IDs.** Format `<AREA>-<NNN>`, for example `SAF-007` or `APP-003`. IDs are stable: never renumber or reuse an ID. To drop a requirement, mark it "Withdrawn".
 - **Prefixes.** `SAF` safety. `FCL` File Cleanup tool, with sub-tools `LRG` Large Files, `OLD` Old Files, `DEV` Developer Junk and `CAC` Caches & Logs. `APP` Applications. `STA` Startup Items. `HIS` History & Restore. `OVR` Overview. `ONB` Onboarding. `SET` Settings. `NFR-*` non-functional. `ENG` engineering workflow. The `LOF` prefix from v1.0 is retired and must not be reused.
 - **Tools and sub-tools.** A *tool* is a top-level entry in the sidebar. A *sub-tool* is an independent unit inside a tool, with its own scan, results, review and action (section 9.1).
 - **Decisions.** `D-NN` refers to the decision log: D-01 to D-29 in Appendix A, D-30 to D-200 in `docs/archive/decisions.md`, which is frozen. Later decisions are in the pull requests that made them (ENG-011). `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
 - **Sources.** `[S12]` refers to entry S12 in Appendix C.
 - **For AI agents.** Read sections 2, 6, 8 and 12 before any task. Reference requirement IDs in every pull request. All file deletion goes through the safety layer described in section 8; no other code path may delete, move or modify user files.
-- **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The Fable advisor decides, and the pull request records the outcome (D-200).
+- **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The advisor decides, and the pull request records the outcome (D-200).
 
 ## 1. Summary
 
@@ -55,7 +55,7 @@ Shuck is a free, open-source (GPL-3.0-or-later), native macOS app that keeps a M
 
 Every action goes through a review-first safety model with an in-app restore log.
 
-Shuck is built first for its owner's daily use and as a portfolio piece. AI coding agents implement it in small pull requests, and a stronger reviewer model, the Fable advisor, makes the decisions the owner used to review (D-200). The MVP targets macOS 27 on Apple Silicon, runs fully offline, needs no admin rights, and ships as a signed, notarized DMG.
+Shuck is built first for its owner's daily use and as a portfolio piece. AI coding agents implement it in small pull requests, and a stronger reviewer model, the advisor, makes the decisions the owner used to review (D-200). The MVP targets macOS 27 on Apple Silicon, runs fully offline, needs no admin rights, and ships as a signed, notarized DMG.
 
 ## 2. Goals, non-goals and success
 

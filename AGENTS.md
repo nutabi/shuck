@@ -24,7 +24,7 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
   finished work, such as the decisions D-30 to D-200 that `D-NN` references point at; it is frozen.
 - An agent's memory is only a scratchpad. A rule, owner preference or tool quirk the next agent needs goes into this
   file or `docs/`, in the same change.
-- **The Fable advisor decides** (owner preference, 2026-11-13, D-200). Anything the PRD leaves open goes to the
+- **The advisor decides** (owner preference, 2026-11-13, D-200). Anything the PRD leaves open goes to the
   advisor, as does a conflict between the code and the PRD. So do changes to the path guard, the safety layer, the
   static checks, a sub-tool's allowed roots or a dependency, and any change that could remove, move or hide user data
   beyond what the PRD says. When unsure whether a change could, stop and ask the advisor. The agent follows the
@@ -45,7 +45,7 @@ Owner preference, 2026-11-13:
   - Haiku agents read code and read or write docs.
   - Sonnet agents write code. They run in parallel when their pieces touch different files and none needs another's
     code, otherwise one after another, each in its own worktree.
-  - The Fable advisor decides, as described above.
+  - The advisor decides, as described above.
 - **One task is one pull request, or one stack** (ENG-002). A task is a roadmap task or a fix. Aim for about 200 changed
   lines of production code per pull request. A bigger task is split into a stack of pull requests that are each small
   and reviewable on their own: engine before UI, Execution before the code that uses it (D-62). Say in each pull

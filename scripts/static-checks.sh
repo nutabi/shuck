@@ -12,7 +12,7 @@
 # with a comma, and when the next line starts with `.`, up to 15 lines. One more check reads the tests: every Must SAF
 # requirement is named in a test or a script (NFR-QA-001, D-133).
 #
-# The checks are a safety net, not a proof. A rule that blocks legitimate code goes to the Fable advisor, who decides
+# The checks are a safety net, not a proof. A rule that blocks legitimate code goes to the advisor, who decides
 # how it changes (AGENTS.md); never just work around it.
 
 set -euo pipefail
