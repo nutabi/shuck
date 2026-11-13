@@ -6,8 +6,8 @@
 #                                         release-only build settings (D-86) compile the same code differently
 #        scripts/build-check.sh engine    the ShuckKit package with SwiftPM, which compiles it for macOS 26 alone from
 #                                         Package.swift: an API newer than macOS 26 in the engine fails here even with
-#                                         the macOS 27 SDK (NFR-COMP-001, D-06). CI's "Lint, build and test" runs it
-#                                         with Xcode 27 (#213).
+#                                         the macOS 27 SDK (NFR-COMP-001, D-06). CI's "Check" runs it with Xcode 27
+#                                         (#213).
 #
 # Release signing happens only in scripts/build-dmg.sh.
 
