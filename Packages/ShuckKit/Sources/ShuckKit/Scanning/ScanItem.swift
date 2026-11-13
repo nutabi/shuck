@@ -148,10 +148,11 @@ public struct ScanContext: Sendable {
     /// when it is inside an exclusion or holds one; a tool command, when the folder it is sized from is.
     public func hides(_ item: ScanItem) -> Bool {
         if let url = item.url { return hides(url) }
-        guard let rule = item.ruleMatch?.rule.id, let folder = DeveloperJunk.toolFolder(ruleID: rule, home: home) else {
-            return false
-        }
-        return protection.overlapsUserExclusion(folder)
+        guard let rule = item.ruleMatch?.rule.id else { return false }
+        var executable: String?
+        if case .command(let command) = item.target { executable = command.executable }
+        return DeveloperJunk.toolFolders(ruleID: rule, home: home, executable: executable)
+            .contains { protection.overlapsUserExclusion($0) }
     }
 
     /// Without `protection`, a scan uses the production list for `home` with Shuck's own bundle. Tests pass the

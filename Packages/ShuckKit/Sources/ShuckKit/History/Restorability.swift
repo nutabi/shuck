@@ -138,7 +138,8 @@ extension HistoryLog.Contents {
     private static func checkTrash(for item: TrashedItem) -> Restorability {
         var info = stat()
         guard lstat(item.trashedURL.path, &info) == 0 else {
-            return errno == ENOENT || errno == ENOTDIR ? .trashEmptied : .notAccessible
+            // Only a missing path means the Trash was emptied; any other error means Shuck cannot tell (SAF-012).
+            return LstatFailure(errno: errno) == .missing ? .trashEmptied : .notAccessible
         }
         if let identity = item.identity,
             !identity.isSameTrashedFile(as: FileIdentity(volume: info.st_dev, file: info.st_ino))

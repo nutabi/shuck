@@ -55,7 +55,8 @@ public struct HistoryRecord: Codable, Equatable, Sendable {
     /// their intent records, so History can find an item whose result was never written in the Trash (HIS-001).
     /// Restore moves only an item that still has it. Logs written by Shuck 0.1.0 do not have it in results.
     public let identity: FileIdentity?
-    /// The allocated size estimate in bytes.
+    /// The allocated size estimate in bytes. A tool item's result record has the size measured after the run instead,
+    /// when there was one (D-184).
     public let bytes: Int64?
     public let tier: Tier
     /// Result records only.
