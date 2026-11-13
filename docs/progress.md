@@ -533,8 +533,9 @@ Owner prerequisites, before the tasks that need them:
   blocked uninstall is the common case. Needed before M3-T04.
 - [ ] Owner decision: whether leftovers in Application Support and Group Containers are ever preselected (OQ-07).
   APP-003 stays as written until the owner decides. Needed before M3-T03 sets default selection.
-- [ ] Owner approval of Applications' allowed roots, a hard stop (D-170): `/Applications`, `~/Applications`, each
+- [x] Owner approval of Applications' allowed roots, a hard stop (D-170): `/Applications`, `~/Applications`, each
   `~/Library` leftover folder APP-002 names, and `~/Library/LaunchAgents`. Needed before M3-T02 is implemented.
+  Approved on 2026-11-13 (D-185).
 - [ ] Owner approval of dependencies between items in one run, a change to the run loop and so to the safety layer
   (D-170): a failed `bootout` skips that agent's plist (APP-011), and an app bundle that fails to move to the Trash
   leaves its leftovers alone (APP-005). Needed before M3-T05's dependency pull request.
@@ -589,7 +590,7 @@ Tasks:
     not approve them), and making the `Engine on macOS 26` job a required check.
 - [ ] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
   Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
-  - [ ] Applications' shape and the first part of the scanner. It records in `docs/decisions.md`, as an agent choice
+  - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/decisions.md`, as an agent choice
     open for review, whether Applications is a `SubTool` conformer or its own entry point through
     `Plan(tool:allowedRoots:items:pathGuard:run:requiresRule:)`; `Plan(subTool:)`, `ExclusionsTests`,
     `ToolRegistryTests` and `FileCleanupModel` assume sub-tools, so every later task depends on the choice. It then

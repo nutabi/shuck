@@ -1,0 +1,166 @@
+import Foundation
+import ShuckKitTestSupport
+import Testing
+
+@testable import ShuckKit
+
+/// Applications' tier, allowed roots and app inventory (APP-001, APP-002, SAF-007, SAF-012, SAF-016).
+struct ApplicationsTests {
+    let root: FixtureRoot
+    let appFolders: [URL]
+
+    init() throws {
+        root = try FixtureRoot()
+        // Both app folders are inside the fixture root, so no test reads the real /Applications (SAF-016).
+        appFolders = [try root.url("System Apps"), try root.url("Applications")]
+    }
+
+    private func events(protected: Set<String> = []) async -> [AppInventoryEvent] {
+        let applications = Applications(appFolders: appFolders) { protected.contains($0.lastPathComponent) }
+        let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
+        var result: [AppInventoryEvent] = []
+        for await event in applications.scan(context) { result.append(event) }
+        return result
+    }
+
+    /// The apps found, by path relative to the fixture root.
+    private func apps(protected: Set<String> = []) async -> [String: InstalledApp] {
+        var result: [String: InstalledApp] = [:]
+        for case .app(let app) in await events(protected: protected) {
+            result[String(app.url.path.dropFirst(root.url.path.count + 1))] = app
+        }
+        return result
+    }
+
+    @Test func appsAreYourDataInTheirOwnTool() {
+        #expect(Applications().id == .applications)
+        #expect(Applications().tiers == [.yourData])
+    }
+
+    @Test func productionFoldersAreBothApplicationsFoldersAPP001() {
+        let home = URL(filePath: "/Users/someone")
+        #expect(Applications().appFolders(home: home).map(\.path) == ["/Applications", "/Users/someone/Applications"])
+    }
+
+    @Test func allowedRootsAreTheAppFoldersAndTheLeftoverFoldersAPP002() {
+        let home = URL(filePath: "/Users/someone")
+        let roots = Set(Applications().allowedRoots(home: home).map(\.path))
+        #expect(roots.contains("/Applications") && roots.contains("/Users/someone/Applications"))
+        for folder in [
+            "Application Support", "Caches", "Containers", "Group Containers", "Preferences",
+            "Saved Application State", "HTTPStorages", "WebKit", "Cookies", "Logs", "Application Scripts",
+            "LaunchAgents",
+        ] {
+            #expect(roots.contains("/Users/someone/Library/\(folder)"), "\(folder)")
+        }
+        #expect(roots.count == 14)
+        #expect(!roots.contains("/Users/someone/Library") && !roots.contains("/Users/someone"))
+    }
+
+    @Test func listsAppsWithNameBundleIDAndSizeAPP001() async throws {
+        try root.app("System Apps/Notes.app", bundleID: "com.example.Notes", name: "Notes", size: 8192)
+        try root.app(
+            "Applications/Mail Pro.app", bundleID: "com.example.Mail", name: "Mail", displayName: "Mail Pro",
+            size: 4096)
+        try root.app("Applications/Bare.app", bundleID: nil)
+
+        let apps = await apps()
+        #expect(Set(apps.keys) == ["System Apps/Notes.app", "Applications/Mail Pro.app", "Applications/Bare.app"])
+        let notes = try #require(apps["System Apps/Notes.app"])
+        #expect(notes.name == "Notes" && notes.bundleID == "com.example.Notes")
+        #expect(notes.snapshot.kind == .folder && notes.allocatedSize >= 8192)
+        #expect(notes.modified == RuleMatch.modificationDate(at: notes.url))
+        #expect(apps["Applications/Mail Pro.app"]?.name == "Mail Pro")
+        #expect(apps["Applications/Bare.app"]?.name == "Bare" && apps["Applications/Bare.app"]?.bundleID == nil)
+    }
+
+    @Test func looksOneLevelOfSubfoldersDeepAPP001() async throws {
+        try root.app("Applications/Utilities/Tool.app", bundleID: "com.example.Tool")
+        try root.app("Applications/Utilities/More/Deep.app", bundleID: "com.example.Deep")
+        // An app inside another app's bundle is part of that app, not an app of its own.
+        try root.app("Applications/Host.app", bundleID: "com.example.Host")
+        try root.app("Applications/Host.app/Contents/Helpers/Helper.app", bundleID: "com.example.Helper")
+
+        #expect(Set(await apps().keys) == ["Applications/Utilities/Tool.app", "Applications/Host.app"])
+    }
+
+    @Test func leavesOutLinksFilesAndNonApps() async throws {
+        let notes = try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
+        try root.symlink("Applications/Notes.app", to: notes)
+        try root.file("Applications/Readme.txt", size: 10)
+        try root.file("Applications/Fake.app", size: 10)
+        try root.folder("Applications/Plugin.bundle")
+
+        #expect(Set(await apps().keys) == ["System Apps/Notes.app"])
+    }
+
+    @Test func leavesOutAppsProtectedBySystemIntegrityProtectionAPP001() async throws {
+        try root.app("Applications/Safari.app", bundleID: "com.apple.Safari")
+        try root.app("Applications/Notes.app", bundleID: "com.example.Notes")
+
+        #expect(Set(await apps(protected: ["Safari.app"]).keys) == ["Applications/Notes.app"])
+    }
+
+    @Test func aFixtureAppHasNoRestrictedFlag() throws {
+        #expect(!Applications.hasRestrictedFlag(try root.app("Applications/Notes.app", bundleID: "com.example.Notes")))
+    }
+
+    @Test func leavesOutShuckItselfAPP001() async throws {
+        // The guard protects the running Shuck's bundle; the bundle IDs leave out every copy of either build.
+        try root.app("Applications/Shuck.app", bundleID: ShuckKit.bundleID)
+        try root.app("System Apps/Shuck Old.app", bundleID: "ME.NUTABI.SHUCK")
+        try root.app("System Apps/Shuck Debug.app", bundleID: ShuckKit.debugBundleID)
+        try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
+
+        #expect(Set(await apps().keys) == ["System Apps/Notes.app"])
+    }
+
+    @Test func aMissingAppFolderIsNotAnError() async throws {
+        try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
+
+        let events = await events()
+        #expect(events.count == 1)
+    }
+
+    @Test func anUnreadableFolderIsReportedSAF012() async throws {
+        try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
+        let locked = try root.folder("Applications/Locked", permissions: 0o000)
+
+        let events = await events()
+        let notAccessible = events.compactMap { event in
+            if case .notAccessible(let url) = event { url.path } else { nil }
+        }
+        #expect(notAccessible == [locked.path])
+        #expect(events.contains { if case .app = $0 { true } else { false } })
+    }
+
+    @Test func aFoundAppPassesThePathGuardInAnUninstallPlanSAF007() async throws {
+        try root.app("Applications/Notes.app", bundleID: "com.example.Notes", size: 100)
+        let app = try #require(await apps()["Applications/Notes.app"])
+        let applications = Applications(appFolders: appFolders)
+
+        let plan = try Plan(
+            tool: applications.id, allowedRoots: applications.allowedRoots(home: root.url),
+            items: [
+                PlannedItem(
+                    url: app.url, tier: .yourData, method: .trash, snapshot: app.snapshot, modified: app.modified,
+                    selection: .selected)
+            ],
+            pathGuard: PathGuard(configuration: root.pathGuardConfiguration()))
+        #expect(plan.items.map(\.url) == [app.url])
+    }
+
+    @Test func stoppingTheScanEndsItSAF014() async throws {
+        for index in 0..<20 { try root.app("Applications/App \(index).app", bundleID: "com.example.\(index)") }
+        let applications = Applications(appFolders: appFolders)
+        let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
+
+        let task = Task {
+            var count = 0
+            for await _ in applications.scan(context) { count += 1 }
+            return count
+        }
+        task.cancel()
+        #expect(await task.value < 20)
+    }
+}
