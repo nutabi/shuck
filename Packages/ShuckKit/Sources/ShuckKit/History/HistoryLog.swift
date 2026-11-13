@@ -20,6 +20,10 @@ public actor HistoryLog {
     public nonisolated let fileURL: URL
     private let handle: FileHandle
 
+    /// The log's descriptor, so a test can copy it as a starting process would (#217).
+    package nonisolated var descriptorForTesting: Int32 { descriptor }
+    private nonisolated let descriptor: Int32
+
     private static let logger = Logger(subsystem: ShuckKit.loggerSubsystem, category: "History")
 
     /// The data folder inside `home` of the build with `bundleID`, where that build keeps its log (D-70).
@@ -33,8 +37,10 @@ public actor HistoryLog {
         let fileURL = folder.appending(path: Self.fileName)
         let (handle, info) = try Self.openFile(fileURL, flags: O_RDWR | O_APPEND | O_CREAT)
         let descriptor = handle.fileDescriptor
-        // Held until the handle closes. `flock` locks per open file description, so a second handle in this process is
-        // refused too: a run holds one log at a time (SAF-018, D-135). Reading takes no lock.
+        // Held until the log is deallocated, when `deinit` releases it explicitly: a descriptor copied into a process
+        // being started elsewhere could otherwise keep it held after the handle closes (#217). `flock` locks per open
+        // file description, so a second handle in this process is refused too: a run holds one log at a time (SAF-018,
+        // D-135). Reading takes no lock.
         guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
             throw errno == EWOULDBLOCK ? .locked(fileURL.path) : .cannotOpen(fileURL.path, errno: errno)
         }
@@ -53,6 +59,12 @@ public actor HistoryLog {
         }
         self.fileURL = fileURL
         self.handle = handle
+        self.descriptor = descriptor
+    }
+
+    deinit {
+        // `LOCK_UN` acts on the open file description, so a copy of the descriptor elsewhere no longer holds the lock.
+        flock(descriptor, LOCK_UN)
     }
 
     /// Appends `record` and flushes it with a barrier, so the drive writes it before anything written after it

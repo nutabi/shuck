@@ -293,4 +293,18 @@ struct HistoryLogTests {
         try await second.append(intent)
         #expect(first == nil)
     }
+
+    /// A tool being started elsewhere in the process briefly holds a copy of every descriptor. That copy must not keep
+    /// a dropped log's lock alive (#217), so the next run can open the log at once.
+    @Test func theLockGoesWithTheLogEvenIfItsFileIsStillOpenElsewhereSAF018() throws {
+        let copy: Int32
+        do {
+            let log = try HistoryLog(folder: folder)
+            copy = dup(log.descriptorForTesting)
+            try #require(copy >= 0)
+        }
+        defer { close(copy) }
+
+        _ = try HistoryLog(folder: folder)
+    }
 }
