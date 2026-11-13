@@ -7,6 +7,10 @@ All notable changes to Shuck are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
+
 ### Fixed
 
 - Homebrew Cleanup in Developer Junk is now hidden when you exclude any folder it cleans, such as Homebrew's logs or

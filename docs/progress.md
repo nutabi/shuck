@@ -573,7 +573,7 @@ Tasks:
   - [x] Owner review first, since it changes what a plan accepts: a scan can list a folder the guard refuses, such as
     one holding a Photos library, and that one row makes the whole plan refuse. The scanner marks such a folder as
     not selectable, with the reason (M2-F10, SAF-007, SAF-011).
-  - [ ] App tests (M2-F20, R-07): a UI test for a DerivedData row's project path and for Select All and Select None,
+  - [x] App tests (M2-F20, R-07): a UI test for a DerivedData row's project path and for Select All and Select None,
     a keyboard shortcut for them (NFR-A11Y-001), and a test that a second click while a plan is being built starts no
     second plan.
   - Left out on purpose: the run sheet's indeterminate progress (M2-T06). Showing a count means `PlanExecutor` reports

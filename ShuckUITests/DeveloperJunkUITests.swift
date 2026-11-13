@@ -83,6 +83,9 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["Gone"].exists)
             XCTAssertFalse(app.staticTexts["Stale-\(projectHash)"].exists, "The folder's hash is shown")
             XCTAssertFalse(app.staticTexts["Private"].exists, "A project in an excluded folder is listed (SET-001)")
+            // Two projects can share a name, so each row shows the path Xcode recorded for its project (M2-F20, D-138).
+            XCTAssertTrue(app.staticTexts["~/Projects/Stale"].exists, "The project's path is missing")
+            XCTAssertTrue(app.staticTexts["~/Projects/Gone"].exists, "A missing project's path is missing")
             XCTAssertTrue(app.staticTexts["Its project is no longer on this Mac."].exists)
             XCTAssertTrue(app.staticTexts["Not built for 30 days or more."].exists)
             XCTAssertTrue(app.staticTexts["iOS 16.4 (20E247)"].exists, "No row for the device support version")
@@ -228,6 +231,24 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertFalse(isChecked(app, "Release Build"), "Select All chose an archive")
             XCTAssertTrue(footer(app, startingWith: "Your data: none selected").exists)
             XCTAssertFalse(app.buttons["Move to Trash…"].isEnabled)
+        }
+
+        step("Select None clears the selection, and ⇧⌘A and ⌘A do the same from the keyboard (NFR-A11Y-001)") {
+            app.buttons["Select None"].click()
+            XCTAssertTrue(footer(app, startingWith: "No items selected").appears(within: 5), outline(of: app))
+            XCTAssertFalse(isChecked(app, "Gone"), "Select None left a row checked")
+            XCTAssertFalse(app.buttons["Select None"].isEnabled, "Select None stays enabled with nothing selected")
+
+            app.typeKey("a", modifierFlags: .command)
+            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
+            XCTAssertFalse(isChecked(app, "Release Build"), "⌘A chose an archive")
+
+            app.typeKey("a", modifierFlags: [.command, .shift])
+            XCTAssertTrue(footer(app, startingWith: "No items selected").appears(within: 5), outline(of: app))
+
+            // The steps after this one start from the full selection.
+            app.buttons["Select All"].click()
+            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
         }
 
         step("Choosing the archive enables Move to Trash with its own count, and Delete keeps its own (SAF-002)") {
