@@ -15,8 +15,10 @@ struct ApplicationsTests {
         appFolders = [try root.url("System Apps"), try root.url("Applications")]
     }
 
-    private func events(protected: Set<String> = []) async -> [AppInventoryEvent] {
-        let applications = Applications(appFolders: appFolders) { protected.contains($0.lastPathComponent) }
+    private func events(protected: Set<String> = [], lastUsed: [String: Date] = [:]) async -> [AppInventoryEvent] {
+        let applications = Applications(
+            appFolders: appFolders, isSystemProtected: { protected.contains($0.lastPathComponent) },
+            lastUsedDate: { lastUsed[$0.lastPathComponent] })
         let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
         var result: [AppInventoryEvent] = []
         for await event in applications.scan(context) { result.append(event) }
@@ -24,9 +26,9 @@ struct ApplicationsTests {
     }
 
     /// The apps found, by path relative to the fixture root.
-    private func apps(protected: Set<String> = []) async -> [String: InstalledApp] {
+    private func apps(protected: Set<String> = [], lastUsed: [String: Date] = [:]) async -> [String: InstalledApp] {
         var result: [String: InstalledApp] = [:]
-        for case .app(let app) in await events(protected: protected) {
+        for case .app(let app) in await events(protected: protected, lastUsed: lastUsed) {
             result[String(app.url.path.dropFirst(root.url.path.count + 1))] = app
         }
         return result
@@ -72,6 +74,42 @@ struct ApplicationsTests {
         #expect(notes.modified == RuleMatch.modificationDate(at: notes.url))
         #expect(apps["Applications/Mail Pro.app"]?.name == "Mail Pro")
         #expect(apps["Applications/Bare.app"]?.name == "Bare" && apps["Applications/Bare.app"]?.bundleID == nil)
+    }
+
+    @Test func readsTheVersionAndWhenTheAppWasLastOpenedAPP001() async throws {
+        let opened = Date(timeIntervalSince1970: 1_800_000_000)
+        try root.app("Applications/Notes.app", bundleID: "com.example.Notes", version: "2.1", build: "210")
+        try root.app("Applications/Build.app", bundleID: "com.example.Build", build: "42")
+        try root.app("Applications/None.app", bundleID: "com.example.None", version: "")
+
+        let apps = await apps(lastUsed: ["Notes.app": opened])
+        #expect(apps["Applications/Notes.app"]?.version == "2.1")
+        #expect(apps["Applications/Notes.app"]?.lastOpened == opened)
+        #expect(apps["Applications/Build.app"]?.version == "42")
+        // Spotlight has no record of an app never opened; its modified date says nothing about use (D-187).
+        #expect(apps["Applications/Build.app"]?.lastOpened == nil)
+        #expect(apps["Applications/None.app"]?.version == nil)
+    }
+
+    @Test func sortsByNameSizeAndLastOpenedAPP009() {
+        func app(_ name: String, size: Int64, opened: TimeInterval?) -> InstalledApp {
+            InstalledApp(
+                url: URL(filePath: "/Applications/\(name).app"), name: name, bundleID: nil,
+                snapshot: ItemSnapshot(kind: .folder, allocatedSize: size), modified: .now,
+                lastOpened: opened.map(Date.init(timeIntervalSince1970:)))
+        }
+        let apps = [
+            app("app 10", size: 300, opened: 100), app("App 9", size: 100, opened: nil),
+            app("Zed", size: 200, opened: 50), app("Alpha", size: 200, opened: nil),
+        ]
+        func order(_ key: AppSortKey) -> [String] { apps.sorted { $0.precedes($1, by: key) }.map(\.name) }
+
+        // Names compare as Finder compares them: numbers by value, case ignored.
+        #expect(order(.name) == ["Alpha", "App 9", "app 10", "Zed"])
+        // Ties fall back to the name.
+        #expect(order(.size) == ["App 9", "Alpha", "Zed", "app 10"])
+        // Never opened comes first.
+        #expect(order(.lastOpened) == ["Alpha", "App 9", "Zed", "app 10"])
     }
 
     @Test func looksOneLevelOfSubfoldersDeepAPP001() async throws {

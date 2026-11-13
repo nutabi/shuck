@@ -15,15 +15,49 @@ public struct InstalledApp: Equatable, Sendable, Identifiable {
     public let snapshot: ItemSnapshot
     /// The modification date the scan read with ``ModificationDate``, which the run compares too (SAF-008, D-132).
     public let modified: Date
+    /// `CFBundleShortVersionString`, or `CFBundleVersion` if the app declares only that (APP-001).
+    public let version: String?
+    /// When the app was last opened, as Spotlight records it, or `nil` if Spotlight has no record (APP-001, D-187).
+    public let lastOpened: Date?
 
     public var allocatedSize: Int64 { snapshot.allocatedSize }
 
-    public init(url: URL, name: String, bundleID: String?, snapshot: ItemSnapshot, modified: Date) {
+    public init(
+        url: URL, name: String, bundleID: String?, snapshot: ItemSnapshot, modified: Date, version: String? = nil,
+        lastOpened: Date? = nil
+    ) {
         self.url = url
         self.name = name
         self.bundleID = bundleID
         self.snapshot = snapshot
         self.modified = modified
+        self.version = version
+        self.lastOpened = lastOpened
+    }
+}
+
+/// What Applications' list can be sorted by (APP-009).
+public enum AppSortKey: Sendable, CaseIterable {
+    case name, size, lastOpened
+}
+
+extension InstalledApp {
+    /// Whether this app comes before `other` in increasing order of `key` (APP-009). Names compare as Finder compares
+    /// them, an app never opened comes before every app that was, and a tie is broken by name, then by path, so the
+    /// order is the same on every sort.
+    public func precedes(_ other: InstalledApp, by key: AppSortKey) -> Bool {
+        switch key {
+        case .size where allocatedSize != other.allocatedSize:
+            return allocatedSize < other.allocatedSize
+        case .lastOpened where lastOpened != other.lastOpened:
+            return (lastOpened ?? .distantPast) < (other.lastOpened ?? .distantPast)
+        default:
+            switch name.localizedStandardCompare(other.name) {
+            case .orderedAscending: return true
+            case .orderedDescending: return false
+            case .orderedSame: return url.path < other.url.path
+            }
+        }
     }
 }
 
@@ -64,15 +98,21 @@ public struct Applications: Sendable {
 
     private let customAppFolders: [URL]?
     private let isSystemProtected: SystemProtected
+    private let lastUsedDate: LastOpenedReader.LastUsedDate
 
     /// - Parameters:
     ///   - appFolders: The folders apps are listed from. `nil` uses ``appFolders(home:)``'s production folders; tests
     ///     pass folders inside the fixture root, so they never read the real `/Applications` (SAF-016).
     ///   - isSystemProtected: Whether an app is protected by System Integrity Protection. Tests stub it, since only
     ///     root can set the flag on a fixture.
-    public init(appFolders: [URL]? = nil, isSystemProtected: @escaping SystemProtected = Self.hasRestrictedFlag) {
+    ///   - lastUsedDate: Reads when an app was last opened. Tests stub it, since Spotlight does not index a fixture.
+    public init(
+        appFolders: [URL]? = nil, isSystemProtected: @escaping SystemProtected = Self.hasRestrictedFlag,
+        lastUsedDate: @escaping LastOpenedReader.LastUsedDate = LastOpenedReader.spotlightLastUsedDate
+    ) {
         customAppFolders = appFolders
         self.isSystemProtected = isSystemProtected
+        self.lastUsedDate = lastUsedDate
     }
 
     /// `/Applications` and `~/Applications`, or the folders the caller passed (APP-001).
@@ -153,7 +193,8 @@ public struct Applications: Sendable {
         emit(
             .app(
                 InstalledApp(
-                    url: url, name: Self.name(info, url), bundleID: bundleID, snapshot: snapshot, modified: modified)))
+                    url: url, name: Self.name(info, url), bundleID: bundleID, snapshot: snapshot, modified: modified,
+                    version: Self.version(info), lastOpened: lastUsedDate(url))))
     }
 
     /// Reports what the shared scan helpers report, which is only ever a path they could not read.
@@ -186,6 +227,11 @@ public struct Applications: Sendable {
     static func name(_ info: [String: Any], _ url: URL) -> String {
         let names = ["CFBundleDisplayName", "CFBundleName"].compactMap { info[$0] as? String }
         return names.first { !$0.isEmpty } ?? url.deletingPathExtension().lastPathComponent
+    }
+
+    /// The version the app shows, then its build version, or `nil` if it declares neither.
+    static func version(_ info: [String: Any]) -> String? {
+        ["CFBundleShortVersionString", "CFBundleVersion"].compactMap { info[$0] as? String }.first { !$0.isEmpty }
     }
 
     /// Whether the item at `url` has the `SF_RESTRICTED` flag, which System Integrity Protection sets on what it
