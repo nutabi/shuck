@@ -57,9 +57,9 @@ Owner preference, 2026-11-13:
 - **One open change at a time.** Never have two open pull requests outside one stack, so a merge never leaves another
   pull request with conflicts. Start the next task only after the last one has merged. Something found along the way
   goes into the open stack if it belongs to the task; otherwise it becomes an issue.
-- **Issues** (`docs/repository-setup.md` has the types and labels): before picking the next task, triage the issues
-  with no label. An open `data-risk` bug goes before any other task. Something found along the way that doesn't belong
-  to the open task becomes an issue, with its type and `area/` label.
+- **Issues** (`docs/repository-setup.md` has the types and labels): before picking the next task, triage the open
+  issues with no label or no milestone. An open `data-risk` bug goes before any other task. Something found along the
+  way that doesn't belong to the open task becomes an issue, with its type, `area/` label and milestone.
 - The pull request closes its issue: `Closes #N` in the description. Each pull request in a stack closes its own
   sub-issue, and the last one closes the parent too. Anything left over becomes a new issue in the milestone it
   belongs to.
