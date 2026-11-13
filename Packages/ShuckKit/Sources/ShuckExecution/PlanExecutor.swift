@@ -59,6 +59,10 @@ public struct PlanExecutor: Sendable {
         let loop = RunLoop(log: log, logger: Logger(tool: plan.tool))
         // What a tool item's run measured, by item (D-184). The loop runs one step at a time.
         var removed: [ItemTarget: Int64] = [:]
+        // The items already done, and the path each was logged by, so an item that depends on one can check it
+        // (D-NEXT-deps). An item that was skipped, failed or never ran is not in `done`.
+        var done: Set<ItemDependency> = []
+        var loggedPaths: [ItemDependency: String] = [:]
         let results = await loop.run(plan.items) { item in
             let logged = LoggedItem(
                 run: plan.run, tool: plan.tool, operation: HistoryRecord.Operation(item.method),
@@ -66,9 +70,18 @@ public struct PlanExecutor: Sendable {
                 path: item.method == .launchctl ? LaunchctlAction.loggedPath(for: item) : item.target.description,
                 tier: item.tier, bytes: item.allocatedSize,
                 intentIdentity: item.method == .trash ? item.url.flatMap { FileIdentity.read($0) } : nil)
+            let own = ItemDependency(item)
+            loggedPaths[own] = logged.path
             return RunLoop.Step(logged: logged) {
+                // Decided first, before re-validation, as nothing is touched for an item that is skipped. The only
+                // thing a dependency can do is turn the action into this skip (D-NEXT-deps).
+                if let dependency = item.dependency, !done.contains(dependency) {
+                    let needed = loggedPaths[dependency] ?? dependency.target.description
+                    return Acted<ItemOutcome.SkipReason>(.skipped(.dependencyNotDone(needed)))
+                }
                 let acted = await act(on: item, allowedRoots: plan.allowedRoots, requiresRule: plan.requiresRule)
                 removed[item.target] = acted.bytes
+                if case .done = acted.result { done.insert(own) }
                 return acted
             }
         }
@@ -217,6 +230,10 @@ public struct ItemOutcome: Equatable, Sendable {
         /// The item's tier does not allow its method, as "Your data" is never deleted permanently (SAF-004). `Plan`
         /// refuses such an item, so only a plan built some other way could have one.
         case notAllowed(ActionMethod)
+        /// The item needs an earlier item of the run, whose logged path this is, to be done, and it was not: a
+        /// `bootout` that failed leaves its property list alone, and a bundle that stayed leaves its leftovers
+        /// (APP-005, APP-011, D-NEXT-deps).
+        case dependencyNotDone(String)
 
         /// The reason's stable code, which the history log records (D-88).
         public var code: SkipCode {
@@ -235,6 +252,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .unsupportedMethod: .unsupportedMethod
             case .notAllowed: .notAllowed
             case .toolUnavailable: .toolUnavailable
+            case .dependencyNotDone: .dependencyNotDone
             }
         }
 
@@ -246,6 +264,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .userExclusion(let path): code.logged(path)
             case .unsupportedMethod(let method), .notAllowed(let method): code.logged(method.rawValue)
             case .toolUnavailable(let unavailable): code.logged(unavailable.rawValue)
+            case .dependencyNotDone(let path): code.logged(path)
             default: code.logged()
             }
         }

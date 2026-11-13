@@ -1,5 +1,26 @@
 import Foundation
 
+/// An earlier item of the same plan that must have been done before an item acts: the item with this target and method
+/// (APP-005, APP-011, SAF-011, D-NEXT-deps).
+///
+/// Both are needed, since an agent's property list is the target of two items: its Launchctl `bootout` and its Trash.
+/// A dependency adds no power to a plan. The run only skips the dependent item, with its reason, if the one it names
+/// was not done; it never adds, removes, reorders or retries an item.
+public struct ItemDependency: Hashable, Sendable {
+    public let target: ItemTarget
+    public let method: ActionMethod
+
+    public init(target: ItemTarget, method: ActionMethod) {
+        self.target = target
+        self.method = method
+    }
+
+    /// The dependency on `item`.
+    public init(_ item: PlannedItem) {
+        self.init(target: item.target, method: item.method)
+    }
+}
+
 /// One item the user selected, as shown at review time.
 public struct PlannedItem: Equatable, Sendable, Identifiable {
     public let target: ItemTarget
@@ -22,14 +43,18 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
     public let modified: Date?
     /// The bundle IDs of the apps that use the item; the executor skips it while one of them runs (SAF-009).
     public let apps: Set<String>
+    /// The earlier item that must have been done for this one to act, or `nil` (D-NEXT-deps). If it was skipped,
+    /// failed or never ran, this item is skipped and says so; the plan itself is unchanged.
+    public let dependency: ItemDependency?
 
     public init(
         url: URL, tier: Tier, method: ActionMethod, snapshot: ItemSnapshot, modified: Date? = nil,
         scope: ItemScope = .item,
         identity: FileIdentity? = nil, category: ItemCategory = .personalFiles, selection: ItemSelection = .unselected,
-        ruleMatch: RuleMatch? = nil, apps: Set<String> = []
+        ruleMatch: RuleMatch? = nil, apps: Set<String> = [], dependency: ItemDependency? = nil
     ) {
         self.target = .path(url)
+        self.dependency = dependency
         self.category = category
         self.selection = selection
         self.ruleMatch = ruleMatch
@@ -48,6 +73,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
         selection: ItemSelection = .unselected, ruleMatch: RuleMatch? = nil, apps: Set<String> = []
     ) {
         target = .command(command)
+        dependency = nil
         self.allocatedSize = allocatedSize
         self.tier = tier
         method = .tool
@@ -63,6 +89,7 @@ public struct PlannedItem: Equatable, Sendable, Identifiable {
 
     init(_ item: ScanItem) {
         target = item.target
+        dependency = nil
         tier = item.tier
         method = item.method
         snapshot = item.snapshot
@@ -96,8 +123,14 @@ public struct Plan: Sendable {
         tool: ToolID, allowedRoots: [URL], items: [PlannedItem], pathGuard: PathGuard, run: UUID = UUID(),
         requiresRule: Bool = false
     ) throws(PlanError) {
-        for item in items {
+        for (index, item) in items.enumerated() {
             let subject = item.target.description
+            // Plan order is run order, so a dependency must already have run: an earlier item, never this one.
+            if let dependency = item.dependency,
+                !items[..<index].contains(where: { ItemDependency($0) == dependency })
+            {
+                throw .dependencyNotEarlier(subject)
+            }
             guard item.tier.allows(item.method) else {
                 throw .methodNotAllowed(subject, tier: item.tier, method: item.method)
             }
@@ -171,6 +204,8 @@ public enum PlanError: Error, Equatable {
     case ruleMismatch(String)
     /// The item is to be deleted permanently, but no cleanup rule matched it (SAF-008, D-132).
     case ruleRequired(String)
+    /// The item depends on an item that is not earlier in the plan: none, a later one, or itself (D-NEXT-deps).
+    case dependencyNotEarlier(String)
     /// The path guard rejected the item (SAF-007).
     case rejected(String, PathGuardError)
 }
@@ -181,7 +216,8 @@ extension PlanError {
         switch self {
         case .otherSubTool(let path, _), .tierNotAllowed(let path, _), .methodNotAllowed(let path, _, _),
             .contentsNotAllowed(let path, _), .contentsOfNonFolder(let path), .rejected(let path, _),
-            .notSelectable(let path), .commandRequired(let path), .ruleMismatch(let path), .ruleRequired(let path):
+            .notSelectable(let path), .commandRequired(let path), .ruleMismatch(let path), .ruleRequired(let path),
+            .dependencyNotEarlier(let path):
             path
         }
     }

@@ -536,9 +536,9 @@ Owner prerequisites, before the tasks that need them:
 - [x] Owner approval of Applications' allowed roots, a hard stop (D-170): `/Applications`, `~/Applications`, each
   `~/Library` leftover folder APP-002 names, and `~/Library/LaunchAgents`. Needed before M3-T02 is implemented.
   Approved on 2026-11-13 (D-185).
-- [ ] Owner approval of dependencies between items in one run, a change to the run loop and so to the safety layer
+- [x] Owner approval of dependencies between items in one run, a change to the run loop and so to the safety layer
   (D-170): a failed `bootout` skips that agent's plist (APP-011), and an app bundle that fails to move to the Trash
-  leaves its leftovers alone (APP-005). Needed before M3-T05's dependency pull request.
+  leaves its leftovers alone (APP-005). Needed before M3-T05's dependency pull request. Approved on 2026-11-13 (D-190).
 - [ ] Owner approval of Restore re-enabling a restored LaunchAgent after the user confirms, a hard stop (D-170): it adds
   a Launchctl enable action and changes Restore (APP-011, HIS-005, STA-005). Needed before M3-T05's re-enable pull
   request.
@@ -629,9 +629,9 @@ Tasks:
     is trashed directly, and the result is logged with the job label. It is shaped for STA-005's Disable, Enable and
     Remove, which M4 adds. Agent choice, open for review: whether it reuses `ToolRunner`. Tests run a fake `launchctl`
     through the runner inside the fixture root. Done as D-197.
-  - [ ] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
+  - [x] Owner approval first, a hard stop: dependencies between items in one run, so a failed `bootout` skips that
     agent's plist and a bundle that fails to move leaves its leftovers alone (APP-005, APP-011, SAF-011). The skip is
-    logged with its reason.
+    logged with its reason. Done as D-NEXT-deps.
   - [ ] Owner approval first, a hard stop, since it changes Restore: a Launchctl enable (bootstrap) action, and
     Restore re-enabling a restored agent after the user confirms (APP-011, HIS-005, STA-005 Enable). History's
     `Restorability` today says a `launchctl` item is "reversed by the opposite action", and no such action exists.

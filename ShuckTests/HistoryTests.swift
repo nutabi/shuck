@@ -147,6 +147,8 @@ struct HistoryTests {
                 == "Skipped: it is in a folder you excluded in Settings")  // SET-001
         #expect(text("unsupportedMethod: tool", .tool) == "Skipped: this version of Shuck can't do this")
         #expect(text("notAllowed: delete", .delete) == "Skipped: not allowed for this kind of item")
+        // APP-011
+        #expect(text("dependencyNotDone: com.example.job", .trash) == "Skipped: an item it needs was not done")
         #expect(text("originalTaken", .restore) == "Skipped: its original place is taken")
         #expect(text("otherItem", .restore) == "Skipped: no longer in the Trash, and another item has its name")
         #expect(text("somethingNew") == "Skipped: somethingNew")

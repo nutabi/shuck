@@ -26,6 +26,8 @@ public enum SkipCode: String, CaseIterable, Sendable {
     case originalTaken
     case notInTrash
     case otherItem
+    /// The item needs an earlier item of the run to be done, and it was not (APP-005, APP-011, D-NEXT-deps).
+    case dependencyNotDone
 
     /// The code a logged detail starts with, or `nil` if this version does not know it.
     public init?(detail: String) {
