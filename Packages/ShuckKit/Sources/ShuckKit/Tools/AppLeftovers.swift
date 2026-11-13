@@ -13,11 +13,11 @@ enum LeftoverMatch: Equatable, Sendable {
     case agentProgram
     /// A helper in `PrivilegedHelperTools` named by the bundle ID, or by it and a `.` suffix (APP-004).
     case helperTool
-    /// Medium: an entry in Application Support, Caches or Logs named like the app, the whole name (APP-003, D-NEXT-low).
+    /// Medium: an entry in Application Support, Caches or Logs named like the app, the whole name (APP-003, D-196).
     case appName(String)
-    /// Medium: such an entry named like the app's maker, the bundle ID's second component (APP-003, D-NEXT-low).
+    /// Medium: such an entry named like the app's maker, the bundle ID's second component (APP-003, D-196).
     case vendorName(String)
-    /// Low: such an entry named by the bundle ID and a `.` suffix, such as `com.example.Notes.ShipIt` (D-NEXT-low).
+    /// Low: such an entry named by the bundle ID and a `.` suffix, such as `com.example.Notes.ShipIt` (D-196).
     case idPrefix(String)
 
     var confidence: Confidence {
@@ -113,7 +113,7 @@ extension Applications {
 
     /// The vendor in a bundle ID such as `com.vendor.App`: its second component, without case, when the ID has three or
     /// more and the vendor has three or more characters. `apple` is never a vendor, as it names folders of macOS itself
-    /// (APP-003, D-NEXT-low).
+    /// (APP-003, D-196).
     static func vendor(of bundleID: String) -> String? {
         let parts = bundleID.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count >= 3 else { return nil }
@@ -191,7 +191,7 @@ private struct LeftoverFinder {
     /// The folders searched by name (APP-003).
     private static let nameFolders = ["Library/Application Support", "Library/Caches", "Library/Logs"]
 
-    /// Medium and Low (APP-003, D-NEXT-low): the entries of Application Support, Caches and Logs, each judged by its
+    /// Medium and Low (APP-003, D-196): the entries of Application Support, Caches and Logs, each judged by its
     /// whole name without case. An entry named like the bundle ID itself was found as High. An entry another installed
     /// app also goes by, or whose name is another app's bundle ID and a suffix, is left out (R-05).
     private mutating func scanByName() {

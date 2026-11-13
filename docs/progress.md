@@ -612,7 +612,7 @@ Tasks:
     (PRD S78, R-16): the scan treats a refusal as an unreadable folder and reports it (SAF-012), and the page says why
     in M3-T08. Done as D-193. Left: the page shows the reasons and the not-accessible folders (M3-T08).
   - [x] Medium and Low matches by name, and system-wide items listed as "Needs admin" and never planned (APP-003,
-    APP-004). Done as D-NEXT-low. Left: the page shows the reasons and "Show in Finder" for a system-wide item
+    APP-004). Done as D-196. Left: the page shows the reasons and "Show in Finder" for a system-wide item
     (M3-T08).
 - [ ] M3-T04 Engine: removability (APP-005, R-16). Needs the OQ-08 measurement first. One pull request: it decides
   whether the user can remove the bundle (root-owned, not writable, App Management permission missing) and gives the
