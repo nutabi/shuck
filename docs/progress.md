@@ -15,7 +15,7 @@ Goal: repository, project skeleton, CI/CD proven end to end.
 - [x] M0-T06 CI workflow; branch protection documented in `docs/repository-setup.md`
 - [x] M0-T07 Static-check script, wired into CI
 - [x] M0-T08 Release workflow, DMG and notarize scripts; secrets documented in `docs/releasing.md`
-- [x] M0-T09 Pull request template, `docs/progress.md`, `docs/decisions.md`
+- [x] M0-T09 Pull request template, `docs/progress.md`, `docs/archive/decisions.md`
 
 Exit criteria:
 
@@ -152,7 +152,7 @@ Process changes during M1:
 Goal: Developer Junk with its Must rules, and Caches & Logs, with permanent Delete and tool commands (PRD section 13).
 M2 starts by cleaning up M1, then builds Developer Junk before Caches & Logs (D-82).
 
-- [x] M2-T01 M1 cleanup: the findings of `docs/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
+- [x] M2-T01 M1 cleanup: the findings of `docs/archive/m1-review.md` (TD-01 to TD-24), in nine pull requests (D-62). Changes
   to Safety and Execution go in pull requests of their own. The nine form one GitHub stack, in the order below, with
   auto-merge off; the owner merges the whole stack in one go (D-83). A tenth pull request on top follows up the
   independent review of the stack (D-93).
@@ -369,12 +369,12 @@ Deferred (D-142): the open fixes below and M2-F03 wait until M2-T07 and M2-T12 t
 review of M2 then follows, in a session of its own, and decides how these fixes are done together with its own
 findings. They still come before the 0.2.0 release items.
 
-Review done on 2026-11-12: `docs/m2-review.md` (D-155). It proposes sixteen pull requests in three stacks for the open
+Review done on 2026-11-12: `docs/archive/m2-review.md` (D-155). It proposes sixteen pull requests in three stacks for the open
 fixes below and its own findings, and puts ten questions to the owner. No fix starts, and the open items below are
 not "the next task", until the owner has approved the breakdown; the approved tasks are then listed here.
 
 Stack 1 of the review's breakdown, approved by the owner on 2026-11-12 (six pull requests, no hard stop;
-`docs/m2-review.md` has each one's scope). Stack 2 and stack 3 are below.
+`docs/archive/m2-review.md` has each one's scope). Stack 2 and stack 3 are below.
 
 The first two merged as one GitHub stack (#152, #153), after a stop at the owner's request. The owner then said to go
 on, with Sonnet agents for the implementation and Haiku agents for research; the coordinating session reviews each
@@ -590,7 +590,7 @@ Tasks:
     not approve them), and making the `Engine on macOS 26` job a required check.
 - [x] M3-T02 Engine: Applications' shape and the app inventory (APP-001, APP-009's data, SET-001, SAF-009, CAC-003).
   Owner approval of the allowed roots comes first, a hard stop. Three pull requests:
-  - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/decisions.md`, as an agent choice
+  - [x] Applications' shape and the first part of the scanner (D-186). It records in `docs/archive/decisions.md`, as an agent choice
     open for review, whether Applications is a `SubTool` conformer or its own entry point through
     `Plan(tool:allowedRoots:items:pathGuard:run:requiresRule:)`; `Plan(subTool:)`, `ExclusionsTests`,
     `ToolRegistryTests` and `FileCleanupModel` assume sub-tools, so every later task depends on the choice. It then

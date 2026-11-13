@@ -9,7 +9,8 @@ The title and this description become the squash commit on main, so keep it shor
 
 ## How to review this
 
-<!-- Files to read first. Every change to Safety or Execution. Each decision the advisor made (docs/decisions.md). -->
+<!-- Files to read first. Every change to Safety or Execution. Each decision made, with why
+and the alternatives rejected. -->
 
 ## Test evidence
 

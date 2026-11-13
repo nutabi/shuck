@@ -17,20 +17,20 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
 
 ## Rules and decisions
 
-- This file says how to work, `docs/PRD.md` what to build, and `docs/decisions.md` what was decided since (ENG-011).
-  Detail lives in `docs/`: [testing.md](docs/testing.md), [extending.md](docs/extending.md) and
-  [scan-performance.md](docs/scan-performance.md).
+- This file says how to work and `docs/PRD.md` what to build. Detail lives in `docs/`: [testing.md](docs/testing.md),
+  [extending.md](docs/extending.md) and [scan-performance.md](docs/scan-performance.md). `docs/archive/` holds
+  finished work, such as the decisions D-30 to D-200 that `D-NN` references point at; it is frozen.
 - An agent's memory is only a scratchpad. A rule, owner preference or tool quirk the next agent needs goes into this
   file or `docs/`, in the same change.
 - **The Fable advisor decides** (owner preference, 2026-11-13, D-200). Anything the PRD leaves open goes to the
   advisor, as does a conflict between the code and the PRD. So do changes to the path guard, the safety layer, the
   static checks, a sub-tool's allowed roots or a dependency, and any change that could remove, move or hide user data
   beyond what the PRD says. When unsure whether a change could, stop and ask the advisor. The agent follows the
-  advisor's decision and records it as one short row in `docs/decisions.md`: ID, date, decision, why, and the
-  alternatives rejected. It updates the PRD to match. Nothing waits for the owner's review.
-- Worker agents never edit `docs/decisions.md`. They report each decision to the orchestrating agent, and where their
-  own files must name one, they write a placeholder such as `D-NEXT-sort`. The orchestrating agent numbers the
-  decisions, replaces the placeholders and adds the rows in one commit on the top pull request.
+  advisor's decision and updates the PRD to match. Nothing waits for the owner's review.
+- **Decisions are recorded in the pull request** that makes them (ENG-011): under "How to review this", each decision
+  in a sentence or two, with why and the alternatives rejected. The description becomes the commit on `main`, so
+  `git log --grep` finds it. Code that must cite a decision cites the pull request, such as `#215`. Worker agents
+  report their decisions to the orchestrating agent, which writes them into the description.
 
 ## Working on a task
 
@@ -179,7 +179,7 @@ exclusions (SET-001) and fixture tests.
 ## Dependencies and reuse
 
 - Apple frameworks only (D-03). CI fails if the project resolves any package other than `ShuckKit` (NFR-SEC-002,
-  D-29). A third-party package needs a decision in `docs/decisions.md` first.
+  D-29). A third-party package needs the advisor's decision first.
 - Write our own code. Code or rule data from the GPL-3.0 projects Mole and DevCleaner for Xcode may be reused, with
   attribution in `docs/third-party.md`.
 - Never copy code from Pearcleaner (Apache-2.0 with Commons Clause), or from any project whose license is not

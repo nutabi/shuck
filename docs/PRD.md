@@ -30,7 +30,7 @@
 | 1.9 | 2026-11-12 | DEV-R05 and DEV-R06 name the targets as built: one item per archive bundle (D-145) and a depth limit for projects (D-153). No requirement changes (R-20, D-172). |
 | 1.10 | 2026-11-12 | ENG-007 and the release channel: the release workflow publishes the release after the owner approves the `release` environment, instead of creating a draft (owner decision, D-174 supersedes D-17's draft step). |
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
-| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done (D-200). |
+| 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen (D-200). |
 
 ## How to read this document
 
@@ -40,10 +40,10 @@
 - **Requirement IDs.** Format `<AREA>-<NNN>`, for example `SAF-007` or `APP-003`. IDs are stable: never renumber or reuse an ID. To drop a requirement, mark it "Withdrawn".
 - **Prefixes.** `SAF` safety. `FCL` File Cleanup tool, with sub-tools `LRG` Large Files, `OLD` Old Files, `DEV` Developer Junk and `CAC` Caches & Logs. `APP` Applications. `STA` Startup Items. `HIS` History & Restore. `OVR` Overview. `ONB` Onboarding. `SET` Settings. `NFR-*` non-functional. `ENG` engineering workflow. The `LOF` prefix from v1.0 is retired and must not be reused.
 - **Tools and sub-tools.** A *tool* is a top-level entry in the sidebar. A *sub-tool* is an independent unit inside a tool, with its own scan, results, review and action (section 9.1).
-- **Decisions.** `D-NN` refers to the decision log: D-01 to D-29 in Appendix A, D-30 onwards in `docs/decisions.md`. `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
+- **Decisions.** `D-NN` refers to the decision log: D-01 to D-29 in Appendix A, D-30 to D-200 in `docs/archive/decisions.md`, which is frozen. Later decisions are in the pull requests that made them (ENG-011). `L-NN` refers to the post-MVP backlog (section 7.2). `R-NN` refers to risks (section 14).
 - **Sources.** `[S12]` refers to entry S12 in Appendix C.
 - **For AI agents.** Read sections 2, 6, 8 and 12 before any task. Reference requirement IDs in every pull request. All file deletion goes through the safety layer described in section 8; no other code path may delete, move or modify user files.
-- **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The owner decides and records the outcome in `docs/decisions.md`.
+- **Conflicts.** If code and this document disagree, open an issue. Do not silently diverge. The Fable advisor decides, and the pull request records the outcome (D-200).
 
 ## 1. Summary
 
@@ -587,8 +587,7 @@ shuck/
 ├── CHANGELOG.md               changes users see, per release; each release's notes (D-95)
 ├── docs/
 │   ├── PRD.md                 this document
-│   ├── decisions.md           decisions made after the planning phase (D-30 onwards)
-│   ├── m1-review.md           tech-debt review at the end of M1
+│   ├── archive/               finished work, frozen: decisions D-30 to D-200, the M1 and M2 reviews
 │   ├── progress.md            milestone and task checklist
 │   ├── releasing.md           how to cut a release, secrets, local fallback
 │   ├── repository-setup.md    GitHub settings the owner applies by hand
@@ -622,7 +621,7 @@ shuck/
 | ENG-008 | Signing and notarization secrets are GitHub encrypted secrets, used only by the tag-triggered release workflow. They are never available to pull request workflows. | Must |
 | ENG-009 | Versions follow Semantic Versioning [S60]. Each milestone ends with a pre-release tag (section 13). | Must |
 | ENG-010 | `AGENTS.md` is the only agent-instruction file. Do not add `CLAUDE.md`: Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists [S28]. `AGENTS.md` is an open format read by many coding agents [S27]. | Must |
-| ENG-011 | Decisions after the planning phase go in `docs/decisions.md` with ID, date, decision, rationale and rejected alternatives. | Must |
+| ENG-011 | Decisions after the planning phase go in the description of the pull request that makes them, with rationale and rejected alternatives; it becomes the commit on `main`. D-30 to D-200 are in `docs/archive/decisions.md`, which is frozen (D-200). | Must |
 | ENG-012 | Local scripts mirror CI and release (lint, test, static checks, build-dmg, notarize), so the owner can release without CI if needed. | Should |
 
 **`AGENTS.md` must contain**
@@ -709,7 +708,7 @@ M2 to M6 are broken into tasks when each milestone starts. The breakdown is reco
 | R-08 | Cleaning caches of running apps causes misbehavior | App glitches | Skip running apps' caches (CAC-003). |
 | R-09 | Copyright on AI-generated code may be limited. US Copyright Office (Jan 2025): prompts alone don't make you the author of the output; human selection, arrangement and edits can be protected [S41]. | GPL is weaker over AI-written parts | Accepted (D-20). Document the owner's human contributions in pull requests. |
 | R-10 | "Shuck" has only been web-searched, not trademark-cleared | Rename after release | Trademark search in M6, before v1.0. |
-| R-11 | Scope creep with no deadline | MVP never ships | Exit criteria (section 2.4); backlog (7.2); changes through `docs/decisions.md`. |
+| R-11 | Scope creep with no deadline | MVP never ships | Exit criteria (section 2.4); backlog (7.2); changes recorded in their pull requests. |
 | R-12 | CI runner labels or images change (`xcode-27` uses a new label scheme) [S25] | Broken CI | Pin the label; local fallback scripts (ENG-012). Mitigated: `ci.yml` pins `xcode-27` and UI tests passed on it (D-31); the local scripts exist. |
 | R-13 | Leaked signing secrets | Malicious builds signed with the owner's identity | Tag-only release workflow (ENG-008); App Store Connect API key with the narrowest role that allows notarization; rotate on suspicion. |
 | R-14 | Testing on a single macOS version and a single Mac | Bugs on other setups | Fixture tests plus a clean CI runner; a virtual machine for macOS 26 later (L-02). |
