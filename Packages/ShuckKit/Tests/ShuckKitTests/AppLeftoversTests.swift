@@ -136,7 +136,7 @@ struct AppLeftoversTests {
         #expect(Applications.declaredAppGroups(of: try app().url).isEmpty)
     }
 
-    /// APP-003, OQ-07 (D-NEXT-oq07): an exact bundle-ID match is preselected unless it is in Application Support,
+    /// APP-003, OQ-07 (D-192): an exact bundle-ID match is preselected unless it is in Application Support,
     /// Containers or Group Containers, which can hold the only copy of the user's data. Those are still High and
     /// selectable.
     @Test func preselectionPerFolderAPP003OQ07() async throws {

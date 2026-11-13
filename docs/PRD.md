@@ -727,7 +727,7 @@ Defaults are already in place; the owner can change them at any time.
 | OQ-04 | Docker tier | Resolved (D-24): Your data, never selected by default. |
 | OQ-05 | Progress tracking | Resolved: `docs/progress.md` is the task list; GitHub issues hold review findings (GitHub Issues for tasks possible later). |
 | OQ-06 | iCloud Drive and other synced files | iCloud Drive's own folders (`~/Library/Mobile Documents`, `~/Library/CloudStorage`): fully protected, not scanned. A downloaded file that a sync service keeps elsewhere in the home folder, such as Desktop and Documents under iCloud, is scanned, marked "Synced" and warned about at review (D-129). |
-| OQ-07 | Leftovers in Application Support and Group Containers can be the only copy of a user's data (notes, vaults). APP-003 preselects High-confidence items, which can include them. | Decided (D-NEXT-oq07): leftovers in Application Support, Containers and Group Containers are never preselected. |
+| OQ-07 | Leftovers in Application Support and Group Containers can be the only copy of a user's data (notes, vaults). APP-003 preselects High-confidence items, which can include them. | Decided (D-192): leftovers in Application Support, Containers and Group Containers are never preselected. |
 | OQ-08 | How many of the owner's own apps can Shuck remove (R-16)? | Open for the owner: measure before M3 is broken down. |
 
 ## Appendix A — Decision log (planning phase, 2026-11-01)

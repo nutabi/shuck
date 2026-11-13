@@ -14,11 +14,11 @@ enum LeftoverMatch: Equatable, Sendable {
     case agentProgram
 
     /// The folders whose leftovers are never preselected, as they can hold the only copy of the user's data: a
-    /// sandboxed app's documents live in `Containers/<id>/Data` (OQ-07, D-NEXT-oq07).
+    /// sandboxed app's documents live in `Containers/<id>/Data` (OQ-07, D-192).
     static let neverPreselectedFolders: Set<String> = ["Application Support", "Containers", "Group Containers"]
 
     /// Whether the item at `url` starts selected: an exact bundle-ID match outside `neverPreselectedFolders`. Every
-    /// other High match is listed, and the user may select it (APP-003, OQ-07, D-NEXT-oq07). This is the only place
+    /// other High match is listed, and the user may select it (APP-003, OQ-07, D-192). This is the only place
     /// default selection is decided.
     func startsSelected(at url: URL) -> Bool {
         guard !Self.neverPreselectedFolders.contains(url.deletingLastPathComponent().lastPathComponent) else {

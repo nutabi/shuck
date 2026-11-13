@@ -532,7 +532,7 @@ Owner prerequisites, before the tasks that need them:
 - [ ] Owner item: measure how many of the owner's own apps Shuck could remove (OQ-08, R-16). It tells whether APP-005's
   blocked uninstall is the common case. Needed before M3-T04.
 - [x] Owner decision: whether leftovers in Application Support and Group Containers are ever preselected (OQ-07).
-  Decided as D-NEXT-oq07: those in Application Support, Containers and Group Containers are never preselected.
+  Decided as D-192: those in Application Support, Containers and Group Containers are never preselected.
 - [x] Owner approval of Applications' allowed roots, a hard stop (D-170): `/Applications`, `~/Applications`, each
   `~/Library` leftover folder APP-002 names, and `~/Library/LaunchAgents`. Needed before M3-T02 is implemented.
   Approved on 2026-11-13 (D-185).
@@ -610,7 +610,7 @@ Tasks:
     OQ-07 decision (APP-002, APP-003, R-05). The leftover roots are inputs, so fixtures never read the real `~/Library`.
     Reading other apps' `Containers` can make macOS ask for permission, and each container prompts separately
     (PRD S78, R-16): the scan treats a refusal as an unreadable folder and reports it (SAF-012), and the page says why
-    in M3-T08. Done as D-NEXT-leftovers. Left: the page shows the reasons and the not-accessible folders (M3-T08).
+    in M3-T08. Done as D-193. Left: the page shows the reasons and the not-accessible folders (M3-T08).
   - [ ] Medium and Low matches by name, and system-wide items listed as "Needs admin" and never planned (APP-003,
     APP-004).
 - [ ] M3-T04 Engine: removability (APP-005, R-16). Needs the OQ-08 measurement first. One pull request: it decides
