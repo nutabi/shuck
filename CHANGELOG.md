@@ -15,6 +15,8 @@ All notable changes to Shuck are listed here. The format follows
 
 - Homebrew Cleanup no longer shows a size before it runs, since it cannot know how much it will remove. The finished
   summary shows what it removed.
+- A size Shuck could not measure fully, because a folder inside it could not be read, now reads "At least" in the
+  lists and review sheets, instead of a number that is too small.
 
 ### Fixed
 

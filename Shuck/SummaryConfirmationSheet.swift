@@ -88,7 +88,7 @@ struct SummaryConfirmationSheet: View {
         if showsItems {
             List(confirmation.plan.items) { item in
                 ItemRow(target: item.target, home: home) {
-                    SizeText(target: item.target, bytes: item.allocatedSize)
+                    SizeText(target: item.target, bytes: item.allocatedSize, snapshot: item.snapshot)
                 }
             }
             .listStyle(.bordered)

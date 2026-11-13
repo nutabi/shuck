@@ -448,6 +448,45 @@ struct PersonalFilesResultsTests {
     }
 }
 
+/// A size that could not be measured fully reads "At least" (SAF-012, NFR-A11Y-001, D-195).
+@MainActor
+struct PartialSizeTests {
+    let home = URL(filePath: "/StubHome", directoryHint: .isDirectory)
+
+    func partial(_ path: String, size: Int64, isComplete: Bool) -> PersonalFile {
+        PersonalFile(
+            url: home.appending(path: path),
+            snapshot: ItemSnapshot(kind: .folder, allocatedSize: size, isComplete: isComplete), modified: nil,
+            readOnly: nil)
+    }
+
+    @Test func aRowKeepsItsSnapshotsCompletenessSAF012() {
+        let whole = ResultRow(partial("whole", size: 5_000, isComplete: true), home: home)
+        let lower = ResultRow(partial("lower", size: 5_000, isComplete: false), home: home)
+
+        #expect(whole.isComplete && !lower.isComplete)
+        #expect(whole.size == lower.size, "The mark changes the words, never the number")
+    }
+
+    @Test func theMarkDoesNotChangeSortingOrTotalsSAF012() async {
+        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size, order: .reverse)])
+
+        await results.apply(
+            .files([
+                partial("small", size: 1_000, isComplete: true), partial("big", size: 9_000, isComplete: false),
+            ]))
+
+        #expect(results.rows.map(\.name) == ["big", "small"])
+        #expect(results.rows.map(\.size) == [9_000, 1_000])
+    }
+
+    @Test func onlyAnIncompleteSnapshotIsALowerBoundSAF012NFRA11Y001() throws {
+        #expect(SizeText.isComplete(nil), "A tool's command has no snapshot and no lower bound")
+        #expect(SizeText.isComplete(ItemSnapshot(kind: .folder, allocatedSize: 1)))
+        #expect(!SizeText.isComplete(ItemSnapshot(kind: .folder, allocatedSize: 1, isComplete: false)))
+    }
+}
+
 /// A random number generator with a seed, so a failing random test can be run again.
 struct SplitMix64: RandomNumberGenerator {
     var state: UInt64

@@ -739,6 +739,12 @@
     "Size not known" : {
 
     },
+    "At least %@" : {
+
+    },
+    "Some folders inside could not be read, so this is not the whole size." : {
+
+    },
     "Cleaning up ^[%lld item](inflect: true)…" : {
 
     },

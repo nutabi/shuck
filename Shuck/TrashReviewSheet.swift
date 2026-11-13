@@ -57,8 +57,7 @@ struct TrashReviewSheet: View {
         List(review.plan.items) { item in
             ItemRow(target: item.target, home: home) {
                 if let url = item.url, review.synced.contains(url) { SyncedMark() }
-                Text(item.allocatedSize, format: .byteCount(style: .file))
-                    .monospacedDigit()
+                SizeText(target: item.target, bytes: item.allocatedSize, snapshot: item.snapshot)
             }
         }
         .listStyle(.bordered)

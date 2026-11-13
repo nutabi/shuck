@@ -36,8 +36,7 @@ struct PersonalFilesTable: View {
             TableColumn("Kind", value: \.kind)
                 .width(min: 80, ideal: 120)
             TableColumn("Size", value: \.size) { row in
-                Text(row.size, format: .byteCount(style: .file))
-                    .monospacedDigit()
+                SizeText(target: .path(row.id), bytes: row.size, isComplete: row.isComplete)
             }
             .width(min: 70, ideal: 90)
             .alignment(.numeric)
