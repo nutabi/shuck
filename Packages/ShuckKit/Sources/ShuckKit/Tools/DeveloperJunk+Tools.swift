@@ -36,8 +36,13 @@ extension DeveloperJunk {
 
     /// One item for a tool rule whose data is a cache folder the tool cleans, if the tool is found and the folder
     /// exists. The size is an estimate from measuring the folder, "up to" what the tool may remove: it is never read
-    /// from the tool's output, which never chooses a target (DEV-003, R-07, D-125).
-    func scanToolCache(_ rule: CleanupRule, folder: URL, _ context: ScanContext, _ emit: (ScanEvent) -> Void) {
+    /// from the tool's output, which never chooses a target (DEV-003, R-07, D-125). With `estimates` false the item has
+    /// no size, "Size not known" in the app, and the folder is not read: Homebrew's command also removes old versions
+    /// outside the cache, so the cache's size would say little (D-NEXT-brew-size).
+    func scanToolCache(
+        _ rule: CleanupRule, folder: URL, estimates: Bool = true, _ context: ScanContext,
+        _ emit: (ScanEvent) -> Void
+    ) {
         // A cache folder that is, or holds, an excluded folder is hidden, although the tool, not Shuck, cleans it
         // (SET-001, D-149).
         var executable: String?
@@ -45,14 +50,18 @@ extension DeveloperJunk {
         let hidden = Self.toolFolders(ruleID: rule.id, home: context.home, executable: executable)
         guard !Task.isCancelled, !hidden.contains(where: { context.protection.overlapsUserExclusion($0) }),
             rule.detection.isAvailable,
-            CleanupRule.Detection.folder(folder).isAvailable,
-            let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled })
+            CleanupRule.Detection.folder(folder).isAvailable
         else { return }
+        var estimate: Int64 = 0
+        if estimates {
+            guard let snapshot = ItemSnapshot.read(folder, while: { !Task.isCancelled }) else { return }
+            estimate = snapshot.allocatedSize
+        }
         do {
             emit(
                 .item(
                     try rule.scanItem(
-                        estimatedBytes: snapshot.allocatedSize, source: id, runningApps: context.runningApps)))
+                        estimatedBytes: estimate, source: id, runningApps: context.runningApps)))
         } catch {
             Self.logger.error("Skipped \(rule.id, privacy: .public): \(String(describing: error), privacy: .public)")
         }
@@ -171,13 +180,14 @@ extension DeveloperJunk {
             action: .command(try tools.command(brew, ["cleanup"], extra: homebrewEnvironment)), tier: .rebuildable,
             selection: .always,
             explanation: LocalizedStringResource(
-                "Homebrew's own command removes old versions and old downloads and keeps the current ones. The size is its download cache; old versions are not counted.",
+                "Homebrew's own command removes old versions and old downloads and keeps the current ones. Shuck can't tell beforehand how much that is, so no size is shown. The summary after the run states what was removed.",
                 bundle: #bundle),
             documentation: documentation)
     }
 
     func scanHomebrew(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
         guard let tools = ToolLocations(context), let rule = try? Self.homebrewRule(tools) else { return }
-        scanToolCache(rule, folder: Self.homebrewCache(home: context.home), context, emit)
+        // No size before the run (D-NEXT-brew-size); the run measures what it removed (D-184).
+        scanToolCache(rule, folder: Self.homebrewCache(home: context.home), estimates: false, context, emit)
     }
 }

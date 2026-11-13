@@ -11,6 +11,11 @@ All notable changes to Shuck are listed here. The format follows
 
 - Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
 
+### Changed
+
+- Homebrew Cleanup no longer shows a size before it runs, since it cannot know how much it will remove. The finished
+  summary shows what it removed.
+
 ### Fixed
 
 - Stopping a developer tool cleanup, or a cleanup that runs too long, now also stops the processes the tool started,

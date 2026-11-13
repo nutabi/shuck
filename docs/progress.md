@@ -556,7 +556,7 @@ Tasks:
     rows from an older project-folder revision (#177, SET-003, D-154).
   - [x] The single-instance check runs in a release build too (#178, SAF-018, D-166).
   - [x] Homebrew Cleanup reports what it removed, measured on the download cache after the run, not the whole
-    cache (#184, DEV-R09, D-128, D-184). Still open: the item is preselected again at the same estimate.
+    cache (#184, DEV-R09, D-128, D-184). The item shows no size before the run and stays preselected (D-NEXT-brew-size).
   - [x] `brew cleanup` is hidden when any folder it cleans is excluded, not only its download cache (#176, SET-001,
     D-149, D-183).
   - Left-overs from M1 and M2 that no task owned (D-178):

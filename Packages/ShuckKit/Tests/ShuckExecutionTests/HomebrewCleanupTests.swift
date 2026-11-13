@@ -49,7 +49,8 @@ struct HomebrewCleanupTests {
         #expect(command.environment.count == 5 && command.environment.values.contains(root.url.path))
         #expect(command.environment["HOMEBREW_NO_ANALYTICS"] == "1")
         #expect(command.environment["HOMEBREW_NO_AUTO_UPDATE"] == "1")
-        #expect(item.allocatedSize >= 30_000)
+        // No size before the run: the cache is not what the command removes (DEV-R09, DEV-003, D-NEXT-brew-size).
+        #expect(item.allocatedSize == 0)
         #expect(!root.aFakeToolRan, "Scanning started a tool")
     }
 
