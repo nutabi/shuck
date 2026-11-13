@@ -268,6 +268,18 @@ struct HistoryLogTests {
         #expect(error == .cannotOpen(link.path, errno: ELOOP))
     }
 
+    /// A FIFO planted as the log would block a reader that opened it for reading; both sides refuse it as a file that
+    /// is not a regular file, without hanging (D-46, HIS-001).
+    @Test func aFIFOPlantedAsTheLogIsRefusedByTheWriterAndTheReaderHIS001() throws {
+        try root.folder(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID))
+        let planted = try root.fifo(ShuckKit.dataFolder(bundleID: ShuckKit.bundleID) + "/" + HistoryLog.fileName)
+
+        let reading = #expect(throws: HistoryError.self) { try HistoryLog.read(folder: folder) }
+        #expect(reading == .notARegularFile(planted.path))
+        let writing = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }
+        #expect(writing == .notARegularFile(planted.path))
+    }
+
     @Test func aSecondLockIsRefusedWhileTheFirstIsHeldSAF018() async throws {
         var first: HistoryLog? = try HistoryLog(folder: folder)
         let error = #expect(throws: HistoryError.self) { try HistoryLog(folder: folder) }

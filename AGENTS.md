@@ -199,6 +199,26 @@ If you are unsure whether a change could remove, move or hide user data, stop an
   - `CHANGELOG.md` has a line for each change users can notice.
   - The pull request description is complete.
 
+## Delegating to other agents
+
+Owner preference (2026-11-12): an agent that delegates picks the model by the work.
+
+- Haiku agents read code and read or write docs.
+- Sonnet agents write code.
+- A Fable advisor is consulted when a decision needs a stronger reviewer (D-146).
+
+Decisions from several workers (owner preference, 2026-11-12), so parallel pull requests never fight over
+`docs/decisions.md`:
+
+- A worker agent never edits `docs/decisions.md`. Its final report gives each decision it made: the decision, the
+  rationale, the rejected alternatives, and whether the owner made it or it is an agent choice open for review. Where
+  the worker's own files must name the decision, such as a code comment or `docs/progress.md`, it writes a placeholder
+  like `D-NEXT-sort`.
+- The orchestrating agent gives each decision the next free ID and replaces the placeholders before it pushes a branch.
+- When every worker of the batch is done, the orchestrating agent adds all the batch's decisions to
+  `docs/decisions.md` in one commit on the top pull request: the top of the stack, or for independent pull requests the
+  last one to merge.
+
 ## Picking the next task
 
 - Take the first unchecked task in `docs/progress.md`, in roadmap order (PRD section 13), unless the owner assigns one.
