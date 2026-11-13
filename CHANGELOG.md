@@ -26,6 +26,8 @@ All notable changes to Shuck are listed here. The format follows
 - Changing your project folders in Settings while Developer Junk is scanning no longer leaves node_modules rows from a
   folder you removed, which made Delete fail. Large Files and Old Files also skip the node_modules of a folder you add
   during their scan.
+- A cleanup command in Developer Junk that finishes just as you click Stop, or just as its time limit passes, is now
+  shown in History as finished, instead of stopped.
 
 ## [0.2.0] - 2026-11-12
 

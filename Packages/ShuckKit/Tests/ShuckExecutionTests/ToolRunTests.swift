@@ -2,6 +2,7 @@ import Foundation
 import ShuckExecution
 import ShuckKit
 import ShuckKitTestSupport
+import Synchronization
 import Testing
 
 /// Tool items run through the plan executor against fake tools inside the fixture root (DEV-004, SAF-006, SAF-010,
@@ -152,6 +153,47 @@ struct ToolRunTests {
         let tool = try root.tool("tools/slow", .runsForever)
         _ = try await run(plan([rule(tool, timeout: 0.3)]), runner: quickGrace())
         #expect(try results().first?.detail?.contains("processes the tool started may still be running") == true)
+    }
+
+    @Test func aStopThatComesAfterTheToolHasExitedKeepsItsOwnEndingSAF014SAF006() async throws {
+        let tool = try root.tool("tools/cleaner", .exits(0, output: "Removed 3 packages"))
+        let plan = try plan([rule(tool)])
+        let run = Mutex<Task<RunReport, Never>?>(nil)
+        // The hook runs once the tool has exited and before the runner notes it, the window of #179: the user clicks
+        // Stop there.
+        let held = ToolRunner(
+            executableRoots: [root.url], outputLimit: 2048, killGrace: .milliseconds(300),
+            afterExit: {
+                for _ in 0..<500 {
+                    if let task = run.withLock({ $0 }) { return task.cancel() }
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
+            })
+        let executor = try PlanExecutor(root: root, pathGuard: pathGuard, toolRunner: held)
+
+        let task = Task { await executor.run(plan) }
+        run.withLock { $0 = task }
+        let report = await task.value
+
+        #expect(report.outcomes.map(\.result) == [.done(nil)])
+        #expect(try results().first?.status == .ok)
+        #expect(try results().first?.detail == "exit 0; output: Removed 3 packages")
+    }
+
+    @Test func aToolThatCannotBeStartedIsAFailureWithTheReasonSAF011SAF006() async throws {
+        // An empty executable file passes the lookup, but macOS cannot start it (ENOEXEC).
+        let tool = try root.file("tools/empty", permissions: 0o755)
+        let report = try await run(plan([rule(tool)]))
+
+        guard case .failed(let error) = report.outcomes.first?.result else {
+            Issue.record("The tool did not fail to start: \(report.outcomes.map(\.result))")
+            return
+        }
+        #expect(error.code == Int(ENOEXEC))
+        let records = try HistoryLog.read(folder: root.historyFolder).records
+        #expect(records.map(\.phase) == [.intent, .result])
+        #expect(records.last?.status == .failed)
+        #expect(records.last?.detail.flatMap(ActionError.init(logged:))?.code == Int(ENOEXEC))
     }
 
     @Test func aToolThatIgnoresTheRequestToEndIsKilledDEV004() async throws {
