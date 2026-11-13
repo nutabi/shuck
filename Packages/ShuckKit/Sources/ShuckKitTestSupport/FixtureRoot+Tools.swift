@@ -16,6 +16,10 @@ public enum FakeTool: Sendable {
     case runsForever
     /// Marks that it ran, ignores the request to end (SIGTERM) and never ends by itself, so only SIGKILL stops it.
     case ignoresTerminate
+    /// Marks that it ran, starts a long-lived child (`/bin/sleep 600`) that ends only when signalled, records the child's
+    /// ID (``FixtureRoot/fakeToolChild``) and waits for it. With `ignoringTerminate` the child ignores SIGTERM, so only
+    /// SIGKILL ends it. Ending only the script leaves the child running, as a tool that starts others does (SAF-014).
+    case startsAChild(ignoringTerminate: Bool = false)
     /// Removes the files at `paths`, relative to the root, as a tool that cleans its cache does, then ends with
     /// `status`. It prints nothing, so a test cannot get what it removed from its output (R-07).
     case removes(_ paths: [String], status: Int32 = 0)
@@ -54,6 +58,12 @@ extension FixtureRoot {
         FileManager.default.fileExists(atPath: url.appending(path: "Marks/ran").path)
     }
 
+    /// The ID of the child a ``FakeTool/startsAChild(ignoringTerminate:)`` tool started, once it has recorded it.
+    public var fakeToolChild: pid_t? {
+        (try? String(contentsOf: url.appending(path: "Marks/child"), encoding: .utf8))
+            .flatMap { pid_t($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    }
+
     private static func body(of behavior: FakeTool, marks: String, root: URL) -> String {
         switch behavior {
         case .exits(let status, let output):
@@ -75,6 +85,14 @@ extension FixtureRoot {
             return mark(marks) + "\nexec /bin/sleep 600"
         case .ignoresTerminate:
             return mark(marks) + "\ntrap '' TERM\nwhile :; do /bin/sleep 1; done"
+        case .startsAChild(let ignoringTerminate):
+            // The ID is written under another name and then moved, so a reader never sees half of it.
+            return """
+                \(mark(marks))
+                (\(ignoringTerminate ? "trap '' TERM; " : "")exec /bin/sleep 600) </dev/null >/dev/null 2>&1 &
+                printf '%s\\n' "$!" > \(quoted(marks + "/child.tmp")) && mv \(quoted(marks + "/child.tmp")) \(quoted(marks + "/child"))
+                wait
+                """
         case .removes(let paths, let status):
             let targets = paths.map { quoted(root.appending(path: $0).path) }.joined(separator: " ")
             return (paths.isEmpty ? "" : "/bin/rm -rf \(targets)\n") + "exit \(status)"
