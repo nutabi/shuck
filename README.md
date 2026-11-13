@@ -23,6 +23,12 @@ macOS 27 or later on a Mac with Apple Silicon. Shuck works offline, needs no acc
 - [Product requirements](docs/PRD.md): scope, safety model, requirements and roadmap.
 - [AGENTS.md](AGENTS.md): instructions for AI coding agents that work on Shuck.
 
+## Reporting a problem
+
+Shuck has a single developer and doesn't take outside contributions or pull requests. Bug reports and ideas are
+welcome as [issues](https://github.com/nutabi/shuck/issues/new/choose); report security problems
+[privately](https://github.com/nutabi/shuck/security/advisories/new).
+
 ## License
 
 Copyright © 2026 Nguyen Thai Binh

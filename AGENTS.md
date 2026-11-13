@@ -13,6 +13,8 @@ Cleanup** (Large Files, Old Files, Developer Junk, Caches & Logs), **Application
   requirement IDs.
 - macOS 27 or later, Apple Silicon only. The `ShuckKit` engine uses only macOS 26 APIs (D-06).
 - No network connections, telemetry, accounts or admin rights.
+- Shuck has one developer, the owner, and takes no outside contributions or pull requests (owner preference,
+  2026-11-14).
 - Write pull requests and comments so a reader new to the code and to SwiftUI can follow them (G-5).
 
 ## Rules and decisions

@@ -58,16 +58,14 @@ vulnerability reporting. An agent that files an issue with `gh issue create` set
 | `area/ci` | `1d76db` | `scripts/`, workflows and releases | The agent that triages the issue |
 | `area/docs` | `1d76db` | `README.md`, `AGENTS.md`, `docs/` and the changelog | The agent that triages the issue |
 | `data-risk` | `b60205` | Shuck could remove, move or hide user data it shouldn't; fixed before any other task | Added in triage; stays as a record |
-| `needs-info` | `fbca04` | Waiting for the reporter to answer a question | The agent that asks; removed when they answer |
-| `blocked` | `fbca04` | Waiting on something outside the task, said in a comment | The agent that finds the block; removed when it clears |
-| `good first issue` | `7057ff` | Small and self-contained, for a newcomer | The agent that triages the issue |
-| `help wanted` | `008672` | Contributions welcome | The owner |
 
 - **Triage:** an issue with no `area/` label is untriaged (`gh issue list --search "no:label"`). Before picking the
   next task, an agent triages each one: it checks the type, adds one `area/` label (two at most), and adds
   `data-risk` where it applies.
 - **Closing:** close with a reason, not a label: `gh issue close N --reason completed`, `"not planned"` or `duplicate`.
 - Milestones (M3, M4, …) say when; no label repeats them.
+- Shuck has one developer and takes no outside contributions, so there are no contributor labels such as
+  `good first issue` or `help wanted`.
 
 ## Release tags (#125)
 
