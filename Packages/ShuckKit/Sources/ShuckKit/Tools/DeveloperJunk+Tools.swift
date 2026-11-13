@@ -38,7 +38,7 @@ extension DeveloperJunk {
     /// exists. The size is an estimate from measuring the folder, "up to" what the tool may remove: it is never read
     /// from the tool's output, which never chooses a target (DEV-003, R-07, D-125). With `estimates` false the item has
     /// no size, "Size not known" in the app, and the folder is not read: Homebrew's command also removes old versions
-    /// outside the cache, so the cache's size would say little (D-NEXT-brew-size).
+    /// outside the cache, so the cache's size would say little (D-194).
     func scanToolCache(
         _ rule: CleanupRule, folder: URL, estimates: Bool = true, _ context: ScanContext,
         _ emit: (ScanEvent) -> Void
@@ -187,7 +187,7 @@ extension DeveloperJunk {
 
     func scanHomebrew(_ context: ScanContext, _ emit: (ScanEvent) -> Void) {
         guard let tools = ToolLocations(context), let rule = try? Self.homebrewRule(tools) else { return }
-        // No size before the run (D-NEXT-brew-size); the run measures what it removed (D-184).
+        // No size before the run (D-194); the run measures what it removed (D-184).
         scanToolCache(rule, folder: Self.homebrewCache(home: context.home), estimates: false, context, emit)
     }
 }

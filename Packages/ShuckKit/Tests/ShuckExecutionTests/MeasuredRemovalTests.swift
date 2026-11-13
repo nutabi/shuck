@@ -42,7 +42,7 @@ struct MeasuredRemovalTests {
         try root.file("\(cache)/downloads/old", size: 80_000)
         let items = await scanned()
         let estimate = try #require(items.first).allocatedSize
-        #expect(estimate == 0, "Homebrew's item has no size before the run (D-NEXT-brew-size)")
+        #expect(estimate == 0, "Homebrew's item has no size before the run (D-194)")
         let before = try size(cache)
 
         let report = try await run(items)
