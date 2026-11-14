@@ -234,6 +234,10 @@ public struct ItemOutcome: Equatable, Sendable {
         /// `bootout` that failed leaves its property list alone, and a bundle that stayed leaves its leftovers
         /// (APP-005, APP-011, D-198).
         case dependencyNotDone(String)
+        /// macOS refused to move the item to the Trash for lack of permission: an app's container, a bundle without the
+        /// App Management permission, a folder the user cannot change. Only that refusal is a skip; any other error
+        /// fails the item (APP-005, R-16, #222).
+        case notPermitted(ActionError)
 
         /// The reason's stable code, which the history log records (D-88).
         public var code: SkipCode {
@@ -253,6 +257,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .notAllowed: .notAllowed
             case .toolUnavailable: .toolUnavailable
             case .dependencyNotDone: .dependencyNotDone
+            case .notPermitted: .notPermitted
             }
         }
 
@@ -265,6 +270,7 @@ public struct ItemOutcome: Equatable, Sendable {
             case .unsupportedMethod(let method), .notAllowed(let method): code.logged(method.rawValue)
             case .toolUnavailable(let unavailable): code.logged(unavailable.rawValue)
             case .dependencyNotDone(let path): code.logged(path)
+            case .notPermitted(let error): code.logged(error.logged)
             default: code.logged()
             }
         }

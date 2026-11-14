@@ -28,6 +28,9 @@ public enum SkipCode: String, CaseIterable, Sendable {
     case otherItem
     /// The item needs an earlier item of the run to be done, and it was not (APP-005, APP-011, D-198).
     case dependencyNotDone
+    /// macOS refused to move the item to the Trash for lack of permission, such as an app's container or a bundle
+    /// without the App Management permission (APP-005, R-16, #222). The detail is the error's domain, code and message.
+    case notPermitted
     /// A restored property list is not the original LaunchAgent the user confirmed loading again: it is not at its
     /// original path in `~/Library/LaunchAgents`, or its label is not the unloaded job's (APP-011, HIS-005).
     case notTheUnloadedAgent
