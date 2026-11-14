@@ -81,21 +81,6 @@ struct HistoryTests {
         )
     }
 
-    /// HIS-004: each item says whether Restore can put it back.
-    @Test func anItemSaysWhetherRestoreCanPutItBackHIS004() {
-        #expect(
-            String(localized: HistoryView.status(of: item(.succeeded, restorability: .trashEmptied)))
-                == "Not restorable (Trash emptied)")
-        #expect(String(localized: HistoryView.status(of: item(.skipped("missing")))) == "Skipped: no longer there")
-        #expect(String(localized: HistoryView.status(of: item(.succeeded, restorability: .restored))) == "Restored")
-        #expect(
-            String(localized: HistoryView.status(of: item(.succeeded, restorability: .permanent))) == "Not restorable")
-        #expect(String(localized: HistoryView.status(of: item(.succeeded))) == "Moved back")
-        #expect(
-            String(localized: HistoryView.status(of: item(.interrupted)))
-                == "Interrupted before its outcome was recorded")
-    }
-
     /// HIS-004, SAF-006: permanent deletions are shown as not restorable, and Restore offers nothing for them.
     @Test func aDeletedItemIsNotRestorableHIS004SAF006() {
         let deleted = run(
@@ -129,53 +114,107 @@ struct HistoryTests {
             OutcomeWording.method(of: uninstall) == "Changed with launchctl, moved to the Trash, and cleaned by tools")
     }
 
-    /// SAF-011: logged skip reasons read as words, as this version and Shuck 0.1.0 wrote them (D-88); one the app does
-    /// not know is shown as logged.
-    @Test func skipReasonsReadAsWordsSAF011() {
-        func text(_ detail: String?, _ operation: HistoryRecord.Operation = .trash) -> String {
-            String(localized: HistoryView.status(of: item(.skipped(detail), operation: operation)))
+    /// One logged item and the words History shows for it.
+    struct StatusCase: Sendable {
+        let outcome: HistoryRun.Item.Outcome
+        let operation: HistoryRecord.Operation
+        var restorability: Restorability?
+        let text: String
+
+        init(
+            _ outcome: HistoryRun.Item.Outcome, _ operation: HistoryRecord.Operation,
+            restorability: Restorability? = nil,
+            _ text: String
+        ) {
+            self.outcome = outcome
+            self.operation = operation
+            self.restorability = restorability
+            self.text = text
         }
 
-        #expect(text("missing") == "Skipped: no longer there")
-        #expect(text("missing", .restore) == "Skipped: no longer in the Trash")
-        #expect(text("notAccessible") == "Skipped: not accessible")
-        #expect(text("changed: file, 4096 bytes") == "Skipped: changed since the scan")
-        #expect(text("changed: file, 4096 bytes", .restore) == "Skipped: changed since it was moved to the Trash")
-        #expect(text("rejected: outsideAllowedRoots") == "Skipped: failed a safety check")
-        #expect(
-            text("userExclusion: /Users/someone/Documents/Keep")
-                == "Skipped: it is in a folder you excluded in Settings")  // SET-001
-        #expect(text("unsupportedMethod: tool", .tool) == "Skipped: this version of Shuck can't do this")
-        #expect(text("notAllowed: delete", .delete) == "Skipped: not allowed for this kind of item")
-        // APP-011
-        #expect(text("dependencyNotDone: com.example.job", .trash) == "Skipped: an item it needs was not done")
-        #expect(text("originalTaken", .restore) == "Skipped: its original place is taken")
-        #expect(text("otherItem", .restore) == "Skipped: no longer in the Trash, and another item has its name")
-        #expect(text("somethingNew") == "Skipped: somethingNew")
-        #expect(text(nil) == "Skipped")
+        init(_ outcome: HistoryRun.Item.Outcome, restorability: Restorability? = nil, _ text: String) {
+            self.init(outcome, .trash, restorability: restorability, text)
+        }
     }
 
-    /// SAF-011: Shuck 0.1.0 logged Swift's description of a reason; its code reads the same (D-88).
-    @Test func reasonsLoggedByShuck010ReadTheSameSAF011() {
-        func text(_ outcome: HistoryRun.Item.Outcome) -> String {
-            String(localized: HistoryView.status(of: item(outcome)))
+    nonisolated static func toolEnd(_ domain: String, _ code: Int) -> HistoryRun.Item.Outcome {
+        .failed(ActionError(domain: domain, code: code, message: "x").logged)
+    }
+
+    /// HIS-004, SAF-011, DEV-004, SET-001, APP-011, NFR-L10N-001: each item says whether Restore can put it back, its
+    /// logged skip reason reads as words, as this version and Shuck 0.1.0 wrote them, and a failure shows its error's
+    /// description, a tool's end its status (D-88, D-115). A reason the app does not know is shown as logged.
+    @Test(arguments: [
+        StatusCase(.succeeded, restorability: .trashEmptied, "Not restorable (Trash emptied)"),
+        StatusCase(.succeeded, restorability: .restored, "Restored"),
+        StatusCase(.succeeded, restorability: .permanent, "Not restorable"),
+        StatusCase(.succeeded, "Moved back"),
+        StatusCase(.interrupted, "Interrupted before its outcome was recorded"),
+        StatusCase(.skipped("missing"), "Skipped: no longer there"),
+        StatusCase(.skipped("missing"), .restore, "Skipped: no longer in the Trash"),
+        StatusCase(.skipped("notAccessible"), "Skipped: not accessible"),
+        StatusCase(.skipped("changed: file, 4096 bytes"), "Skipped: changed since the scan"),
+        StatusCase(
+            .skipped("changed: file, 4096 bytes"), .restore, "Skipped: changed since it was moved to the Trash"),
+        StatusCase(.skipped("rejected: outsideAllowedRoots"), "Skipped: failed a safety check"),
+        StatusCase(
+            .skipped("userExclusion: /Users/someone/Documents/Keep"),
+            "Skipped: it is in a folder you excluded in Settings"),
+        StatusCase(.skipped("unsupportedMethod: tool"), .tool, "Skipped: this version of Shuck can't do this"),
+        StatusCase(.skipped("notAllowed: delete"), .delete, "Skipped: not allowed for this kind of item"),
+        StatusCase(.skipped("dependencyNotDone: com.example.job"), "Skipped: an item it needs was not done"),
+        StatusCase(.skipped("originalTaken"), .restore, "Skipped: its original place is taken"),
+        StatusCase(
+            .skipped("otherItem"), .restore, "Skipped: no longer in the Trash, and another item has its name"),
+        StatusCase(.skipped("somethingNew"), "Skipped: somethingNew"),
+        StatusCase(.skipped(nil), "Skipped"),
+        // Shuck 0.1.0 logged Swift's description of a reason, and only a failure's description.
+        StatusCase(
+            .skipped("changed(ShuckKit.ItemSnapshot(kind: ShuckKit.ItemSnapshot.Kind.file, allocatedSize: 4))"),
+            "Skipped: changed since the scan"),
+        StatusCase(
+            .skipped(#"rejected(ShuckKit.PathGuardError.outsideAllowedRoots("/x/y"))"#),
+            "Skipped: failed a safety check"),
+        StatusCase(.failed("denied"), "Failed: denied"),
+        StatusCase(.failed(ActionError(errno: EACCES).logged), "Failed: Permission denied"),
+        StatusCase(.failed(nil), "Failed"),
+        StatusCase(toolEnd("ShuckToolExit", 3), .tool, "Failed: the tool ended with status 3"),
+        StatusCase(toolEnd("ShuckToolSignal", 9), .tool, "Failed: the tool was ended by signal 9"),
+        StatusCase(
+            toolEnd("ShuckToolTimeout", 600), .tool,
+            "Failed: the tool did not finish in 600 seconds, so Shuck stopped it"),
+        StatusCase(toolEnd("ShuckToolStopped", 15), .tool, "Stopped before the tool finished"),
+    ])
+    func anItemReadsAsWordsHIS004SAF011DEV004SET001APP011(_ row: StatusCase) {
+        let shown = HistoryView.status(
+            of: item(row.outcome, restorability: row.restorability, operation: row.operation))
+        #expect(String(localized: shown) == row.text)
+    }
+
+    /// SAF-011, D-90: the summaries of a run say why an item was or was not acted on, in the words History uses for the
+    /// same code.
+    @Test func aRunsSummaryUsesTheWordsOfHistorySAF011() {
+        func text(_ result: ItemOutcome.Result, method: ActionMethod = .trash) -> String {
+            let item = PlannedItem(
+                url: home.appending(path: "Movies/clip.mov"), tier: .yourData, method: method,
+                snapshot: ItemSnapshot(kind: .file, allocatedSize: 10))
+            return String(localized: OutcomeWording.result(of: ItemOutcome(item: item, result: result)))
         }
 
+        #expect(text(.done(nil), method: .delete) == "Deleted permanently")
+        #expect(text(.skipped(.missing)) == "Skipped: no longer there")
+        #expect(text(.skipped(.notAccessible)) == "Skipped: not accessible")
         #expect(
-            text(.skipped("changed(ShuckKit.ItemSnapshot(kind: ShuckKit.ItemSnapshot.Kind.file, allocatedSize: 4))"))
-                == "Skipped: changed since the scan")
+            text(.skipped(.changed(ItemSnapshot(kind: .file, allocatedSize: 20)))) == "Skipped: changed since the scan")
+        #expect(text(.skipped(.modifiedSinceScan)) == "Skipped: modified since the scan")
+        #expect(text(.skipped(.appRunning)) == "Skipped: its app was running")
+        #expect(text(.skipped(.cancelled)) == "Skipped: stopped before it was acted on")
         #expect(
-            text(.skipped(#"rejected(ShuckKit.PathGuardError.outsideAllowedRoots("/x/y"))"#))
-                == "Skipped: failed a safety check")
-        // A failure's description is all 0.1.0 logged, so it is shown as logged.
-        #expect(text(.failed("denied")) == "Failed: denied")
-    }
-
-    /// SAF-011, NFR-L10N-001: a logged failure shows its error's description, without the domain and code.
-    @Test func aLoggedFailureShowsItsDescriptionSAF011() {
-        let error = ActionError(errno: EACCES)
-        #expect(String(localized: HistoryView.status(of: item(.failed(error.logged)))) == "Failed: Permission denied")
-        #expect(String(localized: HistoryView.status(of: item(.failed(nil)))) == "Failed")
+            text(.skipped(.unsupportedMethod(.tool)), method: .tool) == "Skipped: this version of Shuck can't do this")
+        #expect(text(.skipped(.notAllowed(.delete)), method: .delete) == "Skipped: not allowed for this kind of item")
+        #expect(text(.failed(ActionError(errno: EACCES))) == "Failed: Permission denied")
+        #expect(
+            text(.skipped(.missing)) == String(localized: HistoryView.status(of: item(.skipped("missing")))))
     }
 
     /// An item at `path`, of `operation`, as the log holds it.
@@ -187,23 +226,18 @@ struct HistoryTests {
             home: home)
     }
 
-    /// HIS-002, #63: a trashed, deleted or restored item is a file, shown with its folder.
-    @Test func aFileItemShowsItsNameAndFolderHIS002() {
+    /// HIS-002, #63: a trashed, deleted or restored item is a file, shown with its folder; a tool run shows the tool and
+    /// its command, and the tool's own path, never a made-up folder; a launchctl change shows its job label.
+    @Test func anItemShowsItsNameAndWhereItIsFromHIS002() throws {
         for operation in [HistoryRecord.Operation.trash, .delete, .restore] {
             let shown = display(operation, path: "/StubHome/Movies/clip.mov")
             #expect(shown == HistoryItemDisplay(title: "clip.mov", location: "~/Movies", isCommand: false))
         }
-    }
-
-    /// HIS-002, #63: a tool run shows the tool and its command, and the tool's own path, never a made-up folder.
-    @Test func aToolItemShowsItsCommandHIS002() throws {
         let command = try ToolCommand(
             executable: "/usr/bin/xcrun", arguments: ["simctl", "delete", "unavailable"],
             environment: ["PATH": "/usr/bin"])
-
-        let shown = display(.tool, path: command.display)
         #expect(
-            shown
+            display(.tool, path: command.display)
                 == HistoryItemDisplay(
                     title: "xcrun simctl delete unavailable", location: "/usr/bin/xcrun", isCommand: true))
         // A record that is not a quoted command is shown as logged, and not as a file.
@@ -211,30 +245,9 @@ struct HistoryTests {
         #expect(unknown.title == "brew")
         #expect(unknown.isCommand)
         #expect(unknown.location == "Tool command")
-    }
-
-    /// HIS-002, #63: a launchctl change shows its job label, which is not a file name.
-    @Test func aLaunchctlItemShowsItsJobLabelHIS002() {
-        let shown = display(.launchctl, path: "com.example.agent")
-        #expect(shown == HistoryItemDisplay(title: "com.example.agent", location: "Launchd job", isCommand: false))
-    }
-
-    /// SAF-011, DEV-004, #63: a tool's end reads as words, from the code the log keeps (D-115).
-    @Test func aToolRunsEndReadsAsWordsSAF011() {
-        func text(_ domain: String, _ code: Int) -> String {
-            let error = ActionError(domain: domain, code: code, message: "x")
-            return String(localized: HistoryView.status(of: item(.failed(error.logged), operation: .tool)))
-        }
-
-        #expect(text("ShuckToolExit", 3) == "Failed: the tool ended with status 3")
-        #expect(text("ShuckToolSignal", 9) == "Failed: the tool was ended by signal 9")
         #expect(
-            text("ShuckToolTimeout", 600)
-                == "Failed: the tool did not finish in 600 seconds, so Shuck stopped it"
-        )
-        #expect(
-            text("ShuckToolStopped", 15)
-                == "Stopped before the tool finished")
+            display(.launchctl, path: "com.example.agent")
+                == HistoryItemDisplay(title: "com.example.agent", location: "Launchd job", isCommand: false))
     }
 
     /// The sheets and the History page word a reason the same, from its code (D-90).

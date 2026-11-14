@@ -1,7 +1,6 @@
 import Foundation
 import ShuckExecution
 import ShuckKit
-import Synchronization
 import Testing
 
 @testable import Shuck
@@ -48,9 +47,8 @@ struct TrashReviewTests {
     }
 
     /// A run that moves the items named in `trashed` and skips the others as changed.
-    func run(trashing trashed: Set<String>, onCall: @escaping @Sendable () -> Void = {}) -> RunPlan {
+    func run(trashing trashed: Set<String>) -> RunPlan {
         { (plan: Plan) async throws(HistoryError) -> RunReport in
-            onCall()
             let outcomes = plan.items.map { item in
                 guard let url = item.url, let snapshot = item.snapshot else {
                     Issue.record("A Trash review must have file targets")
@@ -65,8 +63,14 @@ struct TrashReviewTests {
         }
     }
 
-    @Test func thePlanHoldsTheSelectedItemsInOrderWithoutReadOnlyOnesSAF002() async throws {
-        let model = await scannedModel(runPlan: run(trashing: []))
+    /// Scan, review, run: the plan holds the selected items in order without read-only ones, names the synced ones,
+    /// moved items leave both lists and the estimates, and the change in free space is compared with nothing. Moving to
+    /// the Trash expects to free nothing; the summary says the space comes back when the Trash is emptied.
+    @Test func scanReviewAndRunUpdateTheListsAndMeasureFreeSpaceSAF002SAF011SAF013FCL006() async throws {
+        let readings = FreeSpaceReadings([10_000_000_000, 10_000_000_000 - 2_000])
+        let model = await scannedModel(runPlan: run(trashing: ["big.mov"]), readFreeSpace: readings.read)
+        let rows = try #require(model.personalFilesResults[.largeFiles]?.rows)
+        #expect(rows.filter(\.isSynced).map(\.name) == ["clip.mov"])
         let selection = [url("Movies/clip.mov"), url("go/pkg/mod"), url("Movies/big.mov"), url("Documents/note.txt")]
 
         let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: selection))
@@ -77,25 +81,10 @@ struct TrashReviewTests {
         #expect(review.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
         #expect(review.totalBytes == 8_000)
         #expect(review.phase == .waiting)
-    }
-
-    /// The review knows which of its items iCloud syncs, so it can mark them and warn (SAF-002, FCL-012, D-129).
-    @Test func theReviewNamesItsSyncedItemsSAF002() async throws {
-        let model = await scannedModel(runPlan: run(trashing: []))
-        let rows = try #require(model.personalFilesResults[.largeFiles]?.rows)
-        #expect(rows.filter(\.isSynced).map(\.name) == ["clip.mov"])
-
-        let both = try #require(
-            try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
-        #expect(both.synced == [url("Movies/clip.mov")])
-        let one = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
-        #expect(one.synced.isEmpty)
-    }
-
-    @Test func movedItemsLeaveBothListsAndTheEstimatesFCL006SAF011() async throws {
-        let model = await scannedModel(runPlan: run(trashing: ["big.mov"]))
-        let review = try #require(
-            try await model.reviewMoveToTrash(oldFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+        // The review knows which of its items iCloud syncs, so it can mark them and warn (FCL-012, D-129).
+        #expect(review.synced == [url("Movies/clip.mov")])
+        let other = try #require(try await model.reviewMoveToTrash(oldFiles, urls: [url("Movies/big.mov")]))
+        #expect(other.synced.isEmpty)
 
         await review.start()?.value
 
@@ -114,56 +103,32 @@ struct TrashReviewTests {
             return
         }
         #expect(summary.reclaimableBytes == 3_000)
-    }
-
-    /// SAF-013: moving to the Trash expects to free nothing, so the measured change is compared with zero; the summary
-    /// says the space comes back when the Trash is emptied.
-    @Test func aTrashRunMeasuresTheChangeInFreeSpaceAgainstNothingSAF013() async throws {
-        let readings = FreeSpaceReadings([10_000_000_000, 10_000_000_000 - 2_000])
-        let model = await scannedModel(runPlan: run(trashing: ["big.mov"]), readFreeSpace: readings.read)
-        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
-
-        await review.start()?.value
-
         let change = try #require(review.freeSpace)
         #expect(change.measured == -2_000)
         #expect(change.estimate == 0)
         #expect(change.gaps.isEmpty)
     }
 
-    @Test func aReviewRunsOnce() async throws {
-        let calls = Mutex(0)
-        let model = await scannedModel(runPlan: run(trashing: []) { calls.withLock { $0 += 1 } })
-        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
-
-        let first = review.start()
-        #expect(review.phase == .running)
-        #expect(review.start() == nil)
-        await first?.value
-        #expect(review.start() == nil)
-        #expect(calls.withLock { $0 } == 1)
-    }
-
-    @Test func withoutAHistoryLogNothingMovesSAF005() async throws {
+    /// A run that cannot open the history log moves nothing (SAF-005), and a stopped run skips every item that has not
+    /// started (SAF-014); either way both lists stay as they were.
+    @Test func aFailedOrStoppedRunLeavesTheListsAloneSAF005SAF014() async throws {
         let failure = HistoryError.cannotOpen("/StubHome/Library/Application Support/me.nutabi.shuck", errno: EACCES)
-        let model = await scannedModel { (_: Plan) async throws(HistoryError) -> RunReport in throw failure }
-        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+        let failed = await scannedModel { (_: Plan) async throws(HistoryError) -> RunReport in throw failure }
+        let failedReview = try #require(
+            try await failed.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
 
-        await review.start()?.value
+        await failedReview.start()?.value
 
-        #expect(review.phase == .failed(failure))
-        #expect(model.personalFilesResults[.largeFiles]?.rows.count == 3)
-    }
+        #expect(failedReview.phase == .failed(failure))
+        #expect(failed.personalFilesResults[.largeFiles]?.rows.count == 3)
 
-    @Test func stoppingCancelsTheRunBeforeTheNextItemSAF014() async throws {
-        let model = await scannedModel { (plan: Plan) async throws(HistoryError) -> RunReport in
-            // Like the executor: wait, then skip every item that has not started.
-            while !Task.isCancelled { await Task.yield() }
-            return RunReport(
-                run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .skipped(.cancelled)) })
+        let stopped = await scannedModel { (plan: Plan) async throws(HistoryError) -> RunReport in
+            // Only a cancelled run reports its items as cancelled, so a run that is never stopped fails the test.
+            let result: ItemOutcome.Result = await waitUntilCancelled() ? .skipped(.cancelled) : .done(nil)
+            return RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: result) })
         }
         let review = try #require(
-            try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+            try await stopped.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
 
         let task = review.start()
         review.stop()
@@ -174,7 +139,7 @@ struct TrashReviewTests {
             return
         }
         #expect(report.outcomes.map(\.result) == [.skipped(.cancelled), .skipped(.cancelled)])
-        #expect(model.personalFilesResults[.largeFiles]?.rows.count == 3)
+        #expect(stopped.personalFilesResults[.largeFiles]?.rows.count == 3)
     }
 
     /// Tests and previews give the model no run, so nothing in them can move a file.
@@ -182,33 +147,5 @@ struct TrashReviewTests {
         let model = FileCleanupModel(subTools: [largeFiles], context: context)
         #expect(!model.canRun)
         #expect(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
-    }
-
-    /// SAF-011: the summary says why an item was not moved, in the words History uses for the same code (D-90).
-    @Test func theSummarySaysWhyAnItemWasNotMovedSAF011() {
-        func text(_ result: ItemOutcome.Result, method: ActionMethod = .trash) -> String {
-            let item = PlannedItem(
-                url: url("Movies/clip.mov"), tier: .yourData, method: method,
-                snapshot: ItemSnapshot(kind: .file, allocatedSize: 10))
-            return String(localized: OutcomeWording.result(of: ItemOutcome(item: item, result: result)))
-        }
-
-        #expect(text(.skipped(.missing)) == "Skipped: no longer there")
-        #expect(text(.skipped(.notAccessible)) == "Skipped: not accessible")
-        #expect(
-            text(.skipped(.changed(ItemSnapshot(kind: .file, allocatedSize: 20)))) == "Skipped: changed since the scan")
-        #expect(text(.skipped(.cancelled)) == "Skipped: stopped before it was acted on")
-        #expect(
-            text(.skipped(.unsupportedMethod(.tool)), method: .tool) == "Skipped: this version of Shuck can't do this")
-        #expect(text(.skipped(.notAllowed(.delete)), method: .delete) == "Skipped: not allowed for this kind of item")
-        #expect(text(.failed(ActionError(errno: EACCES))) == "Failed: Permission denied")
-        #expect(
-            text(.skipped(.missing))
-                == String(
-                    localized: HistoryView.status(
-                        of: HistoryRun.Item(
-                            operation: .trash, path: "/StubHome/Movies/clip.mov", trashedPath: nil, bytes: 10,
-                            tier: .yourData,
-                            outcome: .skipped("missing"), restorability: nil))))
     }
 }

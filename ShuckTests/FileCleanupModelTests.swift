@@ -11,8 +11,16 @@ import Testing
 struct FileCleanupModelTests {
     let context = ScanContext(home: URL(filePath: "/StubHome"))
 
-    @Test func aScanSumsItsItemsAndRecordsWhenItFinished() async throws {
-        let subTool = StubSubTool("TSA", events: [.item(.stub("a", size: 1_000)), .item(.stub("b", size: 3_000))])
+    /// The landing page counts the folders a scan could not read apart from those macOS did not let it read (SAF-011,
+    /// SAF-012).
+    @Test func aScanSumsItsItemsCountsWhatItCouldNotReadAndRecordsWhenItFinishedSAF011() async throws {
+        let subTool = StubSubTool(
+            "TSA",
+            events: [
+                .item(.stub("a", size: 1_000)), .item(.stub("b", size: 3_000)),
+                .notAccessible(URL(filePath: "/StubHome/Locked")), .unreadable(URL(filePath: "/StubHome/Broken")),
+                .unreadable(URL(filePath: "/StubHome/Gone")),
+            ])
         let model = FileCleanupModel(subTools: [subTool], context: context)
 
         let before = Date.now
@@ -24,7 +32,8 @@ struct FileCleanupModelTests {
         }
         #expect(summary.itemCount == 2)
         #expect(summary.reclaimableBytes == 4_000)
-        #expect(summary.notAccessibleCount == 0)
+        #expect(summary.notAccessibleCount == 1)
+        #expect(summary.unreadableCount == 2)
         #expect(summary.finished >= before)
     }
 
@@ -56,27 +65,6 @@ struct FileCleanupModelTests {
         #expect(model.state(of: healthy.id) == .scanned(succeeded))
     }
 
-    /// The landing page counts the folders a scan could not read apart from those macOS did not let it read (SAF-011,
-    /// SAF-012).
-    @Test func foldersAScanCouldNotReadAreCountedSAF011() async throws {
-        let subTool = StubSubTool(
-            "TSA",
-            events: [
-                .notAccessible(URL(filePath: "/StubHome/Locked")), .unreadable(URL(filePath: "/StubHome/Broken")),
-                .unreadable(URL(filePath: "/StubHome/Gone")),
-            ])
-        let model = FileCleanupModel(subTools: [subTool], context: context)
-
-        await model.scan(subTool)?.value
-
-        guard case .scanned(let summary) = model.state(of: subTool.id) else {
-            Issue.record("Not scanned: \(model.state(of: subTool.id))")
-            return
-        }
-        #expect(summary.notAccessibleCount == 1)
-        #expect(summary.unreadableCount == 2)
-    }
-
     @Test func aPlannedSubToolCannotScan() {
         let planned = [PlannedSubTool.stub]
         let model = FileCleanupModel(subTools: planned, context: context)
@@ -96,17 +84,6 @@ struct FileCleanupModelTests {
         #expect(model.scanIfNotScanned(subTool) == nil)
 
         #expect(model.scanIfNotScanned(PlannedSubTool.stub) == nil)
-    }
-
-    @Test func aSubToolThatIsScanningCannotStartAgain() {
-        let stalled = StallingSubTool()
-        let model = FileCleanupModel(subTools: [stalled], context: context)
-
-        let scan = model.scan(stalled)
-        #expect(scan != nil)
-        #expect(model.scan(stalled) == nil)
-        #expect(!model.canScanAll)
-        scan?.cancel()
     }
 
     /// Each sub-tool keeps its own list and selection: removing an item one list shows leaves another list as it was
@@ -151,6 +128,12 @@ struct FileCleanupModelTests {
         await model.scan(other)?.value
 
         let scan = model.scan(stalled)
+        // A sub-tool that is scanning cannot start again, and with every sub-tool scanning there is nothing to scan all.
+        #expect(model.scan(stalled) == nil)
+        let solo = FileCleanupModel(subTools: [stalled], context: context)
+        let soloScan = solo.scan(stalled)
+        #expect(!solo.canScanAll)
+        soloScan?.cancel()
         model.cancelScan(stalled)
         // Stopping a sub-tool that isn't scanning does nothing.
         model.cancelScan(other)

@@ -33,15 +33,30 @@ final class AppEnvironmentTests {
             bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
     }
 
-    @Test func aReleaseBuildIgnoresTheFixtureRootArgumentNFRQA002() throws {
+    /// A release build ignores the fixture root and every setting a UI test uses: the real home folder, the system
+    /// Trash and running apps, no synced names, and no scan delay.
+    @Test func aReleaseBuildIgnoresTheFixtureRootAndEverySettingATestUsesNFRQA002SAF009SAF014FCL010() throws {
         let arguments = ["Shuck", AppEnvironment.fixtureRootArgument, fixture]
         #expect(try AppEnvironment.fixtureRoot(in: arguments, debugBuild: false) == nil)
         #expect(try AppEnvironment.fixtureRoot(in: [AppEnvironment.fixtureRootArgument], debugBuild: false) == nil)
+        let stored: [String: Any] = [
+            AppEnvironment.runningAppsKey: "com.example.Other", AppEnvironment.syncedFilesKey: "a.mov",
+            AppEnvironment.scanDelayKey: "2",
+        ]
 
-        let release = try environment(arguments, debugBuild: false)
-        #expect(release.context.home == home)
-        #expect(release.context.protection.protectedLocations.contains(URL(filePath: "/private")))
-        #expect(release.trash is SystemTrash)
+        for arguments in [arguments, ["Shuck"]] {
+            let release = try AppEnvironment(
+                arguments: arguments, settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
+                bundleID: ShuckKit.bundleID, home: home)
+            #expect(release.context.home == home)
+            #expect(release.context.protection.protectedLocations.contains(URL(filePath: "/private")))
+            #expect(release.trash is SystemTrash)
+            #expect(release.runningApps is SystemRunningApps && release.context.runningApps is SystemRunningApps)
+            #expect(release.syncedNames.isEmpty)
+            #expect(
+                try #require(release.readValues(URL(filePath: fixture, directoryHint: .isDirectory))).isSynced == false)
+            #expect(release.scanDelay == nil)
+        }
     }
 
     @Test func aDebugBuildScansTheFixtureRootWithTheTestConfigurationNFRQA002() throws {
@@ -75,8 +90,6 @@ final class AppEnvironmentTests {
         let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
         #expect(debug.runningApps.bundleIDs().isEmpty)
         #expect(debug.runningApps is StubRunningApps && debug.context.runningApps is StubRunningApps)
-        let release = try environment(["Shuck"], debugBuild: false)
-        #expect(release.runningApps is SystemRunningApps && release.context.runningApps is SystemRunningApps)
     }
 
     /// A UI test can pretend an app runs (D-113), but only on a fixture root; the real home folder never reads it.
@@ -91,7 +104,6 @@ final class AppEnvironmentTests {
         let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
         #expect(debug.runningApps.bundleIDs() == ["com.apple.dt.xcode", "com.example.other"])
         #expect(debug.context.runningApps.bundleIDs() == debug.runningApps.bundleIDs())
-        #expect(try environment(["Shuck"], debugBuild: false).runningApps is SystemRunningApps)
         #expect(AppEnvironment.list(nil).isEmpty && AppEnvironment.list(3).isEmpty)
     }
 
@@ -109,13 +121,11 @@ final class AppEnvironmentTests {
         #expect(try #require(uiTest.readValues(folder)).isSynced)
         #expect(try #require(uiTest.readValues(folder)).isDirectory)
 
-        for debugBuild in [true, false] {
-            let app = try AppEnvironment(
-                arguments: ["Shuck"], settings: settings, debugBuild: debugBuild, appBundle: appBundle,
-                bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
-            #expect(app.syncedNames.isEmpty)
-            #expect(try #require(app.readValues(folder)).isSynced == false)
-        }
+        let app = try AppEnvironment(
+            arguments: ["Shuck"], settings: settings, debugBuild: true, appBundle: appBundle,
+            bundleID: ShuckKit.debugBundleID, home: home)
+        #expect(app.syncedNames.isEmpty)
+        #expect(try #require(app.readValues(folder)).isSynced == false)
     }
 
     /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.
@@ -126,12 +136,10 @@ final class AppEnvironmentTests {
             appBundle: appBundle, bundleID: ShuckKit.debugBundleID, home: home)
         #expect(uiTest.scanDelay == .seconds(2))
 
-        for debugBuild in [true, false] {
-            let app = try AppEnvironment(
-                arguments: ["Shuck"], settings: settings, debugBuild: debugBuild, appBundle: appBundle,
-                bundleID: debugBuild ? ShuckKit.debugBundleID : ShuckKit.bundleID, home: home)
-            #expect(app.scanDelay == nil)
-        }
+        let app = try AppEnvironment(
+            arguments: ["Shuck"], settings: settings, debugBuild: true, appBundle: appBundle,
+            bundleID: ShuckKit.debugBundleID, home: home)
+        #expect(app.scanDelay == nil)
         #expect(
             try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true).scanDelay == nil)
     }
@@ -209,38 +217,30 @@ final class AppEnvironmentTests {
         #expect(AppEnvironment.preferencesToClear(arguments: rejected, bundleID: debugID, debugBuild: true) == nil)
     }
 
-    @Test func storedNumbersAreReadAsNumbersOrStrings() {
-        #expect(AppEnvironment.number(nil) == nil)
-        #expect(AppEnvironment.number(NSNumber(value: 1_048_576)) == 1_048_576)
-        #expect(AppEnvironment.number("2097152") == 2_097_152)
-        #expect(AppEnvironment.number("large") == nil)
-        #expect(AppEnvironment.number(NSNumber(value: -1)) == nil)
-    }
-
-    @Test func thresholdsComeFromTheSettingsSET002() throws {
-        let stored: [String: Any] = [
+    /// A stored number is read as a number or a string; a missing, invalid or negative one falls back to the default.
+    @Test func thresholdsComeFromTheSettingsOrTheirDefaultsSET002() throws {
+        func environment(_ stored: [String: Any]) throws -> AppEnvironment {
+            try AppEnvironment(
+                arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
+                bundleID: ShuckKit.bundleID, home: home)
+        }
+        let set = try environment([
             AppEnvironment.largeFilesMinimumSizeKey: "1000", AppEnvironment.oldFilesPeriodKey: NSNumber(value: 3),
             AppEnvironment.oldFilesMinimumSizeKey: "0",
-        ]
-        let environment = try AppEnvironment(
-            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
-            bundleID: ShuckKit.bundleID, home: home)
+        ])
+        #expect(set.largeFiles.minimumSize == 1_000)
+        #expect(set.oldFiles.periodMonths == 3)
+        #expect(set.oldFiles.minimumSize == 0)
 
-        #expect(environment.largeFiles.minimumSize == 1_000)
-        #expect(environment.oldFiles.periodMonths == 3)
-        #expect(environment.oldFiles.minimumSize == 0)
-    }
-
-    @Test func missingOrInvalidThresholdsUseTheDefaultsSET002() throws {
-        let stored: [String: Any] = [
+        let invalid = try environment([
             AppEnvironment.largeFilesMinimumSizeKey: "large", AppEnvironment.oldFilesPeriodKey: "0",
-        ]
-        let environment = try AppEnvironment(
-            arguments: [], settings: { stored[$0] }, debugBuild: false, appBundle: appBundle,
-            bundleID: ShuckKit.bundleID, home: home)
+            AppEnvironment.oldFilesMinimumSizeKey: NSNumber(value: -1),
+        ])
+        #expect(invalid.largeFiles.minimumSize == 500_000_000)
+        #expect(invalid.oldFiles.periodMonths == 12)
+        #expect(invalid.oldFiles.minimumSize == 50_000_000)
 
-        #expect(environment.largeFiles.minimumSize == 500_000_000)
-        #expect(environment.oldFiles.periodMonths == 12)
-        #expect(environment.oldFiles.minimumSize == 50_000_000)
+        let missing = try environment([:])
+        #expect(missing.largeFiles.minimumSize == 500_000_000)
     }
 }

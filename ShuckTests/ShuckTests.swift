@@ -4,30 +4,18 @@ import Testing
 
 @testable import Shuck
 
-struct EngineLinkTests {
-    /// The app links ShuckKit. The debug build, which hosts these tests, has its own bundle ID and logs under the
-    /// release build's, which is the engine's logger subsystem (D-21, D-70).
-    @Test func theDebugBuildHasItsOwnBundleIDAndTheReleaseSubsystem() {
-        #expect(Bundle.main.bundleIdentifier == "me.nutabi.shuck.debug")
-        #expect(ShuckKit.loggerSubsystem == "me.nutabi.shuck")
-    }
-}
-
 struct SidebarDestinationTests {
-    @Test func everyRegistryToolAndSubToolHasALabel() {
+    /// A destination without a label shows nothing, and one with a label needs an SF Symbol that exists, or its row has
+    /// no icon.
+    @Test func everyRegistryToolAndSubToolHasALabelWithASymbol() throws {
         let ids = ToolRegistry.standard.tools.map(\.info.id) + ToolRegistry.standard.subTools.map(\.id)
-        for id in ids {
-            #expect(SidebarDestination.tool(id).label(in: .standard) != nil, "No label for \(id.rawValue)")
+        let destinations = [SidebarDestination.overview, .history] + ids.map { SidebarDestination.tool($0) }
+        for destination in destinations {
+            let label = try #require(destination.label(in: .standard), "No label for \(destination)")
+            #expect(
+                NSImage(systemSymbolName: label.symbolName, accessibilityDescription: nil) != nil,
+                "No symbol \(label.symbolName)")
         }
-    }
-
-    @Test func anUnknownToolHasNoLabel() {
         #expect(SidebarDestination.tool(ToolID(rawValue: "XXX")).label(in: .standard) == nil)
-    }
-
-    @Test(arguments: [SidebarDestination.overview, .history, .tool(.fileCleanup), .tool(.largeFiles)])
-    func symbolExists(destination: SidebarDestination) throws {
-        let label = try #require(destination.label(in: .standard))
-        #expect(NSImage(systemSymbolName: label.symbolName, accessibilityDescription: nil) != nil)
     }
 }

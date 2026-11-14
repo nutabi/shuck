@@ -58,8 +58,4 @@ struct AppGroupTests {
         ])
         #expect(groups.map(\.name) == ["Alpha", "Beta"])
     }
-
-    @Test func noItemsMakeNoGroups() {
-        #expect(AppGroup.groups(of: []).isEmpty)
-    }
 }

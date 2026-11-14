@@ -16,7 +16,7 @@ struct ScanResultsTests {
             category: category, selection: selection)
     }
 
-    @Test func defaultsAndUserSelectionRespectDisabledItemsSAF004DEV005() {
+    @Test func defaultsAndUserSelectionRespectDisabledItemsSAF004SAF009DEV005() {
         let list = ScanResults()
         let stale = item("stale", selection: .selected)
         let recent = item("recent")
@@ -29,19 +29,10 @@ struct ScanResultsTests {
         #expect(list.items(at: [URL(filePath: "/StubHome/Library/Caches/running")]).isEmpty)
         #expect(list.summary(finished: .now).reclaimableBytes == 8192)
         #expect(list.selectedBytes(in: .rebuildable) == 4096)
-    }
-
-    /// Select All chooses every row a user could tick, never a running app's (SAF-009, D-138).
-    @Test func selectAllLeavesOutDisabledItemsSAF009() {
-        let list = ScanResults()
-        let stale = item("stale", selection: .selected)
-        let recent = item("recent")
-        let running = item("running", selection: .disabled("Fixture app is running"))
-        for item in [stale, recent, running] { list.apply(.item(item)) }
+        // Select All chooses every row a user could tick, never a running app's (SAF-009, D-138).
+        list.selection = []
         list.selectAll()
         #expect(list.selection == [stale.target, recent.target])
-        list.selection = []
-        #expect(list.selectedItems.isEmpty)
     }
 
     @Test func refreshedEventsKeepTheUsersChoiceUntilAnItemIsDisabled() {

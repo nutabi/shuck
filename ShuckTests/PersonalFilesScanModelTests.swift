@@ -76,29 +76,9 @@ struct PersonalFilesScanModelTests {
         #expect(model.personalFiles.items.keys.map(\.lastPathComponent) == ["a.mov"])
     }
 
-    @Test func aPersonalFilesScanMarksEveryPersonalFilesSubToolAndCancellingEmptiesTheLists() async {
-        let largeFiles = LargeFiles(minimumSize: 1_000)
-        let everything = StubPersonalSubTool()
-        let files = [file("a.mov", size: 5_000)]
-        let model = FileCleanupModel(subTools: [largeFiles, everything], context: context) { _, _ in
-            AsyncStream { continuation in
-                continuation.yield(.files(files))
-                // Never finishes, like a scan of a large home folder.
-            }
-        }
-
-        let scan = model.scan(largeFiles)
-        #expect(model.state(of: everything.id) == .scanning)
-        #expect(model.scan(everything) == nil)
-
-        scan?.cancel()
-        await scan?.value
-        #expect(model.state(of: largeFiles.id) == .stopped)
-        #expect(model.personalFilesResults[largeFiles.id]?.rows.isEmpty == true)
-    }
-
-    /// Stop on either page stops the scan both share (FCL-006, SAF-014).
-    @Test func stoppingOnePersonalFilesSubToolStopsTheSharedScanSAF014() async {
+    /// One scan marks every personal-files sub-tool as scanning, and Stop on either page stops the scan both share and
+    /// empties both lists (FCL-006, SAF-014).
+    @Test func aPersonalFilesScanMarksEverySubToolAndStoppingOnEitherPageStopsItSAF014() async {
         let largeFiles = LargeFiles(minimumSize: 1_000)
         let oldFiles = OldFiles(minimumSize: 1_000) { _ in nil }
         let files = [file("a.mov", size: 5_000)]
@@ -110,6 +90,8 @@ struct PersonalFilesScanModelTests {
         }
 
         let scan = model.scan(largeFiles)
+        #expect(model.state(of: oldFiles.id) == .scanning)
+        #expect(model.scan(oldFiles) == nil)
         model.cancelScan(oldFiles)
         await scan?.value
 

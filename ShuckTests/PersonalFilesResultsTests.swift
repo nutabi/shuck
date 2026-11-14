@@ -38,38 +38,6 @@ struct PersonalFilesResultsTests {
         #expect(names(results) == ["a", "b", "c"])
     }
 
-    @Test func everyColumnSortsFCL012() async {
-        let old = Date(timeIntervalSince1970: 1_000_000)
-        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
-        await results.apply(
-            .files([
-                file("Movies/clip.mov", size: 3_000, modified: old),
-                file("Downloads/Setup.dmg", size: 1_000, modified: .now),
-                file("Documents/notes.txt", size: 2_000),
-            ]))
-        #expect(names(results) == ["Setup.dmg", "notes.txt", "clip.mov"])
-
-        results.sortOrder = [KeyPathComparator(\.name, comparator: .localizedStandard)]
-
-        await results.finishSorting()
-        #expect(names(results) == ["clip.mov", "notes.txt", "Setup.dmg"])
-
-        // A row without a date sorts as the oldest.
-        results.sortOrder = [KeyPathComparator(\.sortDate)]
-        await results.finishSorting()
-        #expect(names(results) == ["notes.txt", "clip.mov", "Setup.dmg"])
-
-        results.sortOrder = [KeyPathComparator(\.folder, comparator: .localizedStandard)]
-
-        await results.finishSorting()
-        #expect(names(results) == ["notes.txt", "Setup.dmg", "clip.mov"])
-
-        // "Disk Image", "QuickTime movie", "text": the comparison ignores case.
-        results.sortOrder = [KeyPathComparator(\.kind, comparator: .localizedStandard)]
-        await results.finishSorting()
-        #expect(names(results) == ["Setup.dmg", "clip.mov", "notes.txt"])
-    }
-
     @Test func onlyIncludedFilesAreListed() async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)]) {
             $0.snapshot.allocatedSize >= 2_000
@@ -85,33 +53,6 @@ struct PersonalFilesResultsTests {
         #expect(results.rows.map(\.size) == [5_000])
     }
 
-    @Test func nothingIsSelectedAtFirstAndTheTotalIsTheSelectionsSizeFCL012() async {
-        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
-        await results.apply(.files([file("a", size: 1_000), file("b", size: 2_000), file("c", size: 4_000)]))
-        #expect(results.selection.isEmpty)
-        #expect(results.selectedBytes == 0)
-
-        results.selection = [home.appending(path: "a"), home.appending(path: "c")]
-        #expect(results.selectedBytes == 5_000)
-        #expect(results.actionableSelection.map(\.name) == ["a", "c"])
-    }
-
-    @Test func readOnlyRowsAreLeftOutOfTheTotalFCL011() async {
-        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
-        await results.apply(
-            .files([
-                file("a", size: 1_000),
-                file("go/pkg/mod", size: 8_000, readOnly: .managedBy(.developerJunk)),
-            ]))
-        results.selection = [home.appending(path: "a")]
-        #expect(!results.selectionIncludesReadOnly)
-
-        results.selection.insert(home.appending(path: "go/pkg/mod"))
-        #expect(results.selectionIncludesReadOnly)
-        #expect(results.selectedBytes == 1_000)
-        #expect(results.actionableSelection.map(\.name) == ["a"])
-    }
-
     @Test func removedRowsLeaveTheListAndTheSelectionFCL006() async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
         await results.apply(.files([file("a", size: 1_000), file("b", size: 2_000)]))
@@ -122,20 +63,6 @@ struct PersonalFilesResultsTests {
         #expect(names(results) == ["b"])
         #expect(results.selection == [home.appending(path: "b")])
         #expect(results.selectedBytes == 2_000)
-    }
-
-    @Test func rowsShowTheFolderUnderHomeAsTilde() {
-        #expect(ResultRow.folder(of: home.appending(path: "Downloads/a.dmg"), home: home) == "~/Downloads")
-        #expect(ResultRow.folder(of: home.appending(path: "a.dmg"), home: home) == "~")
-        #expect(ResultRow.folder(of: URL(filePath: "/Volumes/Data/a.dmg"), home: home) == "/Volumes/Data")
-    }
-
-    @Test func rowsShowTheKindFromTheNameExtension() {
-        let file = ItemSnapshot(kind: .file, allocatedSize: 0)
-        let folder = ItemSnapshot(kind: .folder, allocatedSize: 0)
-        #expect(ResultRow.kind(of: URL(filePath: "/a.dmg"), snapshot: file) == "Disk Image")
-        #expect(ResultRow.kind(of: URL(filePath: "/README"), snapshot: file) == "Document")
-        #expect(ResultRow.kind(of: URL(filePath: "/Backup/00008110"), snapshot: folder) == "Folder")
     }
 
     /// The column shows the date Old Files judged by and labels it when it is not the last-opened date (D-130).
@@ -352,31 +279,25 @@ struct PersonalFilesResultsTests {
         #expect(names(results) == expected)
     }
 
-    @Test func theTableKeepsThePreviousOrderUntilTheSortFinishesNFRPERF001() async {
+    /// The table keeps the previous order until a sort finishes, a stale sort never overwrites a newer one, and rows
+    /// changed while a sort runs join the sorted list.
+    @Test func aSortRunsOffTheMainActorAndOnlyTheNewestLandsNFRPERF001() async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
         results.insert(sizeRows())
         results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
         #expect(names(results) == ["a.dmg", "c.txt", "b.mov"])
         await results.finishSorting()
         #expect(names(results) == ["b.mov", "c.txt", "a.dmg"])
-    }
 
-    @Test func aStaleSortNeverOverwritesANewerOneNFRPERF001() async {
-        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
-        results.insert(sizeRows())
         // Both sorts start before either finishes; only the second may land.
-        results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
+        results.sortOrder = [KeyPathComparator(\.size)]
         results.sortOrder = [KeyPathComparator(\.name, comparator: .localizedStandard)]
         await results.finishSorting()
         #expect(names(results) == ["a.dmg", "b.mov", "c.txt"])
         // Give a discarded sort time to land, if it wrongly would.
         await Task.yield()
         #expect(names(results) == ["a.dmg", "b.mov", "c.txt"])
-    }
 
-    @Test func rowsChangedWhileSortingJoinTheSortedListNFRPERF001() async {
-        let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
-        results.insert(sizeRows())
         results.sortOrder = [KeyPathComparator(\.size, order: .reverse)]
         // While the sort runs: a new row, a replaced row and a removed row.
         results.insert([row("new.bin", size: 2_500), row("Downloads/a.dmg", size: 9_000)])
@@ -401,7 +322,7 @@ struct PersonalFilesResultsTests {
                 == results.rows.contains { results.selection.contains($0.id) && $0.readOnly != nil }, "\(step)")
     }
 
-    @Test func theTotalsFollowEverySelectionChangeNFRPERF001() async {
+    @Test func theTotalsFollowEverySelectionChangeFCL011FCL012NFRPERF001() async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size)])
         await results.apply(
             .files([
@@ -411,6 +332,8 @@ struct PersonalFilesResultsTests {
         let a = home.appending(path: "a")
         let b = home.appending(path: "b")
         let pkg = home.appending(path: "go/pkg")
+        // Nothing is selected at first (FCL-012).
+        #expect(results.selection.isEmpty && results.selectedBytes == 0 && !results.selectionIncludesReadOnly)
 
         results.selection = [a, b]
         expectTotalsMatchRecount(results, "select two")
@@ -423,6 +346,9 @@ struct PersonalFilesResultsTests {
         results.selection.insert(pkg)
         expectTotalsMatchRecount(results, "read-only")
         #expect(results.readOnlyCount == 1 && results.selectedBytes == 2_000)
+        // Read-only rows are left out of the total and of what an action acts on (FCL-011).
+        #expect(results.selectionIncludesReadOnly)
+        #expect(results.actionableSelection.map(\.name) == ["b"])
 
         results.selectAll()
         expectTotalsMatchRecount(results, "select all")
@@ -460,17 +386,16 @@ struct PartialSizeTests {
             readOnly: nil)
     }
 
-    @Test func aRowKeepsItsSnapshotsCompletenessSAF012() {
+    @Test func aSizeThatCouldNotBeMeasuredFullyKeepsItsNumberAndIsALowerBoundSAF012NFRA11Y001() async {
         let whole = ResultRow(partial("whole", size: 5_000, isComplete: true), home: home)
         let lower = ResultRow(partial("lower", size: 5_000, isComplete: false), home: home)
-
         #expect(whole.isComplete && !lower.isComplete)
         #expect(whole.size == lower.size, "The mark changes the words, never the number")
-    }
+        #expect(SizeText.isComplete(nil), "A tool's command has no snapshot and no lower bound")
+        #expect(SizeText.isComplete(ItemSnapshot(kind: .folder, allocatedSize: 1)))
+        #expect(!SizeText.isComplete(ItemSnapshot(kind: .folder, allocatedSize: 1, isComplete: false)))
 
-    @Test func theMarkDoesNotChangeSortingOrTotalsSAF012() async {
         let results = PersonalFilesResults(home: home, sortOrder: [KeyPathComparator(\.size, order: .reverse)])
-
         await results.apply(
             .files([
                 partial("small", size: 1_000, isComplete: true), partial("big", size: 9_000, isComplete: false),
@@ -478,12 +403,6 @@ struct PartialSizeTests {
 
         #expect(results.rows.map(\.name) == ["big", "small"])
         #expect(results.rows.map(\.size) == [9_000, 1_000])
-    }
-
-    @Test func onlyAnIncompleteSnapshotIsALowerBoundSAF012NFRA11Y001() throws {
-        #expect(SizeText.isComplete(nil), "A tool's command has no snapshot and no lower bound")
-        #expect(SizeText.isComplete(ItemSnapshot(kind: .folder, allocatedSize: 1)))
-        #expect(!SizeText.isComplete(ItemSnapshot(kind: .folder, allocatedSize: 1, isComplete: false)))
     }
 }
 

@@ -4,26 +4,47 @@ import Testing
 
 @testable import Shuck
 
-/// The run scaffolding Move to Trash, Restore and the summary confirmation share: one start, Stop, and a report or a
-/// failure (SAF-011, SAF-014, TD-06).
+/// The run scaffolding Move to Trash, Restore and the summary confirmation share: one start, Stop, a report or a
+/// failure, and quitting during a run (SAF-005, SAF-011, SAF-014, TD-06).
 ///
 /// The work is a stub, so these tests never touch the file system.
 @MainActor
 struct RunModelTests {
-    @Test func aRunStartsOnceAndEndsWithItsReportSAF011() async {
-        let calls = Mutex(0)
-        let run = RunModel<Int>()
-        #expect(run.phase == .waiting)
+    /// What quitting does for each answer: nothing runs, or a run the user does or does not stop.
+    @Test(
+        arguments: [
+            (false, nil, QuitDecision.quitNow), (true, false, .keepRunning), (true, true, .stopThenQuit),
+        ] as [(Bool, Bool?, QuitDecision)])
+    func quittingAsksOnlyDuringARunSAF005(isRunning: Bool, answer: Bool?, expected: QuitDecision) {
+        #expect(QuitDecision.decide(isRunning: isRunning, stopAnswered: answer) == expected)
+    }
 
-        let task = run.start { () async throws(HistoryError) -> Int in
-            calls.withLock { $0 += 1 }
-            return 7
-        }
+    @Test func aRunStartsOnceCountsUntilItsReportIsWrittenSAF005SAF011() async {
+        let calls = Mutex(0)
+        let runs = ActiveRuns()
+        let run = RunModel<Int>(runs: runs)
+        let seen = Mutex<[RunPhase<Int>]>([])
+        #expect(run.phase == .waiting)
+        #expect(!runs.isRunning)
+
+        let task = run.start(
+            onFinish: { _ in
+                let phase = run.phase
+                seen.withLock { $0.append(phase) }
+            },
+            work: { () async throws(HistoryError) -> Int in
+                calls.withLock { $0 += 1 }
+                return 7
+            })
         #expect(run.phase == .running)
+        #expect(runs.isRunning)
         #expect(run.start { () async throws(HistoryError) -> Int in 8 } == nil)
         await task?.value
 
         #expect(run.phase == .finished(7))
+        #expect(!runs.isRunning)
+        // The caller hears of the report after the phase has changed.
+        #expect(seen.withLock { $0 } == [.finished(7)])
         #expect(run.start { () async throws(HistoryError) -> Int in 9 } == nil)
         #expect(calls.withLock { $0 } == 1)
     }
@@ -41,30 +62,24 @@ struct RunModelTests {
         #expect(finished.withLock { $0 } == [nil])
     }
 
-    @Test func finishingTellsTheCallerTheReportAfterThePhaseChanges() async {
-        let run = RunModel<Int>()
-        let seen = Mutex<[RunPhase<Int>]>([])
-
-        await run.start(
-            onFinish: { _ in
-                let phase = run.phase
-                seen.withLock { $0.append(phase) }
-            },
-            work: { () async throws(HistoryError) -> Int in 3 })?.value
-
-        #expect(seen.withLock { $0 } == [.finished(3)])
-    }
-
-    @Test func stopCancelsTheRunSAF014() async {
-        let run = RunModel<Int>()
-        let task = run.start { () async throws(HistoryError) -> Int in
-            while !Task.isCancelled { await Task.yield() }
-            return -1
+    /// Quitting stops every run and waits for the item in hand; a model's own Stop cancels the same way.
+    @Test func stopAndQuitCancelARunAndWaitForItSAF014() async {
+        let runs = ActiveRuns()
+        let quitting = RunModel<Int>(runs: runs)
+        quitting.start { () async throws(HistoryError) -> Int in
+            await waitUntilCancelled() ? 7 : 0
         }
+        #expect(runs.isRunning)
+        await runs.stopAndWait()
+        #expect(!runs.isRunning)
+        #expect(quitting.phase == .finished(7))
 
-        run.stop()
+        let stopped = RunModel<Int>()
+        let task = stopped.start { () async throws(HistoryError) -> Int in
+            await waitUntilCancelled() ? -1 : 0
+        }
+        stopped.stop()
         await task?.value
-
-        #expect(run.phase == .finished(-1))
+        #expect(stopped.phase == .finished(-1))
     }
 }

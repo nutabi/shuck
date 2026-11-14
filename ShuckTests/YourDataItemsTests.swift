@@ -52,68 +52,45 @@ struct YourDataItemsTests {
         return (model, subTool)
     }
 
-    @Test func selectAllLeavesYourDataUnselectedButKeepsAChoiceTheUserMadeSAF002() {
-        let list = ScanResults()
+    /// Scan, select, plan and run: "Select All" leaves "Your data" out but keeps a choice the user made, each tier
+    /// counts its own selection, a mixed selection gives two single-tier plans, and moved archives leave the list while
+    /// deleted caches stay until their own run.
+    @Test func eachTierIsSelectedCountedPlannedAndRunOnItsOwnSAF002SAF003SAF004SAF011SAF013() async throws {
         let mine = archive("Mine")
-        let other = archive("Other")
-        for item in [cache("a", selection: .unselected), cache("b", selection: .unselected), mine, other] {
-            list.apply(.item(item))
-        }
-
-        list.selectAll()
-
-        #expect(list.selectedItems(in: .rebuildable).count == 2 && list.selectedItems(in: .yourData).isEmpty)
-        list.selection.insert(mine.target)
-        list.selectAll()
-        #expect(list.selectedItems(in: .yourData) == [mine])
-        list.selection = []
-        #expect(list.selectedItems.isEmpty)
-    }
-
-    @Test func eachTierCountsItsOwnSelectedItemsAndSizeSAF003SAF013() {
-        let list = ScanResults()
-        let mine = archive("Mine", size: 50_000)
-        for item in [cache("a", size: 1_000), cache("b", size: 2_000), mine, archive("Other")] {
-            list.apply(.item(item))
-        }
-        list.selection.insert(mine.target)
-
-        #expect(list.selectedItems(in: .rebuildable).count == 2)
-        #expect(list.selectedBytes(in: .rebuildable) == 3_000)
-        #expect(list.selectedItems(in: .yourData) == [mine])
-        #expect(list.selectedBytes(in: .yourData) == 50_000)
-        #expect(list.hasYourData)
-        #expect(!ScanResults().hasYourData)
-    }
-
-    @Test func aMixedSelectionGivesTwoSingleTierPlansSAF004() async throws {
-        let mine = archive("Mine")
-        let (model, subTool) = await scannedModel([cache("a"), cache("b"), mine, archive("Other")])
+        let (model, subTool) = await scannedModel([
+            cache("a", size: 1_000, selection: .unselected), cache("b", size: 2_000, selection: .unselected), mine,
+            archive("Other"),
+        ])
         let results = try #require(model.results(of: subTool.id) as? ScanResults)
+
+        results.selectAll()
+
+        #expect(results.selectedItems(in: .rebuildable).count == 2 && results.selectedItems(in: .yourData).isEmpty)
         results.selection.insert(mine.target)
+        results.selectAll()
+        #expect(results.selectedItems(in: .rebuildable).count == 2)
+        #expect(results.selectedBytes(in: .rebuildable) == 3_000)
+        #expect(results.selectedItems(in: .yourData) == [mine])
+        #expect(results.selectedBytes(in: .yourData) == 50_000)
+        #expect(results.hasYourData)
+        #expect(!ScanResults().hasYourData)
 
         let confirmation = try #require(try await model.confirmRebuildable(subTool))
         // Every URL is offered to the review, as a caller that did not filter would; only "Your data" enters its plan.
-        let review = try #require(try await model.reviewMoveToTrash(subTool, urls: results.items.compactMap(\.url)))
-
+        let everything = try #require(try await model.reviewMoveToTrash(subTool, urls: results.items.compactMap(\.url)))
         #expect(confirmation.plan.items.allSatisfy { $0.tier == .rebuildable && $0.method == .delete })
         #expect(confirmation.plan.items.count == 2)
-        #expect(review.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
-        #expect(review.plan.items.map(\.url) == [url("Mine"), url("Other")])
-    }
+        #expect(everything.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
+        #expect(everything.plan.items.map(\.url) == [url("Mine"), url("Other")])
 
-    @Test func movedArchivesLeaveTheListAndDeletedCachesStayUntilTheirOwnRunSAF011() async throws {
-        let mine = archive("Mine")
-        let (model, subTool) = await scannedModel([cache("a"), mine, archive("Other")])
-        let results = try #require(model.results(of: subTool.id) as? ScanResults)
-        results.selection.insert(mine.target)
         let review = try #require(
             try await model.reviewMoveToTrash(subTool, urls: results.selectedItems(in: .yourData).compactMap(\.url)))
-
         await review.start()?.value
 
-        #expect(results.items.map(\.url) == [url("a"), url("Other")])
+        #expect(results.items.map(\.url) == [url("a"), url("b"), url("Other")])
         #expect(results.selectedItems(in: .yourData).isEmpty)
-        #expect(results.selectedItems(in: .rebuildable).count == 1)
+        #expect(results.selectedItems(in: .rebuildable).count == 2)
+        results.selection = []
+        #expect(results.selectedItems.isEmpty)
     }
 }
