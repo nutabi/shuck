@@ -182,13 +182,14 @@ nonisolated struct AppEnvironment {
             cachesAndLogs = CachesAndLogs(
                 appNames: FixtureAppNames(installed: Self.list(settings(Self.installedAppsKey))))
             // Never `nil` folders, which would mean the real `/Applications` (SAF-016). Spotlight does not index a
-            // fixture, so there are no last-opened dates, and a fixture app declares no app groups.
+            // fixture, so there are no last-opened dates, and a fixture app declares no app groups. The system-wide
+            // Library is a folder of its own, since the root's `Library` is the fixture home's `~/Library` (APP-004).
             applications = Applications(
                 appFolders: Self.fixtureFolders(Self.list(settings(Self.appFoldersArgumentKey)), in: root).map {
                     URL(filePath: $0, directoryHint: .isDirectory)
                 },
                 lastUsedDate: { _ in nil }, appGroups: { _ in [] },
-                systemLibrary: root.appending(path: "Library", directoryHint: .isDirectory))
+                systemLibrary: root.appending(path: "SystemLibrary", directoryHint: .isDirectory))
             scope = Self.projectScope(projectFolders.folders, home: root, resolvingLinks: false)
             context = ScanContext(
                 home: root, ownership: scope.ownership, protection: makeProtection(excludedFolders.folders),

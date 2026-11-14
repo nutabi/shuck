@@ -153,7 +153,8 @@ final class AppEnvironmentTests {
         let folders = uiTest.applications.appFolders(home: root)
 
         #expect(folders.map(\.path).sorted() == expected.map { root.appending(path: $0).path }.sorted())
-        #expect(uiTest.applications.systemLibrary == root.appending(path: "Library", directoryHint: .isDirectory))
+        // Inside the root, and not the fixture home's `~/Library`, where leftovers would be found twice (APP-004).
+        #expect(uiTest.applications.systemLibrary == root.appending(path: "SystemLibrary", directoryHint: .isDirectory))
         // Not the real folders, or the real home folder's, that a missing list would have meant.
         #expect(!folders.contains(URL(filePath: "/Applications", directoryHint: .isDirectory)))
 
