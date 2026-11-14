@@ -2,8 +2,9 @@ import ShuckKitTestSupport
 import XCTest
 
 /// Developer Junk's Xcode files: one row per project, stale ones and those whose project is gone selected, device
-/// support versions selected unless they are the newest, simulator caches selected, the rows of a running Xcode
-/// disabled, and an Xcode archive, which is "Your data": never selected, moved to the Trash after its own review.
+/// support versions selected unless they are the newest, simulator caches selected, and an Xcode archive, which is
+/// "Your data": never selected, moved to the Trash after its own review. The workflow ends with the tool rules, which
+/// run the tool's own command.
 final class DeveloperJunkUITests: ShuckUITestCase {
     private let projectHash = "abcdefghijklmnopqrstuvwxyzab"
 
@@ -63,7 +64,11 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         try root.deviceSupport("iOS", "16.4 (20E247)")
         try root.deviceSupport("iOS", "17.2 (21C62) arm64e")
         try root.file("Library/Developer/CoreSimulator/Caches/dyld/cache", size: 4096)
-        try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
+        let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
+        // The tool rules' fake tools, which the app finds only inside the root (D-114, D-124). The last steps run them.
+        try root.xcrun(.reportsInvocation)
+        try root.tool("opt/homebrew/bin/npm", .reportsInvocation)
+        let npmCache = try root.file(".npm/_cacache/content-v2/ab", size: 50_000)
         let archive = try root.xcarchive(day: "2026-11-10", name: "Release Build")
         // Two Node.js projects in a project folder, both left alone for 40 days: `web` would be selected, and `shop`
         // patches its packages, so it is listed and never selected (DEV-R06, DEV-006).
@@ -133,6 +138,31 @@ final class DeveloperJunkUITests: ShuckUITestCase {
         step("A simulator cache starts selected, and the simulators' devices are not listed (DEV-R04, DEV-007)") {
             XCTAssertTrue(isChecked(app, "dyld"))
             XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
+        }
+
+        step("A tool rule is one selected row with its exact command and a size or none (DEV-R03, DEV-R07, DEV-003)") {
+            XCTAssertTrue(isChecked(app, "Unavailable Simulators"))
+            XCTAssertTrue(app.staticTexts["Size not known"].exists)
+            XCTAssertTrue(isChecked(app, "npm Cache"))
+            XCTAssertTrue(
+                app.staticTexts.matching(
+                    NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", "Up to ", "Up to ")
+                ).firstMatch.exists,
+                "The npm cache has no size estimate: \(outline(of: app))")
+            // As a user would type it, with no quotes around plain words (D-138).
+            let command = app.staticTexts.matching(
+                NSPredicate(
+                    format: "label ENDSWITH %@ OR value ENDSWITH %@", "/usr/bin/xcrun simctl delete unavailable",
+                    "/usr/bin/xcrun simctl delete unavailable")
+            ).firstMatch
+            XCTAssertTrue(command.exists, "The command is not shown: \(outline(of: app))")
+            // The five rows above and the two tool rules.
+            XCTAssertTrue(footer(app, startingWith: "7 items selected").appears(within: 5), outline(of: app))
+            attachScreenshot(of: app, named: "Developer Junk with tool rules")
+
+            // The steps below start from the five rows above; the tool rules are run in the last steps.
+            checkbox(app, "Unavailable Simulators").click()
+            checkbox(app, "npm Cache").click()
             XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
         }
 
@@ -227,7 +257,8 @@ final class DeveloperJunkUITests: ShuckUITestCase {
 
         step("Select All chooses the rebuildable rows and leaves the archive unchecked (SAF-002)") {
             app.buttons["Select All"].click()
-            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
+            // The five rows and the two tool rules.
+            XCTAssertTrue(footer(app, startingWith: "7 items selected").appears(within: 5), outline(of: app))
             XCTAssertFalse(isChecked(app, "Release Build"), "Select All chose an archive")
             XCTAssertTrue(footer(app, startingWith: "Your data: none selected").exists)
             XCTAssertFalse(app.buttons["Move to Trash…"].isEnabled)
@@ -240,7 +271,7 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertFalse(app.buttons["Select None"].isEnabled, "Select None stays enabled with nothing selected")
 
             app.typeKey("a", modifierFlags: .command)
-            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
+            XCTAssertTrue(footer(app, startingWith: "7 items selected").appears(within: 5), outline(of: app))
             XCTAssertFalse(isChecked(app, "Release Build"), "⌘A chose an archive")
 
             app.typeKey("a", modifierFlags: [.command, .shift])
@@ -248,14 +279,14 @@ final class DeveloperJunkUITests: ShuckUITestCase {
 
             // The steps after this one start from the full selection.
             app.buttons["Select All"].click()
-            XCTAssertTrue(footer(app, startingWith: "5 items selected").appears(within: 5), outline(of: app))
+            XCTAssertTrue(footer(app, startingWith: "7 items selected").appears(within: 5), outline(of: app))
         }
 
         step("Choosing the archive enables Move to Trash with its own count, and Delete keeps its own (SAF-002)") {
             checkbox(app, "Release Build").click()
             XCTAssertTrue(footer(app, startingWith: "Your data: 1 item selected, ").appears(within: 5))
             XCTAssertTrue(app.buttons["Move to Trash…"].isEnabled)
-            XCTAssertTrue(footer(app, startingWith: "5 items selected").exists, "The archive was counted with Delete")
+            XCTAssertTrue(footer(app, startingWith: "7 items selected").exists, "The archive was counted with Delete")
         }
 
         step("Move to Trash… lists the archive in the itemized review, then moves it (SAF-002, DEV-R05)") {
@@ -292,44 +323,20 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["Release Build"].disappears(within: 5), "The moved archive is still listed")
             XCTAssertFalse(app.buttons["Move to Trash…"].exists, "Move to Trash stays with nothing of Your data")
         }
-    }
 
-    /// Tool rules run the tool's own command, and History shows the command and its output, not a file (DEV-R03,
-    /// DEV-R07, #63). The fixture root holds a fake `xcrun` and a fake `npm`; the app finds tools only inside the root
-    /// (D-114, D-124).
-    @MainActor
-    func testCleanUpWithTheToolsOwnCommands() throws {
-        try root.xcrun(.reportsInvocation)
-        try root.tool("opt/homebrew/bin/npm", .reportsInvocation)
-        let npmCache = try root.file(".npm/_cacache/content-v2/ab", size: 50_000)
-        let device = try root.file("Library/Developer/CoreSimulator/Devices/ABCD-1234/device.plist", size: 10)
-        let app = launch()
-        let sidebar = app.outlines.firstMatch
-        let sheet = app.sheets.firstMatch
-
-        step("A tool rule is one selected row with its exact command and a size or none (DEV-R03, DEV-R07, DEV-003)") {
-            XCTAssertTrue(sidebar.staticTexts["Developer Junk"].appears(within: 5))
-            sidebar.staticTexts["Developer Junk"].click()
-            XCTAssertTrue(
-                app.staticTexts["Unavailable Simulators"].appears(within: 10), "The scan did not list the rule")
-            XCTAssertTrue(isChecked(app, "Unavailable Simulators"))
-            XCTAssertTrue(app.staticTexts["Size not known"].exists)
-            XCTAssertTrue(isChecked(app, "npm Cache"))
-            XCTAssertTrue(
-                app.staticTexts.matching(
-                    NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", "Up to ", "Up to ")
-                ).firstMatch.exists,
-                "The npm cache has no size estimate: \(outline(of: app))")
-            // As a user would type it, with no quotes around plain words (D-138).
-            let command = app.staticTexts.matching(
-                NSPredicate(
-                    format: "label ENDSWITH %@ OR value ENDSWITH %@", "/usr/bin/xcrun simctl delete unavailable",
-                    "/usr/bin/xcrun simctl delete unavailable")
-            ).firstMatch
-            XCTAssertTrue(command.exists, "The command is not shown: \(outline(of: app))")
-            XCTAssertFalse(app.staticTexts["ABCD-1234"].exists, "A simulator device is listed")
+        // The tool rules come last: the UI test runner is sandboxed, so the fake tool it writes is quarantined and the app
+        // is not allowed to run it, and the run ends as a failure. This part checks what a user sees whatever the tool's
+        // exit; that a tool that succeeds is "done", with its output, is covered by the engine tests (docs/testing.md,
+        // UI tests).
+        step("Choosing only the tool rules selects exactly them, with nothing of Your data (DEV-R03, DEV-R07, DEV-003)")
+        {
+            // The page is still Developer Junk, with the tool rules the scan listed at the start.
+            XCTAssertTrue(app.staticTexts["Unavailable Simulators"].exists, outline(of: app))
+            app.buttons["Select None"].click()
+            XCTAssertTrue(footer(app, startingWith: "No items selected").appears(within: 5), outline(of: app))
+            checkbox(app, "Unavailable Simulators").click()
+            checkbox(app, "npm Cache").click()
             XCTAssertTrue(footer(app, startingWith: "2 items selected").appears(within: 5), outline(of: app))
-            attachScreenshot(of: app, named: "Developer Junk with tool rules")
         }
 
         step("The confirmation says Clean Up, since a tool removes its own data (SAF-003, D-125)") {
@@ -351,9 +358,6 @@ final class DeveloperJunkUITests: ShuckUITestCase {
             attachScreenshot(of: app, named: "Summary confirmation for a tool")
         }
 
-        // The UI test runner is sandboxed, so the fake tool it writes is quarantined and the app is not allowed to run it:
-        // the run ends as a failure. This workflow checks what a user sees whatever the tool's exit; that a tool that
-        // succeeds is "done", with its output, is covered by the engine tests (docs/testing.md, UI tests).
         step("Clean Up starts the run, and the summary says what happened (SAF-010, SAF-011)") {
             sheet.buttons["Clean Up"].click()
             XCTAssertTrue(text(sheet, startingWith: "Cleaned up").appears(within: 10), outline(of: app))
@@ -378,25 +382,6 @@ final class DeveloperJunkUITests: ShuckUITestCase {
                 ).firstMatch.exists, "The tool's own path is missing")
             XCTAssertFalse(app.buttons["Restore All"].exists, "A tool run offers Restore")
             attachScreenshot(of: app, named: "History with a tool run")
-        }
-    }
-
-    @MainActor
-    func testARunningXcodeDisablesItsProjects() throws {
-        try root.derivedDataProject(
-            "Stale-\(projectHash)", workspace: root.folder("Projects/Stale"),
-            modified: .now.addingTimeInterval(-40 * 86_400))
-        let app = launch(runningApps: ["com.apple.dt.Xcode"])
-        let sidebar = app.outlines.firstMatch
-
-        step("While Xcode runs, its projects have a note instead of a checkbox (SAF-009, CAC-003)") {
-            XCTAssertTrue(sidebar.staticTexts["Developer Junk"].appears(within: 5))
-            sidebar.staticTexts["Developer Junk"].click()
-            XCTAssertTrue(app.staticTexts["Stale"].appears(within: 10), "The scan did not list the project")
-            XCTAssertTrue(app.staticTexts["App is running"].exists)
-            XCTAssertFalse(checkbox(app, "Stale").exists, "A running app's project can be chosen")
-            XCTAssertTrue(app.staticTexts["No items selected"].exists)
-            attachScreenshot(of: app, named: "Developer Junk with Xcode running")
         }
     }
 }

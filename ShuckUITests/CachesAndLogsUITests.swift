@@ -2,7 +2,8 @@ import ShuckKitTestSupport
 import XCTest
 
 /// Caches & Logs: caches, logs and container caches grouped by the app they belong to, the default selection, the summary
-/// confirmation and Delete, which empties a folder and keeps it, and a running app's disabled rows.
+/// confirmation and Delete, which empties a folder and keeps it, and the disabled rows of a running app and of a running
+/// Xcode.
 final class CachesAndLogsUITests: ShuckUITestCase {
     /// A folder whose own date and whose files' dates are `modified`, so the scan sees nothing in it changing since.
     @discardableResult
@@ -145,14 +146,19 @@ final class CachesAndLogsUITests: ShuckUITestCase {
         }
     }
 
+    /// One launch with Notes and Xcode both running: Caches & Logs shows Notes's rows disabled, and Developer Junk
+    /// shows Xcode's projects disabled. The two fixture sets do not overlap.
     @MainActor
-    func testARunningAppDisablesItsCachesAndLogs() throws {
+    func testWhileAppsRunTheirDataIsLeftAlone() throws {
         let longAgo = Date.now.addingTimeInterval(-40 * 86_400)
         try folder("Library/Caches/com.example.Notes", modified: longAgo)
         try folder("Library/Logs/com.example.Notes", files: ["notes.log"], modified: longAgo)
         try folder("Library/Caches/com.example.Mail", modified: longAgo)
+        try root.derivedDataProject(
+            "Stale-abcdefghijklmnopqrstuvwxyzab", workspace: root.folder("Projects/Stale"), modified: longAgo)
         let app = launch(
-            runningApps: ["com.example.Notes"], installedApps: ["com.example.Notes", "com.example.Mail"])
+            runningApps: ["com.example.Notes", "com.apple.dt.Xcode"],
+            installedApps: ["com.example.Notes", "com.example.Mail"])
         let sidebar = app.outlines.firstMatch
 
         step("While an app runs, its caches and logs have a note instead of a checkbox (SAF-009, CAC-003)") {
@@ -166,6 +172,18 @@ final class CachesAndLogsUITests: ShuckUITestCase {
             XCTAssertTrue(isChecked(app, "~/Library/Caches/com.example.Mail"))
             XCTAssertTrue(footer(app, startingWith: "1 item selected").appears(within: 5))
             attachScreenshot(of: app, named: "Caches & Logs with an app running")
+        }
+
+        step("While Xcode runs, its projects have a note instead of a checkbox (SAF-009, CAC-003)") {
+            XCTAssertTrue(sidebar.staticTexts["Developer Junk"].appears(within: 5))
+            sidebar.staticTexts["Developer Junk"].click()
+            // Only Developer Junk lists the project, so the page has changed before the rest is checked.
+            XCTAssertTrue(app.staticTexts["Stale"].appears(within: 10), "The scan did not list the project")
+            XCTAssertTrue(app.staticTexts["App is running"].exists)
+            let project = app.descendants(matching: .any).matching(identifier: "project-Stale").firstMatch
+            XCTAssertFalse(project.exists, "A running app's project can be chosen")
+            XCTAssertTrue(app.staticTexts["No items selected"].exists)
+            attachScreenshot(of: app, named: "Developer Junk with Xcode running")
         }
     }
 }
