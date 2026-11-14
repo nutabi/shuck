@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Applications: the apps the user can uninstall, with their icon, version, size and last-opened date (APP-001). The
 /// Name, Size and Last Opened headers sort the list, and the search field matches an app's name and bundle ID
-/// (APP-009).
+/// (APP-009). Selecting an app shows its leftovers in a pane below the list (APP-002 to APP-005).
 ///
 /// Like a File Cleanup sub-tool's page, it scans when it opens if it has not scanned yet, shows only a message while
 /// there is nothing to list, and has Scan and, while scanning, Stop in the toolbar (SAF-014, D-61). Choosing apps to
@@ -24,11 +24,19 @@ struct ApplicationsView: View {
                 list
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            // What the app scan could not read, as File Cleanup's pages tell it (SAF-011, SAF-012).
+            VStack(spacing: 0) {
+                if !model.notAccessible.isEmpty { NotAccessibleNote(folders: model.notAccessible) }
+                if !model.unreadable.isEmpty { UnreadableNote(folders: model.unreadable) }
+            }
+        }
         .navigationTitle(Text(info.name))
         .navigationSubtitle(Text(info.summary))
         .searchable(text: $model.searchText, prompt: Text("Search Apps"))
         .toolbar {
-            if model.state == .scanning {
+            // Stop covers the leftover scan too (SAF-014).
+            if model.state == .scanning || model.leftoverState == .scanning {
                 // On its own, without the glass capsule the toolbar would otherwise share with the buttons next to it.
                 ToolbarItem {
                     ProgressView()
@@ -58,7 +66,22 @@ struct ApplicationsView: View {
     }
 
     private var list: some View {
-        Table(of: InstalledApp.self, sortOrder: $model.sortOrder) {
+        VSplitView {
+            table.frame(minHeight: 160)
+            LeftoversPane(model: model).frame(minHeight: 140, idealHeight: 220)
+        }
+    }
+
+    private var table: some View {
+        Table(
+            of: InstalledApp.self,
+            selection: Binding {
+                model.selection
+            } set: {
+                model.select($0)
+            },
+            sortOrder: $model.sortOrder
+        ) {
             TableColumn("Name", sortUsing: AppSortComparator(key: .name)) { app in
                 NameCell(app: app)
             }
@@ -129,6 +152,12 @@ private struct NameCell: View {
                 Text(verbatim: app.name)
                 if let bundleID = app.bundleID {
                     Text(verbatim: bundleID)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if case .blocked = app.removability {
+                    // A lock and words, never color alone (NFR-A11Y-001, APP-005).
+                    Label("Can't uninstall", systemImage: "lock.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

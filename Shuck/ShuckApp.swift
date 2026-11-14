@@ -52,7 +52,10 @@ struct ShuckApp: App {
             personalFilesScan: environment.personalFilesScan, runPlan: environment.run,
             readFreeSpace: environment.availableSpace, readUsedSpace: environment.usedSpace)
         _fileCleanup = State(initialValue: fileCleanup)
-        let applications = ApplicationsModel(context: environment.context, appScan: environment.applications.scan)
+        // Both scans come from the one `Applications`, so a fixture root never reads the real `/Library` (SAF-016).
+        let applications = ApplicationsModel(
+            context: environment.context, leftoverScan: environment.appLeftovers,
+            appScan: environment.applications.scan)
         _applications = State(initialValue: applications)
         _exclusions = State(
             initialValue: FolderListModel(list: environment.excludedFolders) { folders in

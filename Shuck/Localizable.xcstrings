@@ -816,6 +816,36 @@
     },
     "Not cleaned up" : {
 
+    },
+    "No app selected" : {
+
+    },
+    "Select an app to see what it leaves behind." : {
+
+    },
+    "Can't uninstall this app" : {
+
+    },
+    "Can't uninstall" : {
+
+    },
+    "macOS may ask for permission to read other apps' containers." : {
+
+    },
+    "No leftovers found" : {
+
+    },
+    "Looking for leftovers…" : {
+
+    },
+    "High" : {
+
+    },
+    "Medium" : {
+
+    },
+    "Low" : {
+
     }
   },
   "version" : "1.1"
