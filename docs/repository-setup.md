@@ -61,11 +61,17 @@ vulnerability reporting. An agent that files an issue with `gh issue create` set
 | `area/docs` | `1d76db` | `README.md`, `AGENTS.md`, `docs/` and the changelog | The agent that triages the issue |
 | `data-risk` | `b60205` | Shuck could remove, move or hide user data it shouldn't; fixed before any other task | Added in triage; stays as a record |
 
-- **Triage:** an issue with no `area/` label is untriaged (`gh issue list --search "no:label"`). Before picking the
-  next task, an agent triages each one: it checks the type, adds one `area/` label (two at most), and adds
-  `data-risk` where it applies.
+- **Triage:** an open issue with no `area/` label or no milestone is untriaged (`gh issue list --search "no:label"`
+  and `--search "no:milestone"`). Before picking the next task, an agent triages each one: it checks the type, adds
+  one `area/` label (two at most), adds `data-risk` where it applies, and sets the milestone the fix belongs to.
 - **Closing:** close with a reason, not a label: `gh issue close N --reason completed`, `"not planned"` or `duplicate`.
-- Milestones (M3, M4, …) say when; no label repeats them.
+- **Milestones and tasks:** each roadmap milestone is a GitHub milestone (M3 Applications, M4 Startup Items, …), and
+  no label repeats it. A roadmap task is a Task issue titled `[<task ID>] <deliverable>`, in its milestone. A task
+  that needs a stack is a parent issue with one sub-issue per pull request (`gh issue create --parent N`). An issue
+  that must wait for another is marked blocked by it (`gh issue edit N --add-blocked-by M`). An owner item, such as a
+  check on the owner's Mac, is assigned to the owner. Each milestone has one exit-criteria issue, closed last;
+  the pull request or release that closes it also closes the milestone (`gh api -X PATCH
+  repos/nutabi/shuck/milestones/N -f state=closed`).
 - Shuck has one developer and takes no outside contributions, so there are no contributor labels such as
   `good first issue` or `help wanted`.
 

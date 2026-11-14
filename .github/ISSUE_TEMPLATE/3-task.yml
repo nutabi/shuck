@@ -8,6 +8,7 @@ body:
         For maintainers and their agents.
 
         One task becomes one pull request or one stack of pull requests. Set the milestone after creating the issue.
+        A stack is a parent issue with one sub-issue per pull request.
 
   - type: input
     id: task
