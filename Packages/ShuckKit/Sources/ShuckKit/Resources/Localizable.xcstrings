@@ -73,6 +73,9 @@
     "In an app group the app declares: %@" : {
 
     },
+    "Installed by another user or an installer — Shuck can't remove it without admin rights" : {
+
+    },
     "Its project is no longer on this Mac." : {
 
     },
@@ -257,6 +260,12 @@
 
     },
     "Xcode's own tool removes the simulators that can no longer start. You can create new ones in Xcode." : {
+
+    },
+    "You don't have permission to change the folder this app is in" : {
+
+    },
+    "You don't have permission to change this app" : {
 
     }
   },

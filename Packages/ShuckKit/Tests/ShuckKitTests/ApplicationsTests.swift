@@ -15,10 +15,12 @@ struct ApplicationsTests {
         appFolders = [try root.url("System Apps"), try root.url("Applications")]
     }
 
-    private func events(protected: Set<String> = [], lastUsed: [String: Date] = [:]) async -> [AppInventoryEvent] {
+    private func events(
+        protected: Set<String> = [], lastUsed: [String: Date] = [:], owner: uid_t? = nil
+    ) async -> [AppInventoryEvent] {
         let applications = Applications(
             appFolders: appFolders, isSystemProtected: { protected.contains($0.lastPathComponent) },
-            lastUsedDate: { lastUsed[$0.lastPathComponent] })
+            lastUsedDate: { lastUsed[$0.lastPathComponent] }, owner: { _ in owner ?? getuid() })
         let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
         var result: [AppInventoryEvent] = []
         for await event in applications.scan(context) { result.append(event) }
@@ -26,9 +28,11 @@ struct ApplicationsTests {
     }
 
     /// The apps found, by path relative to the fixture root.
-    private func apps(protected: Set<String> = [], lastUsed: [String: Date] = [:]) async -> [String: InstalledApp] {
+    private func apps(
+        protected: Set<String> = [], lastUsed: [String: Date] = [:], owner: uid_t? = nil
+    ) async -> [String: InstalledApp] {
         var result: [String: InstalledApp] = [:]
-        for case .app(let app) in await events(protected: protected, lastUsed: lastUsed) {
+        for case .app(let app) in await events(protected: protected, lastUsed: lastUsed, owner: owner) {
             result[String(app.url.path.dropFirst(root.url.path.count + 1))] = app
         }
         return result
@@ -100,6 +104,47 @@ struct ApplicationsTests {
         #expect(order(.size) == ["App 9", "Alpha", "Zed", "app 10"])
         // Never opened comes first.
         #expect(order(.lastOpened) == ["Alpha", "App 9", "Zed", "app 10"])
+    }
+
+    /// One app and what the check should say about it: `mode` is the bundle's, `folderMode` its folder's.
+    struct RemovabilityCase: Sendable, CustomTestStringConvertible {
+        let name: String
+        let path: String
+        var mode: Int = 0o755
+        var folderMode: Int? = nil
+        var owner: uid_t? = nil
+        let expected: AppRemovability
+        var testDescription: String { name }
+    }
+
+    @Test(
+        arguments: [
+            RemovabilityCase(name: "plain app", path: "Applications/Plain.app", expected: .removable),
+            RemovabilityCase(
+                name: "bundle not writable", path: "Applications/Locked.app", mode: 0o555,
+                expected: .blocked(.bundleNotWritable)),
+            RemovabilityCase(
+                name: "folder not writable", path: "Applications/Tools/Inner.app", folderMode: 0o555,
+                expected: .blocked(.folderNotWritable)),
+            RemovabilityCase(
+                name: "root-owned", path: "Applications/Root.app", mode: 0o555, owner: 0,
+                expected: .blocked(.ownedByAnotherUser)),
+            // Whoever owns it, a bundle the user can change is removable.
+            RemovabilityCase(
+                name: "another owner, writable", path: "Applications/Shared.app", owner: 0, expected: .removable),
+        ])
+    func eachAppSaysWhetherItCanBeRemovedAPP005(_ test: RemovabilityCase) async throws {
+        let bundle = try root.app(test.path, bundleID: "com.example.App")
+        let folder = bundle.deletingLastPathComponent()
+        // Restore the modes whatever happens, so the fixture root can be cleaned up.
+        defer {
+            for url in [bundle, folder] { chmod(url.path, 0o755) }
+        }
+        try #require(chmod(bundle.path, mode_t(test.mode)) == 0)
+        if let folderMode = test.folderMode { try #require(chmod(folder.path, mode_t(folderMode)) == 0) }
+
+        let found = try #require(await apps(owner: test.owner)[test.path])
+        #expect(found.removability == test.expected)
     }
 
     @Test func findsOnlyRealInstalledAppsAPP001() async throws {
