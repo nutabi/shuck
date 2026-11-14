@@ -24,3 +24,10 @@ final class FreeSpaceReadings: Sendable {
         }
     }
 }
+
+/// Waits until the running task is cancelled, as the executor does before its next item, and says whether it was. Gives
+/// up after a minute and returns `false`, so a build that never cancels fails its test instead of hanging.
+func waitUntilCancelled() async -> Bool {
+    try? await Task.sleep(for: .seconds(60))
+    return Task.isCancelled
+}

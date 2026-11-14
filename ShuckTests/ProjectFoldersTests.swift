@@ -182,8 +182,10 @@ struct ProjectFoldersTests {
         #expect(Set(model.personalFilesResults[largeFiles.id]?.rows.map(\.name) ?? []) == ["main.js"])
     }
 
-    /// The model plans with its own Developer Junk, so a page's older copy cannot plan with old roots (R-17, SAF-007).
-    @Test func aPlanUsesTheModelsCurrentSubToolNotAStaleCopyHandedInSAF007() async throws {
+    /// The model plans with its own Developer Junk, so a page's older copy cannot plan with old roots (R-17, SAF-007). A
+    /// second click while a plan is being built starts no second plan: of two calls that overlap, one builds the plan
+    /// and the other gets `nil` (R-07, M2-F20).
+    @Test func aPlanUsesTheModelsCurrentSubToolAndOneAtATimeSAF007R07() async throws {
         let stale = DeveloperJunk()
         let model = FileCleanupModel(
             subTools: [stale], context: ScanContext(home: home), runPlan: YourDataItemsTests().runAll)
@@ -194,29 +196,15 @@ struct ProjectFoldersTests {
         await model.useProjectFolders(DeveloperJunk(projectFolders: [url("Developer")]), ownership: ownership).value
         #expect(results.items.count == 1)
 
-        let confirmation = try #require(try await model.confirmRebuildable(stale))
-
-        #expect(confirmation.plan.allowedRoots.contains(url("Developer")))
-        #expect(confirmation.plan.items.compactMap(\.url) == [url("Developer/kept/node_modules")])
-        #expect(!model.isPlanning)
-    }
-
-    /// A second click while a plan is being built starts no second plan: of two calls that overlap, one builds the plan
-    /// and the other gets `nil` (R-07, M2-F20).
-    @Test func aSecondCallWhileAPlanIsBeingBuiltStartsNoSecondPlanR07() async throws {
-        let subTool = DeveloperJunk(projectFolders: [url("Developer")])
-        let model = FileCleanupModel(
-            subTools: [subTool], context: ScanContext(home: home), runPlan: YourDataItemsTests().runAll)
-        let results = try #require(model.results(of: .developerJunk) as? ScanResults)
-        results.apply(.item(try nodeItem("Developer/kept")))
-        results.selectAll()
-
         // Both run on the main actor, so the second starts while the first waits for its plan.
-        let first = Task { try await model.confirmRebuildable(subTool) }
-        let second = Task { try await model.confirmRebuildable(subTool) }
+        let first = Task { try await model.confirmRebuildable(stale) }
+        let second = Task { try await model.confirmRebuildable(stale) }
         let plans = [try await first.value, try await second.value].compactMap { $0 }
 
+        let confirmation = try #require(plans.first)
         #expect(plans.count == 1)
+        #expect(confirmation.plan.allowedRoots.contains(url("Developer")))
+        #expect(confirmation.plan.items.compactMap(\.url) == [url("Developer/kept/node_modules")])
         #expect(!model.isPlanning)
     }
 

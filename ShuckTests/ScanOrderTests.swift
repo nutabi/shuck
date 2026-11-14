@@ -14,13 +14,9 @@ struct ScanOrderTests {
             reason: "Fixture", source: .cachesAndLogs, scope: .contents, appName: nil)
     }
 
-    @Test func aRunningScanKeepsArrivalOrderFCL012() {
+    @Test func aRunningScanKeepsArrivalOrderAndAFinishedOneIsSortedBiggestFirstFCL012() {
         let items = [item("a", size: 10), item("b", size: 300), item("c", size: 20)]
         #expect(ScanOrder.ordered(items, scanning: true).map(\.allocatedSize) == [10, 300, 20])
-    }
-
-    @Test func aFinishedScanIsSortedBiggestFirstFCL012() {
-        let items = [item("a", size: 10), item("b", size: 300), item("c", size: 20)]
         #expect(ScanOrder.ordered(items, scanning: false).map(\.allocatedSize) == [300, 20, 10])
     }
 }
