@@ -569,7 +569,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 
 | Component | Responsibility | Notes |
 |---|---|---|
-| App target | Views, navigation, view models | Thin. No file mutation (SAF-017). The sidebar and the File Cleanup landing page are built from the tools registry. |
+| App target | Views, navigation, view models | Thin. No file mutation (SAF-017). It also sends the normal quit request before an uninstall (APP-006), which changes no file or launchd state (M3-T07). The sidebar and the File Cleanup landing page are built from the tools registry. |
 | Tools registry | Declares tools and their sub-tools. Each sub-tool is an independent unit (FCL-003). | Adding a sub-tool touches nothing else. |
 | Scanning | Enumerate files, read resource values and metadata | Background tasks; cancellable; streams results. |
 | Rules | Developer Junk and Caches & Logs rule definitions | Data, validated at load. |

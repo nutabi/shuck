@@ -13,6 +13,9 @@ nonisolated struct AppEnvironment {
     /// test names, if any (D-110, D-113).
     /// Scans disable a running app's items, and runs skip them (SAF-009).
     let runningApps: any RunningApps
+    /// Asks an app to quit before an uninstall (APP-006): this Mac's apps, or in a fixture root the same fixture object
+    /// as ``runningApps``, so a UI test never quits the real Xcode (SAF-016).
+    let appQuitter: any AppQuitter
     /// Where a tool command may be found: anywhere on this Mac, or only inside a UI test's fixture root, so a test never
     /// runs a real tool (DEV-004, SAF-016, D-114).
     let toolRunner: ToolRunner
@@ -166,7 +169,9 @@ nonisolated struct AppEnvironment {
                 save: saveProjectFolders)
             makeProjectScope = { Self.projectScope($0, home: root, resolvingLinks: false) }
             toolRunner = ToolRunner(executableRoots: [root])
-            runningApps = StubRunningApps(Self.list(settings(Self.runningAppsKey)))
+            let fixtureApps = FixtureRunningApps(Self.list(settings(Self.runningAppsKey)))
+            runningApps = fixtureApps
+            appQuitter = fixtureApps
             cachesAndLogs = CachesAndLogs(
                 appNames: FixtureAppNames(installed: Self.list(settings(Self.installedAppsKey))))
             scope = Self.projectScope(projectFolders.folders, home: root, resolvingLinks: false)
@@ -191,6 +196,7 @@ nonisolated struct AppEnvironment {
                 save: saveProjectFolders)
             makeProjectScope = { Self.projectScope($0, home: home) }
             runningApps = SystemRunningApps()
+            appQuitter = SystemAppQuitter()
             cachesAndLogs = CachesAndLogs()
             toolRunner = ToolRunner(executableRoots: nil)
             scope = Self.projectScope(projectFolders.folders, home: home)

@@ -52,6 +52,7 @@ final class AppEnvironmentTests {
             #expect(release.context.protection.protectedLocations.contains(URL(filePath: "/private")))
             #expect(release.trash is SystemTrash)
             #expect(release.runningApps is SystemRunningApps && release.context.runningApps is SystemRunningApps)
+            #expect(release.appQuitter is SystemAppQuitter)
             #expect(release.syncedNames.isEmpty)
             #expect(
                 try #require(release.readValues(URL(filePath: fixture, directoryHint: .isDirectory))).isSynced == false)
@@ -89,7 +90,10 @@ final class AppEnvironmentTests {
     @Test func aFixtureRootStubsTheRunningAppsSAF009() throws {
         let debug = try environment(["Shuck", AppEnvironment.fixtureRootArgument, fixture], debugBuild: true)
         #expect(debug.runningApps.bundleIDs().isEmpty)
-        #expect(debug.runningApps is StubRunningApps && debug.context.runningApps is StubRunningApps)
+        let apps = try #require(debug.runningApps as? FixtureRunningApps)
+        #expect(debug.context.runningApps as? FixtureRunningApps === apps)
+        // The quitter is that same object, never the system's, which would quit the real Xcode.
+        #expect(debug.appQuitter as? FixtureRunningApps === apps)
     }
 
     /// A UI test can pretend an app runs (D-113), but only on a fixture root; the real home folder never reads it.
