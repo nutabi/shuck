@@ -209,20 +209,22 @@ struct ApplicationsTests {
         #expect(plan.items.map(\.url) == [app.url])
     }
 
+    /// The scan stops when its task is cancelled because the walk over the app folders, which every Applications scan
+    /// runs, checks before each app. `bundleIDsByName(home:)` runs that walk in the caller's task, so a task cancelled
+    /// before it starts reads no app at all. Counting a cancelled scan's events can't show this: a cancelled stream
+    /// still hands over what the scan had already buffered, which on a fast Mac is every app (#247).
     @Test func stoppingTheScanEndsItSAF014() async throws {
         for index in 0..<20 { try root.app("Applications/App \(index).app", bundleID: "com.example.\(index)") }
         let applications = Applications(appFolders: appFolders)
-        let context = ScanContext(home: root.url, protection: root.pathGuardConfiguration())
+        let home = root.url
 
-        let task = Task {
-            var count = 0
-            for await _ in applications.scan(context) {
-                count += 1
-                // Stop after the first event, so the scan has certainly started.
-                withUnsafeCurrentTask { $0?.cancel() }
-            }
-            return count
-        }
-        #expect(await task.value < 20)
+        let walked = await Task { applications.bundleIDsByName(home: home) }.value
+        #expect(walked.allBundleIDs.count == 20)
+
+        let stopped = await Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return applications.bundleIDsByName(home: home)
+        }.value
+        #expect(stopped.allBundleIDs.isEmpty)
     }
 }
