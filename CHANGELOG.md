@@ -11,6 +11,7 @@ All notable changes to Shuck are listed here. The format follows
 
 - Applications lists your apps with their icon, version, size and when you last opened them, and you can sort and
   search the list.
+- An app Shuck can't uninstall now has a Show in Finder button, so you can remove it by hand.
 - Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
 
 ### Changed

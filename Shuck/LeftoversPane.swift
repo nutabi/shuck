@@ -12,7 +12,7 @@ struct LeftoversPane: View {
         VStack(spacing: 0) {
             if let app = model.selectedApp {
                 if case .blocked(let reason) = app.removability {
-                    blocked(reason)
+                    blocked(reason, bundle: app.url)
                 } else {
                     leftovers(of: app)
                 }
@@ -27,12 +27,16 @@ struct LeftoversPane: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// The reason in words and a lock, as the row's "Can't uninstall" label does (APP-005).
-    private func blocked(_ reason: AppRemovability.Reason) -> some View {
+    /// The reason in words and a lock, as the row's "Can't uninstall" label does (APP-005). "Show in Finder" lets the
+    /// user remove the app by hand, as for a system-wide leftover (APP-004). Shuck itself moves nothing.
+    private func blocked(_ reason: AppRemovability.Reason, bundle: URL) -> some View {
         ContentUnavailableView {
             Label("Can't uninstall this app", systemImage: "lock")
         } description: {
             Text(reason.explanation)
+        } actions: {
+            Button("Show in Finder") { FinderReveal.show([bundle]) }
+                .accessibilityIdentifier("blocked-show-in-finder")
         }
     }
 
