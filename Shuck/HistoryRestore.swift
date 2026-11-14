@@ -9,7 +9,8 @@ import ShuckKit
 /// puts back what Shuck moved (D-68). With taken paths it waits for one answer, Keep Both or Skip, which applies to all
 /// of them. It also waits when an item is the property list of a LaunchAgent that the uninstall unloaded and whose
 /// original place is free: one answer, off unless the user turns it on, says whether to load all such agents again
-/// (APP-011, HIS-005). Both questions share one screen and one set of buttons. A restore runs at most once. The History page shows it in a ``HistoryRestoreSheet``.
+/// (APP-011, HIS-005). Both questions share one screen and one set of buttons. A restore runs at most once. The History
+/// page shows it in a ``HistoryRestoreSheet``.
 @Observable
 final class HistoryRestore: Identifiable {
     /// Moves items back from the Trash. The app passes ``AppEnvironment/restore(_:)``; tests pass a stub.

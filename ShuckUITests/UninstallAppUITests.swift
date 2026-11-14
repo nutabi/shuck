@@ -1,3 +1,4 @@
+import ShuckKit
 import ShuckKitTestSupport
 import XCTest
 
@@ -9,7 +10,7 @@ import XCTest
 /// stubbed to none in a fixture root, so last-opened order is a unit test.
 final class UninstallAppUITests: ShuckUITestCase {
     @MainActor
-    func testUninstallAnApp() throws {
+    func testUninstallAnApp() async throws {
         try root.app("Applications/Beta.app", bundleID: "com.example.beta", name: "Beta", version: "2.1", size: 3 << 20)
         try root.app(
             "Applications/Alpha.app", bundleID: "com.example.alpha", name: "Alpha", version: "1.0", size: 1 << 20)
@@ -216,17 +217,16 @@ final class UninstallAppUITests: ShuckUITestCase {
 
         // The fake `launchctl` cannot run in the sandboxed UI test runner (docs/testing.md), so the uninstall of an
         // agent cannot happen here. The log gets the records such an uninstall writes instead, with its property list
-        // in the fixture root's Trash, and History reads them as it reads any run. The engine's end-to-end test runs the
-        // real uninstall and restore of an agent (RestoreReenableTests).
+        // in the fixture root's Trash, and History reads them as it reads any run. The engine's end-to-end test runs
+        // the real uninstall and restore of an agent (RestoreReenableTests).
         let agent = root.url.appending(path: "Library/LaunchAgents/org.acme.delta.helper.plist")
-        try step("History reads an agent's unload and its trashed property list from the log (APP-011, HIS-002)") {
-            try FileManager.default.createDirectory(
-                at: agent.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let trashed = try root.file(
-                ".Trash/org.acme.delta.helper.plist",
-                text: "<plist version=\"1.0\"><dict><key>Label</key><string>org.acme.delta</string></dict></plist>")
-            try appendToHistoryLog(
-                run: UUID(), agent: agent, trashed: trashed, label: "org.acme.delta")
+        try FileManager.default.createDirectory(
+            at: agent.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let trashed = try root.file(
+            ".Trash/org.acme.delta.helper.plist",
+            text: "<plist version=\"1.0\"><dict><key>Label</key><string>org.acme.delta</string></dict></plist>")
+        try await appendToHistoryLog(run: UUID(), agent: agent, trashed: trashed, label: "org.acme.delta")
+        step("History reads an agent's unload and its trashed property list from the log (APP-011, HIS-002)") {
             sidebar.staticTexts["History"].click()
             let runs = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Applications · "))
             XCTAssertTrue(runs.element(boundBy: 1).appears(within: 10), "Both uninstalls should be listed")
@@ -258,27 +258,24 @@ final class UninstallAppUITests: ShuckUITestCase {
         }
     }
 
-    /// Appends the records of an uninstall's agent to the debug build's history log in the fixture root: its `bootout`
-    /// and the move of its property list to the Trash.
-    private func appendToHistoryLog(run: UUID, agent: URL, trashed: URL, label: String) throws {
-        let folder = root.url.appending(path: "Library/Application Support/me.nutabi.shuck.debug")
-        let log = folder.appending(path: "history.jsonl")
-        func line(_ operation: String, _ phase: String, _ path: String, _ extra: [String: Any] = [:]) throws -> String {
-            var record: [String: Any] = [
-                "v": 1, "ts": "2026-11-15T10:00:00.000Z", "run": run.uuidString, "tool": "APP", "phase": phase,
-                "op": operation, "path": path, "tier": "yourData",
-            ]
-            record.merge(extra) { $1 }
-            return String(decoding: try JSONSerialization.data(withJSONObject: record), as: UTF8.self) + "\n"
+    /// Appends the records an uninstall writes for its agent to the debug build's history log in the fixture root,
+    /// through the engine's own log, which the app no longer holds once its run ended: the agent's `bootout`, then the
+    /// move of its property list to the Trash (SAF-005).
+    private func appendToHistoryLog(run: UUID, agent: URL, trashed: URL, label: String) async throws {
+        let log = try HistoryLog(folder: HistoryLog.folder(home: root.url, bundleID: ShuckKit.debugBundleID))
+        let detail = "bootout gui/\(getuid())/\(label): exit 0"
+        for record in [
+            HistoryRecord.intent(run: run, tool: .applications, operation: .launchctl, path: label, tier: .yourData),
+            .result(
+                run: run, tool: .applications, operation: .launchctl, path: label, tier: .yourData, status: .ok,
+                detail: detail),
+            .intent(run: run, tool: .applications, operation: .trash, path: agent.path, tier: .yourData),
+            .result(
+                run: run, tool: .applications, operation: .trash, path: agent.path, tier: .yourData, status: .ok,
+                trashedPath: trashed.path),
+        ] {
+            try await log.append(record)
         }
-        let target = "gui/\(getuid())/\(label)"
-        let text =
-            try line("launchctl", "result", label, ["status": "ok", "detail": "bootout \(target): exit 0"])
-            + line("trash", "intent", agent.path)
-            + line("trash", "result", agent.path, ["status": "ok", "trashedPath": trashed.path])
-        let handle = try FileHandle(forWritingTo: log)
-        defer { try? handle.close() }
-        try handle.seekToEnd()
-        try handle.write(contentsOf: Data(text.utf8))
+        try await log.flushFully()
     }
 }
