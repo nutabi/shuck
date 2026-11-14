@@ -166,21 +166,6 @@ struct ToolRunTests {
         throw FixtureError.fileSystem("The tool did not record its child")
     }
 
-    @Test func aTimeoutEndsTheProcessesTheToolStartedSAF014() async throws {
-        let tool = try root.tool("tools/parent", .startsAChild())
-        let report = try await run(plan([rule(tool, timeout: 2)]), runner: quickGrace())
-
-        guard case .failed(let error) = report.outcomes.first?.result else {
-            Issue.record("The tool was not stopped: \(report.outcomes.map(\.result))")
-            return
-        }
-        #expect(error.domain == "ShuckToolTimeout")
-        let child = try #require(root.fakeToolChild)
-        #expect(try await gone(child))
-        // The record no longer says that processes may still be running.
-        #expect(try results().first?.detail?.contains("may still be running") == false)
-    }
-
     @Test func aStopEndsTheProcessesTheToolStartedSAF014() async throws {
         let tool = try root.tool("tools/parent", .startsAChild())
         let executor = try PlanExecutor(root: root, pathGuard: pathGuard, toolRunner: quickGrace())

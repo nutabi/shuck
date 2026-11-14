@@ -40,14 +40,17 @@ struct LaunchctlActionTests {
         try HistoryLog.read(folder: root.historyFolder).records
     }
 
-    @Test func aLoadedAgentIsBootedOutOfTheUsersDomainAPP011() async throws {
+    @Test func aLoadedAgentIsBootedOutByTheLabelInItsPropertyListAPP011() async throws {
         try root.tool("bin/launchctl", .launchctl(printStatus: 0))
-        let plist = try plist()
+        // The file name differs from the label: the label comes from the property list, not from the name.
+        let plist = try plist("some-other-name", label: "org.example.agent")
         let report = try await run(planned(plist))
 
         #expect(report.outcomes.map(\.result) == [.done(nil)])
-        let target = "\(domain)/com.example.helper.job"
-        #expect(root.launchctlCalls == ["print \(target)", "bootout \(target)"])
+        let target = "\(domain)/org.example.agent"
+        #expect(
+            root.launchctlCalls == ["print \(target)", "bootout \(target)"],
+            "calls: \(root.launchctlCalls), results: \(report.outcomes.map(\.result))")
         // The plist is not touched: its own Trash item moves it (APP-011).
         #expect(FileManager.default.fileExists(atPath: plist.path))
     }
@@ -114,13 +117,6 @@ struct LaunchctlActionTests {
         #expect(root.launchctlCalls.isEmpty)
         // With no label to log, the intent names the property list.
         #expect(try records().first?.path == plist.path)
-    }
-
-    @Test func theLabelIsReadFromThePropertyListNotFromItsFileNameAPP011() async throws {
-        try root.tool("bin/launchctl", .launchctl(printStatus: 0))
-        _ = try await run(planned(plist("some-other-name", label: "org.example.agent")))
-
-        #expect(root.launchctlCalls.first == "print \(domain)/org.example.agent")
     }
 
     @Test func aLabelThatCannotNameOneJobIsNotUsedAPP011() async throws {

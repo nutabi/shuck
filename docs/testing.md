@@ -2,6 +2,32 @@
 
 How to write and run Shuck's tests. The rules are in `AGENTS.md`; this file holds the detail.
 
+## What a test checks
+
+Fewer tests that each follow real use catch more than many that each check one line (owner preference, 2026-11-14,
+#241). Before adding a test, look for one that already sets up the same thing.
+
+- **Check each claim once, at the lowest level that shows it.** A rule's cases belong in engine tests; what a view
+  model does with them in the app's unit tests; what a user sees in a UI workflow. Don't check an engine rule again
+  in a view model test, or a view model's logic again in a UI step.
+- **Same shape, one test.** Tests that differ only in their input are one `@Test(arguments:)` test. A rule every
+  sub-tool follows, such as skipping an item changed since the scan (SAF-008), an app that starts after the scan
+  (SAF-009) or a folder excluded after the plan (SET-001), is one test whose arguments are every sub-tool, never a
+  sample of them.
+- **A pipeline is a scenario.** A test of a sub-tool's run scans a fixture root, plans, runs, then reads History, and
+  Restore where the method allows it, instead of one test per stage with the same setup.
+- **No test of a constant, a raw value, wording, or of test support itself.** The fixture root's refusal to write
+  outside itself (SAF-016) is the exception. Wording a user reads is checked in the UI workflow that shows it.
+- **No wall-clock races.** A test never passes only because something happened within a time it doesn't control,
+  such as a timeout under load or a cancel before a task starts. It waits for an event the code under test records
+  (a marker file, a stream event, a hook), with a generous limit that only a broken build reaches. Delete a test that
+  can't be made so, if another test asserts the same claim.
+- **Keep the requirement IDs.** A merged test keeps every requirement ID the tests it replaces named, and every Must
+  SAF ID stays named in a test (`scripts/static-checks.sh`). A pull request that removes a test lists it, with where
+  its claim is checked now.
+- **A slow test is a bug.** No unit test takes more than about a second. A test of the main actor blocks every other
+  main-actor test while it runs.
+
 ## Test support
 
 - `ShuckKitTestSupport` is shared by engine tests and the app's UI tests. Its helpers are `FixtureRoot` with `historyFolder` and `trashFolder`, and `items(from:context:)`, which collects a sub-tool's scan, and `app(_:bundleID:…)`, which writes a fake app bundle with a real `Info.plist`, and `tool(_:_:)`, which writes a fake tool (a script that exits, prints, sleeps or ignores SIGTERM) inside the root. `xcrun(_:)` writes the fake `xcrun` together with a fake Xcode's `simctl`, without which Developer Junk hides its `xcrun simctl` rule (DEV-002, D-157). Execution tests build a plan executor for a fixture root with `PlanExecutor(root:pathGuard:)`, whose tool runner finds tools only inside the root; a test never starts a process itself (D-82, D-114).

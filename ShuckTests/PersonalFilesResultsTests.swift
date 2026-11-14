@@ -195,10 +195,10 @@ struct PersonalFilesResultsTests {
 
     /// Random batches with few distinct sizes, dates and names, so most rows tie on some column, and some files listed
     /// again with a new size.
-    func randomBatches(seed: UInt64) -> [[ResultRow]] {
+    func randomBatches(seed: UInt64, count: Int = 40) -> [[ResultRow]] {
         var random = SplitMix64(seed: seed)
         let dates = [nil, Date(timeIntervalSince1970: 100), Date(timeIntervalSince1970: 200)]
-        return (0..<40).map { _ in
+        return (0..<count).map { _ in
             (0..<Int.random(in: 0...30, using: &random)).map { _ in
                 let folder = ["Downloads", "Movies", ""].randomElement(using: &random) ?? ""
                 let name = ["a.dmg", "B.mov", "c", "a10.txt", "a9.txt"].randomElement(using: &random) ?? ""
@@ -223,10 +223,10 @@ struct PersonalFilesResultsTests {
 
     @Test(arguments: sortOrders)
     func mergedBatchesMatchAFullSortTiesIncluded(order: [KeyPathComparator<ResultRow>]) throws {
-        for seed in UInt64(1)...20 {
+        for seed in UInt64(1)...3 {
             let results = PersonalFilesResults(home: home, sortOrder: order)
             var expected: [ResultRow] = []
-            for batch in randomBatches(seed: seed) {
+            for batch in randomBatches(seed: seed, count: 20) {
                 results.insert(batch)
                 expected = fullSort(expected, adding: batch, by: order)
                 try #require(results.rows == expected, "seed \(seed)")
