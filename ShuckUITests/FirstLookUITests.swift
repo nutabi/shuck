@@ -4,14 +4,15 @@ import XCTest
 /// A first look around a Mac with nothing to clean: the sidebar, History, the File Cleanup landing page, the pages of
 /// tools later milestones build, a scan stopped and started again, sub-tool pages with nothing to list, and Settings.
 ///
-/// Each scan waits 2 seconds before it starts, so there is time to stop one.
+/// Each scan waits 6 seconds before it starts, so there is time to stop one even on a slow runner. Stopping ends the
+/// wait at once, but the scan the test starts afterwards waits the full time.
 final class FirstLookUITests: ShuckUITestCase {
     @MainActor
     func testFirstLookWithNothingToClean() throws {
         // Too small for Large Files and Old Files, so neither has anything to list.
         try root.file("Documents/notes.txt", size: 10)
         let secret = try root.file("Documents/Private/secret.txt", size: 10)
-        let app = launch(scanDelay: 2, exclusions: ["Documents/Private"], projectFolders: ["Developer"])
+        let app = launch(scanDelay: 6, exclusions: ["Documents/Private"], projectFolders: ["Developer"])
         let sidebar = app.outlines.firstMatch
 
         step("The sidebar lists every tool and sub-tool, and Settings is not one of them (FCL-001, D-27)") {
@@ -85,7 +86,8 @@ final class FirstLookUITests: ShuckUITestCase {
 
         step("Large Files and Old Files with nothing to list show only a message, without an empty table (D-61)") {
             app.toolbars.buttons["Scan"].click()
-            XCTAssertTrue(app.staticTexts["No files of at least 1 MB"].appears(within: 10))
+            // The scan waits out its delay (6 s) before it lists anything.
+            XCTAssertTrue(app.staticTexts["No files of at least 1 MB"].appears(within: 20))
             XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
             XCTAssertFalse(app.staticTexts["No items selected"].exists, "An empty table's footer is shown")
 
