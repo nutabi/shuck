@@ -1,9 +1,9 @@
 import Foundation
 import ShuckExecution
-import ShuckKit
 import Testing
 
 @testable import Shuck
+@testable import ShuckKit
 
 /// The app scans the real home folder, or a UI test's fixture root in a debug build only (NFR-QA-002).
 ///
@@ -130,6 +130,39 @@ final class AppEnvironmentTests {
             bundleID: ShuckKit.debugBundleID, home: home)
         #expect(app.syncedNames.isEmpty)
         #expect(try #require(app.readValues(folder)).isSynced == false)
+    }
+
+    /// A fixture root lists apps only from the folders a UI test names inside it, and never from the real
+    /// `/Applications`, which `nil` folders would mean. The real home folder uses the production folders (APP-001,
+    /// SAF-016).
+    @Test(arguments: [
+        (nil, []),
+        ("", []),
+        ("Applications", ["Applications"]),
+        (" Applications, Other/Apps ,", ["Applications", "Other/Apps"]),
+        // An absolute path, or one that leaves the root, is dropped.
+        ("/Applications,../Applications,Applications/../../x,~/Applications", []),
+    ])
+    func aFixtureRootListsAppsOnlyFromTheFoldersTheTestNamesAPP001SAF016(names: String?, expected: [String]) throws {
+        let settings: AppEnvironment.Settings = { $0 == AppEnvironment.appFoldersArgumentKey ? names : nil }
+        let uiTest = try AppEnvironment(
+            arguments: ["Shuck", AppEnvironment.fixtureRootArgument, fixture], settings: settings, debugBuild: true,
+            appBundle: appBundle, bundleID: ShuckKit.debugBundleID, home: home)
+        let root = uiTest.context.home
+
+        let folders = uiTest.applications.appFolders(home: root)
+
+        #expect(folders.map(\.path).sorted() == expected.map { root.appending(path: $0).path }.sorted())
+        // Inside the root, and not the fixture home's `~/Library`, where leftovers would be found twice (APP-004).
+        #expect(uiTest.applications.systemLibrary == root.appending(path: "SystemLibrary", directoryHint: .isDirectory))
+        // Not the real folders, or the real home folder's, that a missing list would have meant.
+        #expect(!folders.contains(URL(filePath: "/Applications", directoryHint: .isDirectory)))
+
+        let release = try AppEnvironment(
+            arguments: ["Shuck", AppEnvironment.fixtureRootArgument, fixture], settings: settings, debugBuild: false,
+            appBundle: appBundle, bundleID: ShuckKit.bundleID, home: home)
+        let production = release.applications.appFolders(home: home).map(\.path)
+        #expect(production == ["/Applications", home.appending(path: "Applications").path])
     }
 
     /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.

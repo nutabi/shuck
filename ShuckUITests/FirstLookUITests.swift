@@ -56,7 +56,6 @@ final class FirstLookUITests: ShuckUITestCase {
         step("Each tool a later milestone builds opens a page that names the milestone (NFR-QA-003)") {
             for (title, summary, milestone) in [
                 ("Overview", "Disk space at a glance, and what each sub-tool could reclaim.", "M5"),
-                ("Applications", "Uninstall apps together with the files they leave behind.", "M3"),
                 ("Startup Items", "See what starts automatically and turn off what you don't want.", "M4"),
             ] {
                 sidebar.staticTexts[title].click()
@@ -102,6 +101,14 @@ final class FirstLookUITests: ShuckUITestCase {
             sidebar.staticTexts["Caches & Logs"].click()
             XCTAssertTrue(app.staticTexts["No caches or logs to clear"].appears(within: 10))
             XCTAssertFalse(app.buttons["Delete…"].exists, "An empty list's footer is shown")
+        }
+
+        step(
+            "Applications with no app folders shows only a message, and never lists this Mac's apps (APP-001, SAF-016)"
+        ) {
+            sidebar.staticTexts["Applications"].click()
+            XCTAssertTrue(app.staticTexts["No apps found"].appears(within: 10))
+            XCTAssertFalse(app.buttons["Size"].exists, "An empty table is shown")
         }
 
         step("⌘N opens no second main window, and ⌘, opens Settings in a window of its own (D-27, D-91)") {

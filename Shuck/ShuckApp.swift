@@ -10,6 +10,7 @@ struct ShuckApp: App {
     private let pages: SubToolPages
     /// Kept for the app's lifetime, so scan results survive switching between pages.
     @State private var fileCleanup: FileCleanupModel
+    @State private var applications: ApplicationsModel
     @State private var history: HistoryModel
     /// The excluded folders Settings lists (SET-001). Changing them rebuilds File Cleanup's guard and drops rows.
     @State private var exclusions: FolderListModel
@@ -51,9 +52,13 @@ struct ShuckApp: App {
             personalFilesScan: environment.personalFilesScan, runPlan: environment.run,
             readFreeSpace: environment.availableSpace, readUsedSpace: environment.usedSpace)
         _fileCleanup = State(initialValue: fileCleanup)
+        let applications = ApplicationsModel(context: environment.context, appScan: environment.applications.scan)
+        _applications = State(initialValue: applications)
         _exclusions = State(
             initialValue: FolderListModel(list: environment.excludedFolders) { folders in
-                fileCleanup.protect(with: environment.makeProtection(folders))
+                let protection = environment.makeProtection(folders)
+                fileCleanup.protect(with: protection)
+                applications.protect(with: protection)
             })
         let home = environment.context.home
         _projectFolders = State(
@@ -73,8 +78,10 @@ struct ShuckApp: App {
         // navigation and the selection (TD-13). As the app's first scene, a `Window` quits the app when it is closed
         // (D-99).
         Window(Text(verbatim: "Shuck"), id: "main") {
-            ContentView(registry: registry, pages: pages, fileCleanup: fileCleanup, history: history)
-                .environment(navigation)
+            ContentView(
+                registry: registry, pages: pages, fileCleanup: fileCleanup, applications: applications, history: history
+            )
+            .environment(navigation)
         }
 
         // Settings opens in its own window from the app menu (⌘,), not from the sidebar (D-27).
