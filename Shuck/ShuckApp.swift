@@ -54,7 +54,7 @@ struct ShuckApp: App {
         _fileCleanup = State(initialValue: fileCleanup)
         // Both scans come from the one `Applications`, so a fixture root never reads the real `/Library` (SAF-016).
         let applications = ApplicationsModel(
-            context: environment.context, leftoverScan: environment.applications.leftovers(of:among:_:),
+            context: environment.context, leftoverScan: environment.appLeftovers,
             appScan: environment.applications.scan)
         _applications = State(initialValue: applications)
         _exclusions = State(

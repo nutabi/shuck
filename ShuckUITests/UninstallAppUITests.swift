@@ -37,6 +37,16 @@ final class UninstallAppUITests: ShuckUITestCase {
             element.label.isEmpty ? element.value as? String ?? "" : element.label
         }
 
+        /// A leftover's identifiers name its whole path, which is inside the fixture root.
+        let support = "Library/Application Support/org.acme.delta"
+        let caches = "Library/Caches/Delta"
+        /// The element of a query with a leftover's identifier. A name is matched by a predicate, since a string
+        /// subscript refuses more than 128 characters, which a path in the temporary folder exceeds.
+        func leftover(_ query: XCUIElementQuery, _ kind: String, _ relativePath: String) -> XCUIElement {
+            let identifier = "leftover-\(kind)-\(root.url.path)/\(relativePath)"
+            return query.matching(NSPredicate(format: "identifier == %@", identifier)).firstMatch
+        }
+
         /// The three apps in the order the page shows them, top to bottom.
         func order() -> [String] {
             ["Alpha", "Beta", "Gamma"].sorted { app.staticTexts[$0].frame.minY < app.staticTexts[$1].frame.minY }
@@ -96,33 +106,33 @@ final class UninstallAppUITests: ShuckUITestCase {
         step("Selecting an app lists its leftovers with how sure the scan is, and why (APP-002, APP-003)") {
             XCTAssertTrue(app.staticTexts["Select an app to see what it leaves behind."].exists)
             app.staticTexts["org.acme.delta"].click()
-            let high = app.staticTexts["leftover-confidence-Application Support/org.acme.delta"]
+            let high = leftover(app.staticTexts, "confidence", support)
             XCTAssertTrue(high.appears(within: 10))
             XCTAssertEqual(text(high), "High")
             XCTAssertEqual(
-                text(app.staticTexts["leftover-reason-Application Support/org.acme.delta"]),
+                text(leftover(app.staticTexts, "reason", support)),
                 "Named by the app's bundle ID")
-            XCTAssertEqual(text(app.staticTexts["leftover-confidence-Caches/Delta"]), "Medium")
-            XCTAssertEqual(text(app.staticTexts["leftover-reason-Caches/Delta"]), "Named like the app: Delta")
+            XCTAssertEqual(text(leftover(app.staticTexts, "confidence", caches)), "Medium")
+            XCTAssertEqual(text(leftover(app.staticTexts, "reason", caches)), "Named like the app: Delta")
             let note = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "may ask for", "may ask for")
             XCTAssertTrue(app.descendants(matching: .any).matching(note).firstMatch.exists)
             attachScreenshot(of: app, named: "Leftovers")
         }
 
         step("A system-wide leftover says it needs admin and offers Show in Finder, and the others do not (APP-004)") {
-            let name = "Preferences/org.acme.delta.plist"
-            XCTAssertEqual(text(app.staticTexts["leftover-confidence-\(name)"]), "High")
+            let name = "SystemLibrary/Preferences/org.acme.delta.plist"
+            XCTAssertEqual(text(leftover(app.staticTexts, "confidence", name)), "High")
             XCTAssertEqual(
-                text(app.staticTexts["leftover-disabled-\(name)"]), "Needs admin — not removable in this version")
-            XCTAssertTrue(app.buttons["leftover-show-in-finder-\(name)"].exists)
-            XCTAssertFalse(app.buttons["leftover-show-in-finder-Caches/Delta"].exists)
-            XCTAssertFalse(app.buttons["leftover-show-in-finder-Application Support/org.acme.delta"].exists)
+                text(leftover(app.staticTexts, "disabled", name)), "Needs admin — not removable in this version")
+            XCTAssertTrue(leftover(app.buttons, "show-in-finder", name).exists)
+            XCTAssertFalse(leftover(app.buttons, "show-in-finder", caches).exists)
+            XCTAssertFalse(leftover(app.buttons, "show-in-finder", support).exists)
         }
 
         step("An app with no leftovers says so, and the pane forgets the last app's") {
             app.staticTexts["com.example.alpha"].click()
             XCTAssertTrue(app.staticTexts["No leftovers found"].appears(within: 10))
-            XCTAssertFalse(app.staticTexts["leftover-confidence-Caches/Delta"].exists)
+            XCTAssertFalse(leftover(app.staticTexts, "confidence", caches).exists)
         }
     }
 }

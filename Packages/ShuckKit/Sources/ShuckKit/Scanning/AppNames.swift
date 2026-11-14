@@ -28,22 +28,6 @@ public struct AppsByName: Sendable, Equatable {
     public func bundleIDs(named name: String) -> Set<String> { bundleIDs[name.lowercased()] ?? [] }
 }
 
-extension AppsByName {
-    /// The apps of a finished inventory scan, by the name each shows and by its bundle's file name without `.app`, so a
-    /// leftover folder named like two apps is not offered to either (R-05, D-196). An app without a bundle ID has none
-    /// to give.
-    public init(apps: [InstalledApp]) {
-        var byName: [String: Set<String>] = [:]
-        for app in apps {
-            guard let bundleID = app.bundleID, !bundleID.isEmpty else { continue }
-            for name in [app.name, app.url.deletingPathExtension().lastPathComponent] where !name.isEmpty {
-                byName[name.lowercased(), default: []].insert(bundleID)
-            }
-        }
-        self.init(byName)
-    }
-}
-
 /// The apps installed on this Mac, from Launch Services. Only reads.
 public struct SystemAppNames: AppNames {
     public init() {}

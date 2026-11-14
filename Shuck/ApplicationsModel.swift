@@ -40,9 +40,9 @@ final class ApplicationsModel {
     /// the real `/Applications` (SAF-016).
     typealias AppScan = @Sendable (ScanContext) -> AsyncStream<AppInventoryEvent>
 
-    /// Finds an app's leftovers, given every installed app by name (R-05). The app passes ``Applications/leftovers``;
-    /// tests pass made-up events.
-    typealias LeftoverScan = @Sendable (InstalledApp, AppsByName, ScanContext) -> AsyncStream<ScanEvent>
+    /// Finds an app's leftovers. The app passes ``AppEnvironment/appLeftovers``, which also reads every installed app
+    /// by name (R-05); tests pass made-up events.
+    typealias LeftoverScan = @Sendable (InstalledApp, ScanContext) -> AsyncStream<ScanEvent>
 
     /// Where the selected app's leftover scan stands.
     nonisolated enum LeftoverState: Equatable {
@@ -79,17 +79,13 @@ final class ApplicationsModel {
     private let appScan: AppScan
     private let leftoverScan: LeftoverScan
     private var scanTask: Task<Void, Never>?
-    /// Every app the scan found, kept apart from ``apps``: an app the exclusions hide is still installed, and keeping it
-    /// only narrows what a name matches (R-05). Never the search's result or a half-streamed list: leftovers wait for
-    /// the scan to finish.
-    private var inventory: [InstalledApp] = []
     private var leftoverTask: Task<Void, Never>?
     /// Counts the leftover scans started, so an event from one that was replaced never lands in the new list.
     private var leftoverGeneration = 0
 
     /// - Parameter leftoverScan: Without one, an app has no leftovers, for a preview or a test of the list alone.
     init(
-        context: ScanContext, leftoverScan: @escaping LeftoverScan = { _, _, _ in AsyncStream { $0.finish() } },
+        context: ScanContext, leftoverScan: @escaping LeftoverScan = { _, _ in AsyncStream { $0.finish() } },
         appScan: @escaping AppScan
     ) {
         self.context = context
@@ -122,7 +118,6 @@ final class ApplicationsModel {
     func scan() -> Task<Void, Never>? {
         guard canScan else { return nil }
         apps = []
-        inventory = []
         notAccessible = []
         unreadable = []
         select(nil)
@@ -133,7 +128,6 @@ final class ApplicationsModel {
                 switch event {
                 case .app(let app):
                     // The scan keeps the exclusions it started with, so an app they hide now is left out.
-                    inventory.append(app)
                     if revision != exclusionRevision, self.context.hides(app.url) { continue }
                     apps.append(app)
                 case .notAccessible(let url): notAccessible.append(url)
@@ -143,7 +137,6 @@ final class ApplicationsModel {
             scanTask = nil
             if Task.isCancelled {
                 apps = []
-                inventory = []
                 select(nil)
                 notAccessible = []
                 unreadable = []
@@ -168,7 +161,9 @@ final class ApplicationsModel {
         return scanLeftovers()
     }
 
-    /// Replaces the leftover scan with one for the selected app, or with none. Only a finished app scan and a removable
+    /// Replaces the leftover scan with one for the selected app, or with none. Every way a scan ends bumps the
+    /// generation: a cancelled one can hand over a partial map of installed apps, and only the generation keeps what it
+    /// finds from landing. Only a finished app scan and a removable
     /// app start one (APP-005).
     @discardableResult
     private func scanLeftovers() -> Task<Void, Never>? {
@@ -183,9 +178,8 @@ final class ApplicationsModel {
         leftoverState = .scanning
         let generation = leftoverGeneration
         let (context, revision, leftoverScan) = (context, exclusionRevision, leftoverScan)
-        let installed = AppsByName(apps: inventory)
         leftoverTask = Task {
-            for await event in await Self.start(leftoverScan, app, installed, context) {
+            for await event in await Self.start(leftoverScan, app, context) {
                 guard generation == leftoverGeneration else { return }
                 switch event {
                 case .item(let item):
@@ -239,8 +233,8 @@ final class ApplicationsModel {
 
     @concurrent
     private nonisolated static func start(
-        _ scan: LeftoverScan, _ app: InstalledApp, _ installed: AppsByName, _ context: ScanContext
+        _ scan: LeftoverScan, _ app: InstalledApp, _ context: ScanContext
     ) async -> AsyncStream<ScanEvent> {
-        scan(app, installed, context)
+        scan(app, context)
     }
 }

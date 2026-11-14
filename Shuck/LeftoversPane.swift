@@ -46,8 +46,8 @@ struct LeftoversPane: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        if !model.leftoverNotAccessible.isEmpty { NotAccessibleNote() }
-        if !model.leftoverUnreadable.isEmpty { UnreadableNote() }
+        if !model.leftoverNotAccessible.isEmpty { NotAccessibleNote(folders: model.leftoverNotAccessible) }
+        if !model.leftoverUnreadable.isEmpty { UnreadableNote(folders: model.leftoverUnreadable) }
         if model.leftovers.isEmpty {
             if model.leftoverState == .scanned {
                 ContentUnavailableView("No leftovers found", systemImage: "checkmark.circle")
@@ -70,8 +70,8 @@ private struct LeftoverRow: View {
 
     var body: some View {
         let name = item.url?.lastPathComponent ?? ""
-        // The folder too, since `Caches/<id>` and `Application Support/<id>` share a name.
-        let key = (item.url?.deletingLastPathComponent().lastPathComponent ?? "") + "/" + name
+        // The whole path, since `~/Library/Preferences/x.plist` and `/Library/Preferences/x.plist` share a name.
+        let key = item.url?.path ?? name
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name)

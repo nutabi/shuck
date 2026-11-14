@@ -188,12 +188,11 @@ extension ScanItem {
 
 /// The leftover scans a made-up scan was asked to run.
 final class LeftoverCalls: Sendable {
-    private let calls = Mutex<[(app: InstalledApp, installed: AppsByName)]>([])
-    var apps: [InstalledApp] { calls.withLock { $0.map(\.app) } }
-    var firstInstalled: AppsByName? { calls.withLock { $0.first?.installed } }
+    private let scanned = Mutex<[InstalledApp]>([])
+    var apps: [InstalledApp] { scanned.withLock { $0 } }
 
-    func record(_ app: InstalledApp, _ installed: AppsByName) {
-        calls.withLock { $0.append((app, installed)) }
+    func record(_ app: InstalledApp) {
+        scanned.withLock { $0.append(app) }
     }
 }
 
@@ -231,8 +230,8 @@ struct ApplicationsLeftoversModelTests {
         }
         let calls = LeftoverCalls()
         let streams = held
-        let leftoverScan: ApplicationsModel.LeftoverScan = { app, installed, _ in
-            calls.record(app, installed)
+        let leftoverScan: ApplicationsModel.LeftoverScan = { app, _ in
+            calls.record(app)
             return streams[app.id] ?? AsyncStream { $0.finish() }
         }
         let model = ApplicationsModel(context: context, leftoverScan: leftoverScan) { _ in
@@ -277,7 +276,7 @@ struct ApplicationsLeftoversModelTests {
     @Test func anAppChosenWhileTheScanRunsGetsItsLeftoversWhenTheScanEndsAPP002() async throws {
         let (appStream, appEvents) = AsyncStream.makeStream(of: AppInventoryEvent.self)
         let calls = ScanCount()
-        let leftoverScan: ApplicationsModel.LeftoverScan = { _, _, _ in
+        let leftoverScan: ApplicationsModel.LeftoverScan = { _, _ in
             calls.increment()
             return AsyncStream { $0.finish() }
         }
@@ -334,20 +333,25 @@ struct ApplicationsLeftoversModelTests {
         #expect(model.leftovers.isEmpty && model.leftoverState == .idle)
     }
 
-    @Test func theLeftoverScanGetsEveryInstalledAppEvenAfterTheExclusionsDropOneR05() async throws {
-        let hidden = InstalledApp.made("Applications/Private/Hidden.app", bundleID: "com.example.hidden")
-        let harness = harness(apps: [alpha, hidden])
+    @Test func stopDuringALeftoverScanCancelsItEmptiesThePaneAndDeselectsSAF014() async throws {
+        let harness = harness(apps: [alpha])
         let model = harness.model
         await model.scan()?.value
-        model.searchText = "alpha"
-        model.protect(with: exclusions(["/StubHome/Applications/Private"]))
-        #expect(model.apps == [alpha])
+        let task = try #require(model.select(alpha.id))
+        harness.streams[alpha.id]?.yield(.item(.leftover("one")))
+        harness.streams[alpha.id]?.yield(.notAccessible(URL(filePath: "/StubHome/Library/Containers")))
 
+        model.cancelScan()
+        // What the cancelled scan still says does not land.
+        harness.streams[alpha.id]?.yield(.item(.leftover("late")))
         harness.streams[alpha.id]?.finish()
-        await model.select(alpha.id)?.value
+        await task.value
 
-        // The hidden app is still installed, and the search does not narrow the names.
-        #expect(harness.calls.firstInstalled == AppsByName(apps: [alpha, hidden]))
+        #expect(model.selection == nil && model.leftoverState == .idle)
+        #expect(model.leftovers.isEmpty && model.leftoverNotAccessible.isEmpty)
+        // Clicking the row again scans again.
+        harness.streams[alpha.id]?.finish()
+        #expect(model.select(alpha.id) != nil)
     }
 
     @Test func anExclusionDropsTheSelectedAppAndHiddenLeftoversAndAScanStartedBeforeItSET001() async throws {

@@ -68,5 +68,8 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 - On a page with a search field in the toolbar (`.searchable`), XCUITest reports a table's column headers as not
   hittable, although they are visible, and its click fails after trying to scroll them into view. Click the header's
   center with `coordinate(withNormalizedOffset:)` instead, then check the order it gives (`UninstallAppUITests`).
+- A SwiftUI `Text` with an `.accessibilityIdentifier` exposes its text as the element's `value`, and its `label` is
+  empty. Read it with a small helper such as `element.label.isEmpty ? element.value as? String ?? "" : element.label`
+  (`text(_:)` in `UninstallAppUITests`).
 - `firstMatch` does not find a SwiftUI `DisclosureGroup` row's combined accessibility element, such as a run on the History page. Use `.element` on a query that matches exactly one element.
 - `scripts/test.sh` prints only each suite's time. Per-test times are in the result bundles in `build/DerivedData/Logs/Test/`, which CI uploads only when a run fails (D-34). `xcrun xcresulttool get test-results tests --path <bundle>` lists each test's duration, and `xcrun xcresulttool get test-results activities --test-id "<Class>/<method>()" --path <bundle>` lists one test's steps with their start times.

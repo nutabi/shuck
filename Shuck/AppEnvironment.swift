@@ -29,6 +29,15 @@ nonisolated struct AppEnvironment {
     /// Applications with the folders it lists apps from: this Mac's, or in a UI test's fixture root only the ones the
     /// test names, so a test never reads the real `/Applications` (APP-001, SAF-016).
     let applications: Applications
+    /// An app's leftovers, found by ``applications`` and told which installed apps go by the same names, read from the
+    /// same app folders, so a fixture root never reads the real ones (APP-003, R-05, D-196). The map leaves out no app
+    /// that can run, whatever the exclusions hide.
+    var appLeftovers: ApplicationsModel.LeftoverScan {
+        let applications = applications
+        return { app, context in
+            applications.leftovers(of: app, among: applications.bundleIDsByName(home: context.home), context)
+        }
+    }
     /// The folders the user excluded, which every scan hides and every plan and run refuses (SET-001, D-150).
     let excludedFolders: FolderList
     /// The developer project folders the user chose, which DEV-R06 scans for `node_modules` (SET-003, D-154).

@@ -27,15 +27,16 @@ struct ApplicationsView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             // What the app scan could not read, as File Cleanup's pages tell it (SAF-011, SAF-012).
             VStack(spacing: 0) {
-                if !model.notAccessible.isEmpty { NotAccessibleNote() }
-                if !model.unreadable.isEmpty { UnreadableNote() }
+                if !model.notAccessible.isEmpty { NotAccessibleNote(folders: model.notAccessible) }
+                if !model.unreadable.isEmpty { UnreadableNote(folders: model.unreadable) }
             }
         }
         .navigationTitle(Text(info.name))
         .navigationSubtitle(Text(info.summary))
         .searchable(text: $model.searchText, prompt: Text("Search Apps"))
         .toolbar {
-            if model.state == .scanning {
+            // Stop covers the leftover scan too (SAF-014).
+            if model.state == .scanning || model.leftoverState == .scanning {
                 // On its own, without the glass capsule the toolbar would otherwise share with the buttons next to it.
                 ToolbarItem {
                     ProgressView()

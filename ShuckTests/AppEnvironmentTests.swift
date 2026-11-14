@@ -165,6 +165,48 @@ final class AppEnvironmentTests {
         #expect(production == ["/Applications", home.appending(path: "Applications").path])
     }
 
+    /// An app in an excluded folder is not listed, but it is installed, so a folder named like it and like the selected
+    /// app is not offered as the selected app's leftover (APP-003, R-05, SET-001, D-196).
+    @Test(arguments: [true, false])
+    func theLeftoverScanKnowsEveryInstalledAppEvenInAnExcludedFolderAPP003R05(sharesTheName: Bool) async throws {
+        func makeApp(_ path: String, bundleID: String) throws {
+            let contents = URL(filePath: fixture).appending(path: "\(path)/Contents")
+            try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+            let info = try PropertyListSerialization.data(
+                fromPropertyList: ["CFBundleIdentifier": bundleID, "CFBundleName": "Notes"], format: .xml, options: 0)
+            try info.write(to: contents.appending(path: "Info.plist"))
+        }
+        try makeApp("Applications/Notes.app", bundleID: "com.example.notes")
+        if sharesTheName { try makeApp("Excluded/Notes.app", bundleID: "org.other.notes") }
+        for folder in ["com.example.notes", "Notes"] {
+            let url = URL(filePath: fixture).appending(path: "Library/Caches/\(folder)")
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            try Data(count: 10).write(to: url.appending(path: "data"))
+        }
+        let settings: AppEnvironment.Settings = {
+            switch $0 {
+            case AppEnvironment.appFoldersArgumentKey: "Applications,Excluded"
+            case AppEnvironment.excludedFoldersArgumentKey: "Excluded"
+            default: nil
+            }
+        }
+        let uiTest = try AppEnvironment(
+            arguments: ["Shuck", AppEnvironment.fixtureRootArgument, fixture], settings: settings, debugBuild: true,
+            appBundle: appBundle, bundleID: ShuckKit.debugBundleID, home: home)
+
+        var listed: [InstalledApp] = []
+        for await case .app(let app) in uiTest.applications.scan(uiTest.context) { listed.append(app) }
+        let notes = try #require(listed.first)
+        var found: [String] = []
+        for await case .item(let item) in uiTest.appLeftovers(notes, uiTest.context) {
+            found.append(item.url?.lastPathComponent ?? "")
+        }
+
+        #expect(listed.count == 1)
+        // The exact bundle ID always matches; the name only while no other installed app goes by it.
+        #expect(found.sorted() == (sharesTheName ? ["com.example.notes"] : ["Notes", "com.example.notes"]))
+    }
+
     /// A UI test can delay the personal-files scan to stop it (SAF-014). Without a fixture root, the setting is ignored.
     @Test func onlyAUITestsDebugBuildDelaysItsScansSAF014() throws {
         let settings: AppEnvironment.Settings = { $0 == AppEnvironment.scanDelayKey ? "2" : nil }
