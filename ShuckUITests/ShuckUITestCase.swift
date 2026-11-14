@@ -14,6 +14,8 @@ import XCTest
 /// - Old Files: scan, review and Move to Trash, in `CleanUpThenUndoUITests`.
 /// - History: a run's summary opens the run in History, in `CleanUpThenUndoUITests`.
 /// - History's Restore: Keep Both for a taken place, then Restore All, in `CleanUpThenUndoUITests`.
+/// - History's Restore of an uninstalled app's login agent: the question that names its job, off by default, and the
+///   summary of loading it (the fake `launchctl` cannot run, so the log is seeded), in `UninstallAppUITests`.
 /// - Developer Junk: Xcode's DerivedData with its default selection, the summary confirmation and Delete, in
 ///   `DeveloperJunkUITests`; a running Xcode's disabled rows, in `CachesAndLogsUITests`.
 /// - Developer Junk's tool rules (unavailable simulators, npm): the exact command, a size or none, the Clean Up

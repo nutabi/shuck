@@ -6,8 +6,8 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.17 — APP-005: a blocked app's leftovers are not looked for (see Revision history) |
-| Date | 2026-11-14 |
+| Version | 1.18 — HIS-005: Restore also covers an uninstall's LaunchAgent (see Revision history) |
+| Date | 2026-11-15 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
 | Repository | `github.com/nutabi/shuck` (to be initialised by the owner) |
@@ -36,6 +36,7 @@
 | 1.15 | 2026-11-14 | APP-005: the check before an uninstall is read-only and covers a root-owned bundle and a bundle or folder the user cannot change; a missing App Management permission cannot be seen beforehand, so the run reports it as a skipped item (M3-T06; advisor decision, #220). |
 | 1.16 | 2026-11-14 | APP-007: matching LaunchAgents are unloaded before their plists are trashed, and the uninstall plan puts the bundle first, so a bundle that stays leaves every leftover and agent alone (APP-005, APP-011). A move to the Trash that macOS refuses for lack of permission, such as another app's container or a missing App Management permission, is a skipped item with its reason, not a failure, and the run goes on (SAF-011, S78) (M3-T06; advisor decision, #222). |
 | 1.17 | 2026-11-14 | APP-005: Shuck does not look for a blocked app's leftovers, since nothing can be done with them and reading other apps' folders can make macOS ask for permission (R-16) (M3-T08; advisor decision, #262). |
+| 1.18 | 2026-11-15 | HIS-005 also covers the LaunchAgent of an uninstalled app (APP-011): History pairs the restored plist with the job the same run unloaded, and the page asks once, off by default, whether to load the agents again; an agent that was not loaded at the uninstall is not offered (M3-T08; advisor decision). |
 
 ## How to read this document
 
@@ -481,7 +482,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | HIS-002 | The History view lists runs (date, area, item count, size, method, status). Each run expands to its items. A Tool item shows its command and a Launchctl item its job label, never a file path (D-106). | Must | UI test. |
 | HIS-003 | **Restore** moves a trashed item from its trashed path back to its original path, recreating missing parent folders. If the original path is taken, ask: keep both (add " (restored)") or skip. Never overwrite. | Must | Fixture tests: normal restore, occupied path, missing parent. |
 | HIS-004 | If an item's trashed path no longer exists, mark it "Not restorable (Trash emptied)". Permanent deletions and tool runs are shown as non-restorable. | Must | Fixture test. |
-| HIS-005 | Restoring a startup item puts its plist back. It is re-enabled only if the user confirms. | Must | Fixture test. |
+| HIS-005 | Restoring a startup item puts its plist back. It is re-enabled only if the user confirms. This covers an uninstall's LaunchAgent too (APP-011): the question names the job the uninstall unloaded, and an agent that was not loaded then is not offered. | Must | Fixture test. |
 | HIS-006 | Shuck MUST NOT rely on Finder's "Put Back", which is unreliable when an app trashes several items in a row [S21]. Items Shuck trashes probably get no "Put Back" entry in Finder at all, so the UI says "Restore in Shuck". Unverified on macOS 27: to verify. | Must | Design review; check on macOS 27 whether Finder offers "Put Back" for an item Shuck trashed. |
 | HIS-007 | Export a run report as Markdown or JSON. | Could | — |
 | HIS-008 | History is kept until the user clears it: there is no size cap and no expiry. Settings has "Clear History…" (SET-007), which says that Restore is lost for the cleared runs and asks for confirmation. A tool's output tail stays at 2 KiB (D-115). Built in M5, with Settings (D-135). | Should | Unit test: clearing empties the log and keeps its permissions; UI test of the confirmation text. |

@@ -7,7 +7,10 @@ import ShuckKit
 ///
 /// Without a taken path the restore starts at once, without a confirmation, because Restore never overwrites and only
 /// puts back what Shuck moved (D-68). With taken paths it waits for one answer, Keep Both or Skip, which applies to all
-/// of them. A restore runs at most once. The History page shows it in a ``HistoryRestoreSheet``.
+/// of them. It also waits when an item is the property list of a LaunchAgent that the uninstall unloaded and whose
+/// original place is free: one answer, off unless the user turns it on, says whether to load all such agents again
+/// (APP-011, HIS-005). Both questions share one screen and one set of buttons. A restore runs at most once. The History
+/// page shows it in a ``HistoryRestoreSheet``.
 @Observable
 final class HistoryRestore: Identifiable {
     /// Moves items back from the Trash. The app passes ``AppEnvironment/restore(_:)``; tests pass a stub.
@@ -18,6 +21,12 @@ final class HistoryRestore: Identifiable {
     let items: [TrashedItem]
     /// The items whose original path is taken on disk or needed by an earlier item in this restore.
     let takenItems: [TrashedItem]
+    /// The items that are the property list of an agent the uninstall unloaded, and whose original place is free, so
+    /// Restore can load the agent again if the user says so. A Keep Both copy or a skipped item never is (D-199).
+    let agentItems: [TrashedItem]
+    /// Whether the user chose to load ``agentItems`` again. It is off by default and never set by the page itself, so
+    /// nothing is loaded without the user's choice (APP-011).
+    var loadAgents = false
     /// The run's phase, start and Stop (``RunModel``). Until it starts, the question is on screen, if there is one.
     let run = RunModel<RestoreReport>()
     private let runRestore: RunRestore
@@ -38,12 +47,15 @@ final class HistoryRestore: Identifiable {
         takenItems = items.filter { item in
             !destinations.insert(item.originalURL).inserted || item.originalIsTaken
         }
+        let taken = Set(takenItems.map(\.trashedURL))
+        agentItems = items.filter { $0.unloadedAgentLabel != nil && !taken.contains($0.trashedURL) }
         self.runRestore = runRestore
         self.onFinish = onFinish
-        if takenItems.isEmpty { begin(ifTaken: .skip) }
+        if takenItems.isEmpty && agentItems.isEmpty { begin(ifTaken: .skip) }
     }
 
-    /// Starts the restore with the user's answer for the taken paths, or returns `nil` if it has started before.
+    /// Starts the restore with the user's answer for the taken paths, and for the agents ``loadAgents``, or returns
+    /// `nil` if it has started before.
     @discardableResult
     func start(ifTaken: RestoreRequest.IfTaken) -> Task<Void, Never>? {
         begin(ifTaken: ifTaken)
@@ -58,7 +70,12 @@ final class HistoryRestore: Identifiable {
 
     @discardableResult
     private func begin(ifTaken: RestoreRequest.IfTaken) -> Task<Void, Never>? {
-        let requests = items.map { RestoreRequest(item: $0, ifTaken: ifTaken) }
+        let agents = loadAgents ? Set(agentItems.map(\.trashedURL)) : []
+        let requests = items.map { item in
+            RestoreRequest(
+                item: item, ifTaken: ifTaken,
+                reenableAgentLabel: agents.contains(item.trashedURL) ? item.unloadedAgentLabel : nil)
+        }
         let runRestore = runRestore
         return run.start(
             onFinish: { [onFinish] _ in await onFinish() },
