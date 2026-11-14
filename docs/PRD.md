@@ -32,7 +32,7 @@
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
 | 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms. Section 1, G-5, R-17 and the priorities: the advisor decides instead of the owner reviewing (D-200). |
 | 1.13 | 2026-11-14 | Tasks, owner items and exit criteria live in GitHub issues and milestones; `docs/progress.md` is frozen in `docs/archive/` (OQ-05, ENG-004, section 12). |
-| 1.14 | 2026-11-14 | APP-011's and STA-005's acceptance checks: a fixture test with a fake `launchctl` in the fixture root, run through the tool runner, and a manual check of the real `launchctl` on the owner's Mac, since no test may change the user's launchd state (SAF-016; advisor decision, PRNUM). |
+| 1.14 | 2026-11-14 | APP-011's and STA-005's acceptance checks: a fixture test with a fake `launchctl` in the fixture root, run through the tool runner, and a manual check of the real `launchctl` on the owner's Mac, since no test may change the user's launchd state (SAF-016; advisor decision, #253). |
 
 ## How to read this document
 
