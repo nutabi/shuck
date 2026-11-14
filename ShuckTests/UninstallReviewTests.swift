@@ -174,18 +174,17 @@ final class UninstallReviewTests {
         // The agent has a Trash item and an unload step, so the plan has one item more than the review lists, and the
         // bundle comes first.
         #expect(review.trash.plan.items.count == 4)
-        #expect(review.trash.plan.items.filter { $0.method == .launchctl }.compactMap(\.url) == [agent])
         #expect(review.trashItems.count == 3)
         #expect(review.trashItems.first?.url == bundle)
         #expect(Set(review.trashItems.compactMap(\.url)) == [bundle, cache, agent])
-        #expect(review.stopsAgents)
+        #expect(review.agents == [agent])
         #expect(review.totalBytes == review.trashItems.reduce(0) { $0 + $1.allocatedSize })
         #expect(review.trash.plan.tool == .applications)
         #expect(review.quit == .notRunning && review.canMove)
         // Choosing the agent away leaves nothing to unload.
         model.setChosen(false, for: try #require(model.leftovers.first { $0.url == agent }))
         let without = try #require(try await model.reviewUninstall())
-        #expect(!without.stopsAgents)
+        #expect(without.agents.isEmpty)
         #expect(Set(without.trashItems.compactMap(\.url)) == [bundle, cache])
     }
 

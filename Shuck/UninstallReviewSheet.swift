@@ -48,14 +48,25 @@ struct UninstallReviewSheet: View {
         .font(.title2.bold())
         Text("Shuck records where each item goes, so it can put it back.")
             .foregroundStyle(.secondary)
-        if review.stopsAgents {
-            Label("Launch agents are stopped before their files are moved.", systemImage: "stop.circle")
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("uninstall-stops-agents")
+        let agents = review.agents
+        if !agents.isEmpty {
+            // A bootout is undone by starting the agent again, not by Restore alone, so the review says so (SAF-006).
+            Label(
+                "Launch agents are stopped before their files are moved. Restoring one asks before starting it again.",
+                systemImage: "stop.circle"
+            )
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("uninstall-stops-agents")
         }
         quit
         List(items) { item in
             ItemRow(target: item.target, home: home) {
+                if let url = item.url, agents.contains(url) {
+                    // Words, not only the symbol (NFR-A11Y-001).
+                    Label("Stopped first", systemImage: "stop.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 SizeText(target: item.target, bytes: item.allocatedSize, snapshot: item.snapshot)
             }
         }

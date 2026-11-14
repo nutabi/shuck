@@ -856,7 +856,10 @@
     "Uninstalling %@…" : {
 
     },
-    "Launch agents are stopped before their files are moved." : {
+    "Launch agents are stopped before their files are moved. Restoring one asks before starting it again." : {
+
+    },
+    "Stopped first" : {
 
     },
     "%@ is running. Quit it to continue." : {

@@ -11,7 +11,7 @@ import ShuckKit
 @Observable
 final class UninstallReview: Identifiable {
     /// Whether the app is running, and so what the review offers before it can move anything.
-    enum Quit: Equatable {
+    nonisolated enum Quit: Equatable {
         /// The app is not running, so Move to Trash is on offer.
         case notRunning
         /// The app is running. Quit asks it to quit.
@@ -49,9 +49,9 @@ final class UninstallReview: Identifiable {
         trashItems.reduce(0) { $0 + $1.allocatedSize }
     }
 
-    /// Whether a leftover is a LaunchAgent, which Shuck stops before it moves its file (APP-011).
-    var stopsAgents: Bool {
-        trash.plan.items.contains { $0.method == .launchctl }
+    /// The LaunchAgent property lists Shuck stops before it moves them (APP-011). The review marks their rows.
+    var agents: Set<URL> {
+        Set(trash.plan.items.compactMap { $0.method == .launchctl ? $0.url : nil })
     }
 
     /// Whether the app is running now, by the same list the run checks again before it acts (SAF-009).

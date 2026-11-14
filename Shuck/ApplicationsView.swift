@@ -8,9 +8,9 @@ import os
 /// (APP-009). Selecting an app shows its leftovers in a pane below the list (APP-002 to APP-005).
 ///
 /// Like a File Cleanup sub-tool's page, it scans when it opens if it has not scanned yet, shows only a message while
-/// there is nothing to list, and has Scan and, while scanning, Stop in the toolbar (SAF-014, D-61). Choosing apps to
-/// uninstall: Uninstall in the toolbar opens the itemized review of the selected app and its chosen leftovers, with
-/// Quit if the app is running (APP-006, APP-007).
+/// there is nothing to list, and has Scan and, while scanning, Stop in the toolbar (SAF-014, D-61). Uninstall in the
+/// toolbar opens the itemized review of the selected app and its chosen leftovers, with Quit if the app is running
+/// (APP-006, APP-007).
 struct ApplicationsView: View {
     let info: ToolInfo
     @Bindable var model: ApplicationsModel
