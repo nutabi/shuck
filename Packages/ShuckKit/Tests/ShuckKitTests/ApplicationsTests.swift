@@ -216,10 +216,13 @@ struct ApplicationsTests {
 
         let task = Task {
             var count = 0
-            for await _ in applications.scan(context) { count += 1 }
+            for await _ in applications.scan(context) {
+                count += 1
+                // Stop after the first event, so the scan has certainly started.
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
             return count
         }
-        task.cancel()
         #expect(await task.value < 20)
     }
 }

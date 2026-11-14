@@ -92,6 +92,9 @@ Owner preference, 2026-11-13:
   advisor decision; and the test evidence.
 - **Done** (ENG-004): CI passes; new behavior has tests, deletion paths have fixture tests, and SAF tests name their
   requirement ID (NFR-QA-001); the issue is closed by the pull request, and `CHANGELOG.md` is updated.
+- **Tests** (owner preference, 2026-11-14): extend an existing scenario, parameterized test or UI workflow before
+  adding a new one, check each claim once, and never rely on a wall-clock race. The rules are in "What a test checks"
+  in [docs/testing.md](docs/testing.md).
 
 ## Commands
 
