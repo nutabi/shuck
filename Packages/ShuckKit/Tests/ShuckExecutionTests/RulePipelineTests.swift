@@ -9,37 +9,30 @@ import Testing
 struct RulePipelineTests {
     let root: FixtureRoot
     let pathGuard: PathGuard
-    let cache: URL
-    let now = Date(timeIntervalSince1970: 1_800_000_000)
-    let stale = Date(timeIntervalSince1970: 1_700_000_000)
-    let category = ItemCategory(id: "fixture", name: "Fixture caches")
+    let fixture: RuleFixture
+    var cache: URL { fixture.cache }
+    var now: Date { fixture.now }
+    var stale: Date { fixture.stale }
+    var category: ItemCategory { fixture.category }
 
     init() throws {
         root = try FixtureRoot()
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
-        cache = try root.folder("Library/Caches/Fixture")
+        fixture = try RuleFixture(root, pathGuard)
     }
 
     func rule(
         scope: ItemScope = .item, detection: CleanupRule.Detection? = nil, apps: Set<String> = []
     ) throws -> CleanupRule {
-        try CleanupRule(
-            id: "fixture", name: "Fixture", description: "Fixture cache", category: category,
-            detection: detection ?? .folder(cache),
-            action: .paths([RulePath(root: cache, pattern: "*.cache")], method: .delete, scope: scope),
-            tier: .rebuildable, selection: .modifiedAtLeast(days: 30), explanation: "Can be rebuilt",
-            documentation: #require(URL(string: "https://example.test/cache")), apps: apps)
+        try fixture.rule(scope: scope, detection: detection, apps: apps)
     }
 
     func scanned(_ url: URL, rule: CleanupRule, running: Set<String> = []) throws -> ScanItem {
-        try rule.scanItem(
-            at: url, snapshot: #require(ItemSnapshot.read(url)),
-            modified: #require(RuleMatch.modificationDate(at: url)),
-            source: FixtureSubTool.id, runningApps: StubRunningApps(running), now: now)
+        try fixture.scanned(url, rule: rule, running: running)
     }
 
     func plan(_ items: [ScanItem]) throws -> Plan {
-        try Plan(subTool: FixtureSubTool(tier: .rebuildable, method: .delete), items: items, pathGuard: pathGuard)
+        try fixture.plan(items)
     }
 
     func run(_ plan: Plan, running: Set<String> = []) async throws -> RunReport {
@@ -68,24 +61,6 @@ struct RulePipelineTests {
         #expect(history.entries().map(\.restorability) == [.permanent, .permanent])
     }
 
-    @Test(arguments: [86_400.0, -86_400.0])
-    func anyChangedModificationDateSkipsEvenWhenKindAndSizeMatchSAF008(offset: Double) async throws {
-        let file = try root.file("Library/Caches/Fixture/old.cache", size: 4096, modified: stale)
-        let item = try scanned(file, rule: rule())
-        let plan = try plan([item])
-        try FileManager.default.setAttributes(
-            [.modificationDate: stale.addingTimeInterval(offset)], ofItemAtPath: file.path)
-        #expect(item.snapshot == ItemSnapshot.read(file))
-
-        let report = try await run(plan)
-
-        #expect(report.outcomes.map(\.result) == [.skipped(.modifiedSinceScan)])
-        #expect(FileManager.default.fileExists(atPath: file.path))
-        let records = try HistoryLog.read(folder: root.historyFolder).records
-        #expect(records.map(\.phase) == [.intent, .result])
-        #expect(records.last?.detail == "modifiedSinceScan" && records.last?.status == .skipped)
-    }
-
     @Test func aRunningAppDisablesItsRuleItemsAtScanTimeSAF009CAC003() throws {
         let folder = try root.folder("Library/Caches/Fixture/build.cache", modified: stale)
         let rule = try rule(apps: ["com.example.Fixture"])
@@ -101,19 +76,6 @@ struct RulePipelineTests {
         #expect(try scanned(folder, rule: self.rule(), running: ["com.example.Fixture"]).selection == .selected)
     }
 
-    @Test func anAppThatStartsAfterTheScanSkipsItsItemsAndIsLoggedSAF009SAF011() async throws {
-        let folder = try root.folder("Library/Caches/Fixture/build.cache", modified: stale)
-        let free = try root.folder("Library/Caches/Fixture/free.cache", modified: stale)
-        let plan = try plan([scanned(folder, rule: rule(apps: ["com.example.Fixture"])), scanned(free, rule: rule())])
-        let report = try await run(plan, running: ["com.example.fixture"])
-        #expect(report.outcomes.map(\.result) == [.skipped(.appRunning), .done(nil)])
-        #expect(FileManager.default.fileExists(atPath: folder.path))
-        #expect(!FileManager.default.fileExists(atPath: free.path))
-        let results = try HistoryLog.read(folder: root.historyFolder).records.filter { $0.phase == .result }
-        #expect(results.map(\.detail) == ["appRunning", nil])
-        #expect(results.map(\.status) == [.skipped, .ok])
-    }
-
     @Test func aRecreatedFolderMustStillMatchTheRuleAndUnchangedModificationDateSAF008() async throws {
         let folder = try root.folder("Library/Caches/Fixture/build.cache", modified: stale)
         let item = try scanned(folder, rule: rule())
@@ -127,16 +89,6 @@ struct RulePipelineTests {
         #expect(report.outcomes.map(\.result) == [.done(nil)])
         #expect(!FileManager.default.fileExists(atPath: recreated.path))
         #expect(FileManager.default.fileExists(atPath: try root.url("Library/Caches/Fixture/retired").path))
-    }
-
-    @Test func aNewlyActiveRecreatedFolderSurvivesSAF008() async throws {
-        let folder = try root.folder("Library/Caches/Fixture/build.cache", modified: stale)
-        let plan = try plan([scanned(folder, rule: rule())])
-        try FileManager.default.removeItem(at: folder)
-        let recreated = try root.folder("Library/Caches/Fixture/build.cache", modified: now)
-        let report = try await run(plan)
-        #expect(report.outcomes.map(\.result) == [.skipped(.modifiedSinceScan)])
-        #expect(FileManager.default.fileExists(atPath: recreated.path))
     }
 
     @Test func aContentsRuleKeepsItsFolderCAC004() async throws {

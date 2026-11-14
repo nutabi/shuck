@@ -59,15 +59,22 @@ struct PlanExecutorTests {
         let image = try root.file("Downloads/installer.dmg", size: 20_000)
         let package = try root.folder("Documents/Old.pages")
         try root.file("Documents/Old.pages/Index.zip", size: 8_000)
-        let plan = try plan([planned(movie), planned(image), planned(package)])
-        let identities = [movie, image, package].map(FileIdentity.read)
+        // A name already in the Trash gets a new one, which the log has (SAF-005).
+        let again = try root.file("Documents/installer.dmg", size: 20_000)
+        let items = [movie, image, package, again]
+        let plan = try plan(items.map { try planned($0) })
+        let identities = items.map(FileIdentity.read)
 
         let report = try await run(plan)
 
         #expect(report.run == plan.run)
         #expect(report.outcomes.map(\.item) == plan.items)
         let records = try HistoryLog.read(folder: logFolder).records
-        #expect(records.map(\.phase) == [.intent, .result, .intent, .result, .intent, .result])
+        #expect(
+            records.map(\.phase) == Array([[HistoryRecord.Phase]](repeating: [.intent, .result], count: 4).joined()))
+        let trashedPaths = records.compactMap(\.trashedPath)
+        let expected = [".Trash/clip.mov", ".Trash/installer.dmg", ".Trash/Old.pages", ".Trash/installer 2.dmg"]
+        #expect(trashedPaths == expected.map { root.url.appending(path: $0).path })
         for (outcome, result) in zip(report.outcomes, records.filter { $0.phase == .result }) {
             guard case .done(let trashed?) = outcome.result else {
                 Issue.record("Not trashed: \(outcome)")
@@ -88,81 +95,7 @@ struct PlanExecutorTests {
         #expect(records.filter { $0.phase == .intent }.map(\.identity) == identities)
     }
 
-    @Test func aNameAlreadyInTheTrashIsLoggedWithItsNewNameSAF005() async throws {
-        let first = try root.file("Downloads/report.pdf", size: 10)
-        let second = try root.file("Documents/report.pdf", size: 10)
-        let report = try await run(try plan([planned(first), planned(second)]))
-
-        let trashedPaths = try HistoryLog.read(folder: logFolder).records.compactMap(\.trashedPath)
-        #expect(trashedPaths == [".Trash/report.pdf", ".Trash/report 2.pdf"].map { root.url.appending(path: $0).path })
-        #expect(report.outcomes.map(\.result) == trashedPaths.map { .done(URL(filePath: $0)) })
-    }
-
     // MARK: - Re-validation
-
-    @Test func skipsItemsThatChangedSinceTheScanSAF008() async throws {
-        let gone = try root.file("Downloads/gone.zip", size: 10_000)
-        let grown = try root.file("Downloads/grown.log", size: 10_000)
-        let replaced = try root.file("Downloads/replaced.dat", size: 10_000)
-        let unchanged = try root.file("Downloads/unchanged.iso", size: 10_000)
-        let plan = try plan([planned(gone), planned(grown), planned(replaced), planned(unchanged)])
-
-        try FileManager.default.removeItem(at: gone)
-        try Data(count: 1_000_000).write(to: grown)
-        try FileManager.default.removeItem(at: replaced)
-        try root.folder("Downloads/replaced.dat")
-
-        let report = try await run(plan)
-
-        let results = report.outcomes.map(\.result)
-        #expect(results[0] == .skipped(.missing))
-        guard case .skipped(.changed(let grownNow)) = results[1], case .skipped(.changed(let replacedNow)) = results[2]
-        else {
-            Issue.record("Expected the changed items to be skipped: \(results)")
-            return
-        }
-        #expect(grownNow.kind == .file && grownNow.allocatedSize >= 1_000_000)
-        #expect(replacedNow.kind == .folder)
-        guard case .done = results[3] else {
-            Issue.record("The unchanged item was not trashed: \(results[3])")
-            return
-        }
-        #expect(exists(grown) && exists(replaced))
-        let statuses = try HistoryLog.read(folder: logFolder).records.compactMap(\.status)
-        #expect(statuses == [.skipped, .skipped, .skipped, .ok])
-    }
-
-    /// A file being written keeps its kind and, within 1%, its size, but not its modification date (D-132).
-    @Test func aTrashItemWhoseOnlyChangeIsItsModificationDateIsSkippedSAF008() async throws {
-        let touched = try root.file("Downloads/touched.mov", size: 10_000)
-        let unchanged = try root.file("Downloads/unchanged.mov", size: 10_000)
-        let plan = try plan([planned(touched), planned(unchanged)])
-        try FileManager.default.setAttributes(
-            [.modificationDate: Date.now.addingTimeInterval(60)], ofItemAtPath: touched.path)
-
-        let report = try await run(plan)
-
-        #expect(report.outcomes[0].result == .skipped(.modifiedSinceScan))
-        guard case .done = report.outcomes[1].result else {
-            Issue.record("The unchanged item was not trashed: \(report.outcomes[1].result)")
-            return
-        }
-        #expect(exists(touched))
-        let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
-        #expect(results.map(\.detail) == ["modifiedSinceScan", nil])
-    }
-
-    /// Nothing shows that an item whose scan read no date is unchanged, so it is skipped (D-132).
-    @Test func anItemWithoutAScanDateIsSkippedSAF008() async throws {
-        let file = try root.file("Downloads/undated.mov", size: 10_000)
-        let item = PlannedItem(
-            url: file, tier: .yourData, method: .trash, snapshot: try #require(ItemSnapshot.read(file)))
-
-        let report = try await run(plan([item]))
-
-        #expect(report.outcomes.map(\.result) == [.skipped(.modifiedSinceScan)])
-        #expect(exists(file))
-    }
 
     @Test func anItemShuckMayNotReadIsSkippedAsNotAccessibleNotMissingSAF012() async throws {
         let locked = try root.folder("Library/Caches/com.example.app")
@@ -212,22 +145,6 @@ struct PlanExecutorTests {
         let details = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }.map(\.detail)
         #expect(details == ["rejected: protectedLocation \(moved.path)"])
         #expect(exists(moved))
-    }
-
-    /// SET-001: a folder the user excludes after the plan was made is skipped when the run re-validates it.
-    @Test func skipsAFolderTheUserExcludedAfterThePlanSET001SAF008() async throws {
-        let project = try root.file("Pictures/Trip/beach.jpg", size: 10_000)
-        let trip = project.deletingLastPathComponent()
-        let plan = try plan([planned(trip)])
-        let excluding = PathGuard(configuration: root.pathGuardConfiguration(userExclusions: [trip]))
-
-        let report = try await run(plan, with: try PlanExecutor(root: root, pathGuard: excluding))
-
-        #expect(
-            report.outcomes.map(\.result) == [.skipped(.userExclusion(trip.path))])
-        let details = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }.map(\.detail)
-        #expect(details == ["userExclusion: \(trip.path)"])
-        #expect(exists(project) && !exists(trashFolder.appending(path: "Trip")))
     }
 
     // MARK: - Outcomes

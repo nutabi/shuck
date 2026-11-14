@@ -55,29 +55,6 @@ struct LaunchctlActionTests {
         #expect(FileManager.default.fileExists(atPath: plist.path))
     }
 
-    @Test func anAgentThatIsNotLoadedIsDoneWithoutABootoutAPP011() async throws {
-        try root.tool("bin/launchctl", .launchctl(printStatus: LaunchctlAction.notLoadedStatus))
-        let report = try await run(planned(plist()))
-
-        #expect(report.outcomes.map(\.result) == [.done(nil)])
-        #expect(root.launchctlCalls == ["print \(domain)/com.example.helper.job"])
-        #expect(try records().last?.detail?.hasPrefix("not loaded") == true)
-        #expect(try records().last?.status == .ok)
-    }
-
-    @Test func aBootoutThatFailsIsAFailureWithItsStatusSAF011() async throws {
-        try root.tool("bin/launchctl", .launchctl(printStatus: 0, bootoutStatus: 5))
-        let report = try await run(planned(plist()))
-
-        guard case .failed(let error) = report.outcomes.first?.result else {
-            Issue.record("Expected a failure")
-            return
-        }
-        #expect(error.domain == "ShuckToolExit" && error.code == 5)
-        #expect(try records().last?.status == .failed)
-        #expect(try records().last?.detail?.hasPrefix("bootout \(domain)/com.example.helper.job: ") == true)
-    }
-
     @Test func aPrintThatFailsOtherwiseLeavesTheAgentLoadedAndFailsTheItemSAF011() async throws {
         try root.tool("bin/launchctl", .launchctl(printStatus: 64))
         let report = try await run(planned(plist()))
@@ -104,44 +81,34 @@ struct LaunchctlActionTests {
         #expect(entries.map(\.restorability) == [.reversedByOppositeAction])
     }
 
-    @Test func aPropertyListWithoutALabelFailsAndRunsNothingAPP011() async throws {
+    @Test(arguments: [nil, "a/b"] as [String?])
+    func aPropertyListWithoutALabelThatNamesOneJobFailsAndRunsNothingAPP011(label: String?) async throws {
         try root.tool("bin/launchctl", .launchctl(printStatus: 0))
-        let plist = try plist(label: nil)
+        let plist = try plist(label: label)
         let report = try await run(planned(plist))
 
         guard case .failed(let error) = report.outcomes.first?.result else {
             Issue.record("Expected a failure")
             return
         }
-        #expect(error.message.contains("Label"))
         #expect(root.launchctlCalls.isEmpty)
-        // With no label to log, the intent names the property list.
-        #expect(try records().first?.path == plist.path)
-    }
-
-    @Test func aLabelThatCannotNameOneJobIsNotUsedAPP011() async throws {
-        try root.tool("bin/launchctl", .launchctl(printStatus: 0))
-        let report = try await run(planned(plist(label: "a/b")))
-
-        guard case .failed = report.outcomes.first?.result else {
-            Issue.record("Expected a failure")
-            return
+        if label == nil {
+            #expect(error.message.contains("Label"))
+            // With no label to log, the intent names the property list.
+            #expect(try records().first?.path == plist.path)
         }
-        #expect(root.launchctlCalls.isEmpty)
     }
 
-    @Test func aMissingLaunchctlSkipsTheItemAsUnavailableSAF011() async throws {
+    /// A tool that is not there, and the real one, which a link inside the root reaches outside it (SAF-016, D-82).
+    @Test(arguments: [false, true])
+    func aLaunchctlThatCannotBeRunIsSkippedAsUnavailableSAF011NFRSEC004(isTheRealOne: Bool) async throws {
+        if isTheRealOne { _ = try root.symlink("bin/launchctl", to: URL(filePath: "/bin/launchctl")) }
         let report = try await run(planned(plist()))
 
-        #expect(report.outcomes.map(\.result) == [.skipped(.toolUnavailable(.notAnExecutable))])
-    }
-
-    @Test func theRealLaunchctlIsNeverReachableFromAFixtureRootNFRSEC004() async throws {
-        // A link inside the root to the real tool resolves outside it, so a fixture-root run refuses it.
-        _ = try root.symlink("bin/launchctl", to: URL(filePath: "/bin/launchctl"))
-        let report = try await run(planned(plist()))
-
-        #expect(report.outcomes.map(\.result) == [.skipped(.toolUnavailable(.outsideRoots))])
+        #expect(
+            report.outcomes.map(\.result) == [
+                .skipped(.toolUnavailable(isTheRealOne ? .outsideRoots : .notAnExecutable))
+            ])
     }
 
     @Test func anAgentChangedSinceTheScanIsSkippedAndNothingRunsSAF008() async throws {

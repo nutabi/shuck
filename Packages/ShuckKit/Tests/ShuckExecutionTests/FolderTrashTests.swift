@@ -21,6 +21,9 @@ struct FolderTrashTests {
         #expect(trashed == folder.appending(path: "clip.mov"))
         #expect(FileManager.default.fileExists(atPath: trashed.path))
         #expect(!FileManager.default.fileExists(atPath: file.path))
+        #expect(throws: (any Error).self) {
+            try FolderTrash(folder: folder).trashItem(at: root.url.appending(path: "Movies/missing.mov"))
+        }
     }
 
     @Test func addsANumberToANameThatIsTaken() throws {
@@ -33,12 +36,5 @@ struct FolderTrashTests {
 
         #expect([first, second, third].map(\.lastPathComponent) == ["clip.mov", "clip 2.mov", "clip 3.mov"])
         #expect([folder, sameFolderName].map(\.lastPathComponent) == ["Old", "Old 2"])
-    }
-
-    @Test func aMissingItemThrows() {
-        let trash = FolderTrash(folder: root.trashFolder)
-        #expect(throws: (any Error).self) {
-            try trash.trashItem(at: root.url.appending(path: "Movies/missing.mov"))
-        }
     }
 }
