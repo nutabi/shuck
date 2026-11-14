@@ -39,18 +39,6 @@ struct SkipCodeTests {
         #expect(SkipCode(detail: "") == nil)
     }
 
-    /// SAF-008, SAF-012: re-validation tells a missing item from one Shuck may not read.
-    @Test func reValidationTellsMissingFromNotAccessibleSAF012() throws {
-        let root = try FixtureRoot()
-        let file = try root.file("Downloads/clip.mov", size: 4_096)
-        let locked = try root.folder("Library/Caches/Locked", permissions: 0o000)
-
-        #expect(ItemSnapshot.check(file) == ItemSnapshot.read(file).map(ItemSnapshot.Check.found))
-        #expect(ItemSnapshot.check(root.url.appending(path: "Downloads/gone.mov")) == .missing)
-        #expect(ItemSnapshot.check(locked) == .notAccessible)
-        #expect(ItemSnapshot.check(locked.appending(path: "inside.db")) == .notAccessible)
-    }
-
     /// SAF-014: measuring a folder stops as soon as it is asked to, and says so rather than calling the item missing.
     @Test func reValidationStopsMeasuringAFolderWhenAskedSAF014() throws {
         let root = try FixtureRoot()

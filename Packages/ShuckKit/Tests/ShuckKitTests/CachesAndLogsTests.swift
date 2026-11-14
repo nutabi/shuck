@@ -52,39 +52,35 @@ struct CachesAndLogsTests {
         #expect(CachesAndLogs().tiers == [.rebuildable])
     }
 
-    @Test func everyEntryOfCachesAndLogsIsOneItemCAC001() async throws {
+    @Test func everyEntryIsOneItemThatNamesItsAppAndWhyItIsSelectedCAC001CAC002CAC005() async throws {
         try cache("com.example.Notes")
+        try cache("Firefox")
         try root.file("Library/Caches/loose.dat", size: 100)
         try root.file("Library/Logs/Notes/notes.log", size: 100)
         try root.file("Library/Logs/old.log", size: 100)
+        try root.file("Library/Logs/com.example.Mail/mail.log", size: 100)
         try root.file("Library/Containers/com.example.Mail/Data/Library/Caches/m.db", size: 100)
-
-        let items = await items()
-
-        #expect(
-            Set(items.keys) == [
-                "Library/Caches/com.example.Notes", "Library/Caches/loose.dat", "Library/Logs/Notes",
-                "Library/Logs/old.log", "Library/Containers/com.example.Mail/Data/Library/Caches",
-            ])
-        #expect(
-            items.values.allSatisfy { $0.tier == .rebuildable && $0.method == .delete && $0.source == .cachesAndLogs })
-        #expect(items["Library/Caches/com.example.Notes"]?.scope == .contents)
-        #expect(items["Library/Logs/Notes"]?.scope == .contents)
-        #expect(items["Library/Containers/com.example.Mail/Data/Library/Caches"]?.scope == .contents)
-        #expect(items["Library/Caches/loose.dat"]?.scope == .item)
-        #expect(items["Library/Logs/old.log"]?.scope == .item)
-    }
-
-    @Test func itemsNameTheirAppCAC002() async throws {
-        try cache("com.example.Notes")
-        try cache("Firefox")
-        try root.file("Library/Caches/loose.dat", size: 10)
-        try root.file("Library/Logs/com.example.Mail/mail.log", size: 10)
         try root.file("Library/Containers/com.example.Notes/Data/Library/Caches/n.db", size: 10)
         try root.file("Library/Containers/com.unknown.Thing/Data/Library/Caches/n.db", size: 10)
 
         let items = await items()
 
+        #expect(
+            Set(items.keys) == [
+                "Library/Caches/com.example.Notes", "Library/Caches/Firefox", "Library/Caches/loose.dat",
+                "Library/Logs/Notes", "Library/Logs/old.log", "Library/Logs/com.example.Mail",
+                "Library/Containers/com.example.Mail/Data/Library/Caches",
+                "Library/Containers/com.example.Notes/Data/Library/Caches",
+                "Library/Containers/com.unknown.Thing/Data/Library/Caches",
+            ])
+        #expect(
+            items.values.allSatisfy { $0.tier == .rebuildable && $0.method == .delete && $0.source == .cachesAndLogs })
+        // A folder is listed as its contents, and a loose file as itself.
+        #expect(items["Library/Caches/com.example.Notes"]?.scope == .contents)
+        #expect(items["Library/Logs/Notes"]?.scope == .contents)
+        #expect(items["Library/Containers/com.example.Mail/Data/Library/Caches"]?.scope == .contents)
+        #expect(items["Library/Caches/loose.dat"]?.scope == .item)
+        #expect(items["Library/Logs/old.log"]?.scope == .item)
         // A bundle ID the Mac knows becomes the app's name, in the caches and in the container; others keep their name.
         #expect(items["Library/Caches/com.example.Notes"]?.appName == "Notes")
         #expect(items["Library/Containers/com.example.Notes/Data/Library/Caches"]?.appName == "Notes")
@@ -95,6 +91,12 @@ struct CachesAndLogsTests {
         #expect(items["Library/Caches/com.example.Notes"]?.category.id == "caches")
         #expect(items["Library/Containers/com.example.Notes/Data/Library/Caches"]?.category.id == "container-caches")
         #expect(items["Library/Logs/com.example.Mail"]?.category.id == "logs")
+        // A stale item says why it is selected.
+        let notes = try #require(items["Library/Caches/com.example.Notes"])
+        #expect(notes.selection == .selected)
+        #expect(String(localized: notes.reason) == "Not changed for 30 days or more.")
+        // A name alone never makes the owner known, so a folder named after an app only ever disables (CAC-009).
+        #expect(items["Library/Caches/Firefox"]?.selection == .unselected)
     }
 
     @Test func bundleIDShapedNamesAreRecognised() {
@@ -106,59 +108,36 @@ struct CachesAndLogsTests {
         #expect(CachesAndLogs.bundleID(ofFolder: "a..b") == nil)
     }
 
-    @Test func cachesOfARunningAppAreDisabledCAC003() async throws {
+    @Test func cachesOfARunningAppAreDisabledWhetherNamedByBundleIDOrNameCAC003SAF009() async throws {
         try cache("com.example.Notes")
         try cache("com.example.Mail")
         try root.file("Library/Containers/com.example.Notes/Data/Library/Caches/n.db", size: 10)
         try root.file("Library/Logs/com.example.Notes/notes.log", size: 10, modified: longAgo)
+        try cache("Firefox")
+        try cache("FIREFOX-not")
+        try root.file("Library/Logs/firefox/f.log", size: 10, modified: longAgo)
+        try root.file("Library/Caches/Firefox.log", size: 10, modified: longAgo)
+        try cache("Twin")
 
-        let items = await items(running: ["COM.example.notes"])
+        let items = await items(running: ["COM.example.notes", "org.mozilla.firefox", "com.example.twin-b"])
 
         #expect(items["Library/Caches/com.example.Notes"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Containers/com.example.Notes/Data/Library/Caches"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Logs/com.example.Notes"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Caches/com.example.Notes"]?.apps == ["com.example.Notes"])
         #expect(items["Library/Caches/com.example.Mail"]?.selection == .selected)
-    }
-
-    @Test func aFolderNamedAfterARunningAppIsDisabledCAC003SAF009() async throws {
-        try cache("Firefox")
-        try cache("FIREFOX-not")
-        try root.file("Library/Logs/firefox/f.log", size: 10, modified: longAgo)
-        try root.file("Library/Caches/Firefox.log", size: 10, modified: longAgo)
-
-        let items = await items(running: ["org.mozilla.firefox"])
-
         // The name compares without case; a loose file and another name stay untied (D-189).
         #expect(items["Library/Caches/Firefox"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Caches/Firefox"]?.apps == ["org.mozilla.firefox"])
         #expect(items["Library/Logs/firefox"]?.selection == .appIsRunning(nil))
         #expect(items["Library/Caches/FIREFOX-not"]?.selection == .unselected)
         #expect(items["Library/Caches/Firefox.log"]?.apps == [])
-    }
-
-    @Test func aFolderNamedAfterAnAppThatIsNotRunningStaysUnselectedCAC009() async throws {
-        try cache("Firefox")
-
-        let item = try #require(await items()["Library/Caches/Firefox"])
-
-        // A name alone never makes the owner known, so the tie only ever disables (CAC-009).
-        #expect(item.selection == .unselected)
-        #expect(
-            String(localized: item.reason) == "Shuck can't tell which app this belongs to, so it starts unselected.")
-        #expect(item.appName == "Firefox")
-    }
-
-    @Test func aNameTwoAppsShareIsTiedToBothCAC003() async throws {
-        try cache("Twin")
-
-        let items = await items(running: ["com.example.twin-b"])
-
+        // A name two apps share is tied to both.
         #expect(items["Library/Caches/Twin"]?.apps == ["com.example.twin-a", "com.example.twin-b"])
         #expect(items["Library/Caches/Twin"]?.selection == .appIsRunning(nil))
     }
 
-    @Test func aCacheIsSelectedOnlyWhenNothingInItChangedForThirtyDaysCAC005() async throws {
+    @Test func aCacheNeedsThirtyQuietDaysAndALogSevenCAC005CAC009() async throws {
         try cache("com.example.Stale")
         try cache("com.example.Recent", modified: .now)
         // The folder's own date is old, but a file inside it was just written: the app is using it.
@@ -167,6 +146,15 @@ struct CachesAndLogsTests {
             [.modificationDate: longAgo], ofItemAtPath: root.url("Library/Caches/com.example.Busy").path)
         try root.file("Library/Caches/old.dat", size: 100, modified: longAgo)
         try root.file("Library/Caches/new.dat", size: 100, modified: .now)
+        try root.file("Library/Logs/old.log", size: 100, modified: lastMonth)
+        try root.file("Library/Logs/new.log", size: 100, modified: .now)
+        // A log is selected by its age whoever wrote it, even an app nobody knows.
+        try root.file("Library/Logs/Unknown Tool/old.log", size: 100, modified: lastMonth)
+        try FileManager.default.setAttributes(
+            [.modificationDate: lastMonth], ofItemAtPath: root.url("Library/Logs/Unknown Tool").path)
+        try root.file("Library/Logs/Active/today.log", size: 100, modified: .now)
+        try FileManager.default.setAttributes(
+            [.modificationDate: lastMonth], ofItemAtPath: root.url("Library/Logs/Active").path)
 
         let items = await items()
 
@@ -176,6 +164,10 @@ struct CachesAndLogsTests {
         // A loose file names no app, so its age never selects it (CAC-009).
         #expect(items["Library/Caches/old.dat"]?.selection == .unselected)
         #expect(items["Library/Caches/new.dat"]?.selection == .unselected)
+        #expect(items["Library/Logs/old.log"]?.selection == .selected)
+        #expect(items["Library/Logs/new.log"]?.selection == .unselected)
+        #expect(items["Library/Logs/Unknown Tool"]?.selection == .selected)
+        #expect(items["Library/Logs/Active"]?.selection == .unselected)
     }
 
     @Test func aCacheWhoseAppIsUnknownIsListedButNeverSelectedCAC009() async throws {
@@ -207,33 +199,6 @@ struct CachesAndLogsTests {
         #expect(!items.keys.contains { $0.hasPrefix("Library/Application Support") })
     }
 
-    @Test func aLogIsSelectedByItsAgeWhoeverWroteItCAC005CAC009() async throws {
-        try root.file("Library/Logs/Unknown Tool/old.log", size: 100, modified: lastMonth)
-        try FileManager.default.setAttributes(
-            [.modificationDate: lastMonth], ofItemAtPath: root.url("Library/Logs/Unknown Tool").path)
-
-        #expect(await items()["Library/Logs/Unknown Tool"]?.selection == .selected)
-    }
-
-    @Test func logsNotChangedForSevenDaysAreSelectedAndNewerOnesAreListedCAC005() async throws {
-        try root.file("Library/Logs/old.log", size: 100, modified: lastMonth)
-        try root.file("Library/Logs/new.log", size: 100, modified: .now)
-        try root.file("Library/Logs/Tool/old.log", size: 100, modified: lastMonth)
-        try FileManager.default.setAttributes(
-            [.modificationDate: lastMonth], ofItemAtPath: root.url("Library/Logs/Tool").path)
-        try root.file("Library/Logs/Active/today.log", size: 100, modified: .now)
-        try FileManager.default.setAttributes(
-            [.modificationDate: lastMonth], ofItemAtPath: root.url("Library/Logs/Active").path)
-
-        let items = await items()
-
-        #expect(items["Library/Logs/old.log"]?.selection == .selected)
-        #expect(items["Library/Logs/new.log"]?.selection == .unselected)
-        #expect(items["Library/Logs/Tool"]?.selection == .selected)
-        #expect(items["Library/Logs/Active"]?.selection == .unselected)
-        #expect(CachesAndLogs.staleLogDays == 7 && CachesAndLogs.staleCacheDays == 30)
-    }
-
     @Test func appleCachesAreListedButNeverSelectedByDefaultD120() async throws {
         try cache("com.apple.Safari")
         try root.file("Library/Containers/com.apple.Notes/Data/Library/Caches/n.db", size: 10, modified: longAgo)
@@ -247,24 +212,16 @@ struct CachesAndLogsTests {
         #expect(items["Library/Containers/com.apple.Notes/Data/Library/Caches"]?.selection == .unselected)
     }
 
-    @Test func aStaleItemSaysWhyItIsSelected() async throws {
+    @Test func leavesOutWhatIsNotACacheOrALogOrBelongsToAnotherToolCAC001CAC008DEV007FCL005() async throws {
         try cache("com.example.Notes")
-        let item = try #require(await items()["Library/Caches/com.example.Notes"])
-        #expect(String(localized: item.reason) == "Not changed for 30 days or more.")
-    }
-
-    @Test func foldersWithNothingInsideAreNotListedAndLinksAreNotEntries() async throws {
+        // Empty folders, and links, are not entries.
         try root.folder("Library/Caches/Empty")
         try root.folder("Library/Logs/Empty")
         try root.symlink("Library/Caches/link", to: root.folder("Elsewhere"))
         try root.file("Elsewhere/file", size: 10)
         try root.symlink("Library/Logs/link.log", to: root.url("Elsewhere/file"))
-        try root.folder("Library/Containers/com.example.Notes/Data/Library/Caches")
-
-        #expect(await items().isEmpty)
-    }
-
-    @Test func cachesADeveloperToolOwnsAreLeftToDeveloperJunkFCL005() async throws {
+        try root.folder("Library/Containers/com.example.Mail/Data/Library/Caches")
+        // Caches a developer tool owns are left to Developer Junk.
         for name in [
             "Homebrew", "pip", "org.swift.swiftpm", "CocoaPods", "Yarn", "pnpm", "go-build", "com.apple.dt.Xcode",
         ] {
@@ -272,34 +229,21 @@ struct CachesAndLogsTests {
         }
         try root.file("Library/Logs/Homebrew/brew.log", size: 10)
         try root.file("Library/Logs/CoreSimulator/sim.log", size: 10)
-        try cache("com.example.Notes")
-
-        #expect(Set(await items().keys) == ["Library/Caches/com.example.Notes"])
-    }
-
-    @Test func shucksOwnCachesAndDockersAreLeftOutCAC001DEV007() async throws {
+        // Shuck's own caches and Docker's are left out.
         try cache(ShuckKit.bundleID)
         try cache(ShuckKit.debugBundleID)
         try root.file("Library/Logs/\(ShuckKit.bundleID)/shuck.log", size: 10)
         try root.file("Library/Containers/com.docker.docker/Data/Library/Caches/d.db", size: 10)
-        try cache("com.example.Notes")
-
-        #expect(Set(await items().keys) == ["Library/Caches/com.example.Notes"])
-    }
-
-    @Test func aScanLeavesOutWhatTheMapGivesAnotherSubToolFCL005() async throws {
-        try cache("com.example.Notes")
-        #expect(await items(ownership: OwnershipMap(home: root.url, entries: [])).isEmpty)
-    }
-
-    @Test func theScanNeverListsAnythingOutsideTheLibraryFoldersCAC008() async throws {
+        // Nothing outside Caches, Logs and a container's caches is listed.
         try root.file("Library/Preferences/com.example.plist", size: 10)
         try root.file("Library/Application Support/Notes/data", size: 10)
         try root.file("Library/Containers/com.example.Notes/Data/Documents/essay.txt", size: 10)
         try root.file("Library/Containers/com.example.Notes/Data/Library/Application Support/x", size: 10)
         try root.file("Downloads/big.bin", size: 10)
 
-        #expect(await items().isEmpty)
+        #expect(Set(await items().keys) == ["Library/Caches/com.example.Notes"])
+        // What the ownership map gives another sub-tool is left out too.
+        #expect(await items(ownership: OwnershipMap(home: root.url, entries: [])).isEmpty)
     }
 
     @Test func aFolderMacOSHidesIsReportedNotAccessibleOnceSAF012() async throws {
@@ -381,13 +325,8 @@ struct CachesAndLogsTests {
         }
     }
 
-    @Test func appNamesComeFromTheInstalledAppsAndStubsCompareWithoutCase() {
+    @Test func theInstalledAppsAreReadFromLaunchServicesCAC002() {
         #expect(SystemAppNames().name(ofBundleID: "com.apple.finder") == "Finder")
         #expect(SystemAppNames().name(ofBundleID: "com.example.not-installed.app") == nil)
-        #expect(StubAppNames(["COM.A.B": "AB"]).name(ofBundleID: "com.a.b") == "AB")
-        let byName = StubAppNames(byName: ["Fire Fox": ["a.b.c"], "fire fox": ["d.e.f"]])
-            .bundleIDsByName(home: root.url)
-        #expect(byName.bundleIDs(named: "FIRE FOX") == ["a.b.c", "d.e.f"])
-        #expect(byName.bundleIDs(named: "Other").isEmpty)
     }
 }

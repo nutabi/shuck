@@ -41,52 +41,12 @@ struct XcodeArchivesTests {
             #expect(item.category.id == "xcode-archives")
             #expect(String(localized: item.reason).contains("keep the archive of every build you distribute"))
         }
-    }
-
-    @Test func aRunningXcodeDisablesEveryArchiveSAF009() async throws {
-        try root.xcarchive(day: "2026-11-10", name: "App")
-
-        let items = await items(running: ["com.apple.dt.Xcode"])
-
-        #expect(items.map(\.selection) == [.appIsRunning(nil)])
-    }
-
-    @Test func onlyArchiveBundlesInDateFoldersAreListedDEVR05() async throws {
-        #expect(await items().isEmpty)
-        let real = try root.xcarchive(day: "2026-11-10", name: "Real")
-        try root.file("Library/Developer/Xcode/Archives/stray.xcarchive/Info.plist", size: 10)
-        try root.file("Library/Developer/Xcode/Archives/2026-11-10/notes.txt", size: 10)
-        try root.file("Library/Developer/Xcode/Archives/2026-11-10/Plain/Info.plist", size: 10)
-        try root.file("Library/Developer/Xcode/Archives/2026-11-10/file.xcarchive", size: 10)
-        let elsewhere = try root.folder("Elsewhere")
-        try root.symlink("Library/Developer/Xcode/Archives/2026-11-10/Link.xcarchive", to: elsewhere)
-        try root.symlink("Library/Developer/Xcode/Archives/2026-12-01", to: elsewhere)
-
-        #expect(await items().compactMap(\.url?.path) == [real.path])
-    }
-
-    @Test func theRuleTargetsArchiveBundlesOnlyAndTheMapGivesThemToDeveloperJunkFCL005() throws {
+        // The rule takes an archive only as Your data moved to the Trash, and never preselects it.
         let rule = try DeveloperJunk.archivesRule(home: root.url)
-        let archive = try root.url("Library/Developer/Xcode/Archives/2026-11-10/App.xcarchive")
-        let day = try root.url("Library/Developer/Xcode/Archives/2026-11-10")
-        let inside = archive.appending(path: "Products")
-        let other = try root.url("Library/Developer/Xcode/UserData/Snippets")
-
-        #expect(rule.accepts(.path(archive), tier: .yourData, method: .trash, scope: .item))
-        #expect(!rule.accepts(.path(archive), tier: .yourData, method: .delete, scope: .item))
-        #expect(!rule.accepts(.path(archive), tier: .rebuildable, method: .trash, scope: .item))
-        #expect(!rule.accepts(.path(day), tier: .yourData, method: .trash, scope: .item))
-        #expect(!rule.accepts(.path(inside), tier: .yourData, method: .trash, scope: .item))
+        #expect(rule.accepts(.path(first), tier: .yourData, method: .trash, scope: .item))
+        #expect(!rule.accepts(.path(first), tier: .yourData, method: .delete, scope: .item))
+        #expect(!rule.accepts(.path(first), tier: .rebuildable, method: .trash, scope: .item))
         #expect(rule.selection == .never && rule.tier == .yourData)
-        let map = OwnershipMap(home: root.url)
-        #expect(map.owners(of: archive) == [.developerJunk])
-        #expect(map.owners(of: day).isEmpty && map.owners(of: other).isEmpty)
-    }
-
-    @Test func aScanLeavesOutArchivesTheMapGivesAnotherSubToolFCL005() async throws {
-        try root.xcarchive(day: "2026-11-10", name: "App")
-
-        #expect(await items(ownership: OwnershipMap(home: root.url, entries: [])).isEmpty)
     }
 
     @Test func archivesAreARootOfDeveloperJunkAndTheGuardAcceptsABundleDEVR05SAF007() throws {

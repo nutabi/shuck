@@ -51,7 +51,7 @@ struct PathGuardTests {
 
     // MARK: - (a) Empty, root and home
 
-    @Test func rejectsEmptyRootAndHomeSAF007() {
+    @Test func rejectsEmptyRootHomeAndPathsBuiltFromAnEmptyVariableSAF007() {
         #expect(rejection("") == .emptyPath)
         for path in ["/", "//", "/./", "/."] {
             #expect(rejection(path) == .rootFolder)
@@ -59,10 +59,7 @@ struct PathGuardTests {
         for path in [home.path, home.path + "/", home.path + "/."] {
             #expect(rejection(path) == .homeFolder)
         }
-    }
-
-    @Test func rejectsPathsBuiltFromAnEmptyVariableSAF007() {
-        // The Steam bug pattern: a variable that should hold a folder is empty.
+        // Paths built from an empty variable. The Steam bug pattern: a variable that should hold a folder is empty.
         let empty = ""
         #expect(rejection("\(empty)") == .emptyPath)
         #expect(rejection("/\(empty)") == .rootFolder)

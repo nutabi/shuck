@@ -45,7 +45,8 @@ struct PersonalFilesScannerTests {
 
     // MARK: - Scope (FCL-008)
 
-    @Test func theScopeLeavesOutLibraryHiddenItemsAppsAndExclusionsFCL008() async throws {
+    /// One realistic home folder: what the scan leaves out, and what it never even reads (FCL-008).
+    @Test func theScopeLeavesOutLibraryHiddenItemsAppsExclusionsGitVolumesAndLinksFCL008() async throws {
         try root.file("Documents/report.pdf", size: 1_000)
         try root.file("Downloads/a/b/c/deep.zip", size: 1_000)
         try root.file("Library/Caches/com.example/cache.db", size: 1_000)
@@ -53,33 +54,96 @@ struct PersonalFilesScannerTests {
         try root.file(".cache/tool/blob", size: 1_000)
         try root.file(".zshrc", size: 10)
         try root.file("Applications/Tool.app/Contents/MacOS/Tool", size: 1_000)
-        try root.file("Excluded/kept.mov", size: 1_000)
         // Hidden files below the top level are personal files.
         try root.file("Projects/app/.env", size: 10)
-
-        let result = try await scan(scanner(userExclusions: [try root.url("Excluded")]))
-
-        #expect(Set(result.items.keys) == ["Documents/report.pdf", "Downloads/a/b/c/deep.zip", "Projects/app/.env"])
-        #expect(result.items.values.allSatisfy { $0.readOnly == nil })
-    }
-
-    /// A large old packfile matches both sub-tools, and trashing it corrupts the repository (D-131).
-    @Test func gitsOwnFilesAreNotEnteredOrListedAtAnyDepthFCL008() async throws {
+        try root.file("Projects/app/main.swift", size: 10)
+        // Exclusions match whatever their case and Unicode form: one differs in case, and the other spells é as e and
+        // a combining accent, as a pasted path might.
+        try root.file("Excluded/kept.mov", size: 1_000)
+        try root.file("Shouted/kept.mov", size: 1_000)
+        try root.file("Caf\u{E9}/menu.pdf", size: 1_000)
+        // Git's own files are not entered or listed at any depth: a large old packfile matches both sub-tools, and
+        // trashing it corrupts the repository (D-131).
         try root.file("Projects/app/.git/objects/pack/pack-1.pack", size: 8_000)
         try root.file("Projects/app/Vendor/lib/.GIT/HEAD", size: 10)
         try root.file("Projects/app/Vendor/linked/.git", size: 10)
-        try root.file("Projects/app/main.swift", size: 10)
-        try root.file("Projects/app/.env", size: 10)
+        // A disk mounted inside the home folder is not the user's home: the scan neither lists nor enters it (D-135).
+        try root.file("Mounted/Disk/movie.mov", size: 8_000)
+        try root.file("Mounted/disk.img", size: 8_000)
+        try root.file("Mounted/Unknown/clip.mov", size: 8_000)
+        // Symlinks are never followed.
+        try root.symlink("Documents/inside", to: try root.url("Documents/report.pdf"))
+        try root.symlink("Documents/outside", to: URL(filePath: "/usr/share"))
+        let read = Mutex<[String]>([])
+
+        let result = try await scan(
+            scanner(
+                userExclusions: [try root.url("Excluded"), try root.url("SHOUTED"), try root.url("Cafe\u{301}")]
+            ) { url in
+                read.withLock { $0.append(url.lastPathComponent) }
+                var values = EntryValues.read(url)
+                switch url.lastPathComponent {
+                case "Disk", "disk.img":
+                    let identity = values?.identity
+                    values?.identity = identity.map { FileIdentity(volume: $0.volume &+ 1, file: $0.file) }
+                case "Unknown": values?.identity = nil
+                default: break
+                }
+                return values
+            })
+
+        #expect(
+            Set(result.items.keys) == [
+                "Documents/report.pdf", "Downloads/a/b/c/deep.zip", "Projects/app/.env", "Projects/app/main.swift",
+            ])
+        #expect(result.items.values.allSatisfy { $0.readOnly == nil })
+        #expect(
+            read.withLock {
+                !$0.contains("objects") && !$0.contains("HEAD") && !$0.contains("movie.mov")
+                    && !$0.contains("clip.mov")
+            })
+    }
+
+    @Test func aPackageOrADeviceBackupIsOneItemWithItsTotalSizeFCL008FCL009() async throws {
+        try root.file("Documents/Notes.rtfd/TXT.rtf", size: 4_000)
+        try root.file("Documents/Notes.rtfd/image.png", size: 12_000)
+        try root.file("Library/Application Support/MobileSync/Backup/00008110-A/Manifest.db", size: 8_000)
+        try root.file("Library/Application Support/MobileSync/Backup/00008110-A/3f/3f2a", size: 8_000)
+        try root.file("Library/Application Support/AddressBook/AddressBook-v22.abcddb", size: 1_000)
+
+        let result = try await scan(scanner())
+
+        let package = try #require(result.items["Documents/Notes.rtfd"])
+        let backup = try #require(result.items["Library/Application Support/MobileSync/Backup/00008110-A"])
+        #expect(result.items.count == 2)
+        #expect(package.snapshot.kind == .folder && package.snapshot.allocatedSize >= 16_000)
+        #expect(backup.snapshot.kind == .folder && backup.snapshot.allocatedSize >= 16_000)
+        #expect(backup.readOnly == nil)
+    }
+
+    /// An iCloud placeholder is left out, and an evicted package or folder as a whole: nothing measures it or reads
+    /// inside it (FCL-010, D-129).
+    @Test func iCloudPlaceholdersAreLeftOutAsAWholeFCL010() async throws {
+        try root.file("Documents/cloud.pdf", size: 1_000)
+        try root.file("Documents/Cloud.rtfd/TXT.rtf", size: 1_000)
+        try root.file("Documents/Cloud Folder/inside.pdf", size: 1_000)
+        try root.file("Pictures/Cloud.photoslibrary/database", size: 1_000)
+        try root.file("go/pkg/mod/cache/blob", size: 1_000)
+        try root.file("Documents/local.pdf", size: 1_000)
+        let evicted: Set<String> = ["cloud.pdf", "Cloud.rtfd", "Cloud Folder", "Cloud.photoslibrary", "mod"]
         let read = Mutex<[String]>([])
 
         let result = try await scan(
             scanner { url in
                 read.withLock { $0.append(url.lastPathComponent) }
-                return EntryValues.read(url)
+                var values = EntryValues.read(url)
+                if evicted.contains(url.lastPathComponent) { values?.isPlaceholder = true }
+                return values
             })
 
-        #expect(Set(result.items.keys) == ["Projects/app/main.swift", "Projects/app/.env"])
-        #expect(read.withLock { !$0.contains("objects") && !$0.contains("HEAD") })
+        #expect(Set(result.items.keys) == ["Documents/local.pdf"])
+        // The walk never looked inside the evicted folders.
+        #expect(read.withLock { !$0.contains("inside.pdf") && !$0.contains("TXT.rtf") && !$0.contains("cache") })
     }
 
     /// A project's `node_modules` is Developer Junk's (DEV-R06, D-152): neither listed, not even read-only, nor read.
@@ -105,107 +169,7 @@ struct PersonalFilesScannerTests {
         #expect(read.withLock { !$0.contains("big") && !$0.contains("blob.bin") && !$0.contains("x.js") })
     }
 
-    /// A disk mounted inside the home folder is not the user's home: the scan neither lists nor enters it (D-135).
-    @Test func anotherVolumeIsNotEnteredFCL008() async throws {
-        try root.file("Mounted/Disk/movie.mov", size: 8_000)
-        try root.file("Mounted/disk.img", size: 8_000)
-        try root.file("Mounted/Unknown/clip.mov", size: 8_000)
-        try root.file("Documents/report.pdf", size: 10)
-        let read = Mutex<[String]>([])
-
-        let result = try await scan(
-            scanner { url in
-                read.withLock { $0.append(url.lastPathComponent) }
-                var values = EntryValues.read(url)
-                switch url.lastPathComponent {
-                case "Disk", "disk.img":
-                    let identity = values?.identity
-                    values?.identity = identity.map { FileIdentity(volume: $0.volume &+ 1, file: $0.file) }
-                case "Unknown": values?.identity = nil
-                default: break
-                }
-                return values
-            })
-
-        #expect(Set(result.items.keys) == ["Documents/report.pdf"])
-        #expect(read.withLock { !$0.contains("movie.mov") && !$0.contains("clip.mov") })
-    }
-
-    @Test func exclusionsMatchWhateverTheirCaseAndUnicodeFormFCL008() async throws {
-        try root.file("Excluded/kept.mov", size: 1_000)
-        try root.file("Caf\u{E9}/menu.pdf", size: 1_000)
-        try root.file("Documents/report.pdf", size: 1_000)
-
-        // One exclusion differs in case. The other spells é as e and a combining accent, as a pasted path might.
-        let result = try await scan(scanner(userExclusions: [try root.url("EXCLUDED"), try root.url("Cafe\u{301}")]))
-
-        #expect(Set(result.items.keys) == ["Documents/report.pdf"])
-    }
-
-    @Test func eachDeviceBackupIsOneItemFCL008() async throws {
-        try root.file("Library/Application Support/MobileSync/Backup/00008110-A/Manifest.db", size: 8_000)
-        try root.file("Library/Application Support/MobileSync/Backup/00008110-A/3f/3f2a", size: 8_000)
-        try root.file("Library/Application Support/AddressBook/AddressBook-v22.abcddb", size: 1_000)
-
-        let result = try await scan(scanner())
-
-        let backup = try #require(result.items["Library/Application Support/MobileSync/Backup/00008110-A"])
-        #expect(result.items.count == 1)
-        #expect(backup.snapshot.kind == .folder)
-        #expect(backup.snapshot.allocatedSize >= 16_000)
-        #expect(backup.readOnly == nil)
-    }
-
     // MARK: - Packages and placeholders (FCL-009, FCL-010)
-
-    @Test func aPackageIsOneItemWithItsTotalSizeFCL009() async throws {
-        try root.file("Documents/Notes.rtfd/TXT.rtf", size: 4_000)
-        try root.file("Documents/Notes.rtfd/image.png", size: 12_000)
-
-        let result = try await scan(scanner())
-
-        let package = try #require(result.items["Documents/Notes.rtfd"])
-        #expect(result.items.count == 1)
-        #expect(package.snapshot.kind == .folder)
-        #expect(package.snapshot.allocatedSize >= 16_000)
-    }
-
-    @Test func iCloudPlaceholdersAreLeftOutFCL010() async throws {
-        try root.file("Documents/local.pdf", size: 1_000)
-        try root.file("Documents/cloud.pdf", size: 1_000)
-
-        let result = try await scan(
-            scanner { url in
-                var values = EntryValues.read(url)
-                if url.lastPathComponent == "cloud.pdf" { values?.isPlaceholder = true }
-                return values
-            })
-
-        #expect(Set(result.items.keys) == ["Documents/local.pdf"])
-    }
-
-    /// An evicted package or folder is skipped as a whole: nothing measures it or reads inside it (FCL-010, D-129).
-    @Test func placeholderPackagesAndFoldersAreLeftOutFCL010() async throws {
-        try root.file("Documents/Cloud.rtfd/TXT.rtf", size: 1_000)
-        try root.file("Documents/Cloud Folder/inside.pdf", size: 1_000)
-        try root.file("Pictures/Cloud.photoslibrary/database", size: 1_000)
-        try root.file("go/pkg/mod/cache/blob", size: 1_000)
-        try root.file("Documents/local.pdf", size: 1_000)
-        let evicted: Set<String> = ["Cloud.rtfd", "Cloud Folder", "Cloud.photoslibrary", "mod"]
-        let read = Mutex<[String]>([])
-
-        let result = try await scan(
-            scanner { url in
-                read.withLock { $0.append(url.lastPathComponent) }
-                var values = EntryValues.read(url)
-                if evicted.contains(url.lastPathComponent) { values?.isPlaceholder = true }
-                return values
-            })
-
-        #expect(Set(result.items.keys) == ["Documents/local.pdf"])
-        // The walk never looked inside the evicted folders.
-        #expect(read.withLock { !$0.contains("inside.pdf") && !$0.contains("TXT.rtf") && !$0.contains("cache") })
-    }
 
     /// A downloaded file that iCloud keeps stays listed and is marked synced (FCL-010, FCL-012, D-129).
     @Test func downloadedSyncedFilesAreListedAndMarkedFCL010() async throws {
@@ -336,13 +300,6 @@ struct PersonalFilesScannerTests {
         #expect(Set(result.items.keys) == ["Backups/backups.BACKUPDB", "Backups/notes.txt"])
     }
 
-    @Test func aWritableItemBecomesAYourDataTrashItem() throws {
-        let file = PersonalFile(
-            url: try root.url("Movies/clip.mov"), snapshot: ItemSnapshot(kind: .file, allocatedSize: 10), modified: nil)
-        let item = try #require(file.scanItem(source: .oldFiles, reason: "Old"))
-        #expect(item.tier == .yourData && item.method == .trash && item.source == .oldFiles)
-    }
-
     // MARK: - Errors, symlinks, cancelling (SAF-012, SAF-014)
 
     @Test func anUnreadableFolderIsReportedAndTheScanGoesOnSAF012() async throws {
@@ -378,16 +335,6 @@ struct PersonalFilesScannerTests {
         #expect(result.unreadable == ["Documents/Replaced"])
         #expect(result.notAccessible.isEmpty)
         #expect(Set(result.items.keys) == ["Documents/open.txt"])
-    }
-
-    @Test func symlinksAreNeverFollowed() async throws {
-        try root.file("Documents/real.txt", size: 10)
-        try root.symlink("Documents/inside", to: try root.url("Documents/real.txt"))
-        try root.symlink("Documents/outside", to: URL(filePath: "/usr/share"))
-
-        let result = try await scan(scanner())
-
-        #expect(Set(result.items.keys) == ["Documents/real.txt"])
     }
 
     @Test func cancellingTheReadingTaskStopsTheScanSAF014() async throws {

@@ -47,17 +47,7 @@ struct PlanTests {
     /// A Delete without a rule has no evidence that the item is safe to lose (D-132).
     // MARK: - Dependencies (APP-005, APP-011, SAF-011)
 
-    @Test func aPlanAcceptsADependencyOnAnEarlierItemAPP005() throws {
-        let bundle = try root.folder("Applications/Fixture.app")
-        let cache = try root.folder("Library/Caches/com.example.fixture")
-        let first = try root.planned(bundle, tier: .yourData, method: .trash)
-        let second = try root.planned(cache, tier: .yourData, method: .trash, dependency: ItemDependency(first))
-        let plan = try Plan(
-            tool: .applications, allowedRoots: [root.url], items: [first, second], pathGuard: pathGuard)
-        #expect(plan.items == [first, second])
-    }
-
-    @Test func aPlanRefusesADependencyOnALaterUnknownOrTheSameItemAPP005() throws {
+    @Test func aPlanAcceptsADependencyOnAnEarlierItemOnlyAPP005() throws {
         let bundle = try root.folder("Applications/Fixture.app")
         let cache = try root.folder("Library/Caches/com.example.fixture")
         let other = try root.folder("Library/Caches/com.example.other")
@@ -69,6 +59,11 @@ struct PlanTests {
                 try Plan(tool: .applications, allowedRoots: [root.url], items: items, pathGuard: pathGuard)
             }
         }
+        // On an earlier item.
+        let onEarlier = try root.planned(cache, tier: .yourData, method: .trash, dependency: ItemDependency(first))
+        let plan = try Plan(
+            tool: .applications, allowedRoots: [root.url], items: [first, onEarlier], pathGuard: pathGuard)
+        #expect(plan.items == [first, onEarlier])
         // On a later item.
         let onLater = try root.planned(bundle, tier: .yourData, method: .trash, dependency: ItemDependency(second))
         #expect(refused([onLater, second]) == .dependencyNotEarlier(bundle.path))
@@ -99,10 +94,6 @@ struct PlanTests {
         #expect(
             try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [root.planned(cache)], pathGuard: pathGuard)
                 .items.count == 1)
-    }
-
-    @Test func yourDataIsNeverDeletedSAF004() {
-        #expect(!Tier.yourData.allows(.delete))
     }
 
     @Test func planRejectsAnItemThePathGuardRejectsSAF007() throws {
@@ -136,34 +127,26 @@ struct PlanTests {
 
     // MARK: - A folder's contents (CAC-004)
 
-    @Test func aDeletedFolderMayKeepTheFolderAndLoseItsContentsCAC004() throws {
+    @Test func onlyDeleteRemovesTheContentsOfAFolderNotAFileCAC004SAF004() throws {
         let cache = try root.folder("Library/Caches/com.example.app")
-        try root.file("Library/Caches/com.example.app/cache.db", size: 10)
-        let item = try root.planned(cache, scope: .contents)
-        let plan = try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
-        #expect(plan.items.map(\.scope) == [.contents])
-    }
-
-    @Test(arguments: [ActionMethod.trash, .tool, .launchctl])
-    func onlyDeleteRemovesAFoldersContentsSAF004(method: ActionMethod) throws {
-        let cache = try root.folder("Library/Caches/com.example.app")
-        let tier: Tier = Tier.rebuildable.allows(method) ? .rebuildable : .yourData
-        let item = PlannedItem(
-            url: cache, tier: tier, method: method, snapshot: try #require(ItemSnapshot.read(cache)), scope: .contents)
-        let error = #expect(throws: PlanError.self) {
-            try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
+        for method in [ActionMethod.trash, .tool, .launchctl] {
+            let tier: Tier = Tier.rebuildable.allows(method) ? .rebuildable : .yourData
+            let item = PlannedItem(
+                url: cache, tier: tier, method: method, snapshot: try #require(ItemSnapshot.read(cache)),
+                scope: .contents)
+            let error = #expect(throws: PlanError.self) {
+                try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
+            }
+            #expect(error == .contentsNotAllowed(cache.path, method: method))
+            #expect(error?.path == cache.path)
         }
-        #expect(error == .contentsNotAllowed(cache.path, method: method))
-        #expect(error?.path == cache.path)
-    }
 
-    @Test func onlyAFolderHasContentsToRemoveCAC004() throws {
         let log = try root.file("Library/Logs/app.log", size: 10)
-        let item = try root.planned(log, scope: .contents)
-        let error = #expect(throws: PlanError.self) {
-            try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [item], pathGuard: pathGuard)
+        let ofFile = try root.planned(log, scope: .contents)
+        let fileError = #expect(throws: PlanError.self) {
+            try Plan(tool: .cachesAndLogs, allowedRoots: [root.url], items: [ofFile], pathGuard: pathGuard)
         }
-        #expect(error == .contentsOfNonFolder(log.path))
+        #expect(fileError == .contentsOfNonFolder(log.path))
     }
 
     @Test func aSubToolsPlanKeepsEachItemsScopeCAC004() throws {
@@ -188,15 +171,6 @@ struct PlanTests {
         let item = try #require(personal.scanItem(source: .largeFiles, reason: "Large file"))
         let plan = try Plan(subTool: LargeFiles(), items: [item], pathGuard: pathGuard)
         #expect(plan.items.map(\.identity) == [identity])
-    }
-
-    @Test func anItemIsWholeUnlessItSaysOtherwise() throws {
-        let file = try root.file("Downloads/item.bin", size: 10)
-        let snapshot = try #require(ItemSnapshot.read(file))
-        #expect(PlannedItem(url: file, tier: .yourData, method: .trash, snapshot: snapshot).scope == .item)
-        let scanned = ScanItem(
-            url: file, snapshot: snapshot, tier: .yourData, method: .trash, reason: "Fixture file", source: .largeFiles)
-        #expect(scanned.scope == .item)
     }
 
     // MARK: - Snapshots

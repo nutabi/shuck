@@ -50,28 +50,44 @@ struct AppLeftoversTests {
         try root.file(path, text: String(decoding: data, as: UTF8.self))
     }
 
-    @Test func findsEveryLocationNamedByTheBundleIDAPP002() async throws {
+    /// APP-003, OQ-07 (D-192): an exact bundle-ID match is preselected unless it is in Application Support,
+    /// Containers or Group Containers, which can hold the only copy of the user's data. Those are still High and
+    /// selectable.
+    @Test func findsEveryLocationNamedByTheBundleIDAndPreselectsThemPerFolderAPP002APP003OQ07() async throws {
+        let app = try app()
         let host = "2B6CE6C7-8B0E-4B52-A4A2-4B0D3D8E4F11"
-        let folders = [
-            "Library/Application Support/\(id)", "Library/Caches/\(id)", "Library/Containers/\(id)",
-            "Library/Logs/\(id)", "Library/HTTPStorages/\(id)", "Library/WebKit/\(id)",
+        let selected = [
+            "Library/Caches/\(id)", "Library/Logs/\(id)", "Library/WebKit/\(id)", "Library/HTTPStorages/\(id)",
             "Library/Application Scripts/\(id)", "Library/Saved Application State/\(id).savedState",
+        ]
+        let unselected = [
+            "Library/Application Support/\(id)", "Library/Containers/\(id)", "Library/Group Containers/\(group)",
         ]
         let files = [
             "Library/Preferences/\(id).plist", "Library/Preferences/ByHost/\(id).\(host).plist",
             "Library/HTTPStorages/\(id).binarycookies", "Library/Cookies/\(id).binarycookies",
         ]
-        for path in folders { try root.file("\(path)/data", size: 5) }
+        for path in selected + unselected { try root.file("\(path)/data", size: 5) }
         for path in files { try root.file(path, size: 5) }
+        try plist("Library/LaunchAgents/a.plist", ["Label": id])
+        try plist("Library/LaunchAgents/b.plist", ["Label": "\(id).helper"])
+        try plist("Library/LaunchAgents/c.plist", ["Label": "x", "Program": "\(app.url.path)/Contents/MacOS/Notes"])
 
-        let found = items(await find(try app()))
+        let found = items(await find(app, groups: [group]))
 
-        #expect(Set(found.keys) == Set(folders + files))
+        let agents = ["a", "b", "c"].map { "Library/LaunchAgents/\($0).plist" }
+        #expect(Set(found.keys) == Set(selected + unselected + files + agents))
         for item in found.values {
             #expect(item.tier == .yourData && item.method == .trash && item.confidence == .high)
             #expect(item.source == .applications && item.appName == "Notes")
-            #expect(item.snapshot != nil && item.modified != nil)
+            #expect(item.snapshot != nil && item.modified != nil && item.selection.isSelectable)
         }
+        for path in unselected + [agents[1], agents[2]] {
+            #expect(found[path]?.selection == .unselected, "\(path)")
+        }
+        let preselected =
+            selected + ["Library/Preferences/\(id).plist", "Library/Cookies/\(id).binarycookies", agents[0]]
+        for path in preselected { #expect(found[path]?.selection == .selected, "\(path)") }
     }
 
     @Test func aSimilarNameIsNotMatchedR05() async throws {
@@ -100,10 +116,11 @@ struct AppLeftoversTests {
         }
     }
 
-    @Test func aLinkIsNotALeftoverAPP002() async throws {
+    @Test func aLinkIsNotALeftoverByIDOrByNameAPP002APP003() async throws {
         let target = try root.file("Documents/real/data", size: 5)
         try root.symlink("Library/Caches/\(id)", to: target.deletingLastPathComponent())
-        #expect(items(await find(try app())).isEmpty)
+        try root.symlink("Library/Caches/Notes", to: target.deletingLastPathComponent())
+        #expect(items(await find(try app(), installed: AppsByName(["Notes": [id]]))).isEmpty)
     }
 
     @Test func aLaunchAgentIsFoundByLabelOrByProgramInsideTheAppAPP002() async throws {
@@ -128,68 +145,38 @@ struct AppLeftoversTests {
         try root.file("Library/Group Containers/\(group)/data", size: 5)
         try root.file("Library/Group Containers/group.com.example.Other/data", size: 5)
 
-        let found = items(await find(try app(), groups: [group, "group.com.example.Missing", "../x"]))
+        let app = try app()
+        #expect(Applications.declaredAppGroups(of: app.url).isEmpty)
+        let found = items(await find(app, groups: [group, "group.com.example.Missing", "../x"]))
 
         let item = try #require(found["Library/Group Containers/\(group)"])
         #expect(found.count == 1 && item.confidence == .high)
         #expect(String(localized: item.reason) == "In an app group the app declares: \(group)")
     }
 
-    @Test func aFixtureAppDeclaresNoGroupsAPP002() throws {
-        #expect(Applications.declaredAppGroups(of: try app().url).isEmpty)
-    }
-
-    /// APP-003, OQ-07 (D-192): an exact bundle-ID match is preselected unless it is in Application Support,
-    /// Containers or Group Containers, which can hold the only copy of the user's data. Those are still High and
-    /// selectable.
-    @Test func preselectionPerFolderAPP003OQ07() async throws {
-        let app = try app()
-        let selected = [
-            "Library/Caches/\(id)", "Library/Logs/\(id)", "Library/WebKit/\(id)", "Library/HTTPStorages/\(id)",
-            "Library/Application Scripts/\(id)", "Library/Saved Application State/\(id).savedState",
-        ]
-        let unselected = [
-            "Library/Application Support/\(id)", "Library/Containers/\(id)", "Library/Group Containers/\(group)",
-        ]
-        for path in selected + unselected { try root.file("\(path)/data", size: 5) }
-        try root.file("Library/Preferences/\(id).plist", size: 5)
-        try root.file("Library/Cookies/\(id).binarycookies", size: 5)
-        try plist("Library/LaunchAgents/a.plist", ["Label": id])
-        try plist("Library/LaunchAgents/b.plist", ["Label": "\(id).helper"])
-        try plist("Library/LaunchAgents/c.plist", ["Label": "x", "Program": "\(app.url.path)/Contents/MacOS/Notes"])
-
-        let found = items(await find(app, groups: [group]))
-
-        let chosen = Set(found.filter { $0.value.selection == .selected }.keys)
-        let expected = selected + ["Library/Preferences/\(id).plist", "Library/Cookies/\(id).binarycookies"]
-        #expect(chosen == Set(expected + ["Library/LaunchAgents/a.plist"]))
-        for path in unselected + ["Library/LaunchAgents/b.plist", "Library/LaunchAgents/c.plist"] {
-            #expect(found[path]?.selection == .unselected, "\(path)")
-        }
-        #expect(found.values.allSatisfy { $0.confidence == .high && $0.selection.isSelectable })
-    }
-
-    @Test func anUnreadableFolderIsReportedOnceSAF012() async throws {
+    /// A folder macOS refuses, in the user's Library, in a leftover's own folder or in the system-wide Library, is
+    /// reported once, and the scan goes on (SAF-012).
+    @Test func eachFolderMacOSRefusesIsReportedOnceAndTheScanGoesOnSAF012() async throws {
         try root.file("Library/Caches/\(id)/data", size: 5)
-        let locked = try root.folder("Library/Application Support", permissions: 0o000)
-        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        try root.file("SystemLibrary/Application Support/\(id)/data", size: 5)
+        let locked = try [
+            root.folder("Library/Application Support", permissions: 0o000),
+            root.folder("Library/Containers/\(id)", permissions: 0o000),
+            root.folder("SystemLibrary/LaunchDaemons", permissions: 0o000),
+        ]
+        defer {
+            for url in locked {
+                try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            }
+        }
 
         let events = await find(try app())
 
         let denied = events.compactMap { event in
             if case .notAccessible(let url) = event { url.path } else { nil }
         }
-        #expect(denied == [locked.path])
-        #expect(Set(items(events).keys) == ["Library/Caches/\(id)"])
-    }
-
-    @Test func anUnreadableLeftoverIsReportedAndSkippedSAF012() async throws {
-        let locked = try root.folder("Library/Containers/\(id)", permissions: 0o000)
-        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
-
-        let events = await find(try app())
-
-        #expect(events == [.notAccessible(locked)])
+        #expect(denied.sorted() == locked.map(\.path).sorted())
+        #expect(Set(items(events).keys) == ["Library/Caches/\(id)", "SystemLibrary/Application Support/\(id)"])
     }
 
     @Test func everyLeftoverPassesThePathGuardInAnUninstallPlanSAF007() async throws {
@@ -291,12 +278,6 @@ struct AppLeftoversTests {
         }
     }
 
-    @Test func aLinkedEntryIsNotMatchedByNameAPP003() async throws {
-        let target = try root.file("Documents/real/data", size: 5)
-        try root.symlink("Library/Caches/Notes", to: target.deletingLastPathComponent())
-        #expect(items(await find(try app(), installed: AppsByName(["Notes": [id]]))).isEmpty)
-    }
-
     // MARK: Needs admin (APP-004)
 
     @Test func systemWideItemsAreListedAsNeedingAdminAndNeverPlannedAPP004SAF007() async throws {
@@ -338,20 +319,6 @@ struct AppLeftoversTests {
         // Disabled, and even if a caller selects it, outside the allowed roots.
         #expect(throws: PlanError.self) { try plan(item.selection) }
         #expect(throws: PlanError.self) { try plan(.selected) }
-    }
-
-    @Test func aSystemWideFolderMacOSRefusesIsReportedSAF012() async throws {
-        try root.file("SystemLibrary/Application Support/\(id)/data", size: 5)
-        let locked = try root.folder("SystemLibrary/LaunchDaemons", permissions: 0o000)
-        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
-
-        let events = await find(try app())
-
-        let denied = events.compactMap { event in
-            if case .notAccessible(let url) = event { url.path } else { nil }
-        }
-        #expect(denied == [locked.path])
-        #expect(Set(items(events).keys) == ["SystemLibrary/Application Support/\(id)"])
     }
 
     // MARK: Launch agent plists

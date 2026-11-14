@@ -14,7 +14,19 @@ struct ItemSnapshotTests {
 
     // MARK: - An incomplete size (R-10, SAF-012)
 
-    @Test func aFolderWithAnUnreadableSubfolderIsMeasuredPartlyAndMarkedIncompleteSAF012() throws {
+    @Test func onlyAFolderWithAnUnreadableSubfolderIsMarkedIncompleteSAF012() throws {
+        // A fully readable folder, a file and a link are complete.
+        let readable = try root.folder("Library/Caches/Readable")
+        try root.file("Library/Caches/Readable/open.bin", size: 100_000)
+        try root.file("Library/Caches/Readable/Inner/deep.bin", size: 50_000)
+        let file = try root.file("Downloads/clip.mov", size: 4_096)
+        let link = try root.symlink("Downloads/link", to: file)
+        let readableSnapshot = try #require(ItemSnapshot.read(readable))
+        #expect(readableSnapshot.isComplete && readableSnapshot.allocatedSize >= 150_000)
+        #expect(try #require(ItemSnapshot.read(file)).isComplete)
+        let linkSnapshot = try #require(ItemSnapshot.read(link))
+        #expect(linkSnapshot.kind == .symlink && linkSnapshot.isComplete)
+
         let folder = try root.folder("Library/Caches/App")
         try root.file("Library/Caches/App/open.bin", size: 100_000)
         try root.folder("Library/Caches/App/Locked", permissions: 0o000)
@@ -26,28 +38,6 @@ struct ItemSnapshotTests {
         // What could be read is still counted: the readable file, so the size is a lower bound, not zero.
         #expect(snapshot.allocatedSize >= 100_000)
         #expect(ItemSnapshot.check(folder) == .found(snapshot))
-    }
-
-    @Test func aFullyReadableFolderIsCompleteSAF012() throws {
-        let folder = try root.folder("Library/Caches/App")
-        try root.file("Library/Caches/App/open.bin", size: 100_000)
-        try root.folder("Library/Caches/App/Inner")
-        try root.file("Library/Caches/App/Inner/deep.bin", size: 50_000)
-
-        let snapshot = try #require(ItemSnapshot.read(folder))
-
-        #expect(snapshot.isComplete)
-        #expect(snapshot.allocatedSize >= 150_000)
-    }
-
-    @Test func aFileAndASymlinkAreAlwaysCompleteSAF012() throws {
-        let file = try root.file("Downloads/clip.mov", size: 4_096)
-        let link = try root.url("Downloads/link")
-        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
-
-        #expect(try #require(ItemSnapshot.read(file)).isComplete)
-        let linkSnapshot = try #require(ItemSnapshot.read(link))
-        #expect(linkSnapshot.kind == .symlink && linkSnapshot.isComplete)
     }
 
     /// Execution compares kind and size only (SAF-008, D-48): an incomplete size does not change what matches.
@@ -64,59 +54,43 @@ struct ItemSnapshotTests {
 
     // MARK: - One classifier for lstat errors (SAF-012)
 
-    @Test func theClassifierSortsEachErrnoSAF012() {
-        #expect(LstatFailure(errno: ENOENT) == .missing)
-        #expect(LstatFailure(errno: ENOTDIR) == .missing)
-        #expect(LstatFailure(errno: EPERM) == .notAccessible)
-        #expect(LstatFailure(errno: EACCES) == .notAccessible)
-        #expect(LstatFailure(errno: ENAMETOOLONG) == .other)
-        #expect(LstatFailure(errno: ELOOP) == .other)
-        #expect(LstatFailure(errno: EIO) == .other)
-    }
+    /// Both readers of `lstat` errors keep their outcome for each class. Re-validation: a permission error is not
+    /// accessible; every other error, including an unusual one, is missing. Restore's check of the Trash: only a
+    /// missing path means the Trash was emptied; every other error means Shuck cannot tell.
+    @Test func eachLstatErrorIsSortedAndKeepsItsOutcomeInBothReadersSAF008SAF012() async throws {
+        let errnos: [(Int32, LstatFailure)] = [
+            (ENOENT, .missing), (ENOTDIR, .missing), (EPERM, .notAccessible), (EACCES, .notAccessible),
+            (ENAMETOOLONG, .other), (ELOOP, .other), (EIO, .other),
+        ]
+        for (code, failure) in errnos { #expect(LstatFailure(errno: code) == failure, "errno \(code)") }
 
-    /// Re-validation: a permission error is not accessible; every other error, including an unusual one, is missing.
-    @Test func reValidationKeepsItsOutcomeForEachErrorClassSAF012() throws {
-        let locked = try root.folder("Library/Caches/Locked", permissions: 0o000)
-        let file = try root.file("Downloads/clip.mov", size: 4_096)
-        let tooLong = root.url.appending(path: String(repeating: "a", count: 300))
-
-        // EACCES
-        #expect(ItemSnapshot.check(locked.appending(path: "inside.db")) == .notAccessible)
-        // ENOENT
-        #expect(ItemSnapshot.check(root.url.appending(path: "Downloads/gone.mov")) == .missing)
-        // ENOTDIR
-        #expect(ItemSnapshot.check(file.appending(path: "inside")) == .missing)
-        // ENAMETOOLONG, an error that is neither class
-        #expect(ItemSnapshot.check(tooLong) == .missing)
-    }
-
-    /// Restore's check of the Trash: only a missing path means the Trash was emptied; every other error means Shuck
-    /// cannot tell.
-    @Test func restorabilityKeepsItsOutcomeForEachErrorClassSAF012() async throws {
         let locked = try root.folder(".Trash/Locked", permissions: 0o000)
         let file = try root.file(".Trash/clip.mov", size: 100)
         let tooLong = root.url.appending(path: String(repeating: "a", count: 300))
-        let cases: [(URL, Restorability)] = [
-            (locked.appending(path: "inside.db"), .notAccessible),  // EACCES
-            (root.url.appending(path: ".Trash/gone.mov"), .trashEmptied),  // ENOENT
-            (file.appending(path: "inside"), .trashEmptied),  // ENOTDIR
-            (tooLong, .notAccessible),  // ENAMETOOLONG, an error that is neither class
+        let cases: [(path: URL, revalidation: ItemSnapshot.Check, restorability: Restorability)] = [
+            (locked.appending(path: "inside.db"), .notAccessible, .notAccessible),  // EACCES
+            (root.url.appending(path: ".Trash/gone.mov"), .missing, .trashEmptied),  // ENOENT
+            (file.appending(path: "inside"), .missing, .trashEmptied),  // ENOTDIR
+            (tooLong, .missing, .notAccessible),  // ENAMETOOLONG, an error that is neither class
         ]
+        #expect(cases.map { ItemSnapshot.check($0.path) } == cases.map(\.revalidation))
+        #expect(ItemSnapshot.check(locked) == .notAccessible)
+        #expect(ItemSnapshot.check(file) == ItemSnapshot.read(file).map(ItemSnapshot.Check.found))
 
         let folder = root.historyFolder
         let log = try HistoryLog(folder: folder)
         let run = UUID()
         let timestamp = Date(timeIntervalSince1970: 1_793_577_600)
-        for (index, (trashed, _)) in cases.enumerated() {
+        for (index, item) in cases.enumerated() {
             let path = try root.url("Movies/item\(index).mov").path
             try await log.append(
                 .result(
                     run: run, tool: .largeFiles, operation: .trash, path: path, tier: .yourData, status: .ok,
-                    trashedPath: trashed.path, identity: nil, bytes: 100, timestamp: timestamp))
+                    trashedPath: item.path.path, identity: nil, bytes: 100, timestamp: timestamp))
         }
 
         let entries = try HistoryLog.read(folder: folder).entries()
-        #expect(entries.map(\.restorability.kindName) == cases.map { $0.1.kindName })
+        #expect(entries.map(\.restorability.kindName) == cases.map(\.restorability.kindName))
     }
 }
 

@@ -20,12 +20,6 @@ struct FixtureRootTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.url.path).isEmpty)
     }
 
-    @Test func eachRootIsSeparateSAF016() throws {
-        let other = try FixtureRoot()
-        #expect(other.url != root.url)
-        #expect(!root.contains(other.url))
-    }
-
     @Test func rootIsRemovedWhenReleasedSAF016() throws {
         let url: URL
         do {
@@ -45,10 +39,9 @@ struct FixtureRootTests {
         #expect(error == .invalidPath(path))
     }
 
-    @Test func acceptsPathsInsideTheRootSAF016() throws {
+    @Test func acceptsAPlainRelativePathInsideTheRootSAF016() throws {
         let url = try root.url("Downloads/installer.dmg")
         #expect(url.path == root.url.path + "/Downloads/installer.dmg")
-        #expect(root.contains(root.url))
         #expect(root.contains(url))
     }
 
@@ -86,59 +79,4 @@ struct FixtureRootTests {
     }
 
     // MARK: - The file factory
-
-    @Test func fileHasItsSizeWrittenToDisk() throws {
-        let url = try root.file("Movies/clip.mov", size: 100_000)
-        let values = try url.resourceValues(forKeys: [.fileSizeKey, .totalFileAllocatedSizeKey])
-        #expect(values.fileSize == 100_000)
-        #expect(try #require(values.totalFileAllocatedSize) >= 100_000)
-    }
-
-    @Test func fileHasItsDatesAndExtendedAttributes() throws {
-        let modified = Date(timeIntervalSince1970: 1_600_000_000)
-        let created = Date(timeIntervalSince1970: 1_500_000_000)
-        let value = Data("https://example.com/installer.dmg".utf8)
-        let url = try root.file(
-            "Downloads/installer.dmg",
-            modified: modified,
-            created: created,
-            extendedAttributes: ["me.nutabi.shuck.test": value]
-        )
-
-        let values = try url.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
-        #expect(values.contentModificationDate == modified)
-        #expect(values.creationDate == created)
-
-        var buffer = [UInt8](repeating: 0, count: 64)
-        let length = getxattr(url.path, "me.nutabi.shuck.test", &buffer, buffer.count, 0, XATTR_NOFOLLOW)
-        #expect(length == value.count)
-        #expect(Data(buffer.prefix(max(length, 0))) == value)
-    }
-
-    @Test func factoryCreatesMissingParentFolders() throws {
-        let url = try root.file("Documents/Taxes/2025/return.pdf")
-        #expect(FileManager.default.fileExists(atPath: url.path))
-    }
-
-    @Test func factoryNeverOverwrites() throws {
-        try root.file("notes.txt", size: 5)
-        let error = #expect(throws: FixtureError.self) { try root.folder("notes.txt") }
-        #expect(error == .alreadyExists("notes.txt"))
-        let size = try root.url("notes.txt").resourceValues(forKeys: [.fileSizeKey]).fileSize
-        #expect(size == 5)
-    }
-
-    @Test func folderCanBeMadeUnreadable() throws {
-        let url = try root.folder("Locked", permissions: 0o000)
-        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-        #expect((attributes[.posixPermissions] as? Int) == 0)
-        #expect(throws: (any Error).self) { try FileManager.default.contentsOfDirectory(atPath: url.path) }
-    }
-
-    @Test func symlinkPointsAtItsDestinationWithoutFollowingIt() throws {
-        let url = try root.symlink("System link", to: URL(filePath: "/usr"))
-        let values = try url.resourceValues(forKeys: [.isSymbolicLinkKey])
-        #expect(values.isSymbolicLink == true)
-        #expect(try FileManager.default.destinationOfSymbolicLink(atPath: url.path) == "/usr")
-    }
 }

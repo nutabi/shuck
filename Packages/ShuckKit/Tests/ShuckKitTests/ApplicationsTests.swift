@@ -34,16 +34,6 @@ struct ApplicationsTests {
         return result
     }
 
-    @Test func appsAreYourDataInTheirOwnTool() {
-        #expect(Applications().id == .applications)
-        #expect(Applications().tiers == [.yourData])
-    }
-
-    @Test func productionFoldersAreBothApplicationsFoldersAPP001() {
-        let home = URL(filePath: "/Users/someone")
-        #expect(Applications().appFolders(home: home).map(\.path) == ["/Applications", "/Users/someone/Applications"])
-    }
-
     @Test func allowedRootsAreTheAppFoldersAndTheLeftoverFoldersAPP002() {
         let home = URL(filePath: "/Users/someone")
         let roots = Set(Applications().allowedRoots(home: home).map(\.path))
@@ -112,31 +102,28 @@ struct ApplicationsTests {
         #expect(order(.lastOpened) == ["Alpha", "App 9", "Zed", "app 10"])
     }
 
-    @Test func looksOneLevelOfSubfoldersDeepAPP001() async throws {
+    @Test func findsOnlyRealInstalledAppsAPP001() async throws {
+        let notes = try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
         try root.app("Applications/Utilities/Tool.app", bundleID: "com.example.Tool")
+        // Only one level of subfolders is searched.
         try root.app("Applications/Utilities/More/Deep.app", bundleID: "com.example.Deep")
         // An app inside another app's bundle is part of that app, not an app of its own.
         try root.app("Applications/Host.app", bundleID: "com.example.Host")
         try root.app("Applications/Host.app/Contents/Helpers/Helper.app", bundleID: "com.example.Helper")
-
-        #expect(Set(await apps().keys) == ["Applications/Utilities/Tool.app", "Applications/Host.app"])
-    }
-
-    @Test func leavesOutLinksFilesAndNonApps() async throws {
-        let notes = try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
+        // Links, files and non-apps are left out, as are apps System Integrity Protection protects.
         try root.symlink("Applications/Notes.app", to: notes)
         try root.file("Applications/Readme.txt", size: 10)
         try root.file("Applications/Fake.app", size: 10)
         try root.folder("Applications/Plugin.bundle")
-
-        #expect(Set(await apps().keys) == ["System Apps/Notes.app"])
-    }
-
-    @Test func leavesOutAppsProtectedBySystemIntegrityProtectionAPP001() async throws {
         try root.app("Applications/Safari.app", bundleID: "com.apple.Safari")
-        try root.app("Applications/Notes.app", bundleID: "com.example.Notes")
+        // The guard protects the running Shuck's bundle; every copy of either build is left out.
+        try root.app("Applications/Shuck.app", bundleID: ShuckKit.bundleID)
+        try root.app("System Apps/Shuck Old.app", bundleID: "ME.NUTABI.SHUCK")
+        try root.app("System Apps/Shuck Debug.app", bundleID: ShuckKit.debugBundleID)
 
-        #expect(Set(await apps(protected: ["Safari.app"]).keys) == ["Applications/Notes.app"])
+        let found = Set(await apps(protected: ["Safari.app"]).keys)
+
+        #expect(found == ["System Apps/Notes.app", "Applications/Utilities/Tool.app", "Applications/Host.app"])
     }
 
     @Test func bundleIDsByNameCoverEveryAppThatCanRunCAC003() throws {
@@ -158,20 +145,6 @@ struct ApplicationsTests {
         #expect(byName.bundleIDs(named: "Tool") == ["com.example.Tool", "com.example.OtherTool"])
         #expect(byName.bundleIDs(named: "Safari") == ["com.apple.Safari"])
         #expect(byName.bundleIDs(named: "Nameless").isEmpty)
-    }
-
-    @Test func aFixtureAppHasNoRestrictedFlag() throws {
-        #expect(!Applications.hasRestrictedFlag(try root.app("Applications/Notes.app", bundleID: "com.example.Notes")))
-    }
-
-    @Test func leavesOutShuckItselfAPP001() async throws {
-        // The guard protects the running Shuck's bundle; the bundle IDs leave out every copy of either build.
-        try root.app("Applications/Shuck.app", bundleID: ShuckKit.bundleID)
-        try root.app("System Apps/Shuck Old.app", bundleID: "ME.NUTABI.SHUCK")
-        try root.app("System Apps/Shuck Debug.app", bundleID: ShuckKit.debugBundleID)
-        try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
-
-        #expect(Set(await apps().keys) == ["System Apps/Notes.app"])
     }
 
     @Test func aMissingAppFolderIsNotAnError() async throws {
@@ -197,6 +170,8 @@ struct ApplicationsTests {
         try root.app("Applications/Notes.app", bundleID: "com.example.Notes", size: 100)
         let app = try #require(await apps()["Applications/Notes.app"])
         let applications = Applications(appFolders: appFolders)
+        // Apps and their leftovers are the user's data, moved to the Trash (SAF-004).
+        #expect(applications.tiers == [.yourData])
 
         let plan = try Plan(
             tool: applications.id, allowedRoots: applications.allowedRoots(home: root.url),

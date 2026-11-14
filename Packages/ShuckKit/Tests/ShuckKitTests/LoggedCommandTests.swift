@@ -17,13 +17,10 @@ struct LoggedCommandTests {
         #expect(logged.arguments == ["simctl", "delete", "unavailable"])
         #expect(logged.tool == "xcrun")
         #expect(logged.commandLine == "xcrun simctl delete unavailable")
-    }
 
-    @Test func aQuoteAndSpacesInAnArgumentSurviveTheRoundTrip() throws {
-        let command = try command(["it's here", "a b"])
-        let logged = try #require(LoggedCommand(logged: command.display))
-
-        #expect(logged.arguments == ["it's here", "a b"])
+        // A quote and spaces in an argument survive the round trip.
+        let quoted = try self.command(["it's here", "a b"])
+        #expect(LoggedCommand(logged: quoted.display)?.arguments == ["it's here", "a b"])
     }
 
     @Test func textThatIsNotAQuotedCommandIsNotOne() {

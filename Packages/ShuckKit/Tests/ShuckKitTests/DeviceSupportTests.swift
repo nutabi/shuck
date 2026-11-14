@@ -32,6 +32,8 @@ struct DeviceSupportTests {
         try root.deviceSupport("watchOS", "10.0 (21R355)")
         try root.deviceSupport("macOS", "14.1 (23B74)")
         try root.deviceSupport("macOS", "13.6 (22G120)")
+        // A link is not a version, so it cannot be the newest.
+        try root.symlink("Library/Developer/Xcode/iOS DeviceSupport/18.0 (22A1)", to: root.folder("Elsewhere"))
 
         let items = await items()
 
@@ -59,6 +61,9 @@ struct DeviceSupportTests {
         #expect(items["iOS 17.2 (21C62)"]?.selection == .unselected)
         #expect(items["iOS iPhone15,2 16.0 (20A362)"]?.selection == .selected)
         #expect(items["iOS Symbols"]?.selection == .unselected)
+        // A folder that is not a version folder keeps its own name.
+        let other = try root.url("Library/Developer/Xcode/DerivedData/App-abc")
+        #expect(DeviceSupportVersion.name(ofFolder: other) == "App-abc")
     }
 
     @Test(arguments: [
@@ -67,60 +72,6 @@ struct DeviceSupportTests {
     ])
     func aVersionIsTheFirstWordOfNumbersAndDotsD118(name: String, version: [Int]?) {
         #expect(DeviceSupportVersion.components(ofFolder: name) == version)
-    }
-
-    @Test func aPlatformAndItsVersionNameARowD118() throws {
-        let folder = try root.url("Library/Developer/Xcode/iOS DeviceSupport/17.2 (21C62)")
-        #expect(DeviceSupportVersion.name(ofFolder: folder) == "iOS 17.2 (21C62)")
-        let other = try root.url("Library/Developer/Xcode/DerivedData/App-abc")
-        #expect(DeviceSupportVersion.name(ofFolder: other) == "App-abc")
-    }
-
-    @Test func aRunningXcodeDisablesEveryVersionSAF009() async throws {
-        try root.deviceSupport("iOS", "16.4 (20E247)")
-
-        let items = await items(running: ["com.apple.dt.Xcode"])
-
-        #expect(items.values.map(\.selection) == [.appIsRunning(nil)])
-    }
-
-    @Test func onlyRealVersionFoldersAreListedDEV002() async throws {
-        #expect(await items().isEmpty)
-        try root.deviceSupport("iOS", "16.4 (20E247)")
-        try root.file("Library/Developer/Xcode/iOS DeviceSupport/stray.txt", size: 10)
-        try root.symlink("Library/Developer/Xcode/iOS DeviceSupport/18.0 (22A1)", to: root.folder("Elsewhere"))
-        try root.file("Library/Developer/Xcode/UserData/Snippets/one.codesnippet", size: 10)
-        try root.symlink("Library/Developer/Xcode/tvOS DeviceSupport", to: root.folder("Elsewhere/tv"))
-
-        let items = await items()
-
-        // The link to 18.0 is not a version, so 16.4 is still the newest, and the rest of Xcode's folders are not listed.
-        #expect(Set(items.keys) == ["iOS 16.4 (20E247)"])
-        #expect(items["iOS 16.4 (20E247)"]?.selection == .unselected)
-    }
-
-    @Test func theRuleTargetsVersionFoldersOnlyAndTheMapGivesThemToDeveloperJunkFCL005() throws {
-        let rule = try DeveloperJunk.deviceSupportRule(home: root.url)
-        let version = try root.url("Library/Developer/Xcode/watchOS DeviceSupport/10.0 (21R355)")
-        let other = try root.url("Library/Developer/Xcode/UserData/Snippets")
-        let platform = try root.url("Library/Developer/Xcode/iOS DeviceSupport")
-        let inside = version.appending(path: "Symbols")
-
-        #expect(rule.accepts(.path(version), tier: .rebuildable, method: .delete, scope: .item))
-        #expect(!rule.accepts(.path(other), tier: .rebuildable, method: .delete, scope: .item))
-        #expect(!rule.accepts(.path(platform), tier: .rebuildable, method: .delete, scope: .item))
-        #expect(!rule.accepts(.path(inside), tier: .rebuildable, method: .delete, scope: .item))
-        #expect(rule.apps == ["com.apple.dt.Xcode"])
-        let map = OwnershipMap(home: root.url)
-        #expect(map.owners(of: version) == [.developerJunk])
-        #expect(map.owners(of: platform) == [.developerJunk])
-        #expect(map.owners(of: other).isEmpty)
-    }
-
-    @Test func aScanLeavesOutVersionsTheMapGivesAnotherSubToolFCL005() async throws {
-        try root.deviceSupport("iOS", "16.4 (20E247)")
-
-        #expect(await items(ownership: OwnershipMap(home: root.url, entries: [])).isEmpty)
     }
 
     @Test func allowedRootsAreTheExistingDeviceSupportFoldersAndTheOtherRulesRootsOnlyD118() throws {

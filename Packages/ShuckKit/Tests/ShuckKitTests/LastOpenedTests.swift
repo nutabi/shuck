@@ -33,7 +33,7 @@ struct LastOpenedTests {
         #expect(lastOpened == LastOpened(date: newest, source: latest))
     }
 
-    @Test func aMissingDateIsIgnoredOLD002() {
+    @Test func aMissingDateIsIgnoredAndATieNamesOpenedFirstOLD002() {
         let url = root.url.appending(path: "a.mov")
 
         #expect(
@@ -43,13 +43,10 @@ struct LastOpenedTests {
             reader(opened: nil, added: opened).read(url, size: 10, modified: nil)
                 == LastOpened(date: opened, source: .added))
         #expect(reader(opened: nil, added: nil).read(url, size: 10, modified: nil) == nil)
-    }
-
-    @Test func whenDatesAreEqualOpenedIsNamedFirstOLD002() {
-        let lastOpened = reader(opened: modified, added: modified)
-            .read(root.url.appending(path: "a.mov"), size: 10, modified: modified)
-
-        #expect(lastOpened == LastOpened(date: modified, source: .lastUsed))
+        // When dates are equal, opened is named first.
+        #expect(
+            reader(opened: modified, added: modified).read(url, size: 10, modified: modified)
+                == LastOpened(date: modified, source: .lastUsed))
     }
 
     /// Editing a document inside a package changes the file inside, not the package's own date (D-130).
@@ -112,24 +109,19 @@ struct LastOpenedTests {
         for await event in scanner.scan() {
             state.apply(event)
         }
+        // Without a reader the scan looks up nothing.
+        var plain = PersonalFilesState()
+        let plainScanner = PersonalFilesScanner(
+            context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()))
+        for await event in plainScanner.scan() {
+            plain.apply(event)
+        }
+        #expect(!plain.items.isEmpty && plain.items.values.allSatisfy { $0.lastOpened == nil })
         let byName = Dictionary(uniqueKeysWithValues: state.items.values.map { ($0.url.lastPathComponent, $0) })
 
         #expect(byName["large.mov"]?.lastOpened == LastOpened(date: opened, source: .lastUsed))
         #expect(byName["Report.rtfd"]?.lastOpened?.source == .modified)
         #expect(byName["small.txt"]?.lastOpened == nil)
         #expect(byName["small.txt"]?.modified != nil)
-    }
-
-    @Test func withoutAReaderTheScanLooksUpNothing() async throws {
-        try root.file("Movies/large.mov", size: 8_192, modified: modified)
-        let scanner = PersonalFilesScanner(
-            context: ScanContext(home: root.url, protection: root.pathGuardConfiguration()))
-
-        var state = PersonalFilesState()
-        for await event in scanner.scan() {
-            state.apply(event)
-        }
-
-        #expect(state.items.values.map(\.lastOpened) == [nil])
     }
 }

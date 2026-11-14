@@ -118,6 +118,8 @@ struct ExclusionsTests {
         for item in before {
             #expect(context.hides(item) == !listed.contains(item.target), "\(item.target.description)")
         }
+        // Removing the exclusions lists everything again on the next scan.
+        #expect(Set(await scan(excluding: []).compactMap(\.url)) == Set(before.compactMap(\.url)))
         // Everything else is still listed.
         let expected = before.compactMap(\.url).filter { url in !excluded.contains { overlap(url, $0) } }
         #expect(Set(after.compactMap(\.url)) == Set(expected))
@@ -181,18 +183,6 @@ struct ExclusionsTests {
 
         #expect(await scan(excluding: [root.url]).isEmpty)
         #expect(await scan(excluding: [root.url.deletingLastPathComponent()]).isEmpty)
-    }
-
-    @Test func removingAnExclusionListsItAgainOnTheNextScanSET001() async throws {
-        try makeWorld()
-        let kept = try root.url("Documents/Kept")
-        let before = await scan(excluding: [])
-        let hidden = await scan(excluding: [kept])
-        let after = await scan(excluding: [])
-
-        #expect(before.contains { $0.url.map { overlap($0, kept) } == true })
-        #expect(!hidden.contains { $0.url.map { overlap($0, kept) } == true })
-        #expect(Set(after.compactMap(\.url)) == Set(before.compactMap(\.url)))
     }
 
     /// Applications is a tool of its own, not in the registry's sub-tools, so the test above cannot see it (D-186).
