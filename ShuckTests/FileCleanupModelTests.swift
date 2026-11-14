@@ -24,7 +24,7 @@ struct FileCleanupModelTests {
         let model = FileCleanupModel(subTools: [subTool], context: context)
 
         let before = Date.now
-        await model.scan(subTool)?.value
+        await model.scan(subTool.id)?.value
 
         guard case .scanned(let summary) = model.state(of: subTool.id) else {
             Issue.record("Not scanned: \(model.state(of: subTool.id))")
@@ -43,9 +43,9 @@ struct FileCleanupModelTests {
         let healthy = StubSubTool("TSA", events: [.item(.stub("a", size: 2_000))])
         let model = FileCleanupModel(subTools: [stalled, failing, healthy], context: context)
 
-        let stalledScan = model.scan(stalled)
-        await model.scan(failing)?.value
-        await model.scan(healthy)?.value
+        let stalledScan = model.scan(stalled.id)
+        await model.scan(failing.id)?.value
+        await model.scan(healthy.id)?.value
 
         #expect(model.state(of: stalled.id) == .scanning)
         guard case .scanned(let failed) = model.state(of: failing.id),
@@ -69,7 +69,7 @@ struct FileCleanupModelTests {
         let planned = [PlannedSubTool.stub]
         let model = FileCleanupModel(subTools: planned, context: context)
 
-        #expect(planned.allSatisfy { !model.canScan($0) && model.scan($0) == nil })
+        #expect(planned.allSatisfy { !model.canScan($0.id) && model.scan($0.id) == nil })
         #expect(!model.canScanAll)
     }
 
@@ -78,12 +78,12 @@ struct FileCleanupModelTests {
         let subTool = StubSubTool("TSA", events: [.item(.stub("a", size: 1_000))])
         let model = FileCleanupModel(subTools: [subTool], context: context)
 
-        let first = model.scanIfNotScanned(subTool)
+        let first = model.scanIfNotScanned(subTool.id)
         #expect(first != nil)
         await first?.value
-        #expect(model.scanIfNotScanned(subTool) == nil)
+        #expect(model.scanIfNotScanned(subTool.id) == nil)
 
-        #expect(model.scanIfNotScanned(PlannedSubTool.stub) == nil)
+        #expect(model.scanIfNotScanned(PlannedSubTool.stub.id) == nil)
     }
 
     /// Each sub-tool keeps its own list and selection: removing an item one list shows leaves another list as it was
@@ -94,8 +94,8 @@ struct FileCleanupModelTests {
         let model = FileCleanupModel(subTools: [first, second], context: context)
         #expect(model.results(of: first.id)?.isEmpty == true)
 
-        await model.scan(first)?.value
-        await model.scan(second)?.value
+        await model.scan(first.id)?.value
+        await model.scan(second.id)?.value
         let firstList = try #require(model.scanResults[first.id])
         let secondList = try #require(model.scanResults[second.id])
         #expect(firstList.items.compactMap { $0.url?.lastPathComponent } == ["a", "b"])
@@ -105,7 +105,7 @@ struct FileCleanupModelTests {
 
         // A review acts on the selected rows in the order given, and only on rows the list still has.
         let urls = ["b", "gone", "a"].map { URL(filePath: "/StubHome/\($0)") }
-        #expect(model.scanItems(first, urls: urls).compactMap { $0.url?.lastPathComponent } == ["b", "a"])
+        #expect(model.scanItems(first.id, urls: urls).compactMap { $0.url?.lastPathComponent } == ["b", "a"])
 
         model.remove([URL(filePath: "/StubHome/b")])
         #expect(firstList.items.compactMap { $0.url?.lastPathComponent } == ["a"])
@@ -125,28 +125,28 @@ struct FileCleanupModelTests {
         let stalled = StallingSubTool()
         let other = StubSubTool("TSA", events: [.item(.stub("a", size: 1_000))])
         let model = FileCleanupModel(subTools: [stalled, other], context: context)
-        await model.scan(other)?.value
+        await model.scan(other.id)?.value
 
-        let scan = model.scan(stalled)
+        let scan = model.scan(stalled.id)
         // A sub-tool that is scanning cannot start again, and with every sub-tool scanning there is nothing to scan all.
-        #expect(model.scan(stalled) == nil)
+        #expect(model.scan(stalled.id) == nil)
         let solo = FileCleanupModel(subTools: [stalled], context: context)
-        let soloScan = solo.scan(stalled)
+        let soloScan = solo.scan(stalled.id)
         #expect(!solo.canScanAll)
         soloScan?.cancel()
-        model.cancelScan(stalled)
+        model.cancelScan(stalled.id)
         // Stopping a sub-tool that isn't scanning does nothing.
-        model.cancelScan(other)
+        model.cancelScan(other.id)
         await scan?.value
 
         #expect(scan?.isCancelled == true)
         #expect(model.state(of: stalled.id) == .stopped)
         #expect(model.results(of: stalled.id)?.isEmpty == true)
-        #expect(model.canScan(stalled))
+        #expect(model.canScan(stalled.id))
         // Opening its page again doesn't restart a stopped scan; Scan does.
-        #expect(model.scanIfNotScanned(stalled) == nil)
+        #expect(model.scanIfNotScanned(stalled.id) == nil)
         #expect(model.state(of: stalled.id) == .stopped)
-        let again = model.scan(stalled)
+        let again = model.scan(stalled.id)
         #expect(model.state(of: stalled.id) == .scanning)
         again?.cancel()
         await again?.value

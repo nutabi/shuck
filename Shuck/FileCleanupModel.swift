@@ -132,24 +132,25 @@ final class FileCleanupModel {
         states[id] ?? .notScanned
     }
 
-    /// Whether `subTool` is built and not scanning already.
-    func canScan(_ subTool: any SubTool) -> Bool {
-        subTool.info.availability == .available && state(of: subTool.id) != .scanning
+    /// Whether the sub-tool `id` is built and not scanning already. The model looks up its own copy of the sub-tool by
+    /// ID (R-17), so a page never scans with a stale copy (D-154); an ID the model does not hold cannot scan.
+    func canScan(_ id: ToolID) -> Bool {
+        guard let subTool = subTool(id) else { return false }
+        return subTool.info.availability == .available && state(of: id) != .scanning
     }
 
     var canScanAll: Bool {
-        subTools.contains { canScan($0) }
+        subTools.contains { canScan($0.id) }
     }
 
-    /// Starts `subTool`'s scan, or returns `nil` if it cannot scan now. Items stream into the sub-tool's list as the
+    /// Starts the scan of the sub-tool `id`, or returns `nil` if it cannot scan now or the model does not hold it. The
+    /// model looks up its own copy of the sub-tool by ID (R-17), so a page never scans with a stale copy (D-154). Items stream into the sub-tool's list as the
     /// scan finds them (FCL-012). Cancelling the returned task, or ``cancelScan(_:)``, stops the scan and leaves the
     /// sub-tool stopped, with an empty list.
     @discardableResult
-    func scan(_ subTool: any SubTool) -> Task<Void, Never>? {
-        let subTool = self.subTool(subTool.id) ?? subTool
-        guard canScan(subTool) else { return nil }
+    func scan(_ id: ToolID) -> Task<Void, Never>? {
+        guard canScan(id), let subTool = subTool(id) else { return nil }
         if subTool is any PersonalFilesSubTool { return scanPersonalFiles() }
-        let id = subTool.id
         guard let list = scanResults[id] else { return nil }
         list.removeAll()
         states[id] = .scanning
@@ -180,25 +181,25 @@ final class FileCleanupModel {
         return task
     }
 
-    /// Stops `subTool`'s scan, if it is scanning (SAF-014). Scanning never acts on anything, so there is nothing to
+    /// Stops the scan of the sub-tool `id`, if it is scanning (SAF-014). Scanning never acts on anything, so there is nothing to
     /// undo. For Large Files or Old Files, this stops the scan both share (FCL-006).
-    func cancelScan(_ subTool: any SubTool) {
-        scans[subTool.id]?.cancel()
+    func cancelScan(_ id: ToolID) {
+        scans[id]?.cancel()
     }
 
-    /// Starts `subTool`'s scan if it has not scanned yet, as when the user opens its page. A finished scan is kept, so
+    /// Starts the scan of the sub-tool `id` if it has not scanned yet, as when the user opens its page. A finished scan is kept, so
     /// going back to a page shows the same results and selection, and a stopped one stays stopped, so a long scan the
     /// user stopped doesn't start again behind their back; the page's Scan button starts a new one.
     @discardableResult
-    func scanIfNotScanned(_ subTool: any SubTool) -> Task<Void, Never>? {
-        guard state(of: subTool.id) == .notScanned else { return nil }
-        return scan(subTool)
+    func scanIfNotScanned(_ id: ToolID) -> Task<Void, Never>? {
+        guard state(of: id) == .notScanned else { return nil }
+        return scan(id)
     }
 
     /// Starts the scan of every sub-tool that can scan now. Scanning never acts on anything (FCL-004).
     func scanAll() {
         for subTool in subTools {
-            scan(subTool)
+            scan(subTool.id)
         }
     }
 
@@ -317,12 +318,13 @@ final class FileCleanupModel {
         return (files.filter { context.hides($0) } + hiddenItems.compactMap(\.url), commands)
     }
 
-    /// The items `subTool` acts on for the rows at `urls`, in that order. Read-only rows and rows the sub-tool no longer
-    /// lists are left out (FCL-011).
-    func scanItems(_ subTool: any SubTool, urls: [URL]) -> [ScanItem] {
-        let subTool = self.subTool(subTool.id) ?? subTool
+    /// The items the sub-tool `id` acts on for the rows at `urls`, in that order. Read-only rows and rows the sub-tool
+    /// no longer lists are left out (FCL-011). The model looks up its own copy of the sub-tool by ID (R-17), so a page
+    /// never uses a stale copy (D-154); an ID the model does not hold has no items.
+    func scanItems(_ id: ToolID, urls: [URL]) -> [ScanItem] {
+        guard let subTool = subTool(id) else { return [] }
         guard let subTool = subTool as? any PersonalFilesSubTool else {
-            return scanResults[subTool.id]?.items(at: urls) ?? []
+            return scanResults[id]?.items(at: urls) ?? []
         }
         return urls.compactMap { personalFiles.items[$0] }.compactMap(subTool.scanItem(for:))
     }
@@ -330,15 +332,15 @@ final class FileCleanupModel {
     /// Whether the model can run a plan. Pages leave their actions out when it cannot, as in previews.
     var canRun: Bool { runPlan != nil }
 
-    /// The summary confirmation for deleting the selected "Rebuildable" items of `subTool` (SAF-003), or `nil` if the
+    /// The summary confirmation for deleting the selected "Rebuildable" items of the sub-tool `id` (SAF-003), or `nil` if the
     /// model cannot run anything or is already building a plan. Only that tier is in the plan: "Your data" items need
     /// the itemized Trash review (SAF-002). Every item passes the path guard now, and again just before it is deleted
     /// (SAF-007, SAF-008). When the run ends, the deleted items leave the list. The plan is built off the main actor
-    /// (NFR-PERF-001), with the model's own copy of the sub-tool (R-17).
+    /// (NFR-PERF-001), with the model's own copy of the sub-tool, looked up by ID (R-17), so a page never plans with a
+    /// stale copy (D-154). An ID the model does not hold gives `nil`.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
-    func confirmRebuildable(_ subTool: any SubTool) async throws(PlanError) -> SummaryConfirmation? {
-        let subTool = self.subTool(subTool.id) ?? subTool
-        guard !isPlanning, let runPlan, let results = scanResults[subTool.id] else { return nil }
+    func confirmRebuildable(_ id: ToolID) async throws(PlanError) -> SummaryConfirmation? {
+        guard !isPlanning, let runPlan, let subTool = subTool(id), let results = scanResults[id] else { return nil }
         isPlanning = true
         defer { isPlanning = false }
         let plan = try await Self.plan(
@@ -357,15 +359,15 @@ final class FileCleanupModel {
     /// SAF-008). The review knows which items iCloud syncs, so it can warn about them (D-129). When the run ends, the
     /// moved items leave every list. Only "Your data" items are in the plan: a run never mixes tiers, and the others
     /// have their own confirmation (D-147). The plan is built off the main actor (NFR-PERF-001), with the model's own
-    /// copy of the sub-tool (R-17).
+    /// copy of the sub-tool, looked up by ID (R-17), so a page never plans with a stale copy (D-154). An ID the model
+    /// does not hold gives `nil`.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
-    func reviewMoveToTrash(_ subTool: any SubTool, urls: [URL]) async throws(PlanError) -> TrashReview? {
-        let subTool = self.subTool(subTool.id) ?? subTool
-        guard !isPlanning, let runPlan else { return nil }
+    func reviewMoveToTrash(_ id: ToolID, urls: [URL]) async throws(PlanError) -> TrashReview? {
+        guard !isPlanning, let runPlan, let subTool = subTool(id) else { return nil }
         isPlanning = true
         defer { isPlanning = false }
         let plan = try await Self.plan(
-            subTool, items: scanItems(subTool, urls: urls).filter { $0.tier == .yourData },
+            subTool, items: scanItems(id, urls: urls).filter { $0.tier == .yourData },
             protection: context.protection)
         let synced = Set(plan.items.compactMap(\.url).filter { personalFiles.items[$0]?.isSynced == true })
         return TrashReview(plan: plan, synced: synced, runPlan: runPlan, readFreeSpace: readFreeSpace) {

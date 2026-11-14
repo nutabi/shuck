@@ -60,7 +60,7 @@ struct SubToolPage<Results: View, Controls: View>: View {
                 .sharedBackgroundVisibility(.hidden)
                 ToolbarItem {
                     Button("Stop Scanning", systemImage: "stop.fill") {
-                        model.cancelScan(subTool)
+                        model.cancelScan(subTool.id)
                     }
                     .keyboardShortcut(".", modifiers: .command)
                     .help("Stop scanning (⌘.). Scanning never removes anything.")
@@ -69,14 +69,14 @@ struct SubToolPage<Results: View, Controls: View>: View {
             ToolbarItemGroup {
                 controls
                 Button("Scan", systemImage: "magnifyingglass") {
-                    model.scan(subTool)
+                    model.scan(subTool.id)
                 }
-                .disabled(!model.canScan(subTool))
+                .disabled(!model.canScan(subTool.id))
                 .help(scanHelp)
             }
         }
         .onAppear {
-            model.scanIfNotScanned(subTool)
+            model.scanIfNotScanned(subTool.id)
         }
         .sheet(item: $review) { review in
             TrashReviewSheet(review: review, home: model.home)
@@ -184,7 +184,7 @@ struct ConfirmRebuildable {
         // The plan is built off the main actor; the sheet opens when it is ready (NFR-PERF-001).
         Task {
             do throws(PlanError) {
-                confirmation.wrappedValue = try await model.confirmRebuildable(subTool)
+                confirmation.wrappedValue = try await model.confirmRebuildable(subTool.id)
             } catch {
                 // Private: the error names the item the plan stopped at (NFR-SEC-006).
                 Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")

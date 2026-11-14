@@ -37,7 +37,7 @@ struct CombinedTotalTests {
             files: [bigAndOld, file("Movies/new.mov", size: 2_000), file("notes.txt", size: 10, modified: yearsAgo)])
 
         #expect(model.combinedTotal == nil)
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
 
         guard case .scanned(let large) = model.state(of: largeFiles.id),
             case .scanned(let old) = model.state(of: oldFiles.id)
@@ -66,7 +66,7 @@ struct CombinedTotalTests {
                 file("Backup/a.mov", size: 5_000, identity: identity),
             ])
 
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
 
         // Both paths are listed, but trashing them frees the space of one file.
         #expect(model.personalFilesResults[largeFiles.id]?.rows.count == 2)
@@ -90,10 +90,10 @@ struct CombinedTotalTests {
             tiers: [.rebuildable])
         let model = model([largeFiles, other, planned], files: [file("a.mov", size: 5_000)])
 
-        await model.scan(other)?.value
+        await model.scan(other.id)?.value
         #expect(model.combinedTotal == .init(reclaimableBytes: 3_000, scannedCount: 1, availableCount: 2))
 
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
         #expect(model.combinedTotal == .init(reclaimableBytes: 8_000, scannedCount: 2, availableCount: 2))
     }
 }
