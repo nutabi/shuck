@@ -42,7 +42,7 @@ struct TrashReviewTests {
         let model = FileCleanupModel(
             subTools: [largeFiles, oldFiles], context: context, personalFilesScan: scan, runPlan: runPlan,
             readFreeSpace: readFreeSpace)
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
         return model
     }
 
@@ -73,7 +73,7 @@ struct TrashReviewTests {
         #expect(rows.filter(\.isSynced).map(\.name) == ["clip.mov"])
         let selection = [url("Movies/clip.mov"), url("go/pkg/mod"), url("Movies/big.mov"), url("Documents/note.txt")]
 
-        let review = try #require(try await model.reviewMoveToTrash(largeFiles, urls: selection))
+        let review = try #require(try await model.reviewMoveToTrash(largeFiles.id, urls: selection))
 
         // The note is too small for Large Files, and the Go module cache is read-only (FCL-011).
         #expect(review.plan.tool == .largeFiles)
@@ -83,7 +83,7 @@ struct TrashReviewTests {
         #expect(review.phase == .waiting)
         // The review knows which of its items iCloud syncs, so it can mark them and warn (FCL-012, D-129).
         #expect(review.synced == [url("Movies/clip.mov")])
-        let other = try #require(try await model.reviewMoveToTrash(oldFiles, urls: [url("Movies/big.mov")]))
+        let other = try #require(try await model.reviewMoveToTrash(oldFiles.id, urls: [url("Movies/big.mov")]))
         #expect(other.synced.isEmpty)
 
         await review.start()?.value
@@ -115,7 +115,7 @@ struct TrashReviewTests {
         let failure = HistoryError.cannotOpen("/StubHome/Library/Application Support/me.nutabi.shuck", errno: EACCES)
         let failed = await scannedModel { (_: Plan) async throws(HistoryError) -> RunReport in throw failure }
         let failedReview = try #require(
-            try await failed.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]))
+            try await failed.reviewMoveToTrash(largeFiles.id, urls: [url("Movies/big.mov")]))
 
         await failedReview.start()?.value
 
@@ -128,7 +128,7 @@ struct TrashReviewTests {
             return RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: result) })
         }
         let review = try #require(
-            try await stopped.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
+            try await stopped.reviewMoveToTrash(largeFiles.id, urls: [url("Movies/big.mov"), url("Movies/clip.mov")]))
 
         let task = review.start()
         review.stop()
@@ -146,6 +146,6 @@ struct TrashReviewTests {
     @Test func aModelWithoutARunOffersNoReview() async throws {
         let model = FileCleanupModel(subTools: [largeFiles], context: context)
         #expect(!model.canRun)
-        #expect(try await model.reviewMoveToTrash(largeFiles, urls: [url("Movies/big.mov")]) == nil)
+        #expect(try await model.reviewMoveToTrash(largeFiles.id, urls: [url("Movies/big.mov")]) == nil)
     }
 }

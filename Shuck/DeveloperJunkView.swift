@@ -105,7 +105,7 @@ struct DeveloperJunkView: View {
         Task {
             do throws(PlanError) {
                 moveToTrash.review.wrappedValue = try await moveToTrash.model.reviewMoveToTrash(
-                    moveToTrash.subTool, urls: urls)
+                    moveToTrash.subTool.id, urls: urls)
             } catch {
                 // Private: the error names the item the plan stopped at (NFR-SEC-006).
                 Logger.app.error("Refused a plan: \(String(describing: error), privacy: .private)")

@@ -163,7 +163,7 @@ struct ProjectFoldersTests {
                 continuation.finish()
             }
         }
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
         let results = try #require(model.results(of: .developerJunk) as? ScanResults)
         results.apply(.item(try nodeItem("Code/old")))
         results.apply(.item(try nodeItem("Developer/kept")))
@@ -197,8 +197,8 @@ struct ProjectFoldersTests {
         #expect(results.items.count == 1)
 
         // Both run on the main actor, so the second starts while the first waits for its plan.
-        let first = Task { try await model.confirmRebuildable(stale) }
-        let second = Task { try await model.confirmRebuildable(stale) }
+        let first = Task { try await model.confirmRebuildable(stale.id) }
+        let second = Task { try await model.confirmRebuildable(stale.id) }
         let plans = [try await first.value, try await second.value].compactMap { $0 }
 
         let confirmation = try #require(plans.first)
@@ -240,7 +240,7 @@ struct ProjectFoldersTests {
             subTools: [running],
             context: ScanContext(home: home, ownership: OwnershipMap(home: home, projectFolders: [url("Code")])))
 
-        let scan = try #require(model.scan(running))
+        let scan = try #require(model.scan(running.id))
         let ownership = OwnershipMap(home: home).withProjectFolders([url("Developer")])
         await model.useProjectFolders(DeveloperJunk(projectFolders: [url("Developer")]), ownership: ownership).value
         continuation.yield(.item(try nodeItem("Code/old")))
@@ -264,7 +264,7 @@ struct ProjectFoldersTests {
                 lastOpened: nil)
         }
 
-        let scan = try #require(model.scan(largeFiles))
+        let scan = try #require(model.scan(largeFiles.id))
         let ownership = OwnershipMap(home: home).withProjectFolders([url("Developer")])
         await model.useProjectFolders(DeveloperJunk(projectFolders: [url("Developer")]), ownership: ownership).value
         continuation.yield(.files([file("Developer/app/node_modules/dep/index.js"), file("Developer/app/main.js")]))

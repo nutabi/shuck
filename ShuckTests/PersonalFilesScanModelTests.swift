@@ -41,7 +41,7 @@ struct PersonalFilesScanModelTests {
             }
         }
 
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
 
         #expect(scans.withLock { $0 } == 1)
         #expect(model.personalFilesResults[largeFiles.id]?.rows.map(\.name) == ["mod", "big.mov"])
@@ -71,7 +71,7 @@ struct PersonalFilesScanModelTests {
             }
         }
 
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
 
         #expect(model.personalFiles.items.keys.map(\.lastPathComponent) == ["a.mov"])
     }
@@ -89,19 +89,19 @@ struct PersonalFilesScanModelTests {
             }
         }
 
-        let scan = model.scan(largeFiles)
+        let scan = model.scan(largeFiles.id)
         #expect(model.state(of: oldFiles.id) == .scanning)
-        #expect(model.scan(oldFiles) == nil)
-        model.cancelScan(oldFiles)
+        #expect(model.scan(oldFiles.id) == nil)
+        model.cancelScan(oldFiles.id)
         await scan?.value
 
         for id in [largeFiles.id, oldFiles.id] {
             #expect(model.state(of: id) == .stopped)
             #expect(model.results(of: id)?.isEmpty == true)
         }
-        #expect(model.canScan(largeFiles) && model.canScan(oldFiles))
+        #expect(model.canScan(largeFiles.id) && model.canScan(oldFiles.id))
         // Opening the other page doesn't start the shared scan again (D-91).
-        #expect(model.scanIfNotScanned(oldFiles) == nil)
+        #expect(model.scanIfNotScanned(oldFiles.id) == nil)
     }
 
     /// A batch is applied off the main actor, so Stop can arrive while one is being merged in. The batch may still land,
@@ -117,7 +117,7 @@ struct PersonalFilesScanModelTests {
             }
         }
 
-        let scan = model.scan(largeFiles)
+        let scan = model.scan(largeFiles.id)
         // The model keeps the batch's files as soon as it takes the batch, before it builds the lists' rows.
         var waited = 0
         while model.personalFiles.items.isEmpty && waited < 1_000 {
@@ -132,7 +132,7 @@ struct PersonalFilesScanModelTests {
             #expect(model.state(of: id) == .stopped)
             #expect(model.results(of: id)?.isEmpty == true)
         }
-        #expect(model.canScan(largeFiles))
+        #expect(model.canScan(largeFiles.id))
     }
 
     @Test func largeFilesListsTheLargestFirstLRG002() {
@@ -158,7 +158,7 @@ struct PersonalFilesScanModelTests {
             }
         }
 
-        await model.scan(oldFiles)?.value
+        await model.scan(oldFiles.id)?.value
 
         let results = model.personalFilesResults[.oldFiles]
         #expect(results?.sortOrder == [KeyPathComparator(\ResultRow.sortDate)])
@@ -179,8 +179,8 @@ struct PersonalFilesScanModelTests {
             subTools: [largeFiles, OldFiles(minimumSize: 500)], context: context, personalFilesScan: scan)
         let largeFilesOnly = FileCleanupModel(subTools: [largeFiles], context: context, personalFilesScan: scan)
 
-        await withOldFiles.scan(largeFiles)?.value
-        await largeFilesOnly.scan(largeFiles)?.value
+        await withOldFiles.scan(largeFiles.id)?.value
+        await largeFilesOnly.scan(largeFiles.id)?.value
 
         #expect(minimums.withLock { $0 } == [500, nil])
     }

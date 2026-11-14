@@ -48,7 +48,7 @@ struct YourDataItemsTests {
     func scannedModel(_ items: [ScanItem]) async -> (FileCleanupModel, StubRebuildable) {
         let subTool = StubRebuildable(items: items)
         let model = FileCleanupModel(subTools: [subTool], context: context, runPlan: runAll)
-        await model.scan(subTool)?.value
+        await model.scan(subTool.id)?.value
         return (model, subTool)
     }
 
@@ -75,16 +75,17 @@ struct YourDataItemsTests {
         #expect(results.hasYourData)
         #expect(!ScanResults().hasYourData)
 
-        let confirmation = try #require(try await model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool.id))
         // Every URL is offered to the review, as a caller that did not filter would; only "Your data" enters its plan.
-        let everything = try #require(try await model.reviewMoveToTrash(subTool, urls: results.items.compactMap(\.url)))
+        let everything = try #require(
+            try await model.reviewMoveToTrash(subTool.id, urls: results.items.compactMap(\.url)))
         #expect(confirmation.plan.items.allSatisfy { $0.tier == .rebuildable && $0.method == .delete })
         #expect(confirmation.plan.items.count == 2)
         #expect(everything.plan.items.allSatisfy { $0.tier == .yourData && $0.method == .trash })
         #expect(everything.plan.items.map(\.url) == [url("Mine"), url("Other")])
 
         let review = try #require(
-            try await model.reviewMoveToTrash(subTool, urls: results.selectedItems(in: .yourData).compactMap(\.url)))
+            try await model.reviewMoveToTrash(subTool.id, urls: results.selectedItems(in: .yourData).compactMap(\.url)))
         await review.start()?.value
 
         #expect(results.items.map(\.url) == [url("a"), url("b"), url("Other")])

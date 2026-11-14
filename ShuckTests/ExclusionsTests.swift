@@ -159,16 +159,16 @@ final class ExclusionsTests {
         let drop = model.protect(with: protection(excluding: [excluded]))
 
         // The guard has the new list before the rows are gone.
-        await #expect(throws: PlanError.self) { try await model.confirmRebuildable(subTool) }
+        await #expect(throws: PlanError.self) { try await model.confirmRebuildable(subTool.id) }
         await drop.value
         #expect(results.items.compactMap(\.url) == [helpers.url("a")])
-        #expect(try await model.confirmRebuildable(subTool)?.plan.items.map(\.url) == [helpers.url("a")])
+        #expect(try await model.confirmRebuildable(subTool.id)?.plan.items.map(\.url) == [helpers.url("a")])
         guard case .scanned(let summary) = model.state(of: subTool.id) else { return }
         #expect(summary.itemCount == 1)
 
         await model.protect(with: protection(excluding: [])).value
         #expect(results.items.compactMap(\.url) == [helpers.url("a")])
-        await model.scan(subTool)?.value
+        await model.scan(subTool.id)?.value
         #expect(results.items.compactMap(\.url).sorted { $0.path < $1.path } == [helpers.url("a"), helpers.url("b")])
     }
 
@@ -178,7 +178,7 @@ final class ExclusionsTests {
         let subTool = ManualSubTool(stream: stream)
         let model = FileCleanupModel(subTools: [subTool], context: helpers.context)
 
-        let scan = try #require(model.scan(subTool))
+        let scan = try #require(model.scan(subTool.id))
         await model.protect(with: protection(excluding: [helpers.url("b").path])).value
         continuation.yield(.item(helpers.cache("a")))
         continuation.yield(.item(helpers.cache("b")))
@@ -203,7 +203,7 @@ final class ExclusionsTests {
                 continuation.finish()
             }
         }
-        await model.scan(largeFiles)?.value
+        await model.scan(largeFiles.id)?.value
 
         await model.protect(with: protection(excluding: [home.appending(path: "Documents/Private").path])).value
 

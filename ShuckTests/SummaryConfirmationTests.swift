@@ -49,7 +49,7 @@ struct SummaryConfirmationTests {
         let model = FileCleanupModel(
             subTools: [subTool], context: context, runPlan: runPlan, readFreeSpace: readFreeSpace,
             readUsedSpace: readUsedSpace)
-        await model.scan(subTool)?.value
+        await model.scan(subTool.id)?.value
         return (model, subTool)
     }
 
@@ -90,7 +90,7 @@ struct SummaryConfirmationTests {
             ],
             runPlan: run(deleting: []))
 
-        let confirmation = try #require(try await model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool.id))
 
         #expect(confirmation.categoryTotals.map(\.id) == ["xcode", "simulators"])
         #expect(confirmation.categoryTotals.map(\.count) == [2, 1])
@@ -104,7 +104,7 @@ struct SummaryConfirmationTests {
         let (mixedModel, mixedTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode), try toolItem(["clean"], estimate: 5_000)],
             runPlan: run(deleting: []))
-        let mixed = try #require(try await mixedModel.confirmRebuildable(mixedTool))
+        let mixed = try #require(try await mixedModel.confirmRebuildable(mixedTool.id))
         #expect(mixed.runsTools)
         #expect(mixed.totalBytes == 6_000)
         #expect(mixed.categoryTotals.map(\.count) == [2])
@@ -115,11 +115,11 @@ struct SummaryConfirmationTests {
                 item("Documents", size: 1_000, category: xcode, folder: "Documents"),
             ],
             runPlan: run(deleting: []))
-        await #expect(throws: PlanError.self) { try await guarded.confirmRebuildable(guardedTool) }
+        await #expect(throws: PlanError.self) { try await guarded.confirmRebuildable(guardedTool.id) }
 
         let (noRun, noRunTool) = await scannedModel(items: [item("a", size: 1_000, category: xcode)])
         #expect(!noRun.canRun)
-        #expect(try await noRun.confirmRebuildable(noRunTool) == nil)
+        #expect(try await noRun.confirmRebuildable(noRunTool.id) == nil)
     }
 
     /// Deleted items and commands that ran leave the list and the estimate, and skipped ones stay (SAF-011). Free space
@@ -147,7 +147,7 @@ struct SummaryConfirmationTests {
                     })
             },
             readFreeSpace: readings.read)
-        let confirmation = try #require(try await model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool.id))
         #expect(confirmation.freeSpace == nil)
 
         await confirmation.start()?.value
@@ -182,7 +182,7 @@ struct SummaryConfirmationTests {
                 RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .done(nil)) })
             },
             readFreeSpace: readings.read)
-        let confirmation = try #require(try await model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool.id))
 
         await confirmation.start()?.value
 
@@ -194,7 +194,7 @@ struct SummaryConfirmationTests {
         let (otherModel, otherTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)], runPlan: run(deleting: ["a"]),
             readFreeSpace: missing.read)
-        let other = try #require(try await otherModel.confirmRebuildable(otherTool))
+        let other = try #require(try await otherModel.confirmRebuildable(otherTool.id))
 
         await other.start()?.value
 
@@ -213,7 +213,7 @@ struct SummaryConfirmationTests {
                 return RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: .done(nil)) })
             },
             readUsedSpace: { 100_000 })
-        let confirmation = try #require(try await model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool.id))
 
         #expect(confirmation.threshold?.bytes == 25_000)
         #expect(confirmation.oversized.map(\.url) == [url("huge")])
@@ -230,7 +230,7 @@ struct SummaryConfirmationTests {
         let (withinModel, withinTool) = await scannedModel(
             items: [item("a", size: 25_000, category: xcode)], runPlan: run(deleting: ["a"]),
             readUsedSpace: { 100_000 })
-        let within = try #require(try await withinModel.confirmRebuildable(withinTool))
+        let within = try #require(try await withinModel.confirmRebuildable(withinTool.id))
         #expect(within.oversized.isEmpty)
         #expect(!within.needsSecondConfirmation)
         await within.start()?.value
@@ -238,7 +238,7 @@ struct SummaryConfirmationTests {
 
         let (unknownModel, unknownTool) = await scannedModel(
             items: [item("a", size: 1_000_000, category: xcode)], runPlan: run(deleting: ["a"]))
-        let unknown = try #require(try await unknownModel.confirmRebuildable(unknownTool))
+        let unknown = try #require(try await unknownModel.confirmRebuildable(unknownTool.id))
         #expect(unknown.threshold == nil)
         #expect(!unknown.needsSecondConfirmation)
     }
@@ -250,7 +250,7 @@ struct SummaryConfirmationTests {
         let (failed, failedTool) = await scannedModel(
             items: [item("a", size: 1_000, category: xcode)],
             runPlan: { (_: Plan) async throws(HistoryError) -> RunReport in throw failure })
-        let failedConfirmation = try #require(try await failed.confirmRebuildable(failedTool))
+        let failedConfirmation = try #require(try await failed.confirmRebuildable(failedTool.id))
 
         await failedConfirmation.start()?.value
 
@@ -264,7 +264,7 @@ struct SummaryConfirmationTests {
                 let result: ItemOutcome.Result = await waitUntilCancelled() ? .skipped(.cancelled) : .done(nil)
                 return RunReport(run: plan.run, outcomes: plan.items.map { ItemOutcome(item: $0, result: result) })
             })
-        let confirmation = try #require(try await model.confirmRebuildable(subTool))
+        let confirmation = try #require(try await model.confirmRebuildable(subTool.id))
 
         let task = confirmation.start()
         confirmation.stop()

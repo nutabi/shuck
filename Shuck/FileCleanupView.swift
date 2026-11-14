@@ -89,14 +89,14 @@ private struct SubToolRow: View {
                 .foregroundStyle(.secondary)
             if model.state(of: subTool.id) == .scanning {
                 Button("Stop") {
-                    model.cancelScan(subTool)
+                    model.cancelScan(subTool.id)
                 }
                 .accessibilityLabel(Text("Stop scanning \(String(localized: subTool.info.name))"))
             } else {
                 Button("Scan") {
-                    model.scan(subTool)
+                    model.scan(subTool.id)
                 }
-                .disabled(!model.canScan(subTool))
+                .disabled(!model.canScan(subTool.id))
                 .accessibilityLabel(Text("Scan \(String(localized: subTool.info.name))"))
             }
         }
