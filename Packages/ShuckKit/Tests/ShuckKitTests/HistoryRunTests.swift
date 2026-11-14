@@ -107,6 +107,50 @@ struct HistoryRunTests {
         #expect(runs[1].items.map(\.restorability) == [nil])
     }
 
+    /// What the run logged before it trashed the property list at `path`.
+    struct AgentCase: Sendable, CustomTestStringConvertible {
+        var testDescription: String
+        var detail = "bootout gui/501/com.example.job: exit 0"
+        var status = HistoryRecord.Status.ok
+        var path = "Library/LaunchAgents/job.plist"
+        /// A trash of something else between the unload and the property list's trash.
+        var otherInBetween = false
+        var withHome = true
+        var expected: String?
+    }
+
+    /// APP-011, HIS-005: a trashed LaunchAgent property list carries the job label the same run unloaded just before,
+    /// only when the `bootout` ran and the file is directly inside `~/Library/LaunchAgents`.
+    @Test(arguments: [
+        AgentCase(testDescription: "unloaded just before", expected: "com.example.job"),
+        AgentCase(testDescription: "not loaded at the uninstall", detail: "not loaded: gui/501/com.example.job"),
+        AgentCase(testDescription: "bootout failed", status: .failed),
+        AgentCase(testDescription: "another item in between", otherInBetween: true),
+        AgentCase(testDescription: "outside LaunchAgents", path: "Documents/job.plist"),
+        AgentCase(testDescription: "in a folder inside LaunchAgents", path: "Library/LaunchAgents/sub/job.plist"),
+        AgentCase(testDescription: "without a home folder", withHome: false),
+    ])
+    func aTrashedAgentPropertyListIsPairedWithTheJobUnloadedBeforeItAPP011HIS005(_ test: AgentCase) async throws {
+        let run = UUID()
+        let inTrash = try root.file(".Trash/job.plist", size: 10).path
+        let other = try root.file(".Trash/other.txt", size: 10).path
+        let unload = HistoryRecord.result(
+            run: run, tool: .applications, operation: .launchctl, path: "com.example.job", tier: .yourData,
+            status: test.status, detail: test.detail, timestamp: timestamp)
+        let records =
+            [unload] + (test.otherInBetween ? trash("/Applications/Other.app", run: run, to: other) : [])
+            + trash(try root.url(test.path).path, run: run, to: inTrash)
+        let log = try HistoryLog(folder: folder)
+        for record in records { try await log.append(record) }
+
+        let runs = try HistoryLog.read(folder: folder).runs(home: test.withHome ? root.url : nil)
+
+        let items = try #require(runs.first).items.compactMap(\.restorability).compactMap { restorability in
+            if case .restorable(let item) = restorability, item.trashedURL.path == inTrash { item } else { nil }
+        }
+        #expect(items.map(\.unloadedAgentLabel) == [test.expected])
+    }
+
     @Test func aResultWithoutAnIntentIsStillListedAndEachItemKeepsItsOperationHIS002() async throws {
         #expect(try HistoryLog.read(folder: folder).runs().isEmpty)
         let run = UUID()

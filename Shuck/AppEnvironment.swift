@@ -339,7 +339,7 @@ nonisolated struct AppEnvironment {
         let contents = try HistoryLog.read(folder: historyFolder)
         // The injected Trash, so a fixture root never reads the real one; an interrupted item is looked for in it.
         return HistoryModel.History(
-            runs: contents.runs(trashFolder: try? trash.folder).reversed(),
+            runs: contents.runs(trashFolder: try? trash.folder, home: context.home).reversed(),
             unreadableLineCount: contents.unreadableLines.count)
     }
 

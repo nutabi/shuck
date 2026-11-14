@@ -214,6 +214,21 @@
     "Items whose original place is free are restored either way." : {
 
     },
+    "Load ^[%lld login agent](inflect: true) again?" : {
+
+    },
+    "Shuck unloaded these when the app was uninstalled, so they stopped running. Restoring puts their files back; it doesn't load them again unless you ask." : {
+
+    },
+    "Load again after restoring" : {
+
+    },
+    "Loads each agent above again, as it was before the uninstall." : {
+
+    },
+    "Agent loaded again" : {
+
+    },
     "Keep Both" : {
 
     },

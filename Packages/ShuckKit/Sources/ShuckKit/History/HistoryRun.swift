@@ -94,9 +94,13 @@ extension HistoryLog.Contents {
     /// An intent record of a Trash item with no result, from a quit or crash, is shown as restorable when
     /// `trashFolder`, the folder the Trash moves items into, holds the item (HIS-001, SAF-005): see
     /// ``Restorability/interruptedTrash(_:in:)``. Without a `trashFolder`, such an item stays interrupted.
-    public func runs(trashFolder: URL? = nil) -> [HistoryRun] {
+    ///
+    /// With the user's `home`, a trashed LaunchAgent property list whose run unloaded the agent just before carries its
+    /// job label, so Restore can offer to load it again (``TrashedItem/unloadedAgentLabel``, APP-011, HIS-005). An
+    /// interrupted item has none, since the log cannot say it was trashed.
+    public func runs(trashFolder: URL? = nil, home: URL? = nil) -> [HistoryRun] {
         // What Restore can undo, for each successful result that is not a restore, in log order.
-        var undoable = entries().makeIterator()
+        var undoable = entries(home: home).makeIterator()
         var nextEntry = undoable.next()
 
         var order: [UUID] = []

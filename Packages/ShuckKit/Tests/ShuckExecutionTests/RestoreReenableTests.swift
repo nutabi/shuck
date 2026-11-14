@@ -53,11 +53,16 @@ struct RestoreReenableTests {
     }
 
     /// The whole journey of an uninstall: scan, review, run, History, Restore with the user's confirmation. Everything
-    /// stays in the fixture root, with a fake `launchctl` (SAF-016).
-    @Test func anUninstallIsReadInHistoryAndRestoredWithItsAgentAPP007APP011HIS005SAF006() async throws {
+    /// stays in the fixture root, with a fake `launchctl` (SAF-016). An agent that was not loaded at the uninstall had
+    /// no `bootout`, so History pairs no label with it and there is nothing to ask about (D-199).
+    @Test(arguments: [true, false])
+    func anUninstallIsReadInHistoryAndRestoredWithItsAgentAPP007APP011HIS005SAF006(loadedAtUninstall: Bool)
+        async throws
+    {
         let bundleID = "com.example.fixture"
         let agentTarget = "gui/\(getuid())/\(bundleID)"
-        try root.tool("bin/launchctl", .launchctl(printStatus: 0))
+        try root.tool(
+            "bin/launchctl", .launchctl(printStatus: loadedAtUninstall ? 0 : LaunchctlAction.notLoadedStatus))
         let bundle = try root.app("Applications/Fixture.app", bundleID: bundleID, name: "Fixture", size: 4096)
         let cache = try root.file("Library/Caches/\(bundleID)/data.bin", size: 2048).deletingLastPathComponent()
         let preferences = try root.file("Library/Preferences/\(bundleID).plist", text: "prefs")
@@ -88,11 +93,13 @@ struct RestoreReenableTests {
         // Run it: the agent is unloaded before its property list moves (APP-011).
         let report = try await PlanExecutor(root: root, pathGuard: pathGuard).run(plan)
         #expect(report.outcomes.allSatisfy { $0.result.isDone }, "\(report.outcomes.map(\.result))")
-        #expect(root.launchctlCalls == ["print \(agentTarget)", "bootout \(agentTarget)"])
+        #expect(
+            root.launchctlCalls
+                == (loadedAtUninstall ? ["print \(agentTarget)", "bootout \(agentTarget)"] : ["print \(agentTarget)"]))
         #expect(originals.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
 
         // History shows one run, with each trashed item restorable and the unload logged by its job label (HIS-002).
-        let runs = try HistoryLog.read(folder: root.historyFolder).runs(trashFolder: root.trashFolder)
+        let runs = try HistoryLog.read(folder: root.historyFolder).runs(trashFolder: root.trashFolder, home: root.url)
         let uninstall = try #require(runs.first)
         #expect(runs.count == 1 && uninstall.tool == .applications && uninstall.id == report.run)
         #expect(uninstall.items.allSatisfy { $0.outcome == .succeeded })
@@ -102,16 +109,25 @@ struct RestoreReenableTests {
             if case .restorable(let found)? = item.restorability { found } else { nil }
         }
         #expect(Set(trashed.map(\.originalURL.path)) == Set(originals.map(\.path)))
+        // Only the agent's property list is paired with the job the run unloaded, and only if that happened.
+        #expect(
+            trashed.filter { $0.unloadedAgentLabel != nil }.map(\.originalURL.path)
+                == (loadedAtUninstall ? [agent.path] : []))
+        #expect(trashed.compactMap(\.unloadedAgentLabel) == (loadedAtUninstall ? [bundleID] : []))
+        guard loadedAtUninstall else {
+            // The page offers no question, so a restore passes no label and never calls launchctl.
+            let plain = try await restore(trashed.map { RestoreRequest(item: $0) })
+            #expect(plain.outcomes.allSatisfy { $0.result.isDone && $0.reenable == nil })
+            #expect(root.launchctlCalls == ["print \(agentTarget)"])
+            return
+        }
 
         // Restore everything, loading the agent again only because the user confirmed it (APP-011, HIS-005).
         // The agent is no longer loaded: the fake is replaced inside the root, as the uninstall unloaded the real one.
         try FileManager.default.removeItem(at: root.url("bin/launchctl"))
         try root.tool("bin/launchctl", .launchctl(printStatus: LaunchctlAction.notLoadedStatus))
-        // The confirmation names the job the run unloaded, from its Launchctl record, as the page passes it.
-        let confirmed = try #require(unloaded.first?.path)
-        let requests = trashed.map { item in
-            RestoreRequest(item: item, reenableAgentLabel: item.originalURL == agent ? confirmed : nil)
-        }
+        // The confirmation names the job History paired with the item, as the page passes it.
+        let requests = trashed.map { RestoreRequest(item: $0, reenableAgentLabel: $0.unloadedAgentLabel) }
         let restored = try await restore(requests)
         #expect(restored.outcomes.count == 4 && restored.outcomes.compactMap(\.reenable) == [.done(nil)])
         #expect(restored.outcomes.allSatisfy { $0.result.isDone })

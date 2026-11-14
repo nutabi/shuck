@@ -13,6 +13,8 @@ All notable changes to Shuck are listed here. The format follows
   search the list.
 - An app Shuck can't uninstall now has a Show in Finder button, so you can remove it by hand.
 - Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
+- Restoring an uninstalled app from History puts back its login agents' files, and asks whether to load them again.
+  Nothing is loaded unless you say so.
 
 ### Changed
 

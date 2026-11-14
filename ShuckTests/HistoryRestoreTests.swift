@@ -6,7 +6,8 @@ import Testing
 
 @testable import Shuck
 
-/// Restore from the History page: the one question for taken paths, the run and the reload (HIS-003, SAF-011).
+/// Restore from the History page: the one question for taken paths and for unloaded agents, the run and the reload
+/// (HIS-003, APP-011, SAF-011).
 ///
 /// The run is a stub, so these tests never move a file. Only the check for a taken path reads the disk: an item whose
 /// original path is the test bundle's app counts as taken, and one under `/StubHome` does not. The engine's fixture
@@ -65,23 +66,64 @@ struct HistoryRestoreTests {
         #expect(model.restore == nil)
     }
 
-    /// APP-011, HIS-005: no way the page starts a restore asks for a LaunchAgent to be loaded again; that needs the
-    /// user's confirmation, which M3-T08 adds. Without it the engine never calls `launchctl`.
-    @Test func noRestoreTheHistoryPageStartsReenablesAnAgentAPP011HIS005() async throws {
+    /// An item that is the property list of an agent the uninstall unloaded (APP-011).
+    func agent(_ original: URL, label: String = "com.example.job") -> TrashedItem {
+        TrashedItem(
+            run: UUID(), tool: .applications, tier: .yourData, originalURL: original,
+            trashedURL: home.appending(path: ".Trash/\(original.lastPathComponent)"), bytes: 100,
+            unloadedAgentLabel: label)
+    }
+
+    /// APP-011, HIS-005: an agent the uninstall unloaded waits for the user's answer, and only the answer to load it
+    /// again passes its job label to the restore. Anything else never does, and nothing else is ever offered.
+    @Test(arguments: [true, false])
+    func anUnloadedAgentIsLoadedAgainOnlyIfTheUserSaysSoAPP011HIS005(load: Bool) async throws {
         let calls = Calls()
         let model = model(calls)
-        let agent = home.appending(path: "Library/LaunchAgents/com.example.helper.plist")
+        let plist = agent(home.appending(path: "Library/LaunchAgents/com.example.job.plist"))
+        let other = trashed(home.appending(path: "Library/Preferences/com.example.plist"))
 
-        let automatic = try #require(model.restore([trashed(agent)]))
-        await automatic.run.task?.value
-        model.dismissRestore()
-        // The test bundle's own path is taken on disk, so this one waits for an answer.
-        let taken = try #require(model.restore([trashed(Bundle.main.bundleURL)]))
-        await taken.start(ifTaken: .keepBoth)?.value
+        let restore = try #require(model.restore([plist, other]))
+        #expect(restore.phase == .waiting)
+        #expect(restore.takenItems.isEmpty)
+        #expect(restore.agentItems == [plist])
+        #expect(!restore.loadAgents, "Loading again must start off")
+        #expect(calls.requests.withLock { $0 }.isEmpty)
 
-        let requests = calls.requests.withLock { $0 }
-        #expect(requests.count == 2)
-        #expect(requests.allSatisfy { $0.reenableAgentLabel == nil })
+        restore.loadAgents = load
+        await restore.start(ifTaken: .skip)?.value
+        #expect(
+            calls.requests.withLock { $0 } == [
+                RestoreRequest(item: plist, reenableAgentLabel: load ? "com.example.job" : nil),
+                RestoreRequest(item: other),
+            ])
+    }
+
+    /// APP-011: a Keep Both copy or a skipped item can never be loaded, so only an agent whose original place is free
+    /// is offered, and a restore with nothing but such agents starts at once. Without an agent nothing is offered.
+    @Test func anAgentWhoseOriginalPlaceIsTakenIsNotOfferedAPP011() async throws {
+        let calls = Calls()
+        let model = model(calls)
+        let taken = agent(Bundle.main.bundleURL)
+
+        let restore = try #require(model.restore([taken]))
+        #expect(restore.phase == .waiting, "A taken path still asks its own question")
+        #expect(restore.takenItems == [taken])
+        #expect(restore.agentItems.isEmpty)
+        restore.loadAgents = true
+        await restore.start(ifTaken: .keepBoth)?.value
+        #expect(calls.requests.withLock { $0 } == [RestoreRequest(item: taken, ifTaken: .keepBoth)])
+    }
+
+    /// APP-011: a restore of something that is not an unloaded agent never asks and never passes a label.
+    @Test func withoutAnUnloadedAgentNothingIsOfferedAPP011() async throws {
+        let calls = Calls()
+        let model = model(calls)
+
+        let restore = try #require(model.restore([trashed(home.appending(path: "Library/LaunchAgents/other.plist"))]))
+        #expect(restore.agentItems.isEmpty)
+        await restore.run.task?.value
+        #expect(calls.requests.withLock { $0 }.allSatisfy { $0.reenableAgentLabel == nil })
     }
 
     /// HIS-003: when some original paths are taken, nothing moves until one answer, which applies to every item.
@@ -214,6 +256,22 @@ struct HistoryRestoreTests {
         #expect(text(.skipped(.notAccessible)) == "Skipped: not accessible")
         #expect(text(.skipped(.otherItem)) == "Skipped: no longer in the Trash, and another item has its name")
         #expect(text(.skipped(.cancelled)) == "Skipped: stopped before it was restored")
+        #expect(text(.failed(ActionError(errno: EACCES))) == "Failed: Permission denied")
+    }
+
+    /// SAF-011: the summary also says what happened to loading an agent again, in words.
+    @Test func theSummarySaysWhatHappenedToLoadingAnAgentAgainSAF011() {
+        let item = agent(home.appending(path: "Library/LaunchAgents/com.example.job.plist"))
+        func text(_ reenable: RestoreOutcome.Result?) -> String? {
+            let outcome = RestoreOutcome(
+                request: RestoreRequest(item: item, reenableAgentLabel: "com.example.job"),
+                result: .done(item.originalURL), reenable: reenable)
+            return HistoryRestoreSheet.reenable(outcome).map { String(localized: $0) }
+        }
+
+        #expect(text(nil) == nil)
+        #expect(text(.done(nil)) == "Agent loaded again")
+        #expect(text(.skipped(.notTheUnloadedAgent("label differs"))) == "Skipped: not the agent that was unloaded")
         #expect(text(.failed(ActionError(errno: EACCES))) == "Failed: Permission denied")
     }
 }

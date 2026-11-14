@@ -16,10 +16,16 @@ public struct TrashedItem: Equatable, Sendable {
     /// The file identity logged when it was trashed; Restore moves only an item that still has it (HIS-004, SAF-008).
     /// `nil` for items Shuck 0.1.0 trashed, which did not log it.
     public let identity: FileIdentity?
+    /// The job label of the LaunchAgent whose property list this item is, if the same run unloaded that agent just
+    /// before trashing the file (APP-011, HIS-005). It is the label the uninstall's Launchctl record logged, so the
+    /// History page can ask whether to load the agent again and pass it as ``RestoreRequest/reenableAgentLabel``. A
+    /// wrong pairing is harmless: Restore re-reads the `Label` from the restored file and skips the re-enable if it
+    /// differs (D-199). `nil` for every other item.
+    public let unloadedAgentLabel: String?
 
     public init(
         run: UUID, tool: ToolID, tier: Tier, originalURL: URL, trashedURL: URL, bytes: Int64?,
-        identity: FileIdentity? = nil
+        identity: FileIdentity? = nil, unloadedAgentLabel: String? = nil
     ) {
         self.run = run
         self.tool = tool
@@ -28,6 +34,7 @@ public struct TrashedItem: Equatable, Sendable {
         self.trashedURL = trashedURL
         self.bytes = bytes
         self.identity = identity
+        self.unloadedAgentLabel = unloadedAgentLabel
     }
 
     /// Whether something now occupies the original path, so the user must choose what to do (HIS-003).
@@ -96,13 +103,25 @@ extension HistoryLog.Contents {
     /// Skipped and failed operations changed nothing and are left out, and so are the restores themselves: a restore
     /// marks the entry it put back as ``Restorability/restored``. Restore records name the trashed path they took the
     /// item from, which is how they are matched (D-52).
-    public func entries() -> [HistoryEntry] {
+    ///
+    /// With `home`, a Trash item of a property list directly inside `<home>/Library/LaunchAgents` whose run unloaded an
+    /// agent just before, successfully, with a `bootout`, carries that agent's job label as
+    /// ``TrashedItem/unloadedAgentLabel`` (APP-011, HIS-005). An agent that was not loaded then has no label, since
+    /// there is nothing to load again (D-199). Without `home`, no item has one.
+    public func entries(home: URL? = nil) -> [HistoryEntry] {
+        let agentsFolder = home.map {
+            PathGuard.fold($0.appending(path: "Library/LaunchAgents").standardizedFileURL.path)
+        }
+        // The latest result record of each run, whatever its status: the item before the one being read.
+        var previous: [UUID: HistoryRecord] = [:]
         var entries: [HistoryEntry] = []
         // The entry for the item at each trashed path, with case folded as the startup volume compares names. The
         // Trash can reuse a name once an item has left it, so a later record for the same path replaces the earlier
         // one, whose item must have left the Trash (HIS-004).
         var inTrash: [String: Int] = [:]
-        for record in records where record.phase == .result && record.status == .ok {
+        for record in records where record.phase == .result {
+            let before = previous.updateValue(record, forKey: record.run)
+            guard record.status == .ok else { continue }
             let restorability: Restorability
             switch record.operation {
             case .trash:
@@ -114,10 +133,19 @@ extension HistoryLog.Contents {
                     entries[earlier] = HistoryEntry(record: entries[earlier].record, restorability: .trashEmptied)
                 }
                 inTrash[PathGuard.fold(trashedPath)] = entries.count
+                var unloaded: String?
+                if let agentsFolder, let before, before.operation == .launchctl, before.status == .ok,
+                    before.detail?.hasPrefix("bootout ") == true,
+                    PathGuard.fold(URL(filePath: record.path).deletingLastPathComponent().standardizedFileURL.path)
+                        == agentsFolder
+                {
+                    unloaded = before.path
+                }
                 restorability = .restorable(
                     TrashedItem(
                         run: record.run, tool: record.tool, tier: record.tier, originalURL: URL(filePath: record.path),
-                        trashedURL: URL(filePath: trashedPath), bytes: record.bytes, identity: record.identity))
+                        trashedURL: URL(filePath: trashedPath), bytes: record.bytes, identity: record.identity,
+                        unloadedAgentLabel: unloaded))
             case .restore:
                 if let trashedPath = record.trashedPath,
                     let index = inTrash.removeValue(forKey: PathGuard.fold(trashedPath))

@@ -2,8 +2,8 @@ import ShuckKitTestSupport
 import XCTest
 
 /// Uninstalling an app: the Applications list, sorted and searched, the selected app's leftovers, and the uninstall: a
-/// blocked app has none, a running app is quit first, and the review, the run and its summary follow. A later step adds
-/// Restore.
+/// blocked app has none, a running app is quit first, and the review, the run and its summary follow. Then History's
+/// Restore asks before it loads the app's unloaded login agent again.
 ///
 /// The fixture apps sit in `Applications` and in its `Utilities` subfolder, one level down. Last-opened dates are
 /// stubbed to none in a fixture root, so last-opened order is a unit test.
@@ -213,5 +213,72 @@ final class UninstallAppUITests: ShuckUITestCase {
             XCTAssertTrue(app.staticTexts["org.acme.delta"].disappears(within: 5))
             XCTAssertTrue(app.staticTexts["Select an app to see what it leaves behind."].exists)
         }
+
+        // The fake `launchctl` cannot run in the sandboxed UI test runner (docs/testing.md), so the uninstall of an
+        // agent cannot happen here. The log gets the records such an uninstall writes instead, with its property list
+        // in the fixture root's Trash, and History reads them as it reads any run. The engine's end-to-end test runs the
+        // real uninstall and restore of an agent (RestoreReenableTests).
+        let agent = root.url.appending(path: "Library/LaunchAgents/org.acme.delta.helper.plist")
+        try step("History reads an agent's unload and its trashed property list from the log (APP-011, HIS-002)") {
+            try FileManager.default.createDirectory(
+                at: agent.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let trashed = try root.file(
+                ".Trash/org.acme.delta.helper.plist",
+                text: "<plist version=\"1.0\"><dict><key>Label</key><string>org.acme.delta</string></dict></plist>")
+            try appendToHistoryLog(
+                run: UUID(), agent: agent, trashed: trashed, label: "org.acme.delta")
+            sidebar.staticTexts["History"].click()
+            let runs = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Applications · "))
+            XCTAssertTrue(runs.element(boundBy: 1).appears(within: 10), "Both uninstalls should be listed")
+            // The newest run is first, and its triangle opens it.
+            app.outlines.element(boundBy: 1).disclosureTriangles.element(boundBy: 0).click()
+            XCTAssertTrue(app.staticTexts["org.acme.delta.helper.plist"].appears(within: 5))
+        }
+
+        step("Restore All asks whether to load the agent again, naming its job, and moves nothing yet (APP-011)") {
+            app.buttons["Restore All"].firstMatch.click()
+            XCTAssertTrue(sheet.staticTexts["Load 1 login agent again?"].appears(within: 5))
+            XCTAssertTrue(sheet.staticTexts["org.acme.delta"].exists, "The question does not name the job")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: agent.path), "The file moved before the answer")
+            XCTAssertEqual(sheet.checkBoxes["Load again after restoring"].value as? Int, 0, "Loading starts off")
+            attachScreenshot(of: app, named: "Restore agent question")
+        }
+
+        step("Choosing to load it again restores the file, and the summary says how loading went (APP-011, SAF-011)") {
+            sheet.checkBoxes["Load again after restoring"].click()
+            sheet.buttons["Restore"].click()
+            XCTAssertTrue(sheet.staticTexts["Restored 1 item"].appears(within: 10))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: agent.path), "The agent's file is not back")
+            // The fake `launchctl` cannot start here, so loading ends as a failure, in words.
+            let loading = NSPredicate(format: "value BEGINSWITH %@ OR value BEGINSWITH %@", "Failed", "Skipped")
+            XCTAssertTrue(sheet.staticTexts.matching(loading).firstMatch.exists, "The summary is silent on loading")
+            attachScreenshot(of: app, named: "Restore agent summary")
+            sheet.buttons["Done"].click()
+            XCTAssertTrue(sheet.disappears(within: 5))
+        }
+    }
+
+    /// Appends the records of an uninstall's agent to the debug build's history log in the fixture root: its `bootout`
+    /// and the move of its property list to the Trash.
+    private func appendToHistoryLog(run: UUID, agent: URL, trashed: URL, label: String) throws {
+        let folder = root.url.appending(path: "Library/Application Support/me.nutabi.shuck.debug")
+        let log = folder.appending(path: "history.jsonl")
+        func line(_ operation: String, _ phase: String, _ path: String, _ extra: [String: Any] = [:]) throws -> String {
+            var record: [String: Any] = [
+                "v": 1, "ts": "2026-11-15T10:00:00.000Z", "run": run.uuidString, "tool": "APP", "phase": phase,
+                "op": operation, "path": path, "tier": "yourData",
+            ]
+            record.merge(extra) { $1 }
+            return String(decoding: try JSONSerialization.data(withJSONObject: record), as: UTF8.self) + "\n"
+        }
+        let target = "gui/\(getuid())/\(label)"
+        let text =
+            try line("launchctl", "result", label, ["status": "ok", "detail": "bootout \(target): exit 0"])
+            + line("trash", "intent", agent.path)
+            + line("trash", "result", agent.path, ["status": "ok", "trashedPath": trashed.path])
+        let handle = try FileHandle(forWritingTo: log)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(text.utf8))
     }
 }
