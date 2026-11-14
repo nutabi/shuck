@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.16 — APP-007 unloads agents before their plists are trashed; a refused move to the Trash is a skip (see Revision history) |
+| Version | 1.17 — APP-005: a blocked app's leftovers are not looked for (see Revision history) |
 | Date | 2026-11-14 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -35,6 +35,7 @@
 | 1.14 | 2026-11-14 | APP-011's and STA-005's acceptance checks: a fixture test with a fake `launchctl` in the fixture root, run through the tool runner, and a manual check of the real `launchctl` on the owner's Mac, since no test may change the user's launchd state (SAF-016; advisor decision, #253). |
 | 1.15 | 2026-11-14 | APP-005: the check before an uninstall is read-only and covers a root-owned bundle and a bundle or folder the user cannot change; a missing App Management permission cannot be seen beforehand, so the run reports it as a skipped item (M3-T06; advisor decision, #220). |
 | 1.16 | 2026-11-14 | APP-007: matching LaunchAgents are unloaded before their plists are trashed, and the uninstall plan puts the bundle first, so a bundle that stays leaves every leftover and agent alone (APP-005, APP-011). A move to the Trash that macOS refuses for lack of permission, such as another app's container or a missing App Management permission, is a skipped item with its reason, not a failure, and the run goes on (SAF-011, S78) (M3-T06; advisor decision, #222). |
+| 1.17 | 2026-11-14 | APP-005: Shuck does not look for a blocked app's leftovers, since nothing can be done with them and reading other apps' folders can make macOS ask for permission (R-16) (M3-T08; advisor decision, #262). |
 
 ## How to read this document
 
@@ -446,7 +447,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | APP-002 | For a selected app, find related user-level items by exact bundle ID in: `~/Library/Application Support`, `Caches`, `Containers`, `Group Containers` (matched through the app's declared app groups), `Preferences` (including `ByHost`), `Saved Application State`, `HTTPStorages`, `WebKit`, `Cookies`, `Logs`, `Application Scripts`, and `LaunchAgents` (plist label or program path inside the app bundle). | Must | Fixture Library tree → expected matches. |
 | APP-003 | Every related item gets a confidence level. **High:** exact bundle ID or declared app group. **Medium:** app or vendor name match in Application Support, Caches or Logs. **Low:** other heuristics. Only High items are selected by default, except those in Application Support, Containers and Group Containers (OQ-07). Medium and Low items show the reason for the match. | Must | Unit tests per level. |
 | APP-004 | Related items found in system-wide locations (`/Library/Application Support`, `LaunchAgents`, `LaunchDaemons`, `PrivilegedHelperTools`, `Preferences`) are listed as "Needs admin — not removable in this version", with "Show in Finder" (D-08). | Must | Fixture test. |
-| APP-005 | If the user cannot remove the app bundle itself, the uninstall is blocked with the reason shown, and the app is still listed (R-16). The check before the run is read-only and covers a root-owned bundle and a bundle or folder the user cannot change. A missing App Management permission cannot be seen before the run, so the run reports the bundle as a skipped item (M3-T06). Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
+| APP-005 | If the user cannot remove the app bundle itself, the uninstall is blocked with the reason shown, and the app is still listed (R-16). The check before the run is read-only and covers a root-owned bundle and a bundle or folder the user cannot change. A missing App Management permission cannot be seen before the run, so the run reports the bundle as a skipped item (M3-T06). Leftovers are not removed on their own, and a blocked app's leftovers are not looked for (M3-T08). | Must | Fixture test with a non-writable bundle. |
 | APP-006 | If the app is running, offer "Quit <App>" using a normal quit request (`NSRunningApplication.terminate()`). Continue only after the app has exited. Never force-quit. | Must | Integration test with a stubbed running-app list. |
 | APP-007 | Uninstall moves the app bundle and the selected items to the Trash in one run, after an itemized review; matching LaunchAgents are unloaded before their plists are trashed (APP-011). Restore puts everything back. | Must | Fixture test end to end, including restore. |
 | APP-008 | Apps installed by a package show their receipt (from `pkgutil`) and a note that system-wide files may exist. | Should | Unit test with recorded `pkgutil` output. |
