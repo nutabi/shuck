@@ -81,8 +81,9 @@ Owner preference, 2026-11-13:
   passes (D-66).
 - **A stack** (D-76) uses the `gh stack` extension (`gh extension install github/gh-stack`): `gh stack init`,
   `gh stack add <branch>` and `gh stack submit --open`. Keep it linear with `gh stack rebase` and `gh stack push`,
-  never by merging. Turn on auto-merge (squash) on the top pull request: once CI passes, it merges the whole stack,
-  bottom up, one squashed commit per pull request (D-200).
+  never by merging. GitHub refuses auto-merge on a stacked pull request, so once CI passes on every pull request,
+  merge the stack with `gh stack merge <stack> --squash --yes`: one all-or-nothing merge, one squashed commit per pull
+  request (D-200, #247).
 - Changes to `scripts/` and `.github/` follow the same rules as any other change (D-200).
 - **Changelog** (D-95): a change users can notice adds a plain-words line under `## [Unreleased]` in `CHANGELOG.md`,
   in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) section that fits. Refactors, tests and CI get no
