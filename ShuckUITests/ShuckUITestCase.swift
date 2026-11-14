@@ -25,7 +25,8 @@ import XCTest
 ///   and Delete, and a running app's disabled rows, in `CachesAndLogsUITests`; its empty page, in `FirstLookUITests`.
 /// - Overview and Startup Items: a placeholder that names its milestone, in `FirstLookUITests`.
 /// - Applications: its page with nothing to list, in `FirstLookUITests`; the list with each app's name, version and
-///   bundle ID, sorted and searched, in `UninstallAppUITests`.
+///   bundle ID, sorted and searched, the leftovers, and the uninstall (a blocked app, Quit, the review and the run), in
+///   `UninstallAppUITests`.
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
 /// - Excluded folders: Settings lists them and Remove takes one out, in `FirstLookUITests`; Large Files, the totals and
 ///   Developer Junk leave out what an exclusion covers, in `FindWhatTakesSpaceUITests` and `DeveloperJunkUITests`.
@@ -133,6 +134,18 @@ extension XCUIElement {
     /// Whether the element is gone within `timeout` seconds.
     func disappears(within timeout: TimeInterval) -> Bool {
         wait(within: timeout, untilExists: false)
+    }
+
+    /// Whether the element is enabled within `timeout` seconds, for a control that stays off until something finishes.
+    func becomesEnabled(within timeout: TimeInterval) -> Bool {
+        XCTContext.runActivity(named: "Wait up to \(timeout) s for \(self) to be enabled") { _ in
+            let deadline = Date.now.addingTimeInterval(timeout)
+            while !(exists && isEnabled) {
+                guard Date.now < deadline else { return false }
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+            return true
+        }
     }
 
     private func wait(within timeout: TimeInterval, untilExists expected: Bool) -> Bool {

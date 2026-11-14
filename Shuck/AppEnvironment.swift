@@ -16,6 +16,10 @@ nonisolated struct AppEnvironment {
     /// Asks an app to quit before an uninstall (APP-006): this Mac's apps, or in a fixture root the same fixture object
     /// as ``runningApps``, so a UI test never quits the real Xcode (SAF-016).
     let appQuitter: any AppQuitter
+    /// Quits an app and waits until it has gone (APP-006).
+    var quitApp: QuitApp {
+        QuitApp(runningApps: runningApps, quitter: appQuitter, pause: QuitApp.realPause)
+    }
     /// Where a tool command may be found: anywhere on this Mac, or only inside a UI test's fixture root, so a test never
     /// runs a real tool (DEV-004, SAF-016, D-114).
     let toolRunner: ToolRunner

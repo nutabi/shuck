@@ -1,4 +1,5 @@
 import Foundation
+import ShuckExecution
 import ShuckKit
 
 /// What the Applications `Table`'s column headers sort by: an ``AppSortKey`` and a direction (APP-009).
@@ -69,6 +70,11 @@ final class ApplicationsModel {
     /// The selected app's leftovers, in the order the scan found them.
     private(set) var leftovers: [ScanItem] = []
     private(set) var leftoverState = LeftoverState.idle
+    /// The leftovers the uninstall will move to the Trash, by URL. Each starts as the scan selected it, and the user
+    /// changes it with ``setChosen(_:for:)`` (APP-007). A disabled leftover, such as a system-wide one, is never in it.
+    private(set) var chosen: Set<URL> = []
+    /// Whether an uninstall plan is being built, so a second review cannot start meanwhile.
+    private(set) var isPlanning = false
     /// Folders macOS did not let the leftover scan read (SAF-012). The inventory's are in ``notAccessible``.
     private(set) var leftoverNotAccessible: [URL] = []
     /// Folders the leftover scan could not read for another reason (SAF-011).
@@ -78,18 +84,41 @@ final class ApplicationsModel {
     private var exclusionRevision = 0
     private let appScan: AppScan
     private let leftoverScan: LeftoverScan
+    private let uninstall: Uninstall?
     private var scanTask: Task<Void, Never>?
     private var leftoverTask: Task<Void, Never>?
     /// Counts the leftover scans started, so an event from one that was replaced never lands in the new list.
     private var leftoverGeneration = 0
 
-    /// - Parameter leftoverScan: Without one, an app has no leftovers, for a preview or a test of the list alone.
+    /// What an uninstall needs beyond the scans: the tool that plans it, the run and the quit request. The app passes
+    /// ``AppEnvironment``'s; tests pass stubs, so none moves a file or quits an app (SAF-016).
+    nonisolated struct Uninstall: Sendable {
+        let applications: Applications
+        let runPlan: RunPlan
+        let readFreeSpace: ReadFreeSpace
+        let quitApp: QuitApp
+
+        init(
+            applications: Applications, runPlan: @escaping RunPlan, readFreeSpace: @escaping ReadFreeSpace = { nil },
+            quitApp: QuitApp
+        ) {
+            self.applications = applications
+            self.runPlan = runPlan
+            self.readFreeSpace = readFreeSpace
+            self.quitApp = quitApp
+        }
+    }
+
+    /// - Parameters:
+    ///   - leftoverScan: Without one, an app has no leftovers, for a preview or a test of the list alone.
+    ///   - uninstall: Without one, the page offers no uninstall, as in previews and tests of the list alone.
     init(
         context: ScanContext, leftoverScan: @escaping LeftoverScan = { _, _ in AsyncStream { $0.finish() } },
-        appScan: @escaping AppScan
+        uninstall: Uninstall? = nil, appScan: @escaping AppScan
     ) {
         self.context = context
         self.leftoverScan = leftoverScan
+        self.uninstall = uninstall
         self.appScan = appScan
     }
 
@@ -170,6 +199,7 @@ final class ApplicationsModel {
         leftoverTask = nil
         leftoverGeneration += 1
         leftovers = []
+        chosen = []
         leftoverNotAccessible = []
         leftoverUnreadable = []
         leftoverState = .idle
@@ -185,6 +215,7 @@ final class ApplicationsModel {
                     // The scan keeps the exclusions it started with, so an item they hide now is left out.
                     if revision != exclusionRevision, self.context.hides(item) { continue }
                     leftovers.append(item)
+                    if item.selection == .selected, let url = item.url { chosen.insert(url) }
                 case .notAccessible(let url): leftoverNotAccessible.append(url)
                 case .unreadable(let url): leftoverUnreadable.append(url)
                 }
@@ -194,6 +225,60 @@ final class ApplicationsModel {
             leftoverState = Task.isCancelled ? .idle : .scanned
         }
         return leftoverTask
+    }
+
+    /// Chooses or drops a leftover for the uninstall. A disabled one, or one the page does not list, cannot be chosen.
+    func setChosen(_ isChosen: Bool, for item: ScanItem) {
+        guard let url = item.url, item.selection.isSelectable, leftovers.contains(where: { $0.url == url }) else {
+            return
+        }
+        if isChosen { chosen.insert(url) } else { chosen.remove(url) }
+    }
+
+    /// The chosen leftovers, in the order the page lists them once the scan is over.
+    var chosenLeftovers: [ScanItem] {
+        ScanOrder.ordered(leftovers, scanning: false).filter { item in
+            item.selection.isSelectable && item.url.map(chosen.contains) == true
+        }
+    }
+
+    /// Whether Uninstall is on offer: the model can run, the app can be removed and its leftovers are all in, so the
+    /// review lists everything (APP-005, APP-007).
+    var canUninstall: Bool {
+        guard uninstall != nil, !isPlanning, leftoverState == .scanned, let app = selectedApp else { return false }
+        return app.removability == .removable
+    }
+
+    /// The review of uninstalling the selected app and the chosen leftovers (APP-007), or `nil` if none can start, or
+    /// the selection changed while the plan was built. The plan is built now with the path guard of the current
+    /// exclusions, and the run checks every item again just before it acts (SAF-007, SAF-008). Nothing moves until the
+    /// user confirms in the review. When the run ends, what it moved leaves the page.
+    /// - Throws: ``UninstallPlanError`` if the plan is refused; a plan is all or nothing.
+    func reviewUninstall() async throws(UninstallPlanError) -> UninstallReview? {
+        guard canUninstall, let uninstall, let app = selectedApp else { return nil }
+        isPlanning = true
+        defer { isPlanning = false }
+        let generation = leftoverGeneration
+        let plan = try await Self.plan(uninstall.applications, app, chosenLeftovers, context.protection)
+        guard generation == leftoverGeneration, selection == app.id else { return nil }
+        let trash = TrashReview(
+            plan: plan, runPlan: uninstall.runPlan, readFreeSpace: uninstall.readFreeSpace
+        ) { [weak self] report in
+            self?.finishUninstall(report, of: app)
+        }
+        return UninstallReview(app: app, trash: trash, quitApp: uninstall.quitApp)
+    }
+
+    /// Drops what a run moved to the Trash from the page: the app, and with it the selection, or the leftovers.
+    func finishUninstall(_ report: RunReport, of app: InstalledApp) {
+        let trashed = Set(report.trashedURLs)
+        if trashed.contains(app.url) {
+            apps.removeAll { $0.id == app.id }
+            select(nil)
+        } else {
+            leftovers.removeAll { $0.url.map(trashed.contains) == true }
+            chosen.subtract(trashed)
+        }
     }
 
     /// Stops the scan, if there is one (SAF-014). Scanning never acts on anything, so there is nothing to undo.
@@ -228,6 +313,15 @@ final class ApplicationsModel {
     private nonisolated static func start(_ scan: AppScan, context: ScanContext) async -> AsyncStream<AppInventoryEvent>
     {
         scan(context)
+    }
+
+    /// The uninstall plan, built off the main actor: each item costs several file-system reads (NFR-PERF-001).
+    @concurrent
+    private nonisolated static func plan(
+        _ applications: Applications, _ app: InstalledApp, _ leftovers: [ScanItem],
+        _ protection: PathGuardConfiguration
+    ) async throws(UninstallPlanError) -> Plan {
+        try applications.uninstallPlan(for: app, leftovers: leftovers, pathGuard: PathGuard(configuration: protection))
     }
 
     @concurrent
