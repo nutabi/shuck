@@ -151,6 +151,7 @@ final class UninstallAppUITests: ShuckUITestCase {
             app.staticTexts["com.example.locked"].click()
             XCTAssertTrue(app.staticTexts["Can't uninstall this app"].appears(within: 10))
             XCTAssertFalse(app.buttons["Uninstall…"].isEnabled)
+            XCTAssertTrue(app.buttons["blocked-show-in-finder"].exists)
         }
 
         step("Each leftover has a checkbox: the scan's choice, and none for what needs admin (APP-007)") {
