@@ -81,7 +81,7 @@ struct RestoreReenableTests {
         for await case .item(let item) in applications.leftovers(of: app, among: byName, context) {
             if item.selection == .selected { leftovers.append(item) }
         }
-        #expect(Set(leftovers.compactMap(\.url?.lastPathComponent)) == [bundleID, "\(bundleID).plist"])
+        #expect(Set(leftovers.compactMap(\.url?.path)) == Set([cache, preferences, agent].map(\.path)))
         let plan = try applications.uninstallPlan(for: app, leftovers: leftovers, pathGuard: pathGuard)
 
         // Run it: the agent is unloaded before its property list moves (APP-011).
@@ -106,8 +106,10 @@ struct RestoreReenableTests {
         // The agent is no longer loaded: the fake is replaced inside the root, as the uninstall unloaded the real one.
         try FileManager.default.removeItem(at: root.url("bin/launchctl"))
         try root.tool("bin/launchctl", .launchctl(printStatus: LaunchctlAction.notLoadedStatus))
+        // The confirmation names the job the run unloaded, from its Launchctl record, as the page passes it.
+        let confirmed = try #require(unloaded.first?.path)
         let requests = trashed.map { item in
-            RestoreRequest(item: item, reenableAgentLabel: item.originalURL == agent ? bundleID : nil)
+            RestoreRequest(item: item, reenableAgentLabel: item.originalURL == agent ? confirmed : nil)
         }
         let restored = try await restore(requests)
         #expect(restored.outcomes.count == 4 && restored.outcomes.compactMap(\.reenable) == [.done(nil)])
