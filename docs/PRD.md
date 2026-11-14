@@ -6,8 +6,8 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.12 — ENG-002: one task is one pull request or one stack (see Revision history) |
-| Date | 2026-11-11 |
+| Version | 1.14 — APP-011 and STA-005 are tested with a fake `launchctl` (see Revision history) |
+| Date | 2026-11-14 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
 | Repository | `github.com/nutabi/shuck` (to be initialised by the owner) |
@@ -32,6 +32,7 @@
 | 1.11 | 2026-11-12 | DEV-004 names pip's settings (D-157) and records the owner's check that `brew cleanup`, `npm cache clean` and `pip cache purge` open no network connection, which settles its open question (owner decision). |
 | 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms. Section 1, G-5, R-17 and the priorities: the advisor decides instead of the owner reviewing (D-200). |
 | 1.13 | 2026-11-14 | Tasks, owner items and exit criteria live in GitHub issues and milestones; `docs/progress.md` is frozen in `docs/archive/` (OQ-05, ENG-004, section 12). |
+| 1.14 | 2026-11-14 | APP-011's and STA-005's acceptance checks: a fixture test with a fake `launchctl` in the fixture root, run through the tool runner, and a manual check of the real `launchctl` on the owner's Mac, since no test may change the user's launchd state (SAF-016; advisor decision, PRNUM). |
 
 ## How to read this document
 
@@ -449,7 +450,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | APP-008 | Apps installed by a package show their receipt (from `pkgutil`) and a note that system-wide files may exist. | Should | Unit test with recorded `pkgutil` output. |
 | APP-009 | Apps can be sorted by size, last opened and name, and searched. | Should | UI test. |
 | APP-010 | Show the app's code-signing developer name. | Could | — |
-| APP-011 | Before trashing a matching plist from `~/Library/LaunchAgents` (APP-002), the uninstall unloads the agent with `launchctl bootout` in the `gui/<uid>` domain, through the same execution path as STA-005 Remove. An agent that is not loaded is trashed directly. If unloading a loaded agent fails, its plist is skipped and reported (SAF-011). Restoring puts the plist back; the agent is re-enabled only if the user confirms (HIS-005). | Must | Integration test on a fixture agent in a test domain: the agent is unloaded before its plist is trashed. |
+| APP-011 | Before trashing a matching plist from `~/Library/LaunchAgents` (APP-002), the uninstall unloads the agent with `launchctl bootout` in the `gui/<uid>` domain, through the same execution path as STA-005 Remove. An agent that is not loaded is trashed directly. If unloading a loaded agent fails, its plist is skipped and reported (SAF-011). Restoring puts the plist back; the agent is re-enabled only if the user confirms (HIS-005). | Must | Fixture test with a fake `launchctl` in the fixture root, run through the tool runner (SAF-016, D-82): a loaded agent is unloaded before its plist is trashed, an agent that is not loaded is trashed directly, and a failed unload skips the plist. Manual check on the owner's Mac of the real `bootout` and of the re-enable after Restore (M3 exit criteria). |
 
 ### 9.3 Startup Items (STA)
 
@@ -461,7 +462,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | STA-002 | Show status for each job. User agents: loaded and enabled state in the `gui/<uid>` domain (`launchctl print`, `launchctl print-disabled`). The system domain is queried read-only; anyone may read it, but changes need root [S47]. | Must | Unit test with recorded `launchctl` output. |
 | STA-003 | List helpers bundled inside installed apps (`Contents/Library/LaunchAgents`, `LaunchDaemons`, `LoginItems`) as "Managed by macOS Login Items & Extensions" (read-only). `SMAppService` manages only an app's own helpers [S16]. | Must | Fixture app bundle → listed read-only. |
 | STA-004 | "Open at Login" apps cannot be listed through a supported API. Show an explanation and an "Open Login Items settings" button that calls `SMAppService.openSystemSettingsLoginItems()` [S48][S17]. The static check allows this one call in the app target, because it only opens a pane; every other use of `SMAppService` stays an error outside `ShuckExecution` (D-134). | Must | UI test: the button is present; manual check that it opens the right pane. |
-| STA-005 | For user agents in `~/Library/LaunchAgents` only: **Disable** (`launchctl bootout` + `launchctl disable`; the disabled state persists across reboots [S47]), **Enable** (`enable` + `bootstrap`), **Remove** (`bootout`, then move the plist to the Trash; restorable). Itemized review (Your data tier). | Must | Integration test on a fixture agent in a test domain; manual check on the owner's Mac. |
+| STA-005 | For user agents in `~/Library/LaunchAgents` only: **Disable** (`launchctl bootout` + `launchctl disable`; the disabled state persists across reboots [S47]), **Enable** (`enable` + `bootstrap`), **Remove** (`bootout`, then move the plist to the Trash; restorable). Itemized review (Your data tier). | Must | Fixture test with a fake `launchctl` in the fixture root, run through the tool runner (SAF-016, D-82): each action makes the expected `launchctl` calls in order. Manual check on the owner's Mac of the real `launchctl`. |
 | STA-006 | Items in `/Library/*` and the system domain are read-only, marked "Needs admin", with "Show in Finder" (D-08). | Must | UI test. |
 | STA-007 | Flag jobs whose program path does not exist ("program missing"). These are likely leftovers from removed apps. | Must | Fixture test. |
 | STA-008 | Apple's own jobs in `/System/Library` are not listed. They are protected by System Integrity Protection. | Must | Unit test. |
