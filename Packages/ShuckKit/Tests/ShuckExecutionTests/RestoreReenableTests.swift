@@ -61,8 +61,9 @@ struct RestoreReenableTests {
         let bundle = try root.app("Applications/Fixture.app", bundleID: bundleID, name: "Fixture", size: 4096)
         let cache = try root.file("Library/Caches/\(bundleID)/data.bin", size: 2048).deletingLastPathComponent()
         let preferences = try root.file("Library/Preferences/\(bundleID).plist", text: "prefs")
+        // The file name differs from the Label, so the scan, the run and the re-enable all read the label from the file.
         let agent = try root.file(
-            "Library/LaunchAgents/\(bundleID).plist",
+            "Library/LaunchAgents/fixture-helper.plist",
             text: "<plist version=\"1.0\"><dict><key>Label</key><string>\(bundleID)</string></dict></plist>")
         let originals = [bundle, cache, preferences, agent]
 
