@@ -58,7 +58,7 @@ struct ShuckApp: App {
             uninstall: .init(
                 applications: environment.applications, runPlan: environment.run,
                 readFreeSpace: environment.availableSpace, quitApp: environment.quitApp),
-            appScan: environment.applications.scan)
+            receiptReader: environment.receiptReader, appScan: environment.applications.scan)
         _applications = State(initialValue: applications)
         _exclusions = State(
             initialValue: FolderListModel(list: environment.excludedFolders) { folders in

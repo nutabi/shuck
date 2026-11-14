@@ -293,6 +293,52 @@ struct ApplicationsLeftoversModelTests {
         #expect(calls.value == 1 && model.leftoverState == .scanned)
     }
 
+    /// Answers a receipt lookup with `result`, and notes which apps were asked about.
+    final class StubReceipts: PackageReceiptReader {
+        let result: Result<[PackageReceipt], PackageReceiptError>
+        let asked = Mutex<[URL]>([])
+
+        init(result: Result<[PackageReceipt], PackageReceiptError>) { self.result = result }
+
+        func receipts(forAppAt app: URL) async throws(PackageReceiptError) -> [PackageReceipt] {
+            asked.withLock { $0.append(app) }
+            return try result.get()
+        }
+    }
+
+    @Test(arguments: [
+        (Result<[PackageReceipt], PackageReceiptError>.success([]), ApplicationsModel.ReceiptState.none),
+        (
+            .success([PackageReceipt(packageID: "com.example.pkg", version: "2", installed: nil)]),
+            .found([PackageReceipt(packageID: "com.example.pkg", version: "2", installed: nil)])
+        ),
+        (.failure(.failed(1)), .failed), (.failure(.unreadableOutput), .failed), (.failure(.stopped), .idle),
+    ])
+    func theSelectedAppsReceiptIsLookedUpAndAFailureIsNotNoReceiptAPP008(
+        result: Result<[PackageReceipt], PackageReceiptError>, expected: ApplicationsModel.ReceiptState
+    ) async throws {
+        let reader = StubReceipts(result: result)
+        let model = ApplicationsModel(context: context, receiptReader: reader) { _ in
+            AsyncStream { continuation in
+                continuation.yield(.app(alpha))
+                continuation.yield(.app(beta))
+                continuation.finish()
+            }
+        }
+        await model.scan()?.value
+        // Only the selected app is looked up, never each app in the list.
+        #expect(model.receipt == .idle && reader.asked.withLock { $0.isEmpty })
+        let task = try #require(model.select(alpha.id))
+        await task.value
+        while model.receipt == .looking { await Task.yield() }
+
+        #expect(model.receipt == expected)
+        #expect(reader.asked.withLock { $0 } == [alpha.url])
+        // Selecting nothing clears it.
+        model.select(nil)
+        #expect(model.receipt == .idle)
+    }
+
     @Test(arguments: AppRemovability.Reason.allCases)
     func aBlockedAppIsListedButItsLeftoversAreNotScannedAPP005(reason: AppRemovability.Reason) async {
         let locked = InstalledApp.made(
