@@ -8,13 +8,14 @@ import Testing
 extension InstalledApp {
     /// An app made up for a test, at `/StubHome/<path>`, so no test reads a real app (SAF-016).
     static func made(
-        _ path: String, name: String? = nil, bundleID: String? = nil, size: Int64 = 1_000, lastOpened: Date? = nil
+        _ path: String, name: String? = nil, bundleID: String? = nil, size: Int64 = 1_000, lastOpened: Date? = nil,
+        removability: AppRemovability = .removable
     ) -> InstalledApp {
         let url = URL(filePath: "/StubHome").appending(path: path, directoryHint: .isDirectory)
         return InstalledApp(
             url: url, name: name ?? url.deletingPathExtension().lastPathComponent, bundleID: bundleID,
             snapshot: ItemSnapshot(kind: .folder, allocatedSize: size), modified: Date(timeIntervalSince1970: 0),
-            version: "1.0", lastOpened: lastOpened)
+            version: "1.0", lastOpened: lastOpened, removability: removability)
     }
 }
 
@@ -173,5 +174,218 @@ struct ApplicationsModelTests {
         model.searchText = query
 
         #expect(model.visibleApps.map(\.name) == names)
+    }
+}
+
+extension ScanItem {
+    /// A leftover made up for a test, at `/StubHome/Library/<name>`.
+    fileprivate static func leftover(_ name: String, confidence: Confidence = .high) -> ScanItem {
+        ScanItem(
+            url: URL(filePath: "/StubHome/Library/\(name)"), snapshot: ItemSnapshot(kind: .folder, allocatedSize: 10),
+            tier: .yourData, method: .trash, reason: "Stub", source: .applications, confidence: confidence)
+    }
+}
+
+/// The leftover scans a made-up scan was asked to run.
+final class LeftoverCalls: Sendable {
+    private let calls = Mutex<[(app: InstalledApp, installed: AppsByName)]>([])
+    var apps: [InstalledApp] { calls.withLock { $0.map(\.app) } }
+    var firstInstalled: AppsByName? { calls.withLock { $0.first?.installed } }
+
+    func record(_ app: InstalledApp, _ installed: AppsByName) {
+        calls.withLock { $0.append((app, installed)) }
+    }
+}
+
+/// The selected app's leftovers: when they are scanned, for which app, and what the scan is given (APP-002 to APP-005,
+/// R-05).
+///
+/// Each app's leftover scan is a stream the test holds, so no test reads a real `Library` folder (SAF-016).
+@MainActor
+struct ApplicationsLeftoversModelTests {
+    let context = ScanContext(home: URL(filePath: "/StubHome", directoryHint: .isDirectory))
+    let alpha = InstalledApp.made("Applications/Alpha.app", bundleID: "com.example.alpha")
+    let beta = InstalledApp.made("Applications/Beta.app", bundleID: "com.example.beta")
+
+    /// A model that finds `apps`, and one held leftover stream for each of them. `calls` has the arguments of each
+    /// leftover scan, in the order they started.
+    final class Harness {
+        let model: ApplicationsModel
+        let streams: [URL: AsyncStream<ScanEvent>.Continuation]
+        let calls: LeftoverCalls
+
+        init(model: ApplicationsModel, streams: [URL: AsyncStream<ScanEvent>.Continuation], calls: LeftoverCalls) {
+            self.model = model
+            self.streams = streams
+            self.calls = calls
+        }
+    }
+
+    func harness(apps: [InstalledApp]) -> Harness {
+        var continuations: [URL: AsyncStream<ScanEvent>.Continuation] = [:]
+        var held: [URL: AsyncStream<ScanEvent>] = [:]
+        for app in apps {
+            let (stream, continuation) = AsyncStream.makeStream(of: ScanEvent.self)
+            held[app.id] = stream
+            continuations[app.id] = continuation
+        }
+        let calls = LeftoverCalls()
+        let streams = held
+        let leftoverScan: ApplicationsModel.LeftoverScan = { app, installed, _ in
+            calls.record(app, installed)
+            return streams[app.id] ?? AsyncStream { $0.finish() }
+        }
+        let model = ApplicationsModel(context: context, leftoverScan: leftoverScan) { _ in
+            AsyncStream { continuation in
+                for app in apps { continuation.yield(.app(app)) }
+                continuation.finish()
+            }
+        }
+        return Harness(model: model, streams: continuations, calls: calls)
+    }
+
+    private func exclusions(_ paths: [String]) -> PathGuardConfiguration {
+        .production(
+            home: context.home, appBundle: URL(filePath: "/Applications/Shuck.app"),
+            userExclusions: paths.map { URL(filePath: $0) })
+    }
+
+    @Test func leftoversStreamInForTheSelectedAppAndItsUnreadableFoldersStayApartAPP002() async throws {
+        let harness = harness(apps: [alpha, beta])
+        let model = harness.model
+        await model.scan()?.value
+        let (high, medium) = (ScanItem.leftover("com.example.alpha"), ScanItem.leftover("Alpha", confidence: .medium))
+        let locked = URL(filePath: "/StubHome/Library/Containers")
+        let broken = URL(filePath: "/StubHome/Library/Logs")
+
+        // Nothing is scanned until an app is selected, and then only that app.
+        #expect(harness.calls.apps.isEmpty && model.leftoverState == .idle)
+        let task = try #require(model.select(alpha.id))
+        #expect(model.leftoverState == .scanning)
+        let events: [ScanEvent] = [.item(high), .notAccessible(locked), .item(medium), .unreadable(broken)]
+        for event in events { harness.streams[alpha.id]?.yield(event) }
+        harness.streams[alpha.id]?.finish()
+        await task.value
+
+        #expect(model.leftoverState == .scanned)
+        #expect(model.leftovers == [high, medium])
+        #expect(model.leftoverNotAccessible == [locked] && model.leftoverUnreadable == [broken])
+        #expect(model.notAccessible.isEmpty && model.unreadable.isEmpty)
+        #expect(harness.calls.apps == [alpha])
+    }
+
+    @Test func anAppChosenWhileTheScanRunsGetsItsLeftoversWhenTheScanEndsAPP002() async throws {
+        let (appStream, appEvents) = AsyncStream.makeStream(of: AppInventoryEvent.self)
+        let calls = ScanCount()
+        let leftoverScan: ApplicationsModel.LeftoverScan = { _, _, _ in
+            calls.increment()
+            return AsyncStream { $0.finish() }
+        }
+        let model = ApplicationsModel(context: context, leftoverScan: leftoverScan) { _ in appStream }
+        let scan = try #require(model.scan())
+        appEvents.yield(.app(alpha))
+        // The app is listed but the scan has not finished, so the leftovers wait.
+        while model.apps.isEmpty { await Task.yield() }
+        model.select(alpha.id)
+        #expect(calls.value == 0 && model.leftoverState == .idle)
+
+        appEvents.finish()
+        await scan.value
+
+        #expect(calls.value == 1 && model.leftoverState == .scanned)
+    }
+
+    @Test(arguments: AppRemovability.Reason.allCases)
+    func aBlockedAppIsListedButItsLeftoversAreNotScannedAPP005(reason: AppRemovability.Reason) async {
+        let locked = InstalledApp.made(
+            "Applications/Locked.app", bundleID: "com.example.locked", removability: .blocked(reason))
+        let harness = harness(apps: [locked])
+        await harness.model.scan()?.value
+
+        harness.model.select(locked.id)
+
+        #expect(harness.model.apps == [locked] && harness.model.selectedApp == locked)
+        #expect(harness.calls.apps.isEmpty && harness.model.leftoverState == .idle)
+    }
+
+    @Test func changingTheSelectionCancelsAndClearsAndALateEventDoesNotLandAPP002() async throws {
+        let harness = harness(apps: [alpha, beta])
+        let model = harness.model
+        await model.scan()?.value
+        let stale = ScanItem.leftover("com.example.alpha")
+        let fresh = ScanItem.leftover("com.example.beta")
+
+        let first = model.select(alpha.id)
+        harness.streams[alpha.id]?.yield(.item(stale))
+        harness.streams[alpha.id]?.yield(.notAccessible(URL(filePath: "/StubHome/Library/Containers")))
+        let second = try #require(model.select(beta.id))
+        #expect(model.leftovers.isEmpty && model.leftoverNotAccessible.isEmpty)
+        // The old scan still has things to say, and says them before it ends.
+        harness.streams[alpha.id]?.yield(.item(stale))
+        harness.streams[alpha.id]?.finish()
+        await first?.value
+        harness.streams[beta.id]?.yield(.item(fresh))
+        harness.streams[beta.id]?.finish()
+        await second.value
+
+        #expect(model.leftovers == [fresh] && model.leftoverNotAccessible.isEmpty)
+        #expect(model.leftoverState == .scanned)
+
+        model.select(nil)
+        #expect(model.leftovers.isEmpty && model.leftoverState == .idle)
+    }
+
+    @Test func theLeftoverScanGetsEveryInstalledAppEvenAfterTheExclusionsDropOneR05() async throws {
+        let hidden = InstalledApp.made("Applications/Private/Hidden.app", bundleID: "com.example.hidden")
+        let harness = harness(apps: [alpha, hidden])
+        let model = harness.model
+        await model.scan()?.value
+        model.searchText = "alpha"
+        model.protect(with: exclusions(["/StubHome/Applications/Private"]))
+        #expect(model.apps == [alpha])
+
+        harness.streams[alpha.id]?.finish()
+        await model.select(alpha.id)?.value
+
+        // The hidden app is still installed, and the search does not narrow the names.
+        #expect(harness.calls.firstInstalled == AppsByName(apps: [alpha, hidden]))
+    }
+
+    @Test func anExclusionDropsTheSelectedAppAndHiddenLeftoversAndAScanStartedBeforeItSET001() async throws {
+        let harness = harness(apps: [alpha, beta])
+        let model = harness.model
+        await model.scan()?.value
+        let kept = ScanItem.leftover("keep")
+        let hidden = ScanItem.leftover("Private/hide")
+        let task = try #require(model.select(alpha.id))
+        harness.streams[alpha.id]?.yield(.item(kept))
+        harness.streams[alpha.id]?.yield(.item(hidden))
+        while model.leftovers.count < 2 { await Task.yield() }
+
+        model.protect(with: exclusions(["/StubHome/Library/Private"]))
+        #expect(model.leftovers == [kept])
+        // A scan that started before the change leaves out what the new list hides.
+        harness.streams[alpha.id]?.yield(.item(hidden))
+        harness.streams[alpha.id]?.finish()
+        await task.value
+        #expect(model.leftovers == [kept])
+
+        model.protect(with: exclusions(["/StubHome/Applications/Alpha.app"]))
+        #expect(model.apps == [beta] && model.selection == nil && model.leftovers.isEmpty)
+    }
+
+    @Test func aNewScanClearsTheSelectedAppsLeftoversSAF014() async throws {
+        let harness = harness(apps: [alpha])
+        let model = harness.model
+        await model.scan()?.value
+        let task = try #require(model.select(alpha.id))
+        harness.streams[alpha.id]?.yield(.item(.leftover("one")))
+        harness.streams[alpha.id]?.finish()
+        await task.value
+        #expect(model.leftovers.count == 1)
+
+        await model.scan()?.value
+
+        #expect(model.selection == nil && model.leftovers.isEmpty && model.leftoverState == .idle)
     }
 }

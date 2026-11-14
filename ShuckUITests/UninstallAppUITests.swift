@@ -15,6 +15,13 @@ final class UninstallAppUITests: ShuckUITestCase {
         try root.app(
             "Applications/Utilities/Gamma.app", bundleID: "com.example.gamma", name: "Gamma", version: "3.4.5",
             size: 2 << 20)
+        // Delta's leftovers: a High one by its bundle ID, a Medium one named like the app, and a system-wide one, which
+        // needs admin rights. The other apps have none.
+        try root.app(
+            "Applications/Delta.app", bundleID: "org.acme.delta", name: "Delta", version: "4.0", size: 4 << 20)
+        try root.file("Library/Application Support/org.acme.delta/data", size: 2_000)
+        try root.file("Library/Caches/Delta/cache", size: 3_000)
+        try root.file("SystemLibrary/Preferences/org.acme.delta.plist", size: 1_000)
         let app = launch(appFolders: ["Applications"])
         let sidebar = app.outlines.firstMatch
 
@@ -23,6 +30,11 @@ final class UninstallAppUITests: ShuckUITestCase {
         /// center skips that check, and a header that really were covered would still fail the order check after it.
         func clickHeader(_ title: String) {
             app.buttons[title].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
+
+        /// What a static text with an identifier shows: SwiftUI gives it as the value, and leaves the label empty.
+        func text(_ element: XCUIElement) -> String {
+            element.label.isEmpty ? element.value as? String ?? "" : element.label
         }
 
         /// The three apps in the order the page shows them, top to bottom.
@@ -79,6 +91,37 @@ final class UninstallAppUITests: ShuckUITestCase {
             search.typeKey(.delete, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Gamma"].appears(within: 5))
             XCTAssertEqual(order(), ["Alpha", "Beta", "Gamma"])
+        }
+
+        step("Selecting an app lists its leftovers with how sure the scan is, and why (APP-002, APP-003)") {
+            XCTAssertTrue(app.staticTexts["Select an app to see what it leaves behind."].exists)
+            // Nothing is scanned for an app that is not selected, and the page says macOS may ask to read containers.
+            app.staticTexts["org.acme.delta"].click()
+            let high = app.staticTexts["leftover-confidence-org.acme.delta"]
+            XCTAssertTrue(high.appears(within: 10))
+            XCTAssertEqual(text(high), "High")
+            XCTAssertEqual(text(app.staticTexts["leftover-reason-org.acme.delta"]), "Named by the app's bundle ID")
+            XCTAssertEqual(text(app.staticTexts["leftover-confidence-Delta"]), "Medium")
+            XCTAssertEqual(text(app.staticTexts["leftover-reason-Delta"]), "Named like the app: Delta")
+            let note = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "may ask for", "may ask for")
+            XCTAssertTrue(app.descendants(matching: .any).matching(note).firstMatch.exists)
+            attachScreenshot(of: app, named: "Leftovers")
+        }
+
+        step("A system-wide leftover says it needs admin and offers Show in Finder, and the others do not (APP-004)") {
+            let name = "org.acme.delta.plist"
+            XCTAssertEqual(text(app.staticTexts["leftover-confidence-\(name)"]), "High")
+            XCTAssertEqual(
+                text(app.staticTexts["leftover-disabled-\(name)"]), "Needs admin — not removable in this version")
+            XCTAssertTrue(app.buttons["leftover-show-in-finder-\(name)"].exists)
+            XCTAssertFalse(app.buttons["leftover-show-in-finder-Delta"].exists)
+            XCTAssertFalse(app.buttons["leftover-show-in-finder-org.acme.delta"].exists)
+        }
+
+        step("An app with no leftovers says so, and the pane forgets the last app's") {
+            app.staticTexts["com.example.alpha"].click()
+            XCTAssertTrue(app.staticTexts["No leftovers found"].appears(within: 10))
+            XCTAssertFalse(app.staticTexts["leftover-confidence-Delta"].exists)
         }
     }
 }

@@ -186,9 +186,7 @@ struct PersonalFilesTable: View {
 
     /// Opens Finder with the items selected. It only shows them; nothing is moved.
     private func reveal(_ urls: Set<URL>) {
-        let items = ordered(urls)
-        guard !items.isEmpty else { return }
-        NSWorkspace.shared.activateFileViewerSelecting(items)
+        FinderReveal.show(ordered(urls))
     }
 }
 

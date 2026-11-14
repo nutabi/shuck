@@ -263,6 +263,24 @@ struct ApplicationsTests {
         #expect(byName.bundleIDs(named: "Nameless").isEmpty)
     }
 
+    @Test func theInventoryGivesEachAppByItsNameAndItsFileNameR05() async throws {
+        try root.app("Applications/Firefox.app", bundleID: "org.mozilla.firefox", displayName: "Fox")
+        try root.app("Applications/Utilities/Tool.app", bundleID: "com.example.Tool")
+        try root.app("System Apps/Tool.app", bundleID: "com.example.OtherTool")
+        try root.app("Applications/Nameless.app", bundleID: nil)
+
+        let found = await events().compactMap { event -> InstalledApp? in
+            if case .app(let app) = event { app } else { nil }
+        }
+        let byName = AppsByName(apps: found)
+
+        #expect(byName.bundleIDs(named: "FOX") == ["org.mozilla.firefox"])
+        #expect(byName.bundleIDs(named: "Firefox") == ["org.mozilla.firefox"])
+        #expect(byName.bundleIDs(named: "Tool") == ["com.example.Tool", "com.example.OtherTool"])
+        #expect(byName.bundleIDs(named: "Nameless").isEmpty)
+        #expect(byName.allBundleIDs.count == 3)
+    }
+
     @Test func aMissingAppFolderIsNotAnError() async throws {
         try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
 
