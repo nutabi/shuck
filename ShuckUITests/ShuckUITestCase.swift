@@ -23,7 +23,9 @@ import XCTest
 /// - History's tool runs: the command, the tool's path and its output instead of a file, in `DeveloperJunkUITests`.
 /// - Caches & Logs: caches, logs and container caches grouped by app, the default selection, the summary confirmation
 ///   and Delete, and a running app's disabled rows, in `CachesAndLogsUITests`; its empty page, in `FirstLookUITests`.
-/// - Overview, Applications and Startup Items: a placeholder that names its milestone, in `FirstLookUITests`.
+/// - Overview and Startup Items: a placeholder that names its milestone, in `FirstLookUITests`.
+/// - Applications: its page with nothing to list, in `FirstLookUITests`; the list with each app's name, version and
+///   bundle ID, sorted and searched, in `UninstallAppUITests`.
 /// - Settings: ⌘, opens its own window, and ⌘N opens no second main window, in `FirstLookUITests`.
 /// - Excluded folders: Settings lists them and Remove takes one out, in `FirstLookUITests`; Large Files, the totals and
 ///   Developer Junk leave out what an exclusion covers, in `FindWhatTakesSpaceUITests` and `DeveloperJunkUITests`.
@@ -58,9 +60,11 @@ class ShuckUITestCase: XCTestCase {
     ///   its developer project folders, instead of the default ones (SET-003, D-154).
     /// - Parameter installedApps: Bundle IDs of apps Caches & Logs treats as installed, each named by its ID, so a
     ///   cache folder of that name belongs to a known app and can start selected (CAC-009, D-156).
+    /// - Parameter appFolders: Folders inside the fixture root, as paths relative to it, that Applications lists apps
+    ///   from. Without them it lists none, and never reads the real `/Applications` (APP-001, SAF-016).
     func launch(
         scanDelay: Int? = nil, runningApps: [String] = [], syncedFiles: [String] = [], exclusions: [String] = [],
-        projectFolders: [String] = [], installedApps: [String] = []
+        projectFolders: [String] = [], installedApps: [String] = [], appFolders: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -84,6 +88,9 @@ class ShuckUITestCase: XCTestCase {
         }
         if !projectFolders.isEmpty {
             app.launchArguments += ["-ShuckProjectFolders", projectFolders.joined(separator: ",")]
+        }
+        if !appFolders.isEmpty {
+            app.launchArguments += ["-ShuckAppFolders", appFolders.joined(separator: ",")]
         }
         app.launch()
         return app

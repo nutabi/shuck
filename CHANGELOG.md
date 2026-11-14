@@ -9,6 +9,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Added
 
+- Applications lists your apps with their icon, version, size and when you last opened them, and you can sort and
+  search the list.
 - Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
 
 ### Changed

@@ -189,6 +189,37 @@ final class ExclusionsTests {
         #expect(results.items.compactMap(\.url) == [helpers.url("a")])
     }
 
+    @Test func addingAFolderDropsItsAppsFromApplicationsAndAScanInFlightSET001() async throws {
+        let apps = [InstalledApp.made("Applications/Alpha.app"), InstalledApp.made("Applications/Private/Beta.app")]
+        let hidden = protection(excluding: [home.appending(path: "Applications/Private").path])
+        let context = ScanContext(home: home)
+
+        let finished = ApplicationsModel(context: context) { _ in
+            AsyncStream { continuation in
+                for app in apps {
+                    continuation.yield(.app(app))
+                }
+                continuation.finish()
+            }
+        }
+        await finished.scan()?.value
+        #expect(finished.apps == apps)
+        finished.protect(with: hidden)
+        #expect(finished.apps == [apps[0]])
+
+        // A scan that started before the change leaves out what the new list hides.
+        let (stream, continuation) = AsyncStream.makeStream(of: AppInventoryEvent.self)
+        let running = ApplicationsModel(context: context) { _ in stream }
+        let scan = try #require(running.scan())
+        running.protect(with: hidden)
+        for app in apps {
+            continuation.yield(.app(app))
+        }
+        continuation.finish()
+        await scan.value
+        #expect(running.apps == [apps[0]])
+    }
+
     @Test func addingAFolderDropsItsFilesFromBothPersonalFilesListsAndAScanInFlightSET001() async throws {
         func file(_ path: String) -> PersonalFile {
             PersonalFile(

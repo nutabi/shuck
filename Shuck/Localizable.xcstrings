@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Version" : {
+
+    },
+    "Search Apps" : {
+
+    },
+    "No apps found" : {
+
+    },
+    "Scan to list the apps you can uninstall. Scanning never removes anything." : {
+
+    },
+    "Look for installed apps. Scanning never removes anything." : {
+
+    },
+    "Spotlight has no record of this app being opened." : {
+
+    },
     "Added" : {
 
     },

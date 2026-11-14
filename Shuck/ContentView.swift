@@ -9,6 +9,7 @@ struct ContentView: View {
     let registry: ToolRegistry
     let pages: SubToolPages
     let fileCleanup: FileCleanupModel
+    let applications: ApplicationsModel
     let history: HistoryModel
 
     @Environment(AppNavigation.self) private var navigation
@@ -46,6 +47,10 @@ struct ContentView: View {
         case .tool(.fileCleanup)?:
             if let info = registry.info(.fileCleanup) {
                 FileCleanupView(info: info, model: fileCleanup)
+            }
+        case .tool(.applications)?:
+            if let info = registry.info(.applications) {
+                ApplicationsView(info: info, model: applications)
             }
         case .tool(let id)?:
             if let page = pages.page(id, model: fileCleanup, registry: registry) {
@@ -96,6 +101,9 @@ private struct SidebarRow: View {
     ContentView(
         registry: .standard, pages: SubToolPages(largeFiles: LargeFiles(), oldFiles: OldFiles()),
         fileCleanup: FileCleanupModel(subTools: [], context: ScanContext(home: .temporaryDirectory)),
+        applications: ApplicationsModel(context: ScanContext(home: .temporaryDirectory)) { _ in
+            AsyncStream { $0.finish() }
+        },
         history: HistoryModel(home: .temporaryDirectory) { .init(runs: [], unreadableLineCount: 0) }
     )
     .environment(AppNavigation())

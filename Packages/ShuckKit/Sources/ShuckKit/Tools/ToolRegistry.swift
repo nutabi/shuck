@@ -62,7 +62,7 @@ extension ToolRegistry {
                     id: .applications, name: LocalizedStringResource("Applications", bundle: #bundle),
                     summary: LocalizedStringResource(
                         "Uninstall apps together with the files they leave behind.", bundle: #bundle),
-                    symbolName: "square.grid.2x2", availability: .planned(milestone: "M3"))),
+                    symbolName: "square.grid.2x2", availability: .available)),
             Tool(
                 info: ToolInfo(
                     id: .startupItems, name: LocalizedStringResource("Startup Items", bundle: #bundle),

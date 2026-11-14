@@ -26,6 +26,9 @@ nonisolated struct AppEnvironment {
     /// Caches & Logs with the way it names an entry's app: Launch Services, or in a UI test's fixture root also the
     /// apps the test says are installed (CAC-009, D-156).
     let cachesAndLogs: CachesAndLogs
+    /// Applications with the folders it lists apps from: this Mac's, or in a UI test's fixture root only the ones the
+    /// test names, so a test never reads the real `/Applications` (APP-001, SAF-016).
+    let applications: Applications
     /// The folders the user excluded, which every scan hides and every plan and run refuses (SET-001, D-150).
     let excludedFolders: FolderList
     /// The developer project folders the user chose, which DEV-R06 scans for `node_modules` (SET-003, D-154).
@@ -77,6 +80,10 @@ nonisolated struct AppEnvironment {
     /// The project folders a UI test uses, as paths inside its fixture root separated by commas: `-ShuckProjectFolders
     /// Developer`. Only a fixture root reads it, and then it replaces the stored list and the defaults (D-154).
     static let projectFoldersArgumentKey = "ShuckProjectFolders"
+
+    /// The folders a UI test lists apps from, as paths inside its fixture root separated by commas: `-ShuckAppFolders
+    /// Applications`. Only a fixture root reads it, and without it the app lists no apps, never this Mac's (SAF-016).
+    static let appFoldersArgumentKey = "ShuckAppFolders"
 
     /// The ownership map and Developer Junk for one list of project folders.
     nonisolated struct ProjectScope {
@@ -174,6 +181,14 @@ nonisolated struct AppEnvironment {
             appQuitter = fixtureApps
             cachesAndLogs = CachesAndLogs(
                 appNames: FixtureAppNames(installed: Self.list(settings(Self.installedAppsKey))))
+            // Never `nil` folders, which would mean the real `/Applications` (SAF-016). Spotlight does not index a
+            // fixture, so there are no last-opened dates, and a fixture app declares no app groups.
+            applications = Applications(
+                appFolders: Self.fixtureFolders(Self.list(settings(Self.appFoldersArgumentKey)), in: root).map {
+                    URL(filePath: $0, directoryHint: .isDirectory)
+                },
+                lastUsedDate: { _ in nil }, appGroups: { _ in [] },
+                systemLibrary: root.appending(path: "Library", directoryHint: .isDirectory))
             scope = Self.projectScope(projectFolders.folders, home: root, resolvingLinks: false)
             context = ScanContext(
                 home: root, ownership: scope.ownership, protection: makeProtection(excludedFolders.folders),
@@ -198,6 +213,7 @@ nonisolated struct AppEnvironment {
             runningApps = SystemRunningApps()
             appQuitter = SystemAppQuitter()
             cachesAndLogs = CachesAndLogs()
+            applications = Applications()
             toolRunner = ToolRunner(executableRoots: nil)
             scope = Self.projectScope(projectFolders.folders, home: home)
             context = ScanContext(
