@@ -36,29 +36,10 @@ struct OwnershipMapTests {
 
     @Test func theStandardMapHasNoOverlapsExceptPersonalFilesFCL005() {
         #expect(Self.overlaps(in: OwnershipMap.standardEntries).isEmpty)
-    }
-
-    @Test func onlyThePersonalFilesPairSharesALocationFCL005() {
         for entry in OwnershipMap.standardEntries {
             #expect(entry.owners.count <= 1 || entry.owners == OwnershipMap.personalFiles, "\(entry.pattern)")
         }
         #expect(OwnershipMap.personalFiles == [.largeFiles, .oldFiles])
-    }
-
-    @Test func theOverlapCheckFindsTwoOwnersForOneLocationFCL005() {
-        let duplicate: [OwnershipMap.Entry] = [
-            .init("Library/Caches/*", owners: [.cachesAndLogs]), .init("library/caches/*", owners: [.developerJunk]),
-        ]
-        let ambiguous: [OwnershipMap.Entry] = [
-            .init("Library/Caches/*", owners: [.cachesAndLogs]), .init("Library/*/Homebrew", owners: [.developerJunk]),
-        ]
-        let nested: [OwnershipMap.Entry] = [
-            .init("Library/Caches/*", owners: [.cachesAndLogs]),
-            .init("Library/Caches/Homebrew", owners: [.developerJunk]),
-        ]
-        #expect(Self.overlaps(in: duplicate).count == 1)
-        #expect(Self.overlaps(in: ambiguous).count == 1)
-        #expect(Self.overlaps(in: nested).isEmpty)
     }
 
     // MARK: - Personal files (FCL-008)

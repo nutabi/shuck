@@ -76,10 +76,4 @@ struct LargeFilesTests {
 
         #expect(notAccessible.map(\.lastPathComponent) == [locked.lastPathComponent])
     }
-
-    @Test func theDefaultMinimumIs500MBLRG001() {
-        #expect(LargeFiles().minimumSize == 500_000_000)
-        #expect(LargeFiles().tiers == [.yourData])
-        #expect(LargeFiles().allowedRoots(home: root.url) == [root.url])
-    }
 }

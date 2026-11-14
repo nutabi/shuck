@@ -38,12 +38,10 @@ struct RunningAppsTests {
         }
         #expect(!ItemSelection.appIsRunning(nil).isSelectable)
         #expect(ItemSelection.appIsRunning(nil).disabledReason.map { String(localized: $0) } == "App is running")
-    }
 
-    /// The note names the app whose items are locked, since a row's own name may be another app's (D-138).
-    @Test func theNoteNamesTheRunningAppCAC003() {
-        let running = StubRunningApps(["com.apple.dt.Xcode"], names: ["com.apple.dt.Xcode": "Xcode"])
-        let selection = ItemSelection.selected.unlessRunning(["com.apple.dt.Xcode"], in: running)
+        // The note names the app whose items are locked, since a row's own name may be another app's (D-138).
+        let named = StubRunningApps(["com.apple.dt.Xcode"], names: ["com.apple.dt.Xcode": "Xcode"])
+        let selection = ItemSelection.selected.unlessRunning(["com.apple.dt.Xcode"], in: named)
         #expect(!selection.isSelectable)
         #expect(selection.disabledReason.map { String(localized: $0) } == "Xcode is running")
         #expect(ItemSelection.appIsRunning("").disabledReason.map { String(localized: $0) } == "App is running")

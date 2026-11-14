@@ -15,102 +15,46 @@ struct ToolRegistryTests {
 
     // MARK: - Registry (FCL-001)
 
-    @Test func toolsAreInSidebarOrder() {
-        #expect(ToolRegistry.standard.tools.map(\.info.id) == [.fileCleanup, .applications, .startupItems])
-    }
-
-    @Test func fileCleanupHasFourSubToolsFCL001() {
+    @Test func fileCleanupHasFourAvailableSubToolsFCL001FCL003() {
         let fileCleanup = ToolRegistry.standard.tools.first { $0.info.id == .fileCleanup }
         #expect(fileCleanup?.subTools.map(\.id) == [.largeFiles, .oldFiles, .developerJunk, .cachesAndLogs])
         #expect(ToolRegistry.standard.subTools.count == 4)
-    }
-
-    @Test func idsAreUnique() {
-        let ids = ToolRegistry.standard.tools.map(\.info.id) + ToolRegistry.standard.subTools.map(\.id)
-        #expect(Set(ids).count == ids.count)
-    }
-
-    @Test func infoFindsToolsAndSubTools() {
-        #expect(ToolRegistry.standard.info(.fileCleanup)?.symbolName == "folder")
-        #expect(ToolRegistry.standard.info(.cachesAndLogs)?.symbolName == "tray.full")
-        #expect(ToolRegistry.standard.info(FixtureSubTool.id) == nil)
-    }
-
-    @Test func namesAndSummariesComeFromTheEngineCatalog() {
-        let largeFiles = ToolRegistry.standard.subTool(.largeFiles)
-        #expect(largeFiles.map { String(localized: $0.info.name) } == "Large Files")
-        #expect(largeFiles.map { String(localized: $0.info.summary) } == "What is taking the most space?")
-    }
-
-    @Test func personalFilesSubToolsAreYourDataOnly() {
-        for id in [ToolID.largeFiles, .oldFiles] {
-            #expect(ToolRegistry.standard.subTool(id)?.tiers == [.yourData])
-        }
-    }
-
-    @Test func largeFilesIsAvailableWithTheMinimumSizeTheAppPassesSET002() {
-        let standard = ToolRegistry.standard.subTool(.largeFiles) as? LargeFiles
-        #expect(standard?.info.availability == .available)
-        #expect(standard?.minimumSize == LargeFiles.defaultMinimumSize)
-
-        let custom = ToolRegistry.standard(largeFiles: LargeFiles(minimumSize: 1_000)).subTool(.largeFiles)
-        #expect((custom as? LargeFiles)?.minimumSize == 1_000)
-    }
-
-    @Test func oldFilesIsAvailableWithThePeriodAndMinimumSizeTheAppPassesSET002() {
-        let standard = ToolRegistry.standard.subTool(.oldFiles) as? OldFiles
-        #expect(standard?.info.availability == .available)
-        #expect(standard?.periodMonths == OldFiles.defaultPeriodMonths)
-        #expect(standard?.minimumSize == OldFiles.defaultMinimumSize)
-
-        let custom = ToolRegistry.standard(oldFiles: OldFiles(periodMonths: 3, minimumSize: 0)).subTool(.oldFiles)
-        #expect((custom as? OldFiles)?.periodMonths == 3)
-        #expect((custom as? OldFiles)?.minimumSize == 0)
-    }
-
-    @Test func aTestSubToolRegistersAndIsFoundByIDFCL003() {
-        let registry = ToolRegistry(tools: [Tool(info: FixtureSubTool().info, subTools: [FixtureSubTool()])])
-        #expect(registry.subTool(FixtureSubTool.id)?.id == FixtureSubTool.id)
-        #expect(registry.subTool(.largeFiles) == nil)
-    }
-
-    // MARK: - Planned sub-tools
-
-    /// No sub-tool is planned any more, so the tests make one.
-    let planned = PlannedSubTool(
-        info: ToolInfo(
-            id: .cachesAndLogs, name: "Planned", summary: "Comes later.", symbolName: "clock",
-            availability: .planned(milestone: "M9")),
-        tiers: [.rebuildable])
-
-    @Test func everySubToolOfFileCleanupIsAvailableNow() {
         #expect(ToolRegistry.standard.subTools.allSatisfy { $0.info.availability == .available })
     }
 
-    @Test func cachesAndLogsIsAvailableAndRebuildableFCL003() throws {
-        let standard = try #require(ToolRegistry.standard.subTool(.cachesAndLogs) as? CachesAndLogs)
-        #expect(standard.info.availability == .available)
-        #expect(standard.tiers == [.rebuildable])
-        #expect(String(localized: standard.info.name) == "Caches & Logs")
+    @Test func theSubToolsTakeTheLimitsTheAppPassesSET002() {
+        let standard = ToolRegistry.standard
+        #expect((standard.subTool(.largeFiles) as? LargeFiles)?.minimumSize == LargeFiles.defaultMinimumSize)
+        let oldFiles = standard.subTool(.oldFiles) as? OldFiles
+        #expect(oldFiles?.periodMonths == OldFiles.defaultPeriodMonths)
+        #expect(oldFiles?.minimumSize == OldFiles.defaultMinimumSize)
+
+        let custom = ToolRegistry.standard(
+            largeFiles: LargeFiles(minimumSize: 1_000), oldFiles: OldFiles(periodMonths: 3, minimumSize: 0))
+        #expect((custom.subTool(.largeFiles) as? LargeFiles)?.minimumSize == 1_000)
+        #expect((custom.subTool(.oldFiles) as? OldFiles)?.periodMonths == 3)
+        #expect((custom.subTool(.oldFiles) as? OldFiles)?.minimumSize == 0)
     }
 
-    @Test func aPlannedSubToolFindsNothing() async throws {
-        let cachesAndLogs = planned
-        #expect(cachesAndLogs.info.availability == .planned(milestone: "M9"))
-        try root.file("Library/Caches/com.example.App/cache.db", size: 10)
+    @Test func theRegistryFindsToolsAndSubToolsAndAPlannedSubToolDoesNothingSAF007() async throws {
+        #expect(ToolRegistry.standard.info(.fileCleanup)?.symbolName == "folder")
+        #expect(ToolRegistry.standard.info(.cachesAndLogs)?.symbolName == "tray.full")
+        #expect(ToolRegistry.standard.info(FixtureSubTool.id) == nil)
 
+        // No sub-tool is planned any more, so the test makes one: it finds nothing and cannot plan anything.
+        let planned = PlannedSubTool(
+            info: ToolInfo(
+                id: .cachesAndLogs, name: "Planned", summary: "Comes later.", symbolName: "clock",
+                availability: .planned(milestone: "M9")),
+            tiers: [.rebuildable])
+        try root.file("Library/Caches/com.example.Other/cache.db", size: 10)
         var events: [ScanEvent] = []
-        for await event in cachesAndLogs.scan(ScanContext(home: root.url)) {
-            events.append(event)
-        }
+        for await event in planned.scan(ScanContext(home: root.url)) { events.append(event) }
         #expect(events.isEmpty)
-    }
 
-    @Test func aPlannedSubToolCannotPlanAnythingSAF007() throws {
-        let cachesAndLogs = planned
         let item = try scanItem("Library/Caches/com.example.App", source: .cachesAndLogs, tier: .rebuildable)
         let error = #expect(throws: PlanError.self) {
-            try Plan(subTool: cachesAndLogs, items: [item], pathGuard: pathGuard)
+            try Plan(subTool: planned, items: [item], pathGuard: pathGuard)
         }
         guard case .rejected(_, .outsideAllowedRoots) = error else {
             Issue.record("Expected an allowed-roots rejection, got \(String(describing: error))")

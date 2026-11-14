@@ -5,97 +5,80 @@ import Testing
 
 /// The measured change in free space after a run, and the reasons it can differ from the estimate (SAF-013, R-06).
 struct FreeSpaceTests {
-    private let gigabyte: Int64 = 1_000_000_000
-
-    @Test func theVolumeOfAFixtureRootReportsItsFreeSpaceSAF013() throws {
+    @Test func theVolumeOfAFixtureRootReportsItsFreeSpaceAndAMissingPathHasNoneSAF013() throws {
         let root = try FixtureRoot()
 
         let available = try #require(FreeSpace.available(at: root.url))
 
         #expect(available > 0)
-    }
-
-    @Test func aPathThatDoesNotExistHasNoFreeSpace() throws {
-        let root = try FixtureRoot()
-
         #expect(FreeSpace.available(at: try root.url("missing/folder")) == nil)
     }
 
-    @Test func aChangeCloseToTheEstimateNeedsNoExplanationSAF013() {
-        let change = FreeSpaceChange(
-            before: 10 * gigabyte, after: 12 * gigabyte - 5_000_000, deleted: 2 * gigabyte, toolEstimate: nil)
-
-        #expect(change.measured == 2 * gigabyte - 5_000_000)
-        #expect(change.estimate == 2 * gigabyte)
-        #expect(change.gaps.isEmpty)
+    struct Change: Sendable {
+        let name: String
+        let before: Int64
+        let after: Int64
+        let deleted: Int64
+        var toolEstimate: Int64?
+        var toolSizeUnknown = false
+        let measured: Int64
+        let estimate: Int64
+        let gaps: [FreeSpaceChange.Gap]
     }
 
-    @Test func farLessFreedThanDeletedIsExplainedBySnapshotsAndClonesR06() {
-        let change = FreeSpaceChange(
-            before: 10 * gigabyte, after: 10 * gigabyte, deleted: 2 * gigabyte, toolEstimate: nil)
+    private static let gigabyte: Int64 = 1_000_000_000
 
-        #expect(change.measured == 0)
-        #expect(change.gaps == [.snapshotsAndClones, .otherActivity])
-    }
+    /// The measured change against the estimate, and the reasons it can differ (SAF-013, R-06, D-125). The smallest
+    /// difference that needs words grows with the estimate: a tenth of it, at least 10 MB.
+    private static let changes: [Change] = {
+        let gb = gigabyte
+        return [
+            Change(
+                name: "close to the estimate", before: 10 * gb, after: 12 * gb - 5_000_000, deleted: 2 * gb,
+                measured: 2 * gb - 5_000_000, estimate: 2 * gb, gaps: []),
+            Change(
+                name: "far less freed than deleted", before: 10 * gb, after: 10 * gb, deleted: 2 * gb, measured: 0,
+                estimate: 2 * gb, gaps: [.snapshotsAndClones, .otherActivity]),
+            Change(
+                name: "more freed than deleted", before: 10 * gb, after: 13 * gb, deleted: 2 * gb, measured: 3 * gb,
+                estimate: 2 * gb, gaps: [.otherActivity]),
+            Change(
+                name: "a tool's estimate", before: 10 * gb, after: 11 * gb, deleted: 0, toolEstimate: gb, measured: gb,
+                estimate: gb, gaps: [.toolEstimate]),
+            Change(
+                name: "a tool that freed less", before: 10 * gb, after: 10 * gb, deleted: 0, toolEstimate: gb,
+                measured: 0, estimate: gb, gaps: [.toolEstimate, .otherActivity]),
+            Change(
+                name: "a tool of unknown size freed more", before: 10 * gb, after: 13 * gb, deleted: gb,
+                toolSizeUnknown: true, measured: 3 * gb, estimate: gb, gaps: [.toolSizeUnknown]),
+            Change(
+                name: "a tool of unknown size, less free after", before: 10 * gb, after: 9 * gb, deleted: 0,
+                toolSizeUnknown: true, measured: -gb, estimate: 0, gaps: [.toolSizeUnknown, .otherActivity]),
+            // A run that only moved items to the Trash expects to free nothing; the Trash's summary says why.
+            Change(
+                name: "nothing freed, nothing expected", before: 10 * gb, after: 10 * gb - 1_000, deleted: 0,
+                measured: -1_000, estimate: 0, gaps: []),
+            Change(
+                name: "less free after the run", before: 10 * gb, after: 9 * gb, deleted: 0, measured: -gb, estimate: 0,
+                gaps: [.otherActivity]),
+            Change(
+                name: "within a tenth of the estimate", before: 0, after: 91 * gb, deleted: 100 * gb,
+                measured: 91 * gb, estimate: 100 * gb, gaps: []),
+            Change(
+                name: "beyond a tenth of the estimate", before: 0, after: 89 * gb, deleted: 100 * gb,
+                measured: 89 * gb, estimate: 100 * gb, gaps: [.snapshotsAndClones, .otherActivity]),
+        ]
+    }()
 
-    @Test func moreFreedThanDeletedIsExplainedByOtherActivityOnly() {
-        let change = FreeSpaceChange(
-            before: 10 * gigabyte, after: 13 * gigabyte, deleted: 2 * gigabyte, toolEstimate: nil)
+    @Test(arguments: changes)
+    func aChangeIsExplainedOnlyWhenItDiffersFromTheEstimateSAF013R06D125(_ change: Change) {
+        let result = FreeSpaceChange(
+            before: change.before, after: change.after, deleted: change.deleted, toolEstimate: change.toolEstimate,
+            toolSizeUnknown: change.toolSizeUnknown)
 
-        #expect(change.gaps == [.otherActivity])
-    }
-
-    @Test func aToolsEstimateIsAlwaysExplainedD125() {
-        let change = FreeSpaceChange(before: 10 * gigabyte, after: 11 * gigabyte, deleted: 0, toolEstimate: gigabyte)
-
-        #expect(change.estimate == gigabyte)
-        #expect(change.gaps == [.toolEstimate])
-    }
-
-    @Test func aToolThatFreedLessIsNotBlamedOnSnapshots() {
-        let change = FreeSpaceChange(before: 10 * gigabyte, after: 10 * gigabyte, deleted: 0, toolEstimate: gigabyte)
-
-        #expect(change.gaps == [.toolEstimate, .otherActivity])
-    }
-
-    /// D-125: an unavailable simulator's cleanup has no size. Whatever it frees is its own, not other apps'; but if
-    /// less is free afterwards, something else used the space.
-    @Test func aToolOfUnknownSizeExplainsSpaceFreedBeyondTheEstimateD125() {
-        let freedMore = FreeSpaceChange(
-            before: 10 * gigabyte, after: 13 * gigabyte, deleted: gigabyte, toolEstimate: nil, toolSizeUnknown: true)
-        let freedLess = FreeSpaceChange(
-            before: 10 * gigabyte, after: 9 * gigabyte, deleted: 0, toolEstimate: nil, toolSizeUnknown: true)
-
-        #expect(freedMore.estimate == gigabyte)
-        #expect(freedMore.gaps == [.toolSizeUnknown])
-        #expect(freedLess.gaps == [.toolSizeUnknown, .otherActivity])
-    }
-
-    /// A run that only moved items to the Trash expects to free nothing; the Trash's summary says why.
-    @Test func aRunThatFreedNothingExpectedNothing() {
-        let change = FreeSpaceChange(before: 10 * gigabyte, after: 10 * gigabyte - 1_000, deleted: 0, toolEstimate: nil)
-
-        #expect(change.measured == -1_000)
-        #expect(change.estimate == 0)
-        #expect(change.gaps.isEmpty)
-    }
-
-    @Test func lessFreeSpaceAfterTheRunIsExplainedByOtherActivity() {
-        let change = FreeSpaceChange(before: 10 * gigabyte, after: 9 * gigabyte, deleted: 0, toolEstimate: nil)
-
-        #expect(change.measured == -gigabyte)
-        #expect(change.gaps == [.otherActivity])
-    }
-
-    /// The smallest difference that needs words grows with the estimate: a tenth of it, at least 10 MB.
-    @Test func theUnexplainedMarginIsATenthOfTheEstimate() {
-        let within = FreeSpaceChange(
-            before: 0, after: 100 * gigabyte - 9 * gigabyte, deleted: 100 * gigabyte, toolEstimate: nil)
-        let beyond = FreeSpaceChange(
-            before: 0, after: 100 * gigabyte - 11 * gigabyte, deleted: 100 * gigabyte, toolEstimate: nil)
-
-        #expect(within.gaps.isEmpty)
-        #expect(beyond.gaps == [.snapshotsAndClones, .otherActivity])
+        #expect(result.measured == change.measured, "\(change.name)")
+        #expect(result.estimate == change.estimate, "\(change.name)")
+        #expect(result.gaps == change.gaps, "\(change.name)")
     }
 }
 
@@ -133,14 +116,9 @@ struct OversizeThresholdTests {
         #expect(threshold.oversized(plan.items) == [big])
     }
 
-    @Test func theThresholdIsAQuarterOfTheUsedSpaceD144() throws {
+    @Test func onlyARebuildableItemLargerThanAQuarterOfTheUsedSpaceIsOversizedSAF015D144() throws {
         let threshold = try #require(OversizeThreshold(usedSpace: 400_000))
-
         #expect(threshold.bytes == 100_000)
-    }
-
-    @Test func onlyARebuildableItemLargerThanTheThresholdIsOversizedSAF015() throws {
-        let threshold = try #require(OversizeThreshold(usedSpace: 400_000))
         let items = [
             item("at", size: 100_000), item("over", size: 100_001), item("small", size: 10),
             // "Your data" has its own itemized review (SAF-002).

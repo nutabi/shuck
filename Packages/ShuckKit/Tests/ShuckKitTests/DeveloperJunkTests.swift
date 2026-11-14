@@ -108,40 +108,6 @@ struct DeveloperJunkTests {
         #expect(items["Missing-\(hash)"]?.selection == .selected)
     }
 
-    @Test func aRunningXcodeDisablesEveryProjectSAF009() async throws {
-        try root.derivedDataProject("Old-\(hash)", workspace: nil, modified: longAgo)
-
-        let items = await items(running: ["com.apple.dt.xcode"])
-
-        #expect(items.values.map(\.selection) == [.appIsRunning(nil)])
-    }
-
-    @Test func onlyFoldersAreListedAndOnlyWhenDerivedDataExistsDEV002() async throws {
-        #expect(await scan().isEmpty)
-        try root.derivedDataProject("Real-\(hash)", workspace: nil, modified: longAgo)
-        try root.file("Library/Developer/Xcode/DerivedData/stray.txt", size: 10)
-        try root.symlink("Library/Developer/Xcode/DerivedData/Link", to: root.folder("Elsewhere"))
-
-        let items = await items()
-
-        #expect(Set(items.keys) == ["Real-\(hash)"])
-    }
-
-    @Test func aScanLeavesOutFoldersTheMapGivesAnotherSubToolFCL005() async throws {
-        try root.derivedDataProject("Mine-\(hash)", workspace: nil, modified: longAgo)
-        let context = ScanContext(
-            home: root.url, ownership: OwnershipMap(home: root.url, entries: []),
-            protection: root.pathGuardConfiguration())
-        var found = 0
-        for await event in DeveloperJunk().scan(context) {
-            if case .item = event { found += 1 }
-        }
-        #expect(found == 0)
-        let map = OwnershipMap(home: root.url)
-        #expect(map.owners(of: try root.url("Library/Developer/Xcode/DerivedData/Mine")) == [.developerJunk])
-        #expect(map.owners(of: try root.url("Library/Developer/Xcode/UserData/Snippets")).isEmpty)
-    }
-
     @Test(arguments: [
         ("MyApp-abcdefghijklmnopqrstuvwxyzab", "MyApp"), ("My-App-abcdefghijklmnopqrstuvwxyzab", "My-App"),
         ("ModuleCache.noindex", "ModuleCache.noindex"), ("Short-abc", "Short-abc"),

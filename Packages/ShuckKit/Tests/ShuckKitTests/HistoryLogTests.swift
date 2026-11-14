@@ -49,13 +49,22 @@ struct HistoryLogTests {
 
     // MARK: - Format
 
-    @Test func recordsUseTheFieldsOfSection85HIS001() async throws {
+    @Test func recordsAreOnDiskWhenAppendReturnsInTheFieldsOfSection85AndRoundTripHIS001SAF005() async throws {
         let log = try HistoryLog(folder: folder)
         try await log.append(intent)
+        // The writer is still open: the record must already be readable by someone else.
+        #expect(try HistoryLog.read(folder: folder).records == [intent])
         try await log.append(result)
+        try await log.flushFully()
+        // A full flush keeps every record, and the log stays open.
+        try await log.append(intent)
+        try await log.flushFully()
+        let contents = try HistoryLog.read(folder: folder)
+        #expect(contents.records == [intent, result, intent])
+        #expect(contents.unreadableLines.isEmpty)
 
         let lines = try logLines()
-        try #require(lines.count == 2)
+        try #require(lines.count == 3)
         #expect(Set(lines[0].keys) == ["v", "ts", "run", "tool", "phase", "op", "path", "bytes", "tier"])
         #expect(
             Set(lines[1].keys)
@@ -72,16 +81,6 @@ struct HistoryLogTests {
         #expect(lines[0]["tier"] as? String == "yourData")
         #expect(lines[1]["status"] as? String == "ok")
         #expect(lines[1]["trashedPath"] as? String == "/Users/me/.Trash/clip.mov")
-    }
-
-    @Test func recordsRoundTripThroughTheLogSAF005() async throws {
-        let log = try HistoryLog(folder: folder)
-        try await log.append(intent)
-        try await log.append(result)
-
-        let contents = try HistoryLog.read(folder: folder)
-        #expect(contents.records == [intent, result])
-        #expect(contents.unreadableLines.isEmpty)
     }
 
     @Test func theTrashedItemsIdentityRoundTripsAndRecordsWithoutItStillReadSAF005() async throws {
@@ -108,15 +107,6 @@ struct HistoryLogTests {
 
     // MARK: - Writing
 
-    @Test func eachRecordIsOnDiskWhenAppendReturnsHIS001() async throws {
-        let log = try HistoryLog(folder: folder)
-        try await log.append(intent)
-        // The writer is still open: the record must already be readable by someone else.
-        #expect(try HistoryLog.read(folder: folder).records == [intent])
-        try await log.append(result)
-        #expect(try HistoryLog.read(folder: folder).records == [intent, result])
-    }
-
     @Test func reopeningTheLogAppendsHIS001() async throws {
         do {
             let first = try HistoryLog(folder: folder)
@@ -127,39 +117,23 @@ struct HistoryLogTests {
         #expect(try HistoryLog.read(folder: folder).records == [intent, result])
     }
 
-    @Test func aFullFlushKeepsEveryRecordAndTheLogStaysOpenHIS001() async throws {
-        let log = try HistoryLog(folder: folder)
-        try await log.append(intent)
-        try await log.flushFully()
-        try await log.append(result)
-        try await log.flushFully()
-        #expect(try HistoryLog.read(folder: folder).records == [intent, result])
-    }
-
-    @Test func aLineCutShortByACrashIsReportedAndSkippedHIS001() async throws {
+    /// A line cut short by a crash, or written by a newer schema, is reported and skipped; the log goes on after it.
+    @Test(arguments: [
+        #"{"v":1,"ts":"2026-11-02T00:00:"#, #"{"v":2,"ts":"2026-11-02T00:00:00.000Z","something":"new"}"# + "\n",
+    ])
+    func aLineThatCannotBeReadIsReportedAndSkippedHIS001(bad: String) async throws {
         do {
             let log = try HistoryLog(folder: folder)
             try await log.append(intent)
         }
-        try appendRaw(#"{"v":1,"ts":"2026-11-02T00:00:"#)
+        try appendRaw(bad)
 
-        let afterCrash = try HistoryLog.read(folder: folder)
-        #expect(afterCrash.records == [intent])
-        #expect(afterCrash.unreadableLines == [2])
+        let afterwards = try HistoryLog.read(folder: folder)
+        #expect(afterwards.records == [intent])
+        #expect(afterwards.unreadableLines == [2])
 
         let log = try HistoryLog(folder: folder)
         try await log.append(result)
-        let contents = try HistoryLog.read(folder: folder)
-        #expect(contents.records == [intent, result])
-        #expect(contents.unreadableLines == [2])
-    }
-
-    @Test func linesFromANewerSchemaAreReportedHIS001() async throws {
-        let log = try HistoryLog(folder: folder)
-        try await log.append(intent)
-        try appendRaw(#"{"v":2,"ts":"2026-11-02T00:00:00.000Z","something":"new"}"# + "\n")
-        try await log.append(result)
-
         let contents = try HistoryLog.read(folder: folder)
         #expect(contents.records == [intent, result])
         #expect(contents.unreadableLines == [2])

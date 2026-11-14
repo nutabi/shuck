@@ -107,7 +107,8 @@ struct HistoryRunTests {
         #expect(runs[1].items.map(\.restorability) == [nil])
     }
 
-    @Test func aResultWithoutAnIntentIsStillListed() async throws {
+    @Test func aResultWithoutAnIntentIsStillListedAndEachItemKeepsItsOperationHIS002() async throws {
+        #expect(try HistoryLog.read(folder: folder).runs().isEmpty)
         let run = UUID()
         let runs = try await runs([
             .result(
@@ -122,7 +123,7 @@ struct HistoryRunTests {
 
     /// HIS-002, SAF-006: a plan may mix methods (D-89), so each item keeps its own operation, and the run lists each
     /// operation once, in the order its items first used it.
-    @Test func eachItemOfAMixedRunKeepsItsOperationHIS002() async throws {
+    @Test func eachItemOfAMixedRunKeepsItsOperationHIS002SAF006() async throws {
         let run = UUID()
         let records = [(HistoryRecord.Operation.delete, "/a"), (.tool, "npm"), (.delete, "/b")].map { operation, path in
             HistoryRecord.result(
@@ -133,9 +134,5 @@ struct HistoryRunTests {
         let runs = try await runs(records)
         #expect(runs.first?.items.map(\.operation) == [.delete, .tool, .delete])
         #expect(runs.first?.operations == [.delete, .tool])
-    }
-
-    @Test func anEmptyLogHasNoRuns() throws {
-        #expect(try HistoryLog.read(folder: folder).runs().isEmpty)
     }
 }

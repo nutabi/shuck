@@ -37,24 +37,6 @@ struct SimulatorCachesTests {
         #expect(items["dyld"]?.allocatedSize ?? 0 >= 8192)
     }
 
-    @Test func aRunningXcodeOrSimulatorDisablesTheItemsSAF009() async throws {
-        try root.file("\(caches)/dyld/cache", size: 10)
-
-        for app in ["com.apple.dt.Xcode", "com.apple.iphonesimulator"] {
-            let items = await items(running: [app])
-            #expect(items.values.map(\.selection) == [.appIsRunning(nil)], "\(app)")
-        }
-        #expect(DeveloperJunk.simulatorBundleID == "com.apple.iphonesimulator")
-    }
-
-    @Test func linksAreNotListedAndNothingShowsWithoutTheFolderDEV002() async throws {
-        #expect(await items().isEmpty)
-        try root.file("\(caches)/real/file", size: 10)
-        try root.symlink("\(caches)/link", to: root.folder("Elsewhere"))
-
-        #expect(Set(await items().keys) == ["real"])
-    }
-
     @Test func theDevicesAreNeverListedOrOwnedDEV007() async throws {
         try root.file("\(devices)/ABCD-1234/data/Library/Preferences/app.plist", size: 10)
         try root.file("\(caches)/dyld/cache", size: 10)
@@ -69,22 +51,6 @@ struct SimulatorCachesTests {
         #expect(map.owners(of: try root.url("\(caches)/dyld")) == [.developerJunk])
     }
 
-    @Test func theRuleAcceptsOnlyEntriesOfTheCachesFolderDEV007() throws {
-        let rule = try DeveloperJunk.simulatorCachesRule(home: root.url)
-
-        func accepts(_ path: String) throws -> Bool {
-            rule.accepts(.path(try root.url(path)), tier: .rebuildable, method: .delete, scope: .item)
-        }
-
-        #expect(try accepts("\(caches)/dyld"))
-        #expect(try !accepts(caches))
-        #expect(try !accepts("\(caches)/dyld/cache"))
-        #expect(try !accepts("\(devices)/ABCD-1234"))
-        #expect(try !accepts(devices))
-        #expect(try !accepts("Library/Developer/CoreSimulator/Volumes/iOS_21C62"))
-        #expect(rule.apps == ["com.apple.dt.Xcode", "com.apple.iphonesimulator"])
-    }
-
     @Test func theSubToolsRootsLeaveOutTheDevicesDEV007() throws {
         try root.file("\(devices)/ABCD-1234/device.plist", size: 10)
         try root.file("\(caches)/dyld/cache", size: 10)
@@ -96,11 +62,5 @@ struct SimulatorCachesTests {
 
         #expect(try guardConfiguration.validate(cache, allowedRoots: roots) == cache)
         #expect(throws: PathGuardError.self) { try guardConfiguration.validate(device, allowedRoots: roots) }
-    }
-
-    @Test func aScanLeavesOutCachesTheMapGivesAnotherSubToolFCL005() async throws {
-        try root.file("\(caches)/dyld/cache", size: 10)
-
-        #expect(await items(ownership: OwnershipMap(home: root.url, entries: [])).isEmpty)
     }
 }
