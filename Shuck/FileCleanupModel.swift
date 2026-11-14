@@ -144,9 +144,9 @@ final class FileCleanupModel {
     }
 
     /// Starts the scan of the sub-tool `id`, or returns `nil` if it cannot scan now or the model does not hold it. The
-    /// model looks up its own copy of the sub-tool by ID (R-17), so a page never scans with a stale copy (D-154). Items stream into the sub-tool's list as the
-    /// scan finds them (FCL-012). Cancelling the returned task, or ``cancelScan(_:)``, stops the scan and leaves the
-    /// sub-tool stopped, with an empty list.
+    /// model looks up its own copy of the sub-tool by ID (R-17), so a page never scans with a stale copy (D-154). Items
+    /// stream into the sub-tool's list as the scan finds them (FCL-012). Cancelling the returned task, or
+    /// ``cancelScan(_:)``, stops the scan and leaves the sub-tool stopped, with an empty list.
     @discardableResult
     func scan(_ id: ToolID) -> Task<Void, Never>? {
         guard canScan(id), let subTool = subTool(id) else { return nil }
@@ -181,15 +181,15 @@ final class FileCleanupModel {
         return task
     }
 
-    /// Stops the scan of the sub-tool `id`, if it is scanning (SAF-014). Scanning never acts on anything, so there is nothing to
-    /// undo. For Large Files or Old Files, this stops the scan both share (FCL-006).
+    /// Stops the scan of the sub-tool `id`, if it is scanning (SAF-014). Scanning never acts on anything, so there is
+    /// nothing to undo. For Large Files or Old Files, this stops the scan both share (FCL-006).
     func cancelScan(_ id: ToolID) {
         scans[id]?.cancel()
     }
 
-    /// Starts the scan of the sub-tool `id` if it has not scanned yet, as when the user opens its page. A finished scan is kept, so
-    /// going back to a page shows the same results and selection, and a stopped one stays stopped, so a long scan the
-    /// user stopped doesn't start again behind their back; the page's Scan button starts a new one.
+    /// Starts the scan of the sub-tool `id` if it has not scanned yet, as when the user opens its page. A finished scan
+    /// is kept, so going back to a page shows the same results and selection, and a stopped one stays stopped, so a
+    /// long scan the user stopped doesn't start again behind their back; the page's Scan button starts a new one.
     @discardableResult
     func scanIfNotScanned(_ id: ToolID) -> Task<Void, Never>? {
         guard state(of: id) == .notScanned else { return nil }
@@ -332,12 +332,12 @@ final class FileCleanupModel {
     /// Whether the model can run a plan. Pages leave their actions out when it cannot, as in previews.
     var canRun: Bool { runPlan != nil }
 
-    /// The summary confirmation for deleting the selected "Rebuildable" items of the sub-tool `id` (SAF-003), or `nil` if the
-    /// model cannot run anything or is already building a plan. Only that tier is in the plan: "Your data" items need
-    /// the itemized Trash review (SAF-002). Every item passes the path guard now, and again just before it is deleted
-    /// (SAF-007, SAF-008). When the run ends, the deleted items leave the list. The plan is built off the main actor
-    /// (NFR-PERF-001), with the model's own copy of the sub-tool, looked up by ID (R-17), so a page never plans with a
-    /// stale copy (D-154). An ID the model does not hold gives `nil`.
+    /// The summary confirmation for deleting the selected "Rebuildable" items of the sub-tool `id` (SAF-003), or `nil`
+    /// if the model cannot run anything or is already building a plan. Only that tier is in the plan: "Your data" items
+    /// need the itemized Trash review (SAF-002). Every item passes the path guard now, and again just before it is
+    /// deleted (SAF-007, SAF-008). When the run ends, the deleted items leave the list. The plan is built off the main
+    /// actor (NFR-PERF-001), with the model's own copy of the sub-tool, looked up by ID (R-17), so a page never plans
+    /// with a stale copy (D-154). An ID the model does not hold gives `nil`.
     /// - Throws: ``PlanError`` if any item is refused; a plan is all or nothing.
     func confirmRebuildable(_ id: ToolID) async throws(PlanError) -> SummaryConfirmation? {
         guard !isPlanning, let runPlan, let subTool = subTool(id), let results = scanResults[id] else { return nil }
