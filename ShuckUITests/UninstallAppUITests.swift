@@ -1,8 +1,8 @@
 import ShuckKitTestSupport
 import XCTest
 
-/// Uninstalling an app: the Applications list, sorted and searched. Later steps add the leftovers, the uninstall and
-/// its Restore.
+/// Uninstalling an app: the Applications list, sorted and searched, and the selected app's leftovers. Later steps add
+/// the uninstall and its Restore.
 ///
 /// The fixture apps sit in `Applications` and in its `Utilities` subfolder, one level down. Last-opened dates are
 /// stubbed to none in a fixture root, so last-opened order is a unit test.
@@ -95,33 +95,34 @@ final class UninstallAppUITests: ShuckUITestCase {
 
         step("Selecting an app lists its leftovers with how sure the scan is, and why (APP-002, APP-003)") {
             XCTAssertTrue(app.staticTexts["Select an app to see what it leaves behind."].exists)
-            // Nothing is scanned for an app that is not selected, and the page says macOS may ask to read containers.
             app.staticTexts["org.acme.delta"].click()
-            let high = app.staticTexts["leftover-confidence-org.acme.delta"]
+            let high = app.staticTexts["leftover-confidence-Application Support/org.acme.delta"]
             XCTAssertTrue(high.appears(within: 10))
             XCTAssertEqual(text(high), "High")
-            XCTAssertEqual(text(app.staticTexts["leftover-reason-org.acme.delta"]), "Named by the app's bundle ID")
-            XCTAssertEqual(text(app.staticTexts["leftover-confidence-Delta"]), "Medium")
-            XCTAssertEqual(text(app.staticTexts["leftover-reason-Delta"]), "Named like the app: Delta")
+            XCTAssertEqual(
+                text(app.staticTexts["leftover-reason-Application Support/org.acme.delta"]),
+                "Named by the app's bundle ID")
+            XCTAssertEqual(text(app.staticTexts["leftover-confidence-Caches/Delta"]), "Medium")
+            XCTAssertEqual(text(app.staticTexts["leftover-reason-Caches/Delta"]), "Named like the app: Delta")
             let note = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "may ask for", "may ask for")
             XCTAssertTrue(app.descendants(matching: .any).matching(note).firstMatch.exists)
             attachScreenshot(of: app, named: "Leftovers")
         }
 
         step("A system-wide leftover says it needs admin and offers Show in Finder, and the others do not (APP-004)") {
-            let name = "org.acme.delta.plist"
+            let name = "Preferences/org.acme.delta.plist"
             XCTAssertEqual(text(app.staticTexts["leftover-confidence-\(name)"]), "High")
             XCTAssertEqual(
                 text(app.staticTexts["leftover-disabled-\(name)"]), "Needs admin — not removable in this version")
             XCTAssertTrue(app.buttons["leftover-show-in-finder-\(name)"].exists)
-            XCTAssertFalse(app.buttons["leftover-show-in-finder-Delta"].exists)
-            XCTAssertFalse(app.buttons["leftover-show-in-finder-org.acme.delta"].exists)
+            XCTAssertFalse(app.buttons["leftover-show-in-finder-Caches/Delta"].exists)
+            XCTAssertFalse(app.buttons["leftover-show-in-finder-Application Support/org.acme.delta"].exists)
         }
 
         step("An app with no leftovers says so, and the pane forgets the last app's") {
             app.staticTexts["com.example.alpha"].click()
             XCTAssertTrue(app.staticTexts["No leftovers found"].appears(within: 10))
-            XCTAssertFalse(app.staticTexts["leftover-confidence-Delta"].exists)
+            XCTAssertFalse(app.staticTexts["leftover-confidence-Caches/Delta"].exists)
         }
     }
 }

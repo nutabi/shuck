@@ -829,7 +829,7 @@
     "Can't uninstall" : {
 
     },
-    "macOS may ask for permission to read other apps' containers. Allow it so Shuck can find leftovers." : {
+    "macOS may ask for permission to read other apps' containers." : {
 
     },
     "No leftovers found" : {

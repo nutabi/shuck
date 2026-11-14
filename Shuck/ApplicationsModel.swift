@@ -55,7 +55,7 @@ final class ApplicationsModel {
     private(set) var state = ScanState.notScanned
     /// The apps the scan found, in the order it found them. Use ``visibleApps`` to show them.
     private(set) var apps: [InstalledApp] = []
-    /// Folders macOS did not let the scan read (SAF-012). Listing them is a later page's job.
+    /// Folders macOS did not let the scan read (SAF-012). The page tells that some were missed.
     private(set) var notAccessible: [URL] = []
     /// Folders the scan could not read for another reason, such as a disk error (SAF-011).
     private(set) var unreadable: [URL] = []

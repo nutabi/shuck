@@ -283,10 +283,9 @@ struct ApplicationsLeftoversModelTests {
         }
         let model = ApplicationsModel(context: context, leftoverScan: leftoverScan) { _ in appStream }
         let scan = try #require(model.scan())
-        appEvents.yield(.app(alpha))
-        // The app is listed but the scan has not finished, so the leftovers wait.
-        while model.apps.isEmpty { await Task.yield() }
+        // The app is chosen before the scan has finished, so its leftovers wait.
         model.select(alpha.id)
+        appEvents.yield(.app(alpha))
         #expect(calls.value == 0 && model.leftoverState == .idle)
 
         appEvents.finish()
@@ -358,20 +357,22 @@ struct ApplicationsLeftoversModelTests {
         let kept = ScanItem.leftover("keep")
         let hidden = ScanItem.leftover("Private/hide")
         let task = try #require(model.select(alpha.id))
-        harness.streams[alpha.id]?.yield(.item(kept))
-        harness.streams[alpha.id]?.yield(.item(hidden))
-        while model.leftovers.count < 2 { await Task.yield() }
 
+        // The scan started before the change, and nothing has landed yet, so it leaves out what the new list hides.
         model.protect(with: exclusions(["/StubHome/Library/Private"]))
-        #expect(model.leftovers == [kept])
-        // A scan that started before the change leaves out what the new list hides.
         harness.streams[alpha.id]?.yield(.item(hidden))
+        harness.streams[alpha.id]?.yield(.item(kept))
         harness.streams[alpha.id]?.finish()
         await task.value
         #expect(model.leftovers == [kept])
 
+        // An item already listed goes at once.
+        model.protect(with: exclusions(["/StubHome/Library/keep"]))
+        #expect(model.leftovers.isEmpty)
+
+        // The selected app leaves the list, and the selection with it.
         model.protect(with: exclusions(["/StubHome/Applications/Alpha.app"]))
-        #expect(model.apps == [beta] && model.selection == nil && model.leftovers.isEmpty)
+        #expect(model.apps == [beta] && model.selection == nil && model.leftoverState == .idle)
     }
 
     @Test func aNewScanClearsTheSelectedAppsLeftoversSAF014() async throws {

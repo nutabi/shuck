@@ -37,7 +37,7 @@ struct LeftoversPane: View {
 
     @ViewBuilder private func leftovers(of app: InstalledApp) -> some View {
         Label {
-            Text("macOS may ask for permission to read other apps' containers. Allow it so Shuck can find leftovers.")
+            Text("macOS may ask for permission to read other apps' containers.")
         } icon: {
             Image(systemName: "hand.raised")
         }
@@ -70,6 +70,8 @@ private struct LeftoverRow: View {
 
     var body: some View {
         let name = item.url?.lastPathComponent ?? ""
+        // The folder too, since `Caches/<id>` and `Application Support/<id>` share a name.
+        let key = (item.url?.deletingLastPathComponent().lastPathComponent ?? "") + "/" + name
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name)
@@ -83,22 +85,22 @@ private struct LeftoverRow: View {
                 Text(item.reason)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("leftover-reason-\(name)")
+                    .accessibilityIdentifier("leftover-reason-\(key)")
                 if let reason = item.selection.disabledReason, let url = item.url {
                     HStack {
                         Text(reason)
                             .font(.caption)
-                            .accessibilityIdentifier("leftover-disabled-\(name)")
+                            .accessibilityIdentifier("leftover-disabled-\(key)")
                         Button("Show in Finder") { FinderReveal.show([url]) }
                             .controlSize(.small)
-                            .accessibilityIdentifier("leftover-show-in-finder-\(name)")
+                            .accessibilityIdentifier("leftover-show-in-finder-\(key)")
                     }
                 }
             }
             Spacer()
             if let confidence = item.confidence {
                 Text(Self.word(for: confidence))
-                    .accessibilityIdentifier("leftover-confidence-\(name)")
+                    .accessibilityIdentifier("leftover-confidence-\(key)")
             }
             SizeText(target: item.target, bytes: item.allocatedSize, snapshot: item.snapshot)
         }
