@@ -235,6 +235,9 @@
     "Skipped: an item it needs was not done" : {
 
     },
+    "Skipped: macOS didn't let Shuck move it" : {
+
+    },
     "Skipped: not the agent that was unloaded" : {
 
     },

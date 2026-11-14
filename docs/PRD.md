@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.15 — APP-005 says what the check before an uninstall can see (see Revision history) |
+| Version | 1.16 — APP-007 unloads agents before their plists are trashed; a refused move to the Trash is a skip (see Revision history) |
 | Date | 2026-11-14 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -34,6 +34,7 @@
 | 1.13 | 2026-11-14 | Tasks, owner items and exit criteria live in GitHub issues and milestones; `docs/progress.md` is frozen in `docs/archive/` (OQ-05, ENG-004, section 12). |
 | 1.14 | 2026-11-14 | APP-011's and STA-005's acceptance checks: a fixture test with a fake `launchctl` in the fixture root, run through the tool runner, and a manual check of the real `launchctl` on the owner's Mac, since no test may change the user's launchd state (SAF-016; advisor decision, #253). |
 | 1.15 | 2026-11-14 | APP-005: the check before an uninstall is read-only and covers a root-owned bundle and a bundle or folder the user cannot change; a missing App Management permission cannot be seen beforehand, so the run reports it as a skipped item (M3-T06; advisor decision, #220). |
+| 1.16 | 2026-11-14 | APP-007: matching LaunchAgents are unloaded before their plists are trashed, and the uninstall plan puts the bundle first, so a bundle that stays leaves every leftover and agent alone (APP-005, APP-011). A move to the Trash that macOS refuses for lack of permission, such as another app's container or a missing App Management permission, is a skipped item with its reason, not a failure, and the run goes on (SAF-011, S78) (M3-T06; advisor decision, #222). |
 
 ## How to read this document
 
@@ -447,7 +448,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | APP-004 | Related items found in system-wide locations (`/Library/Application Support`, `LaunchAgents`, `LaunchDaemons`, `PrivilegedHelperTools`, `Preferences`) are listed as "Needs admin — not removable in this version", with "Show in Finder" (D-08). | Must | Fixture test. |
 | APP-005 | If the user cannot remove the app bundle itself, the uninstall is blocked with the reason shown, and the app is still listed (R-16). The check before the run is read-only and covers a root-owned bundle and a bundle or folder the user cannot change. A missing App Management permission cannot be seen before the run, so the run reports the bundle as a skipped item (M3-T06). Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
 | APP-006 | If the app is running, offer "Quit <App>" using a normal quit request (`NSRunningApplication.terminate()`). Continue only after the app has exited. Never force-quit. | Must | Integration test with a stubbed running-app list. |
-| APP-007 | Uninstall moves the app bundle and the selected items to the Trash in one run, after an itemized review; matching LaunchAgents are unloaded first (APP-011). Restore puts everything back. | Must | Fixture test end to end, including restore. |
+| APP-007 | Uninstall moves the app bundle and the selected items to the Trash in one run, after an itemized review; matching LaunchAgents are unloaded before their plists are trashed (APP-011). Restore puts everything back. | Must | Fixture test end to end, including restore. |
 | APP-008 | Apps installed by a package show their receipt (from `pkgutil`) and a note that system-wide files may exist. | Should | Unit test with recorded `pkgutil` output. |
 | APP-009 | Apps can be sorted by size, last opened and name, and searched. | Should | UI test. |
 | APP-010 | Show the app's code-signing developer name. | Could | — |

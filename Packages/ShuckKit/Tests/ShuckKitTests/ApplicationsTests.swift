@@ -147,6 +147,77 @@ struct ApplicationsTests {
         #expect(found.removability == test.expected)
     }
 
+    // MARK: - The uninstall plan
+
+    /// The scan's own `InstalledApp` and a leftover as the leftovers scan would report it, for a fixture file or folder.
+    private func installedApp(
+        _ bundle: URL, removability: AppRemovability = .removable
+    ) throws -> InstalledApp {
+        let snapshot = try #require(ItemSnapshot.read(bundle))
+        return InstalledApp(
+            url: bundle, name: "Fixture", bundleID: "com.example.Fixture", snapshot: snapshot,
+            modified: try #require(ModificationDate.read(at: bundle)), removability: removability)
+    }
+
+    private func leftover(_ url: URL, source: ToolID = .applications, apps: Set<String> = []) throws -> ScanItem {
+        ScanItem(
+            url: url, snapshot: try #require(ItemSnapshot.read(url)), tier: .yourData, method: .trash,
+            reason: "Fixture", source: source, modified: ModificationDate.read(at: url), apps: apps)
+    }
+
+    @Test func theUninstallPlanIsAChainWithTheBundleFirstAPP005APP007APP011() throws {
+        let bundle = try root.app("Applications/Fixture.app", bundleID: "com.example.Fixture")
+        let cache = try root.folder("Library/Caches/com.example.Fixture")
+        let agent = try root.file("Library/LaunchAgents/com.example.Fixture.helper.plist", size: 10)
+        let pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
+        let plan = try Applications(appFolders: [try root.url("Applications")]).uninstallPlan(
+            for: installedApp(bundle),
+            leftovers: [leftover(cache, apps: ["com.example.Other"]), leftover(agent)], pathGuard: pathGuard)
+
+        #expect(plan.tool == .applications)
+        #expect(plan.items.map(\.url) == [bundle, cache, agent, agent])
+        #expect(plan.items.map(\.method) == [.trash, .trash, .launchctl, .trash])
+        #expect(
+            plan.items.map(\.dependency) == [
+                nil, ItemDependency(plan.items[0]), ItemDependency(plan.items[0]), ItemDependency(plan.items[2]),
+            ])
+        // The plist's Trash item needs its own bootout, which needs the bundle: so no agent is unloaded for an app
+        // that stays.
+        #expect(plan.items.allSatisfy { $0.tier == .yourData && $0.apps.contains("com.example.Fixture") })
+        #expect(plan.items[1].apps == ["com.example.Fixture", "com.example.Other"])
+        #expect(plan.items[0].selection == .selected && plan.items[0].modified == ModificationDate.read(at: bundle))
+    }
+
+    @Test func anUninstallPlanIsRefusedAsAWholeAPP005() throws {
+        let bundle = try root.app("Applications/Fixture.app", bundleID: "com.example.Fixture")
+        let cache = try root.folder("Library/Caches/com.example.Fixture")
+        let download = try root.file("Downloads/big.bin", size: 10)
+        let pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
+        let applications = Applications(appFolders: [try root.url("Applications")])
+        func plan(_ app: InstalledApp, _ leftovers: [ScanItem]) throws -> UninstallPlanError? {
+            do {
+                _ = try applications.uninstallPlan(for: app, leftovers: leftovers, pathGuard: pathGuard)
+                return nil
+            } catch { return error }
+        }
+
+        // A blocked app is refused, and its leftovers are never removed on their own.
+        #expect(
+            try plan(installedApp(bundle, removability: .blocked(.bundleNotWritable)), [leftover(cache)])
+                == .appBlocked(.bundleNotWritable))
+        // A leftover another tool found mixes tools, and one outside the allowed roots fails the path guard.
+        #expect(
+            try plan(installedApp(bundle), [leftover(cache, source: .largeFiles)])
+                == .plan(.otherSubTool(cache.path, .largeFiles)))
+        guard
+            case .plan(.rejected(let path, .outsideAllowedRoots)) = try plan(installedApp(bundle), [leftover(download)])
+        else {
+            Issue.record("Expected the guard to refuse a leftover outside the allowed roots")
+            return
+        }
+        #expect(path == download.path)
+    }
+
     @Test func findsOnlyRealInstalledAppsAPP001() async throws {
         let notes = try root.app("System Apps/Notes.app", bundleID: "com.example.Notes")
         try root.app("Applications/Utilities/Tool.app", bundleID: "com.example.Tool")

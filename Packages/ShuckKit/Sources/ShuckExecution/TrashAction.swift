@@ -18,6 +18,11 @@ package struct TrashAction: PlanAction {
             let trashed = try trash.trashItem(at: target)
             return Acted(.done(trashed), trashedPath: trashed.path, identity: identity)
         } catch {
+            // Only the refusal macOS gives for lack of permission is a skip; the run goes on without the item. Every
+            // other error stays a failure, which is the safe side: a dependent item acts only if this one was done.
+            if error.domain == NSCocoaErrorDomain && error.code == NSFileWriteNoPermissionError {
+                return Acted(.skipped(.notPermitted(error)))
+            }
             return Acted(.failed(error))
         }
     }

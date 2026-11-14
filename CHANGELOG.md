@@ -13,6 +13,8 @@ All notable changes to Shuck are listed here. The format follows
 
 ### Changed
 
+- When macOS doesn't allow an item to be moved to the Trash, History now lists it as skipped, with the reason, instead
+  of failed.
 - Homebrew Cleanup no longer shows a size before it runs, since it cannot know how much it will remove. The finished
   summary shows what it removed.
 - A size Shuck could not measure fully, because a folder inside it could not be read, now reads "At least" in the

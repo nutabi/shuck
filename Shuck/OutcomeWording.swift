@@ -61,6 +61,7 @@ nonisolated enum OutcomeWording {
         case .toolUnavailable: return "Skipped: its tool was not available"
         case .originalTaken: return "Skipped: its original place is taken"
         case .dependencyNotDone: return "Skipped: an item it needs was not done"
+        case .notPermitted: return "Skipped: macOS didn't let Shuck move it"
         case .notTheUnloadedAgent: return "Skipped: not the agent that was unloaded"
         case .notInTrash: return "Skipped: not in the Trash"
         case .otherItem: return "Skipped: no longer in the Trash, and another item has its name"

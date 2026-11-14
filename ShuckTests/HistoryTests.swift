@@ -163,6 +163,8 @@ struct HistoryTests {
         StatusCase(.skipped("unsupportedMethod: tool"), .tool, "Skipped: this version of Shuck can't do this"),
         StatusCase(.skipped("notAllowed: delete"), .delete, "Skipped: not allowed for this kind of item"),
         StatusCase(.skipped("dependencyNotDone: com.example.job"), "Skipped: an item it needs was not done"),
+        StatusCase(
+            .skipped("notPermitted: NSCocoaErrorDomain 513: denied"), "Skipped: macOS didn't let Shuck move it"),
         StatusCase(.skipped("originalTaken"), .restore, "Skipped: its original place is taken"),
         StatusCase(
             .skipped("otherItem"), .restore, "Skipped: no longer in the Trash, and another item has its name"),

@@ -157,7 +157,7 @@ struct PlanExecutorTests {
         try FileManager.default.removeItem(at: gone)
 
         let report = try await run(plan) { url in
-            if url.lastPathComponent == "locked.zip" { throw CocoaError(.fileWriteNoPermission) }
+            if url.lastPathComponent == "locked.zip" { throw CocoaError(.fileWriteUnknown) }
         }
 
         #expect(report.outcomes.count == 3)
@@ -174,15 +174,16 @@ struct PlanExecutorTests {
 
     @Test func aFailedMoveLogsItsCodeAndMessageSAF005() async throws {
         let locked = try root.file("Downloads/locked.zip", size: 10)
-        let report = try await run(try plan([planned(locked)])) { _ in throw CocoaError(.fileWriteNoPermission) }
+        let report = try await run(try plan([planned(locked)])) { _ in throw CocoaError(.fileWriteUnknown) }
 
-        let error = ActionError(CocoaError(.fileWriteNoPermission))
-        #expect(error.domain == NSCocoaErrorDomain && error.code == CocoaError.fileWriteNoPermission.rawValue)
+        let error = ActionError(CocoaError(.fileWriteUnknown))
+        #expect(error.domain == NSCocoaErrorDomain && error.code == CocoaError.fileWriteUnknown.rawValue)
         #expect(!error.message.isEmpty)
         #expect(report.outcomes.map(\.result) == [.failed(error)])
         let results = try HistoryLog.read(folder: logFolder).records.filter { $0.phase == .result }
         #expect(results.map(\.status) == [.failed])
-        #expect(results.map(\.detail) == ["NSCocoaErrorDomain 513: \(error.message)"])
+        #expect(
+            results.map(\.detail) == ["NSCocoaErrorDomain \(CocoaError.fileWriteUnknown.rawValue): \(error.message)"])
         // The History page reads the error back from the record, and shows its description (D-90).
         #expect(results.map { $0.detail.flatMap(ActionError.init(logged:)) } == [error])
         #expect(error.localizedDescription == error.message)
