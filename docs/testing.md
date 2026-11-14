@@ -71,5 +71,8 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
 - A SwiftUI `Text` with an `.accessibilityIdentifier` exposes its text as the element's `value`, and its `label` is
   empty. Read it with a small helper such as `element.label.isEmpty ? element.value as? String ?? "" : element.label`
   (`text(_:)` in `UninstallAppUITests`).
+- XCUITest refuses a query subscript (`app.staticTexts["…"]`) longer than 128 characters, and an identifier holding a
+  fixture path is longer. Match it with an `NSPredicate` on `identifier` instead (`leftover(_:_:_:)` in
+  `UninstallAppUITests`).
 - `firstMatch` does not find a SwiftUI `DisclosureGroup` row's combined accessibility element, such as a run on the History page. Use `.element` on a query that matches exactly one element.
 - `scripts/test.sh` prints only each suite's time. Per-test times are in the result bundles in `build/DerivedData/Logs/Test/`, which CI uploads only when a run fails (D-34). `xcrun xcresulttool get test-results tests --path <bundle>` lists each test's duration, and `xcrun xcresulttool get test-results activities --test-id "<Class>/<method>()" --path <bundle>` lists one test's steps with their start times.

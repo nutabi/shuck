@@ -163,8 +163,7 @@ final class ApplicationsModel {
 
     /// Replaces the leftover scan with one for the selected app, or with none. Every way a scan ends bumps the
     /// generation: a cancelled one can hand over a partial map of installed apps, and only the generation keeps what it
-    /// finds from landing. Only a finished app scan and a removable
-    /// app start one (APP-005).
+    /// finds from landing. Only a finished app scan and a removable app start one (APP-005).
     @discardableResult
     private func scanLeftovers() -> Task<Void, Never>? {
         leftoverTask?.cancel()
