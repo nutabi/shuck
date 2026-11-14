@@ -18,6 +18,13 @@ final class UninstallAppUITests: ShuckUITestCase {
         let app = launch(appFolders: ["Applications"])
         let sidebar = app.outlines.firstMatch
 
+        /// Clicks a column header. With a search field in the toolbar, XCUITest wrongly reports the headers as not
+        /// hittable and gives up trying to scroll them into view, although they are visible. A click at the header's
+        /// center skips that check, and a header that really were covered would still fail the order check after it.
+        func clickHeader(_ title: String) {
+            app.buttons[title].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
+
         /// The three apps in the order the page shows them, top to bottom.
         func order() -> [String] {
             ["Alpha", "Beta", "Gamma"].sorted { app.staticTexts[$0].frame.minY < app.staticTexts[$1].frame.minY }
@@ -38,14 +45,14 @@ final class UninstallAppUITests: ShuckUITestCase {
         }
 
         step("The Size header sorts by size, and a second click reverses it (APP-009)") {
-            app.buttons["Size"].click()
+            clickHeader("Size")
             XCTAssertEqual(order(), ["Alpha", "Gamma", "Beta"])
-            app.buttons["Size"].click()
+            clickHeader("Size")
             XCTAssertEqual(order(), ["Beta", "Gamma", "Alpha"])
         }
 
         step("The Name header sorts by name again (APP-009)") {
-            app.buttons["Name"].click()
+            clickHeader("Name")
             XCTAssertEqual(order(), ["Alpha", "Beta", "Gamma"])
         }
 

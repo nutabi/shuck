@@ -65,5 +65,8 @@ UI tests drive the real app on a fixture root (NFR-QA-002). They take over the m
   and Old Files judges fixture files by their last-opened and modified dates only (D-140). No UI test can show the
   "Added" reason or label; unit tests cover them.
 - Wait with `appears(within:)` and `disappears(within:)` from `ShuckUITestCase.swift`, which check every 0.1 s (D-74). XCTest's `waitForExistence(timeout:)` and `waitForNonExistence(timeout:)` first check the element about a second after they start, so each call costs at least a second, even for an element already on screen. On 2026-11-02, waits took 52 s of the UI suite's 123 s.
+- On a page with a search field in the toolbar (`.searchable`), XCUITest reports a table's column headers as not
+  hittable, although they are visible, and its click fails after trying to scroll them into view. Click the header's
+  center with `coordinate(withNormalizedOffset:)` instead, then check the order it gives (`UninstallAppUITests`).
 - `firstMatch` does not find a SwiftUI `DisclosureGroup` row's combined accessibility element, such as a run on the History page. Use `.element` on a query that matches exactly one element.
 - `scripts/test.sh` prints only each suite's time. Per-test times are in the result bundles in `build/DerivedData/Logs/Test/`, which CI uploads only when a run fails (D-34). `xcrun xcresulttool get test-results tests --path <bundle>` lists each test's duration, and `xcrun xcresulttool get test-results activities --test-id "<Class>/<method>()" --path <bundle>` lists one test's steps with their start times.
