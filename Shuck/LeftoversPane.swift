@@ -51,6 +51,7 @@ struct LeftoversPane: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        ReceiptNote(state: model.receipt)
         if !model.leftoverNotAccessible.isEmpty { NotAccessibleNote(folders: model.leftoverNotAccessible) }
         if !model.leftoverUnreadable.isEmpty { UnreadableNote(folders: model.leftoverUnreadable) }
         if model.leftovers.isEmpty {
@@ -71,6 +72,52 @@ struct LeftoversPane: View {
                     })
             }
         }
+    }
+}
+
+/// What a package receipt says about the selected app: the package that installed it, and that such a package may have
+/// put files outside the user's Library, which Shuck can't see or remove (APP-008, D-200). A lookup that could not run
+/// says so, as it is not the same as an app with no receipt, which shows nothing.
+private struct ReceiptNote: View {
+    let state: ApplicationsModel.ReceiptState
+
+    var body: some View {
+        switch state {
+        case .idle, .looking, .none: EmptyView()
+        case .found(let receipts):
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(receipts, id: \.packageID) { receipt in
+                    Text("Installed by the package \(receipt.packageID)\(Self.detail(of: receipt))")
+                        .accessibilityIdentifier("receipt-\(receipt.packageID)")
+                }
+                Text("A package can put files outside your Library, so some system-wide files may remain.")
+                    .accessibilityIdentifier("receipt-note")
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            .accessibilityElement(children: .combine)
+        case .failed:
+            Text("Shuck couldn't check whether a package installed this app.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+                .accessibilityIdentifier("receipt-failed")
+        }
+    }
+
+    /// ` (version 2.1, installed 3 Nov 2026)`, with what the receipt lacks left out.
+    private static func detail(of receipt: PackageReceipt) -> String {
+        var parts: [String] = []
+        if let version = receipt.version { parts.append(String(localized: "version \(version)")) }
+        if let date = receipt.installed {
+            parts.append(String(localized: "installed \(date.formatted(date: .abbreviated, time: .omitted))"))
+        }
+        return parts.isEmpty ? "" : " (" + parts.joined(separator: ", ") + ")"
     }
 }
 

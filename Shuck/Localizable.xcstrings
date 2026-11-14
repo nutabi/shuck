@@ -832,6 +832,21 @@
     "Not cleaned up" : {
 
     },
+    "Installed by the package %@%@" : {
+
+    },
+    "A package can put files outside your Library, so some system-wide files may remain." : {
+
+    },
+    "Shuck couldn't check whether a package installed this app." : {
+
+    },
+    "version %@" : {
+
+    },
+    "installed %@" : {
+
+    },
     "No app selected" : {
 
     },

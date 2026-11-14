@@ -53,6 +53,17 @@ final class ApplicationsModel {
         case scanned
     }
 
+    /// Where the selected app's package-receipt lookup stands (APP-008). `failed` is not `none`: an app that no package
+    /// installed has no receipt, while a lookup that could not run says nothing either way.
+    nonisolated enum ReceiptState: Equatable {
+        /// No lookup: no app is selected, it is blocked, or the page has no reader.
+        case idle
+        case looking
+        case none
+        case found([PackageReceipt])
+        case failed
+    }
+
     private(set) var state = ScanState.notScanned
     /// The apps the scan found, in the order it found them. Use ``visibleApps`` to show them.
     private(set) var apps: [InstalledApp] = []
@@ -70,6 +81,8 @@ final class ApplicationsModel {
     /// The selected app's leftovers, in the order the scan found them.
     private(set) var leftovers: [ScanItem] = []
     private(set) var leftoverState = LeftoverState.idle
+    /// What the package receipts say about the selected app (APP-008).
+    private(set) var receipt = ReceiptState.idle
     /// The leftovers the uninstall will move to the Trash, by URL. Each starts as the scan selected it, and the user
     /// changes it with ``setChosen(_:for:)`` (APP-007). A disabled leftover, such as a system-wide one, is never in it.
     private(set) var chosen: Set<URL> = []
@@ -87,6 +100,10 @@ final class ApplicationsModel {
     private let uninstall: Uninstall?
     private var scanTask: Task<Void, Never>?
     private var leftoverTask: Task<Void, Never>?
+    private var receiptTask: Task<Void, Never>?
+    /// Asks which package installed an app. Without one the page shows no receipt, as in previews and tests of the list
+    /// alone; the app passes ``AppEnvironment/receiptReader``.
+    private let receiptReader: (any PackageReceiptReader)?
     /// Counts the leftover scans started, so an event from one that was replaced never lands in the new list.
     private var leftoverGeneration = 0
 
@@ -112,13 +129,15 @@ final class ApplicationsModel {
     /// - Parameters:
     ///   - leftoverScan: Without one, an app has no leftovers, for a preview or a test of the list alone.
     ///   - uninstall: Without one, the page offers no uninstall, as in previews and tests of the list alone.
+    ///   - receiptReader: Without one, the page looks up no package receipt.
     init(
         context: ScanContext, leftoverScan: @escaping LeftoverScan = { _, _ in AsyncStream { $0.finish() } },
-        uninstall: Uninstall? = nil, appScan: @escaping AppScan
+        uninstall: Uninstall? = nil, receiptReader: (any PackageReceiptReader)? = nil, appScan: @escaping AppScan
     ) {
         self.context = context
         self.leftoverScan = leftoverScan
         self.uninstall = uninstall
+        self.receiptReader = receiptReader
         self.appScan = appScan
     }
 
@@ -197,6 +216,9 @@ final class ApplicationsModel {
     private func scanLeftovers() -> Task<Void, Never>? {
         leftoverTask?.cancel()
         leftoverTask = nil
+        receiptTask?.cancel()
+        receiptTask = nil
+        receipt = .idle
         leftoverGeneration += 1
         leftovers = []
         chosen = []
@@ -206,6 +228,16 @@ final class ApplicationsModel {
         guard state == .scanned, let app = selectedApp, app.removability == .removable else { return nil }
         leftoverState = .scanning
         let generation = leftoverGeneration
+        if let receiptReader {
+            // The lookup is for the selected app alone, never for each app in the list (APP-008).
+            receipt = .looking
+            receiptTask = Task {
+                let found = await Self.lookUpReceipt(receiptReader, of: app.url)
+                guard generation == leftoverGeneration else { return }
+                receiptTask = nil
+                receipt = found
+            }
+        }
         let (context, revision, leftoverScan) = (context, exclusionRevision, leftoverScan)
         leftoverTask = Task {
             for await event in await Self.start(leftoverScan, app, context) {
@@ -322,6 +354,20 @@ final class ApplicationsModel {
         _ protection: PathGuardConfiguration
     ) async throws(UninstallPlanError) -> Plan {
         try applications.uninstallPlan(for: app, leftovers: leftovers, pathGuard: PathGuard(configuration: protection))
+    }
+
+    /// Asks `reader` for the receipts of the app at `url`, off the main actor. A lookup that was stopped leaves nothing
+    /// to show.
+    @concurrent
+    private nonisolated static func lookUpReceipt(
+        _ reader: any PackageReceiptReader, of url: URL
+    ) async -> ReceiptState {
+        do {
+            let receipts = try await reader.receipts(forAppAt: url)
+            return receipts.isEmpty ? .none : .found(receipts)
+        } catch {
+            return error == .stopped ? .idle : .failed
+        }
     }
 
     @concurrent

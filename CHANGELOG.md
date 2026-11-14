@@ -15,6 +15,8 @@ All notable changes to Shuck are listed here. The format follows
 - Select All and Select None now have keyboard shortcuts, ⌘A and ⇧⌘A, on every cleanup page.
 - Restoring an uninstalled app from History puts back its login agents' files, and asks whether to load them again.
   Nothing is loaded unless you say so.
+- For an app that an installer package put on your Mac, Applications shows the package, its version and when it was
+  installed, and says that the package may have left system-wide files that Shuck can't remove.
 
 ### Changed
 

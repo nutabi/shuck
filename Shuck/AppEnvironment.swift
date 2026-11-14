@@ -33,6 +33,9 @@ nonisolated struct AppEnvironment {
     /// Applications with the folders it lists apps from: this Mac's, or in a UI test's fixture root only the ones the
     /// test names, so a test never reads the real `/Applications` (APP-001, SAF-016).
     let applications: Applications
+    /// Reads which package installed an app, with `pkgutil`: this Mac's, or in a fixture root the fake one inside it
+    /// (APP-008, SAF-016).
+    let receiptReader: any PackageReceiptReader
     /// An app's leftovers, found by ``applications`` and told which installed apps go by the same names, read from the
     /// same app folders, so a fixture root never reads the real ones (APP-003, R-05, D-196). The map leaves out no app
     /// that can run, whatever the exclusions hide.
@@ -189,6 +192,7 @@ nonisolated struct AppEnvironment {
                 save: saveProjectFolders)
             makeProjectScope = { Self.projectScope($0, home: root, resolvingLinks: false) }
             toolRunner = ToolRunner(executableRoots: [root])
+            receiptReader = PkgutilReceiptReader(executableRoots: [root])
             let fixtureApps = FixtureRunningApps(Self.list(settings(Self.runningAppsKey)))
             runningApps = fixtureApps
             appQuitter = fixtureApps
@@ -229,6 +233,7 @@ nonisolated struct AppEnvironment {
             cachesAndLogs = CachesAndLogs()
             applications = Applications()
             toolRunner = ToolRunner(executableRoots: nil)
+            receiptReader = PkgutilReceiptReader(executableRoots: nil)
             scope = Self.projectScope(projectFolders.folders, home: home)
             context = ScanContext(
                 home: home, ownership: scope.ownership, protection: makeProtection(excludedFolders.folders),
