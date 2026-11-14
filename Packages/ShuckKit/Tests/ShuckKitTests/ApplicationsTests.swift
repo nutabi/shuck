@@ -185,10 +185,8 @@ struct ApplicationsTests {
         // that stays.
         #expect(plan.items.allSatisfy { $0.tier == .yourData && $0.apps.contains("com.example.Fixture") })
         #expect(plan.items[1].apps == ["com.example.Fixture", "com.example.Other"])
-        #expect(plan.items[0].selection == .selected && plan.items[0].modified == apps(of: bundle))
+        #expect(plan.items[0].selection == .selected && plan.items[0].modified == ModificationDate.read(at: bundle))
     }
-
-    private func apps(of url: URL) -> Date? { ModificationDate.read(at: url) }
 
     @Test func anUninstallPlanIsRefusedAsAWholeAPP005() throws {
         let bundle = try root.app("Applications/Fixture.app", bundleID: "com.example.Fixture")
