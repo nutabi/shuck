@@ -1,6 +1,7 @@
 import AppKit
 import ShuckKit
 import SwiftUI
+import os
 
 /// Applications: the apps the user can uninstall, with their icon, version, size and last-opened date (APP-001). The
 /// Name, Size and Last Opened headers sort the list, and the search field matches an app's name and bundle ID
@@ -8,10 +9,15 @@ import SwiftUI
 ///
 /// Like a File Cleanup sub-tool's page, it scans when it opens if it has not scanned yet, shows only a message while
 /// there is nothing to list, and has Scan and, while scanning, Stop in the toolbar (SAF-014, D-61). Choosing apps to
-/// uninstall comes later.
+/// uninstall: Uninstall in the toolbar opens the itemized review of the selected app and its chosen leftovers, with
+/// Quit if the app is running (APP-006, APP-007).
 struct ApplicationsView: View {
     let info: ToolInfo
     @Bindable var model: ApplicationsModel
+    /// The open review. The page owns it and shows the sheet.
+    @State private var review: UninstallReview?
+    /// Why the plan was refused, if it was.
+    @State private var refusal: UninstallPlanError?
 
     var body: some View {
         // A ZStack, not a Group, so the toolbar and the search field stay while the list gives way to a message.
@@ -34,6 +40,14 @@ struct ApplicationsView: View {
         .navigationTitle(Text(info.name))
         .navigationSubtitle(Text(info.summary))
         .searchable(text: $model.searchText, prompt: Text("Search Apps"))
+        .sheet(item: $review) { review in
+            UninstallReviewSheet(review: review, home: model.context.home)
+        }
+        .alert("Nothing was moved", isPresented: isRefused, presenting: refusal) { _ in
+            Button("OK") {}
+        } message: { refusal in
+            Self.message(for: refusal)
+        }
         .toolbar {
             // Stop covers the leftover scan too (SAF-014).
             if model.state == .scanning || model.leftoverState == .scanning {
@@ -53,6 +67,13 @@ struct ApplicationsView: View {
                 }
             }
             ToolbarItem {
+                Button("Uninstall…", systemImage: "trash") { startReview() }
+                    .disabled(!model.canUninstall)
+                    .help(
+                        "Review what uninstalling the selected app moves to the Trash. Nothing moves until you confirm."
+                    )
+            }
+            ToolbarItem {
                 Button("Scan", systemImage: "magnifyingglass") {
                     model.scan()
                 }
@@ -62,6 +83,38 @@ struct ApplicationsView: View {
         }
         .onAppear {
             model.scanIfNotScanned()
+        }
+    }
+
+    /// Opens the review. The plan is built off the main actor; the sheet opens when it is ready (NFR-PERF-001).
+    private func startReview() {
+        Task {
+            do throws(UninstallPlanError) {
+                review = try await model.reviewUninstall()
+            } catch {
+                // Private: the error names the item the plan stopped at (NFR-SEC-006).
+                Logger.app.error("Refused an uninstall plan: \(String(describing: error), privacy: .private)")
+                refusal = error
+            }
+        }
+    }
+
+    private var isRefused: Binding<Bool> {
+        Binding {
+            refusal != nil
+        } set: {
+            if !$0 { refusal = nil }
+        }
+    }
+
+    private static func message(for error: UninstallPlanError) -> Text {
+        switch error {
+        case .appBlocked(let reason):
+            Text(reason.explanation)
+        case .plan(let error):
+            Text(
+                "“\(URL(filePath: error.path).lastPathComponent)” didn't pass Shuck's safety checks, so Shuck moved nothing."
+            )
         }
     }
 

@@ -1,8 +1,9 @@
 import ShuckKitTestSupport
 import XCTest
 
-/// Uninstalling an app: the Applications list, sorted and searched, and the selected app's leftovers. Later steps add
-/// the uninstall and its Restore.
+/// Uninstalling an app: the Applications list, sorted and searched, the selected app's leftovers, and the uninstall: a
+/// blocked app has none, a running app is quit first, and the review, the run and its summary follow. A later step adds
+/// Restore.
 ///
 /// The fixture apps sit in `Applications` and in its `Utilities` subfolder, one level down. Last-opened dates are
 /// stubbed to none in a fixture root, so last-opened order is a unit test.
@@ -17,12 +18,22 @@ final class UninstallAppUITests: ShuckUITestCase {
             size: 2 << 20)
         // Delta's leftovers: a High one by its bundle ID, a Medium one named like the app, and a system-wide one, which
         // needs admin rights. The other apps have none.
-        try root.app(
+        let delta = try root.app(
             "Applications/Delta.app", bundleID: "org.acme.delta", name: "Delta", version: "4.0", size: 4 << 20)
         try root.file("Library/Application Support/org.acme.delta/data", size: 2_000)
         try root.file("Library/Caches/Delta/cache", size: 3_000)
         try root.file("SystemLibrary/Preferences/org.acme.delta.plist", size: 1_000)
-        let app = launch(appFolders: ["Applications"])
+        // An exact bundle-ID match outside Application Support starts selected, so the review lists it with the bundle.
+        let preferences = try root.file("Library/Preferences/org.acme.delta.plist", size: 1_000)
+        // Locked cannot be removed, since the user cannot change its bundle (APP-005). The permissions go back after the
+        // test, so the fixture root can be removed.
+        let locked = try root.app(
+            "Applications/Locked.app", bundleID: "com.example.locked", name: "Locked", version: "1.0", size: 1 << 20)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        addTeardownBlock { _ = chmod(locked.path, 0o755) }
+        let trash = root.url.appending(path: ".Trash")
+        // Delta is running, so its uninstall asks it to quit first (APP-006); Xcode, which runs this test, is never asked.
+        let app = launch(runningApps: ["org.acme.delta"], appFolders: ["Applications"])
         let sidebar = app.outlines.firstMatch
 
         /// Clicks a column header. With a search field in the toolbar, XCUITest wrongly reports the headers as not
@@ -40,6 +51,7 @@ final class UninstallAppUITests: ShuckUITestCase {
         /// A leftover's identifiers name its whole path, which is inside the fixture root.
         let support = "Library/Application Support/org.acme.delta"
         let caches = "Library/Caches/Delta"
+        let prefs = "Library/Preferences/org.acme.delta.plist"
         /// The element of a query with a leftover's identifier. A name is matched by a predicate, since a string
         /// subscript refuses more than 128 characters, which a path in the temporary folder exceeds.
         func leftover(_ query: XCUIElementQuery, _ kind: String, _ relativePath: String) -> XCUIElement {
@@ -133,6 +145,72 @@ final class UninstallAppUITests: ShuckUITestCase {
             app.staticTexts["com.example.alpha"].click()
             XCTAssertTrue(app.staticTexts["No leftovers found"].appears(within: 10))
             XCTAssertFalse(leftover(app.staticTexts, "confidence", caches).exists)
+        }
+
+        step("A blocked app says why and has no Uninstall (APP-005)") {
+            app.staticTexts["com.example.locked"].click()
+            XCTAssertTrue(app.staticTexts["Can't uninstall this app"].appears(within: 10))
+            XCTAssertFalse(app.buttons["Uninstall…"].isEnabled)
+        }
+
+        step("Each leftover has a checkbox: the scan's choice, and none for what needs admin (APP-007)") {
+            app.staticTexts["org.acme.delta"].click()
+            XCTAssertTrue(leftover(app.staticTexts, "confidence", prefs).appears(within: 10))
+            XCTAssertTrue(app.buttons["Uninstall…"].becomesEnabled(within: 10))
+            XCTAssertEqual(leftover(app.checkBoxes, "toggle", prefs).value as? Int, 1)
+            XCTAssertEqual(leftover(app.checkBoxes, "toggle", support).value as? Int, 0)
+            XCTAssertEqual(leftover(app.checkBoxes, "toggle", caches).value as? Int, 0)
+            XCTAssertFalse(
+                leftover(app.checkBoxes, "toggle", "SystemLibrary/Preferences/org.acme.delta.plist").isEnabled)
+        }
+
+        let sheet = app.sheets.firstMatch
+        let moveToTrash = sheet.buttons["Move to Trash"]
+
+        step("The review lists the app first, then what is chosen, and moves nothing yet (APP-007, SAF-002)") {
+            app.buttons["Uninstall…"].click()
+            let title = NSPredicate(format: "value BEGINSWITH %@", "Move 2 items,")
+            XCTAssertTrue(sheet.staticTexts.matching(title).firstMatch.appears(within: 10))
+            XCTAssertTrue(sheet.staticTexts["Delta.app"].exists)
+            XCTAssertTrue(sheet.staticTexts["org.acme.delta.plist"].exists)
+            XCTAssertFalse(sheet.staticTexts["org.acme.delta"].exists, "Support was not chosen")
+            XCTAssertLessThan(
+                sheet.staticTexts["Delta.app"].frame.minY, sheet.staticTexts["org.acme.delta.plist"].frame.minY)
+            XCTAssertTrue(FileManager.default.fileExists(atPath: delta.path))
+            attachScreenshot(of: app, named: "Uninstall review")
+        }
+
+        step("Cancel moves nothing, and the review opens again with the app still running (APP-006)") {
+            sheet.buttons["Cancel"].click()
+            XCTAssertTrue(sheet.disappears(within: 5))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: delta.path))
+            app.buttons["Uninstall…"].click()
+            XCTAssertTrue(sheet.buttons["Quit Delta"].appears(within: 10))
+        }
+
+        step("A running app keeps Move to Trash off until Quit has taken it away (APP-006)") {
+            XCTAssertFalse(moveToTrash.isEnabled)
+            XCTAssertTrue(sheet.staticTexts["Delta is running. Quit it to continue."].exists)
+            sheet.buttons["Quit Delta"].click()
+            XCTAssertTrue(moveToTrash.becomesEnabled(within: 10))
+            XCTAssertFalse(sheet.buttons["Quit Delta"].exists)
+        }
+
+        step(
+            "Move to Trash moves the app and the chosen leftover into the Trash and drops them from the page (APP-007)"
+        ) {
+            moveToTrash.click()
+            XCTAssertTrue(sheet.staticTexts["Moved 2 items to the Trash"].appears(within: 10))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: delta.path), "Delta.app did not move")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: preferences.path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: trash.appending(path: "Delta.app").path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: trash.appending(path: "org.acme.delta.plist").path))
+            XCTAssertTrue(sheet.buttons["Show in History"].exists)
+            attachScreenshot(of: app, named: "Uninstall summary")
+            sheet.buttons["Done"].click()
+            XCTAssertTrue(sheet.disappears(within: 5))
+            XCTAssertTrue(app.staticTexts["org.acme.delta"].disappears(within: 5))
+            XCTAssertTrue(app.staticTexts["Select an app to see what it leaves behind."].exists)
         }
     }
 }

@@ -846,6 +846,39 @@
     },
     "Low" : {
 
+    },
+    "Uninstall…" : {
+
+    },
+    "Review what uninstalling the selected app moves to the Trash. Nothing moves until you confirm." : {
+
+    },
+    "Uninstalling %@…" : {
+
+    },
+    "Launch agents are stopped before their files are moved." : {
+
+    },
+    "%@ is running. Quit it to continue." : {
+
+    },
+    "Quit %@" : {
+
+    },
+    "Asks %@ to quit, as ⌘Q does. Shuck never forces an app to quit." : {
+
+    },
+    "Waiting for %@ to quit…" : {
+
+    },
+    "Stop Waiting" : {
+
+    },
+    "%@ didn't take the request to quit. Quit it yourself." : {
+
+    },
+    "Check Again" : {
+
     }
   },
   "version" : "1.1"

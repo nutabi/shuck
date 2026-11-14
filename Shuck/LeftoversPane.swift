@@ -3,7 +3,8 @@ import SwiftUI
 
 /// What sits below the apps list: the selected app's leftovers, each with how sure the scan is and why it is listed
 /// (APP-002, APP-003), the system-wide ones that need admin rights (APP-004), or why the app cannot be uninstalled
-/// (APP-005, R-16). It only shows them: choosing what to remove comes with the review.
+/// (APP-005, R-16). Each leftover has a checkbox that chooses it for the uninstall, set as the scan selected it, and a
+/// disabled one has none to change (APP-007). Uninstall in the toolbar opens the review.
 struct LeftoversPane: View {
     let model: ApplicationsModel
 
@@ -57,7 +58,13 @@ struct LeftoversPane: View {
             }
         } else {
             List(ScanOrder.ordered(model.leftovers, scanning: model.leftoverState == .scanning)) { item in
-                LeftoverRow(item: item)
+                LeftoverRow(
+                    item: item,
+                    isChosen: Binding {
+                        item.url.map(model.chosen.contains) ?? false
+                    } set: {
+                        model.setChosen($0, for: item)
+                    })
             }
         }
     }
@@ -67,12 +74,20 @@ struct LeftoversPane: View {
 /// says why it cannot be removed and has "Show in Finder", since the user can remove it by hand (APP-004).
 private struct LeftoverRow: View {
     let item: ScanItem
+    /// Whether the uninstall will move it to the Trash.
+    @Binding var isChosen: Bool
 
     var body: some View {
         let name = item.url?.lastPathComponent ?? ""
         // The whole path, since `~/Library/Preferences/x.plist` and `/Library/Preferences/x.plist` share a name.
         let key = item.url?.path ?? name
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            // The name is the VoiceOver label; a disabled one reads as dimmed, and its words say why (NFR-A11Y-001).
+            Toggle(isOn: $isChosen) { Text(verbatim: name) }
+                .labelsHidden()
+                .disabled(!item.selection.isSelectable)
+                .accessibilityLabel(Text(verbatim: name))
+                .accessibilityIdentifier("leftover-toggle-\(key)")
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: name)
                 if let folder = item.url?.deletingLastPathComponent().path {
