@@ -259,13 +259,13 @@
     "Xcode Device Support Files" : {
 
     },
+    "Xcode's own tool removes the simulators that can no longer start. You can create new ones in Xcode." : {
+
+    },
     "You don't have permission to change the folder this app is in" : {
 
     },
     "You don't have permission to change this app" : {
-
-    },
-    "Xcode's own tool removes the simulators that can no longer start. You can create new ones in Xcode." : {
 
     }
   },
