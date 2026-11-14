@@ -6,7 +6,7 @@
 |---|---|
 | Product | Shuck (working name during planning: "Mac Assistant") |
 | Document | Product Requirements Document (PRD) |
-| Version | 1.14 — APP-011 and STA-005 are tested with a fake `launchctl` (see Revision history) |
+| Version | 1.15 — APP-005 says what the check before an uninstall can see (see Revision history) |
 | Date | 2026-11-14 |
 | Status | Draft for owner review |
 | Owner and reviewer | nutabi |
@@ -33,6 +33,7 @@
 | 1.12 | 2026-11-13 | ENG-002: one task is one pull request or one stack, and an agent never has two open pull requests outside one stack. Section 12: `AGENTS.md` may link detail in `docs/`. ENG-003 and ENG-004: a three-section template and a shorter definition of done. ENG-011: decisions go in pull requests, and `docs/decisions.md` moves to `docs/archive/`, frozen. Section 11.2's layout lists the issue forms. Section 1, G-5, R-17 and the priorities: the advisor decides instead of the owner reviewing (D-200). |
 | 1.13 | 2026-11-14 | Tasks, owner items and exit criteria live in GitHub issues and milestones; `docs/progress.md` is frozen in `docs/archive/` (OQ-05, ENG-004, section 12). |
 | 1.14 | 2026-11-14 | APP-011's and STA-005's acceptance checks: a fixture test with a fake `launchctl` in the fixture root, run through the tool runner, and a manual check of the real `launchctl` on the owner's Mac, since no test may change the user's launchd state (SAF-016; advisor decision, #253). |
+| 1.15 | 2026-11-14 | APP-005: the check before an uninstall is read-only and covers a root-owned bundle and a bundle or folder the user cannot change; a missing App Management permission cannot be seen beforehand, so the run reports it as a skipped item (M3-T06; advisor decision, #220). |
 
 ## How to read this document
 
@@ -444,7 +445,7 @@ Every tool and sub-tool follows the same flow: **Scan → Results → Select →
 | APP-002 | For a selected app, find related user-level items by exact bundle ID in: `~/Library/Application Support`, `Caches`, `Containers`, `Group Containers` (matched through the app's declared app groups), `Preferences` (including `ByHost`), `Saved Application State`, `HTTPStorages`, `WebKit`, `Cookies`, `Logs`, `Application Scripts`, and `LaunchAgents` (plist label or program path inside the app bundle). | Must | Fixture Library tree → expected matches. |
 | APP-003 | Every related item gets a confidence level. **High:** exact bundle ID or declared app group. **Medium:** app or vendor name match in Application Support, Caches or Logs. **Low:** other heuristics. Only High items are selected by default, except those in Application Support, Containers and Group Containers (OQ-07). Medium and Low items show the reason for the match. | Must | Unit tests per level. |
 | APP-004 | Related items found in system-wide locations (`/Library/Application Support`, `LaunchAgents`, `LaunchDaemons`, `PrivilegedHelperTools`, `Preferences`) are listed as "Needs admin — not removable in this version", with "Show in Finder" (D-08). | Must | Fixture test. |
-| APP-005 | If the user cannot remove the app bundle itself (for example a root-owned app installed by a package, or because macOS's App Management permission is missing, R-16), the uninstall is blocked with the reason shown. Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
+| APP-005 | If the user cannot remove the app bundle itself, the uninstall is blocked with the reason shown, and the app is still listed (R-16). The check before the run is read-only and covers a root-owned bundle and a bundle or folder the user cannot change. A missing App Management permission cannot be seen before the run, so the run reports the bundle as a skipped item (M3-T06). Leftovers are not removed on their own. | Must | Fixture test with a non-writable bundle. |
 | APP-006 | If the app is running, offer "Quit <App>" using a normal quit request (`NSRunningApplication.terminate()`). Continue only after the app has exited. Never force-quit. | Must | Integration test with a stubbed running-app list. |
 | APP-007 | Uninstall moves the app bundle and the selected items to the Trash in one run, after an itemized review; matching LaunchAgents are unloaded first (APP-011). Restore puts everything back. | Must | Fixture test end to end, including restore. |
 | APP-008 | Apps installed by a package show their receipt (from `pkgutil`) and a note that system-wide files may exist. | Should | Unit test with recorded `pkgutil` output. |

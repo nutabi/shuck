@@ -20,12 +20,16 @@ public struct InstalledApp: Equatable, Sendable, Identifiable {
     /// When the app was last opened, as Spotlight records it, or `nil` if Spotlight has no record (APP-001, D-187).
     public let lastOpened: Date?
 
+    /// Whether the user can remove the bundle, and if not, why. A blocked app is still listed (APP-005, R-16).
+    public let removability: AppRemovability
+
     public var allocatedSize: Int64 { snapshot.allocatedSize }
 
     public init(
         url: URL, name: String, bundleID: String?, snapshot: ItemSnapshot, modified: Date, version: String? = nil,
-        lastOpened: Date? = nil
+        lastOpened: Date? = nil, removability: AppRemovability = .removable
     ) {
+        self.removability = removability
         self.url = url
         self.name = name
         self.bundleID = bundleID
@@ -80,6 +84,8 @@ public struct Applications: Sendable {
     public typealias SystemProtected = @Sendable (URL) -> Bool
     /// The app groups the app at a URL declares (APP-002).
     public typealias AppGroups = @Sendable (URL) -> [String]
+    /// The user ID that owns the item at a URL, or `nil` if it cannot be read (APP-005).
+    public typealias Owner = @Sendable (URL) -> uid_t?
 
     /// The folders `~/Library` keeps an app's leftovers in, relative to the home folder (APP-002), and LaunchAgents,
     /// which holds the agents an uninstall unloads (APP-011). `Preferences` includes `ByHost`.
@@ -102,6 +108,7 @@ public struct Applications: Sendable {
     private let isSystemProtected: SystemProtected
     private let lastUsedDate: LastOpenedReader.LastUsedDate
     let appGroups: AppGroups
+    private let owner: Owner
     /// The system-wide `/Library`, searched for items that need admin rights (APP-004).
     let systemLibrary: URL
 
@@ -112,14 +119,17 @@ public struct Applications: Sendable {
     ///     root can set the flag on a fixture.
     ///   - lastUsedDate: Reads when an app was last opened. Tests stub it, since Spotlight does not index a fixture.
     ///   - appGroups: Reads the app groups an app declares (APP-002). Tests stub it, since a fixture app is unsigned.
+    ///   - owner: Reads the user ID that owns an app bundle, to say why it cannot be removed (APP-005). Tests stub it,
+    ///     since a fixture cannot be owned by root.
     ///   - systemLibrary: The system-wide `/Library`. Tests pass a folder inside the fixture root, so they never read the
     ///     real one (SAF-016).
     public init(
         appFolders: [URL]? = nil, isSystemProtected: @escaping SystemProtected = Self.hasRestrictedFlag,
         lastUsedDate: @escaping LastOpenedReader.LastUsedDate = LastOpenedReader.spotlightLastUsedDate,
-        appGroups: @escaping AppGroups = Self.declaredAppGroups(of:),
+        appGroups: @escaping AppGroups = Self.declaredAppGroups(of:), owner: @escaping Owner = Self.lstatOwner,
         systemLibrary: URL = URL(filePath: "/Library", directoryHint: .isDirectory)
     ) {
+        self.owner = owner
         customAppFolders = appFolders
         self.isSystemProtected = isSystemProtected
         self.lastUsedDate = lastUsedDate
@@ -235,7 +245,8 @@ public struct Applications: Sendable {
             .app(
                 InstalledApp(
                     url: url, name: Self.name(info, url), bundleID: bundleID, snapshot: snapshot, modified: modified,
-                    version: Self.version(info), lastOpened: lastUsedDate(url))))
+                    version: Self.version(info), lastOpened: lastUsedDate(url),
+                    removability: AppRemovability.check(url, owner: owner(url), currentUser: getuid()))))
     }
 
     /// Reports what the shared scan helpers report, which is only ever a path they could not read.
@@ -273,6 +284,12 @@ public struct Applications: Sendable {
     /// The version the app shows, then its build version, or `nil` if it declares neither.
     static func version(_ info: [String: Any]) -> String? {
         ["CFBundleShortVersionString", "CFBundleVersion"].compactMap { info[$0] as? String }.first { !$0.isEmpty }
+    }
+
+    /// The user ID that owns the item at `url`, read with `lstat` so a link is not followed (APP-005).
+    public static func lstatOwner(_ url: URL) -> uid_t? {
+        var status = stat()
+        return lstat(url.path, &status) == 0 ? status.st_uid : nil
     }
 
     /// Whether the item at `url` has the `SF_RESTRICTED` flag, which System Integrity Protection sets on what it
