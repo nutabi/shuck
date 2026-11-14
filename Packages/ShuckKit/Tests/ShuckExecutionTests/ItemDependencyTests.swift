@@ -16,6 +16,12 @@ struct ItemDependencyTests {
         pathGuard = PathGuard(configuration: root.pathGuardConfiguration())
     }
 
+    private let label = "com.example.helper.job"
+    private var target: String { "gui/\(getuid())/\(label)" }
+
+    /// What a loaded agent's `bootout` calls: the check, then the `bootout`.
+    private func calls() -> [String] { ["print \(target)", "bootout \(target)"] }
+
     private func agent(label: String = "com.example.helper.job") throws -> URL {
         let text = """
             <?xml version="1.0" encoding="UTF-8"?>
@@ -59,11 +65,13 @@ struct ItemDependencyTests {
         let plist = try agent()
         let report = try await run(plan(bootoutThenTrash(plist)))
 
-        let label = "com.example.helper.job"
-        guard case .failed = report.outcomes[0].result else {
+        guard case .failed(let error) = report.outcomes[0].result else {
             Issue.record("Expected the bootout to fail")
             return
         }
+        #expect(error.domain == "ShuckToolExit" && error.code == 5)
+        #expect(
+            root.launchctlCalls == calls(), "calls: \(root.launchctlCalls), results: \(report.outcomes.map(\.result))")
         #expect(report.outcomes[1].result == .skipped(.dependencyNotDone(label)))
         #expect(exists(plist))
         // Both items have an intent and a result record; the skip names what it needed.
@@ -71,7 +79,9 @@ struct ItemDependencyTests {
         #expect(records.map(\.operation) == [.launchctl, .launchctl, .trash, .trash])
         #expect(records.map(\.phase) == [.intent, .result, .intent, .result])
         #expect(records.compactMap(\.status) == [.failed, .skipped])
+        #expect(records[1].detail?.hasPrefix("bootout \(target): ") == true)
         #expect(records.last?.detail == "dependencyNotDone: \(label)")
+        #expect(records.last?.detail.flatMap(SkipCode.init(detail:)) == .dependencyNotDone)
     }
 
     @Test func anAgentThatIsNotLoadedIsStillTrashedAPP011() async throws {
@@ -81,6 +91,10 @@ struct ItemDependencyTests {
 
         #expect(report.outcomes.map(\.result.isDone) == [true, true])
         #expect(!exists(plist))
+        // Nothing is booted out, and the log says why.
+        #expect(root.launchctlCalls == ["print \(target)"])
+        let records = try records()
+        #expect(records[1].detail?.hasPrefix("not loaded") == true && records[1].status == .ok)
     }
 
     @Test func aBootoutThatWorksLetsThePlistBeTrashedAPP011() async throws {
@@ -90,6 +104,9 @@ struct ItemDependencyTests {
 
         #expect(report.outcomes.map(\.result.isDone) == [true, true])
         #expect(!exists(plist))
+        #expect(
+            root.launchctlCalls == ["print \(target)", "bootout \(target)"],
+            "calls: \(root.launchctlCalls), results: \(report.outcomes.map(\.result))")
         #expect(try records().compactMap(\.status) == [.ok, .ok])
     }
 
@@ -185,18 +202,5 @@ struct ItemDependencyTests {
             ]))
         #expect(report.outcomes.map(\.result.isDone) == [true, true])
         #expect(!exists(first) && !exists(second))
-    }
-
-    @Test func theSkipCodeIsStableAndReadsBack() {
-        let reason = ItemOutcome.SkipReason.dependencyNotDone("/x/Fixture.app")
-        #expect(reason.logged == "dependencyNotDone: /x/Fixture.app")
-        #expect(SkipCode(detail: reason.logged) == .dependencyNotDone)
-    }
-}
-
-extension ActionResult {
-    fileprivate var isDone: Bool {
-        if case .done = self { return true }
-        return false
     }
 }

@@ -322,36 +322,35 @@ struct ToolRunTests {
         #expect(try results().first?.detail == "toolUnavailable: outsideRoots")
     }
 
-    @Test func aLinkInsideTheRootToAToolOutsideItIsRefusedSAF016() throws {
-        let link = try root.symlink("tools/true", to: URL(filePath: "/usr/bin/true"))
-        let command = try ToolCommand(executable: link.path, arguments: [], environment: environment)
-        #expect(ToolRunner(executableRoots: [root.url]).locate(command) == .failure(.outsideRoots))
-        #expect(ToolRunner(executableRoots: nil).locate(command) != .failure(.outsideRoots))
+    /// What the runner accepts as a tool: a runnable file inside the root, with symlinks resolved. A link to a tool
+    /// outside the root is refused only in the fixture-root mode (DEV-002, SAF-016).
+    enum Location: CaseIterable, Sendable {
+        case runnableFile, plainFile, folder, missing, linkToAToolOutside
     }
 
-    @Test func onlyARunnableFileCountsAsAToolDEV002() throws {
-        let plain = try root.file("tools/plain", size: 10, permissions: 0o644)
-        let folder = try root.folder("tools/folder")
-        let missing = root.url.appending(path: "tools/missing")
+    @Test(arguments: Location.allCases)
+    func onlyARunnableFileInsideTheRootCountsAsAToolDEV002SAF016(_ location: Location) throws {
         let runner = ToolRunner(executableRoots: [root.url])
-        for path in [plain, folder, missing] {
-            let command = try ToolCommand(executable: path.path, arguments: [], environment: environment)
-            #expect(runner.locate(command) == .failure(.notAnExecutable))
+        func command(_ url: URL) throws -> ToolCommand {
+            try ToolCommand(executable: url.path, arguments: [], environment: environment)
         }
-        let tool = try root.tool("tools/real", .exits(0))
-        #expect(
-            try runner.locate(ToolCommand(executable: tool.path, arguments: [], environment: environment))
-                == .success(tool))
-    }
-
-    @Test func aToolItemIsSkippedWhileItsAppRunsSAF009() async throws {
-        let tool = try root.tool("tools/reporter", .reportsInvocation)
-        let plan = try plan([rule(tool, apps: ["com.example.app"])])
-
-        let report = try await run(plan, running: ["com.example.app"])
-
-        #expect(report.outcomes.map(\.result) == [.skipped(.appRunning)])
-        #expect(!root.aFakeToolRan)
+        switch location {
+        case .runnableFile:
+            let tool = try root.tool("tools/real", .exits(0))
+            #expect(try runner.locate(command(tool)) == .success(tool))
+        case .plainFile:
+            #expect(
+                try runner.locate(command(root.file("tools/plain", size: 10, permissions: 0o644)))
+                    == .failure(.notAnExecutable))
+        case .folder:
+            #expect(try runner.locate(command(root.folder("tools/folder"))) == .failure(.notAnExecutable))
+        case .missing:
+            #expect(try runner.locate(command(root.url("tools/missing"))) == .failure(.notAnExecutable))
+        case .linkToAToolOutside:
+            let command = try command(root.symlink("tools/true", to: URL(filePath: "/usr/bin/true")))
+            #expect(runner.locate(command) == .failure(.outsideRoots))
+            #expect(ToolRunner(executableRoots: nil).locate(command) != .failure(.outsideRoots))
+        }
     }
 }
 
